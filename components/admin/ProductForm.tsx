@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockCategories, ProductType } from '@/lib/admin-data';
+import { mockCategories, mockProducts, ProductType } from '@/lib/admin-data';
 import { cn } from '@/lib/utils';
 
 interface ChipInputProps {
@@ -91,16 +91,25 @@ export default function ProductForm({ productId }: { productId?: string }) {
   const router = useRouter();
   const isEdit = !!productId;
 
-  const initialType = (searchParams.get('type')?.toUpperCase() as ProductType) || 'CAKE';
+  // Find existing product when editing
+  const existingProduct = productId ? mockProducts.find((p) => p.id === productId) : null;
+
+  const initialType =
+    existingProduct?.type ??
+    ((searchParams.get('type')?.toUpperCase() as ProductType) || 'CAKE');
 
   const [productType, setProductType] = useState<ProductType>(initialType);
-  const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [category, setCategory] = useState('');
-  const [price, setPrice] = useState('');
-  const [active, setActive] = useState(true);
-  const [shortDesc, setShortDesc] = useState('');
-  const [fullDesc, setFullDesc] = useState('');
+  const [name, setName] = useState(existingProduct?.name ?? '');
+  const [slug, setSlug] = useState(existingProduct?.slug ?? '');
+  const [category, setCategory] = useState(() => {
+    if (!existingProduct) return '';
+    const cat = mockCategories.find((c) => c.name === existingProduct.category);
+    return cat?.id ?? '';
+  });
+  const [price, setPrice] = useState(existingProduct ? String(existingProduct.price) : '');
+  const [active, setActive] = useState(existingProduct ? existingProduct.status === 'ACTIVE' : true);
+  const [shortDesc, setShortDesc] = useState(existingProduct?.description?.slice(0, 80) ?? '');
+  const [fullDesc, setFullDesc] = useState(existingProduct?.description ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -118,20 +127,43 @@ export default function ProductForm({ productId }: { productId?: string }) {
   const [packagings, setPackagings] = useState<string[]>(['Bag']);
   const [origin, setOrigin] = useState('');
 
-  // Images
-  const [thumbnail, setThumbnail] = useState<string | null>(null);
+  // Images — pre-fill thumbnail from existing product
+  const [thumbnail, setThumbnail] = useState<string | null>(existingProduct?.thumbnail ?? null);
 
-  // Auto-slug
+  // Auto-slug only for new products (don't override slug when editing)
+  const [slugEdited, setSlugEdited] = useState(isEdit);
   useEffect(() => {
+    if (slugEdited) return;
     const s = name
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
     setSlug(s);
-  }, [name]);
+  }, [name, slugEdited]);
 
   const categories = mockCategories.filter((c) => c.type === productType);
+
+  // Not found guard for edit mode
+  if (isEdit && !existingProduct) {
+    return (
+      <div className='flex flex-col items-center justify-center py-24 text-center'>
+        <div className='w-14 h-14 bg-muted rounded-xl flex items-center justify-center mb-4'>
+          <X size={24} className='text-muted-foreground' />
+        </div>
+        <h2 className='font-serif text-lg font-semibold text-foreground mb-1'>Product not found</h2>
+        <p className='text-xs text-muted-foreground mb-4'>
+          The product you are trying to edit does not exist.
+        </p>
+        <button
+          onClick={() => router.back()}
+          className='text-xs text-primary underline underline-offset-4'
+        >
+          Go back
+        </button>
+      </div>
+    );
+  }
 
   const handleSave = async (publish = true) => {
     setSaving(true);
@@ -216,7 +248,10 @@ export default function ProductForm({ productId }: { productId?: string }) {
               className='h-9 text-sm mt-1.5 font-mono'
               placeholder='product-slug'
               value={slug}
-              onChange={(e) => setSlug(e.target.value)}
+              onChange={(e) => {
+                setSlugEdited(true);
+                setSlug(e.target.value);
+              }}
             />
           </div>
 
