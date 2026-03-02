@@ -4,7 +4,7 @@ import { use, useRef, useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronLeft, Printer, XCircle } from 'lucide-react';
+import { ChevronLeft, Printer, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -24,27 +24,29 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  mockOrders,
-  Order,
-  OrderStatus,
   formatVND,
   ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
 } from '@/lib/admin-data';
-import { cn } from '@/lib/utils';
+import { useOrder, useUpdateOrder } from '@/hooks/admin/use-orders';
+import type { OrderStatus } from '@/types/api.types';
 
 const NEXT_STATUSES: Partial<Record<OrderStatus, OrderStatus[]>> = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['PREPARING', 'CANCELLED'],
-  PREPARING: ['READY'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED'],
+  PROCESSING: ['READY'],
   READY: ['COMPLETED'],
 };
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function OrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
-  const [order, setOrder] = useState<Order | null>(
-    mockOrders.find((o) => o.id === id) ?? null,
-  );
+  const { data: order, isLoading, error } = useOrder(id);
+  const updateMutation = useUpdateOrder();
+
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -60,7 +62,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>Order ${order.orderCode}</title>
+          <title>Order ${order.orderNumber}</title>
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; color: #1a1a1a; padding: 32px; }
@@ -77,7 +79,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             th { text-align: left; font-size: 11px; color: #888; font-weight: 500; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
             td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; vertical-align: middle; }
             .item-name { font-weight: 600; }
-            .item-opts { font-size: 11px; color: #888; margin-top: 2px; }
             .totals { width: 280px; margin-left: auto; margin-top: 16px; }
             .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
             .total-row.grand { font-size: 15px; font-weight: 700; border-top: 2px solid #1a1a1a; padding-top: 10px; margin-top: 6px; }
@@ -96,7 +97,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }, 300);
   };
 
-  if (!order) {
+  if (isLoading) {
+    return (
+      <AdminShell title='Order'>
+        <div className='flex items-center justify-center min-h-100'>
+          <Loader2 className='w-8 h-8 animate-spin text-primary' />
+        </div>
+      </AdminShell>
+    );
+  }
+
+  if (error || !order) {
     return (
       <AdminShell title='Order Not Found'>
         <div className='text-center py-20'>
@@ -113,15 +124,35 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const nextStatuses = NEXT_STATUSES[order.status] ?? [];
 
-  const handleUpdateStatus = () => {
+  const handleUpdateStatus = async () => {
     if (selectedStatus) {
-      setOrder((prev) => prev && { ...prev, status: selectedStatus as OrderStatus });
+      await updateMutation.mutateAsync({
+        id: order.id,
+        data: { status: selectedStatus as OrderStatus },
+      });
       setSelectedStatus('');
     }
   };
 
+  const handleCancel = async () => {
+    await updateMutation.mutateAsync({
+      id: order.id,
+      data: { status: 'CANCELLED', notes: cancelReason },
+    });
+    setCancelOpen(false);
+    setCancelReason('');
+  };
+
+  const createdDate = new Date(order.createdAt).toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
   return (
-    <AdminShell title={order.orderCode}>
+    <AdminShell title={order.orderNumber}>
       {/* Header */}
       <div className='flex items-center gap-3 mb-6'>
         <Link href='/admin/orders'>
@@ -132,7 +163,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <div className='flex-1'>
           <div className='flex items-center gap-3 flex-wrap'>
             <h1 className='font-serif text-xl font-semibold text-foreground'>
-              {order.orderCode}
+              {order.orderNumber}
             </h1>
             <span
               className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${ORDER_STATUS_COLORS[order.status]}`}
@@ -140,7 +171,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               {ORDER_STATUS_LABELS[order.status]}
             </span>
           </div>
-          <p className='text-xs text-muted-foreground mt-0.5'>Created {order.createdAt}</p>
+          <p className='text-xs text-muted-foreground mt-0.5'>
+            Created {createdDate}
+          </p>
         </div>
         <Button
           variant='outline'
@@ -160,106 +193,73 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <div className='bg-card rounded-xl border border-border shadow-sm'>
             <div className='px-5 py-4 border-b border-border'>
               <p className='text-sm font-semibold text-foreground'>
-                Items ({order.items.length})
+                Items ({order.orderItems.length})
               </p>
             </div>
             <div className='divide-y divide-border'>
-              {order.items.map((item) => (
+              {order.orderItems.map((item) => (
                 <div key={item.id} className='flex gap-3 px-5 py-4'>
                   <div className='w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-muted'>
-                    <Image
-                      src={item.thumbnail}
-                      alt={item.name}
-                      width={48}
-                      height={48}
-                      className='w-full h-full object-cover'
-                    />
-                  </div>
-                  <div className='flex-1 min-w-0'>
-                    <p className='text-xs font-semibold text-foreground'>{item.name}</p>
-                    <p className='text-[10px] text-muted-foreground mt-0.5'>
-                      Qty: {item.quantity} · {formatVND(item.unitPrice)} each
-                    </p>
-                    {item.options && Object.keys(item.options).length > 0 && (
-                      <div className='flex flex-wrap gap-1 mt-1.5'>
-                        {Object.entries(item.options).map(([k, v]) => (
-                          <span
-                            key={k}
-                            className='inline-flex items-center px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground'
-                          >
-                            {k}: {v}
-                          </span>
-                        ))}
+                    {item.product?.imageUrl ? (
+                      <Image
+                        src={item.product.imageUrl}
+                        alt={item.product.name}
+                        width={48}
+                        height={48}
+                        className='w-full h-full object-cover'
+                      />
+                    ) : (
+                      <div className='w-full h-full bg-muted flex items-center justify-center text-muted-foreground text-xs'>
+                        N/A
                       </div>
                     )}
                   </div>
+                  <div className='flex-1 min-w-0'>
+                    <p className='text-xs font-semibold text-foreground'>
+                      {item.product?.name || item.name}
+                    </p>
+                    <p className='text-[10px] text-muted-foreground mt-0.5'>
+                      Qty: {item.quantity} · {formatVND(Number(item.price))}{' '}
+                      each
+                    </p>
+                  </div>
                   <p className='text-xs font-semibold text-foreground shrink-0'>
-                    {formatVND(item.unitPrice * item.quantity)}
+                    {formatVND(Number(item.subtotal))}
                   </p>
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Customer & Fulfillment */}
-          <div className='bg-card rounded-xl border border-border shadow-sm'>
-            <div className='px-5 py-4 border-b border-border'>
-              <p className='text-sm font-semibold text-foreground'>Customer & Fulfillment</p>
-            </div>
-            <div className='px-5 py-4 grid sm:grid-cols-2 gap-4'>
-              <div className='space-y-3'>
-                <div>
-                  <p className='text-[10px] text-muted-foreground uppercase tracking-wide font-medium'>
-                    Customer
-                  </p>
-                  <p className='text-xs font-medium text-foreground mt-0.5'>
-                    {order.customerName}
-                  </p>
-                  <p className='text-xs text-muted-foreground'>{order.phone}</p>
-                </div>
-                {order.note && (
-                  <div>
-                    <p className='text-[10px] text-muted-foreground uppercase tracking-wide font-medium'>
-                      Note
-                    </p>
-                    <p className='text-xs text-foreground mt-0.5'>{order.note}</p>
-                  </div>
-                )}
-              </div>
-              <div className='space-y-3'>
-                <div>
-                  <p className='text-[10px] text-muted-foreground uppercase tracking-wide font-medium'>
-                    Fulfillment
-                  </p>
-                  <span
-                    className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border mt-1',
-                      order.fulfillment === 'PICKUP'
-                        ? 'bg-blue-50 text-blue-700 border-blue-200'
-                        : 'bg-orange-50 text-orange-700 border-orange-200',
-                    )}
-                  >
-                    {order.fulfillment}
+            {/* Totals */}
+            <div className='px-5 py-4 border-t border-border bg-muted/30'>
+              <div className='max-w-xs ml-auto space-y-1.5'>
+                <div className='flex justify-between text-xs'>
+                  <span className='text-muted-foreground'>Subtotal</span>
+                  <span className='text-foreground'>
+                    {formatVND(Number(order.subtotal))}
                   </span>
                 </div>
-                {order.pickupAt && (
-                  <div>
-                    <p className='text-[10px] text-muted-foreground uppercase tracking-wide font-medium'>
-                      Pickup At
-                    </p>
-                    <p className='text-xs font-medium text-foreground mt-0.5'>
-                      {order.pickupAt}
-                    </p>
+                {Number(order.deliveryFee) > 0 && (
+                  <div className='flex justify-between text-xs'>
+                    <span className='text-muted-foreground'>Delivery Fee</span>
+                    <span className='text-foreground'>
+                      {formatVND(Number(order.deliveryFee))}
+                    </span>
                   </div>
                 )}
-                {order.address && (
-                  <div>
-                    <p className='text-[10px] text-muted-foreground uppercase tracking-wide font-medium'>
-                      Address
-                    </p>
-                    <p className='text-xs text-foreground mt-0.5'>{order.address}</p>
+                {Number(order.discount) > 0 && (
+                  <div className='flex justify-between text-xs'>
+                    <span className='text-muted-foreground'>Discount</span>
+                    <span className='text-green-600'>
+                      -{formatVND(Number(order.discount))}
+                    </span>
                   </div>
                 )}
+                <div className='flex justify-between text-sm font-semibold pt-2 border-t border-border'>
+                  <span className='text-foreground'>Total</span>
+                  <span className='text-primary'>
+                    {formatVND(Number(order.total))}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -267,100 +267,131 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Right column */}
         <div className='space-y-4'>
-          {/* Summary */}
-          <div className='bg-card rounded-xl border border-border shadow-sm'>
-            <div className='px-5 py-4 border-b border-border'>
-              <p className='text-sm font-semibold text-foreground'>Order Summary</p>
-            </div>
-            <div className='px-5 py-4 space-y-2.5'>
-              <div className='flex justify-between'>
-                <span className='text-xs text-muted-foreground'>Subtotal</span>
-                <span className='text-xs font-medium text-foreground'>
-                  {formatVND(order.subtotal)}
-                </span>
+          {/* Customer Info */}
+          <div className='bg-card rounded-xl border border-border shadow-sm p-5'>
+            <h2 className='text-sm font-semibold text-foreground mb-3 pb-2 border-b border-border'>
+              Customer
+            </h2>
+            <div className='space-y-2.5'>
+              <div>
+                <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                  Name
+                </p>
+                <p className='text-xs text-foreground font-medium'>
+                  {order.customerName}
+                </p>
               </div>
-              {order.discount > 0 && (
-                <div className='flex justify-between'>
-                  <span className='text-xs text-muted-foreground'>Discount</span>
-                  <span className='text-xs font-medium text-emerald-600'>
-                    -{formatVND(order.discount)}
-                  </span>
+              <div>
+                <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                  Phone
+                </p>
+                <p className='text-xs text-foreground'>{order.customerPhone}</p>
+              </div>
+              {order.customerEmail && (
+                <div>
+                  <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                    Email
+                  </p>
+                  <p className='text-xs text-foreground'>
+                    {order.customerEmail}
+                  </p>
                 </div>
               )}
-              <div className='flex justify-between pt-2 border-t border-border'>
-                <span className='text-xs font-semibold text-foreground'>Total</span>
-                <span className='text-sm font-bold text-foreground'>
-                  {formatVND(order.total)}
-                </span>
+              {order.customerAddress && (
+                <div>
+                  <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                    Address
+                  </p>
+                  <p className='text-xs text-foreground'>
+                    {order.customerAddress}
+                  </p>
+                </div>
+              )}
+              {order.customerNote && (
+                <div>
+                  <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                    Note
+                  </p>
+                  <p className='text-xs text-foreground italic'>
+                    {order.customerNote}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Payment Info */}
+          <div className='bg-card rounded-xl border border-border shadow-sm p-5'>
+            <h2 className='text-sm font-semibold text-foreground mb-3 pb-2 border-b border-border'>
+              Payment
+            </h2>
+            <div className='space-y-2.5'>
+              <div>
+                <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                  Method
+                </p>
+                <p className='text-xs text-foreground font-medium'>
+                  {order.paymentMethod || 'N/A'}
+                </p>
               </div>
-              <div className='flex justify-between pt-2'>
-                <span className='text-xs text-muted-foreground'>Payment</span>
-                <span className='text-xs font-medium text-foreground'>
-                  {order.paymentMethod}
-                </span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-xs text-muted-foreground'>Paid</span>
-                <span
-                  className={cn(
-                    'text-xs font-medium',
-                    order.paid ? 'text-emerald-600' : 'text-amber-600',
-                  )}
-                >
-                  {order.paid ? 'Yes' : 'No'}
-                </span>
+              <div>
+                <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                  Status
+                </p>
+                <p className='text-xs text-foreground'>
+                  {order.paymentStatus || 'N/A'}
+                </p>
               </div>
             </div>
           </div>
 
           {/* Actions */}
-          {(nextStatuses.length > 0 || order.status !== 'CANCELLED') && (
-            <div className='bg-card rounded-xl border border-border shadow-sm'>
-              <div className='px-5 py-4 border-b border-border'>
-                <p className='text-sm font-semibold text-foreground'>Actions</p>
-              </div>
-              <div className='px-5 py-4 space-y-3'>
-                {nextStatuses.length > 0 && (
-                  <>
-                    <div>
-                      <p className='text-[10px] text-muted-foreground mb-1.5 font-medium uppercase tracking-wide'>
-                        Update Status
-                      </p>
-                      <Select
-                        value={selectedStatus}
-                        onValueChange={(v) => setSelectedStatus(v as OrderStatus)}
-                      >
-                        <SelectTrigger className='h-8 text-xs'>
-                          <SelectValue placeholder='Select new status...' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {nextStatuses.map((s) => (
-                            <SelectItem key={s} value={s} className='text-xs'>
-                              {ORDER_STATUS_LABELS[s]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      size='sm'
-                      className='w-full h-8 text-xs'
-                      disabled={!selectedStatus}
-                      onClick={handleUpdateStatus}
-                    >
-                      Confirm Update
-                    </Button>
-                  </>
-                )}
-
-                {order.status !== 'CANCELLED' && order.status !== 'COMPLETED' && (
+          {nextStatuses.length > 0 && (
+            <div className='bg-card rounded-xl border border-border shadow-sm p-5'>
+              <h2 className='text-sm font-semibold text-foreground mb-3 pb-2 border-b border-border'>
+                Update Status
+              </h2>
+              <div className='space-y-3'>
+                <Select
+                  value={selectedStatus}
+                  onValueChange={(v) => setSelectedStatus(v as OrderStatus)}
+                >
+                  <SelectTrigger className='h-9 text-xs'>
+                    <SelectValue placeholder='Select new status' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nextStatuses
+                      .filter((s) => s !== 'CANCELLED')
+                      .map((status) => (
+                        <SelectItem
+                          key={status}
+                          value={status}
+                          className='text-xs'
+                        >
+                          {ORDER_STATUS_LABELS[status]}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size='sm'
+                  className='w-full h-8 text-xs'
+                  onClick={handleUpdateStatus}
+                  disabled={!selectedStatus || updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? (
+                    <Loader2 className='w-3 h-3 animate-spin' />
+                  ) : (
+                    'Update Status'
+                  )}
+                </Button>
+                {nextStatuses.includes('CANCELLED') && (
                   <Button
                     variant='outline'
                     size='sm'
-                    className='w-full h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 gap-1.5'
+                    className='w-full h-8 text-xs text-destructive hover:text-destructive'
                     onClick={() => setCancelOpen(true)}
                   >
-                    <XCircle size={12} />
                     Cancel Order
                   </Button>
                 )}
@@ -370,139 +401,128 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Hidden print template */}
-      <div ref={printRef} style={{ display: 'none' }}>
-        <div className='header'>
-          <div>
-            <h1>{order.orderCode}</h1>
-            <div className='brand'>La Douceur Bakery &mdash; Admin Order Receipt</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div className='label'>Status</div>
+      {/* Print template (hidden) */}
+      <div className='hidden'>
+        <div ref={printRef}>
+          <div className='header'>
+            <div>
+              <h1>{order.orderNumber}</h1>
+              <div className='brand'>Bakery Shop</div>
+            </div>
             <span className='badge'>{ORDER_STATUS_LABELS[order.status]}</span>
-            <div className='label' style={{ marginTop: 8 }}>Created</div>
-            <div className='value'>{order.createdAt}</div>
           </div>
-        </div>
-
-        <div className='grid-2'>
-          <div>
-            <h2>Customer</h2>
-            <div className='label'>Name</div>
-            <div className='value'>{order.customerName}</div>
-            <div className='label' style={{ marginTop: 8 }}>Phone</div>
-            <div className='value'>{order.phone}</div>
-            {order.note && (
-              <>
-                <div className='label' style={{ marginTop: 8 }}>Note</div>
-                <div className='value'>{order.note}</div>
-              </>
-            )}
-          </div>
-          <div>
-            <h2>Fulfillment</h2>
-            <div className='label'>Type</div>
-            <div className='value'>{order.fulfillment}</div>
-            {order.pickupAt && (
-              <>
-                <div className='label' style={{ marginTop: 8 }}>Pickup At</div>
-                <div className='value'>{order.pickupAt}</div>
-              </>
-            )}
-            {order.address && (
-              <>
-                <div className='label' style={{ marginTop: 8 }}>Address</div>
-                <div className='value'>{order.address}</div>
-              </>
-            )}
-            <div className='label' style={{ marginTop: 8 }}>Payment</div>
-            <div className='value'>
-              {order.paymentMethod} &mdash; {order.paid ? 'Paid' : 'Unpaid'}
-            </div>
-          </div>
-        </div>
-
-        <div className='section'>
-          <h2>Items</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th style={{ textAlign: 'center' }}>Qty</th>
-                <th style={{ textAlign: 'right' }}>Unit Price</th>
-                <th style={{ textAlign: 'right' }}>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.items.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <div className='item-name'>{item.name}</div>
-                    {item.options && Object.keys(item.options).length > 0 && (
-                      <div className='item-opts'>
-                        {Object.entries(item.options)
-                          .map(([k, v]) => `${k}: ${v}`)
-                          .join(' · ')}
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ textAlign: 'center' }}>{item.quantity}</td>
-                  <td style={{ textAlign: 'right' }}>{formatVND(item.unitPrice)}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    {formatVND(item.unitPrice * item.quantity)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className='totals'>
-            <div className='total-row'>
-              <span>Subtotal</span>
-              <span>{formatVND(order.subtotal)}</span>
-            </div>
-            {order.discount > 0 && (
-              <div className='total-row' style={{ color: '#059669' }}>
-                <span>Discount</span>
-                <span>-{formatVND(order.discount)}</span>
+          <div className='grid-2'>
+            <div className='section'>
+              <h2>Customer</h2>
+              <div>
+                <div className='label'>Name</div>
+                <div className='value'>{order.customerName}</div>
               </div>
-            )}
-            <div className='total-row grand'>
-              <span>Total</span>
-              <span>{formatVND(order.total)}</span>
+              <div style={{ marginTop: 8 }}>
+                <div className='label'>Phone</div>
+                <div className='value'>{order.customerPhone}</div>
+              </div>
+              {order.customerAddress && (
+                <div style={{ marginTop: 8 }}>
+                  <div className='label'>Address</div>
+                  <div className='value'>{order.customerAddress}</div>
+                </div>
+              )}
+            </div>
+            <div className='section'>
+              <h2>Order Info</h2>
+              <div>
+                <div className='label'>Date</div>
+                <div className='value'>{createdDate}</div>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <div className='label'>Payment</div>
+                <div className='value'>{order.paymentMethod || 'N/A'}</div>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className='footer'>
-          Printed by La Douceur Admin &mdash; {new Date().toLocaleString('vi-VN')}
+          <div className='section'>
+            <h2>Items</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th style={{ width: 60 }}>Qty</th>
+                  <th style={{ width: 100, textAlign: 'right' }}>Price</th>
+                  <th style={{ width: 100, textAlign: 'right' }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.orderItems.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <div className='item-name'>
+                        {item.product?.name || item.name}
+                      </div>
+                    </td>
+                    <td>{item.quantity}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {formatVND(Number(item.price))}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {formatVND(Number(item.subtotal))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className='totals'>
+              <div className='total-row'>
+                <span>Subtotal</span>
+                <span>{formatVND(Number(order.subtotal))}</span>
+              </div>
+              {Number(order.deliveryFee) > 0 && (
+                <div className='total-row'>
+                  <span>Delivery</span>
+                  <span>{formatVND(Number(order.deliveryFee))}</span>
+                </div>
+              )}
+              {Number(order.discount) > 0 && (
+                <div className='total-row'>
+                  <span>Discount</span>
+                  <span>-{formatVND(Number(order.discount))}</span>
+                </div>
+              )}
+              <div className='total-row grand'>
+                <span>Total</span>
+                <span>{formatVND(Number(order.total))}</span>
+              </div>
+            </div>
+          </div>
+          <div className='footer'>Thank you for your order! • Bakery Shop</div>
         </div>
       </div>
 
-      {/* Cancel dialog */}
+      {/* Cancel Dialog */}
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className='font-serif text-base'>Cancel Order?</AlertDialogTitle>
+            <AlertDialogTitle className='text-base'>
+              Cancel Order?
+            </AlertDialogTitle>
             <AlertDialogDescription className='text-xs'>
-              Please provide a reason for cancelling this order. This cannot be undone.
+              This action cannot be undone. Please provide a reason:
             </AlertDialogDescription>
           </AlertDialogHeader>
           <textarea
-            className='w-full border border-border rounded-lg p-2.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring bg-background'
-            rows={3}
+            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20'
             placeholder='Reason for cancellation...'
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
           />
           <AlertDialogFooter>
-            <AlertDialogCancel className='text-xs h-8'>Back</AlertDialogCancel>
+            <AlertDialogCancel className='h-8 text-xs'>
+              Keep Order
+            </AlertDialogCancel>
             <AlertDialogAction
-              className='text-xs h-8 bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-              onClick={() => {
-                setOrder((prev) => prev && { ...prev, status: 'CANCELLED' });
-                setCancelOpen(false);
-              }}
+              className='h-8 text-xs bg-destructive hover:bg-destructive/90'
+              onClick={handleCancel}
+              disabled={updateMutation.isPending}
             >
               Cancel Order
             </AlertDialogAction>

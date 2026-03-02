@@ -72,24 +72,30 @@ export interface OrderItem {
   id: string;
   orderId: string;
   productId: string;
-  product: Product;
+  name: string;
+  product?: Product;
   quantity: number;
   price: number;
-  total: number;
+  subtotal: number;
 }
 
 export interface Order {
   id: string;
   orderNumber: string;
-  userId: string;
+  userId: string | null;
   user?: User;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+  customerAddress: string | null;
+  customerNote: string | null;
   status: OrderStatus;
   subtotal: number;
+  deliveryFee: number;
   discount: number;
   total: number;
-  notes: string | null;
-  shippingAddress: string | null;
-  shippingPhone: string | null;
+  paymentMethod: string | null;
+  paymentStatus: string | null;
   orderItems: OrderItem[];
   createdAt: string;
   updatedAt: string;
@@ -121,31 +127,31 @@ export interface Customer extends User {
 // ============================================================================
 
 export interface DashboardStats {
-  todayOrders: number;
-  todayRevenue: number;
-  pendingOrders: number;
-  totalCustomers: number;
+  kpi: {
+    todayOrders: number;
+    todayRevenue: number;
+    pendingOrders: number;
+    totalCustomers: number;
+    totalProducts: number;
+  };
   chartData: Array<{
-    date: string;
+    day: string;
     orders: number;
     revenue: number;
   }>;
   topProducts: Array<{
-    id: string;
-    name: string;
-    totalSold: number;
-    revenue: number;
+    productId: string;
+    _sum: { quantity: number };
+    product?: { id: string; name: string };
   }>;
   recentOrders: Array<{
     id: string;
     orderNumber: string;
+    customerName: string;
     total: number;
     status: OrderStatus;
     createdAt: string;
-    user: {
-      name: string | null;
-      email: string;
-    };
+    itemsCount: number;
   }>;
 }
 
@@ -288,6 +294,7 @@ export interface ProductsQueryParams extends PaginationParams {
 export interface OrdersQueryParams extends PaginationParams {
   status?: OrderStatus;
   userId?: string;
+  search?: string;
 }
 
 export interface CustomersQueryParams extends PaginationParams {

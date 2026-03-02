@@ -10,8 +10,6 @@ import {
   Image,
   Users,
   Settings,
-  ChefHat,
-  FlaskConical,
   X,
   Crown,
 } from 'lucide-react';
@@ -34,10 +32,6 @@ const navItems: NavItem[] = [
     label: 'Products',
     href: '/admin/products',
     icon: <ShoppingBag size={16} />,
-    children: [
-      { label: 'Cakes', href: '/admin/products/cakes', icon: <ChefHat size={14} /> },
-      { label: 'Ingredients', href: '/admin/products/ingredients', icon: <FlaskConical size={14} /> },
-    ],
   },
   {
     label: 'Categories',
@@ -156,8 +150,12 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
             A
           </div>
           <div className='flex-1 min-w-0'>
-            <p className='text-xs font-medium text-sidebar-foreground truncate'>Admin</p>
-            <p className='text-[10px] text-muted-foreground truncate'>admin@ladouceur.vn</p>
+            <p className='text-xs font-medium text-sidebar-foreground truncate'>
+              Admin
+            </p>
+            <p className='text-[10px] text-muted-foreground truncate'>
+              admin@ladouceur.vn
+            </p>
           </div>
         </div>
       </div>

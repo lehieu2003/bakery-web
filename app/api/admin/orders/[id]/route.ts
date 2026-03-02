@@ -30,7 +30,7 @@ export async function GET(
             memberLevel: true,
           },
         },
-        items: {
+        orderItems: {
           include: {
             product: {
               select: {

@@ -33,7 +33,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { mockProducts, mockCategories, Product, ProductType, formatVND } from '@/lib/admin-data';
+import {
+  mockProducts,
+  mockCategories,
+  Product,
+  ProductType,
+  formatVND,
+} from '@/lib/admin-data';
 import { cn } from '@/lib/utils';
 
 interface ProductListViewProps {
@@ -57,20 +63,28 @@ export default function ProductListView({ type, title }: ProductListViewProps) {
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.slug.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'ALL' || p.status === statusFilter;
-    const matchCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
+    const matchCategory =
+      categoryFilter === 'ALL' || p.category === categoryFilter;
     return matchSearch && matchStatus && matchCategory;
   });
 
-  const allSelected = filtered.length > 0 && filtered.every((p) => selectedIds.includes(p.id));
+  const allSelected =
+    filtered.length > 0 && filtered.every((p) => selectedIds.includes(p.id));
   const toggleAll = () => {
     if (allSelected) {
-      setSelectedIds((ids) => ids.filter((id) => !filtered.find((p) => p.id === id)));
+      setSelectedIds((ids) =>
+        ids.filter((id) => !filtered.find((p) => p.id === id)),
+      );
     } else {
-      setSelectedIds((ids) => [...new Set([...ids, ...filtered.map((p) => p.id)])]);
+      setSelectedIds((ids) => [
+        ...new Set([...ids, ...filtered.map((p) => p.id)]),
+      ]);
     }
   };
   const toggleOne = (id: string) => {
-    setSelectedIds((ids) => (ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]));
+    setSelectedIds((ids) =>
+      ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id],
+    );
   };
 
   return (
@@ -78,7 +92,9 @@ export default function ProductListView({ type, title }: ProductListViewProps) {
       {/* Header */}
       <div className='flex items-center justify-between mb-6'>
         <div>
-          <h1 className='font-serif text-xl font-semibold text-foreground'>{title}</h1>
+          <h1 className='font-serif text-xl font-semibold text-foreground'>
+            {title}
+          </h1>
           <p className='text-xs text-muted-foreground mt-0.5'>
             {filtered.length} product{filtered.length !== 1 ? 's' : ''} found
           </p>
@@ -138,7 +154,10 @@ export default function ProductListView({ type, title }: ProductListViewProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end' className='w-44'>
             <DropdownMenuItem
-              className={cn('text-xs', categoryFilter === 'ALL' && 'font-semibold')}
+              className={cn(
+                'text-xs',
+                categoryFilter === 'ALL' && 'font-semibold',
+              )}
               onClick={() => setCategoryFilter('ALL')}
             >
               All Categories
@@ -147,7 +166,10 @@ export default function ProductListView({ type, title }: ProductListViewProps) {
             {categories.map((c) => (
               <DropdownMenuItem
                 key={c.id}
-                className={cn('text-xs', categoryFilter === c.name && 'font-semibold')}
+                className={cn(
+                  'text-xs',
+                  categoryFilter === c.name && 'font-semibold',
+                )}
                 onClick={() => setCategoryFilter(c.name)}
               >
                 {c.name}
@@ -188,7 +210,9 @@ export default function ProductListView({ type, title }: ProductListViewProps) {
           <div className='w-12 h-12 bg-muted rounded-xl flex items-center justify-center mx-auto mb-3'>
             <Search size={20} className='text-muted-foreground' />
           </div>
-          <p className='text-sm font-medium text-foreground mb-1'>No products found</p>
+          <p className='text-sm font-medium text-foreground mb-1'>
+            No products found
+          </p>
           <p className='text-xs text-muted-foreground mb-4'>
             Try adjusting your filters or add your first product.
           </p>
@@ -248,13 +272,18 @@ export default function ProductListView({ type, title }: ProductListViewProps) {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className='font-serif text-base'>Delete Product?</AlertDialogTitle>
+            <AlertDialogTitle className='font-serif text-base'>
+              Delete Product?
+            </AlertDialogTitle>
             <AlertDialogDescription className='text-xs'>
-              This action cannot be undone. The product will be permanently removed.
+              This action cannot be undone. The product will be permanently
+              removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className='text-xs h-8'>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className='text-xs h-8'>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className='text-xs h-8 bg-destructive hover:bg-destructive/90 text-destructive-foreground'
               onClick={() => setDeleteId(null)}
@@ -280,7 +309,12 @@ function ProductRow({
   onDelete: () => void;
 }) {
   return (
-    <tr className={cn('hover:bg-muted/20 transition-colors', selected && 'bg-primary/5')}>
+    <tr
+      className={cn(
+        'hover:bg-muted/20 transition-colors',
+        selected && 'bg-primary/5',
+      )}
+    >
       <td className='px-4 py-3'>
         <Checkbox
           checked={selected}
@@ -300,16 +334,24 @@ function ProductRow({
             />
           </div>
           <div>
-            <p className='text-xs font-medium text-foreground line-clamp-1'>{product.name}</p>
-            <p className='text-[10px] text-muted-foreground mt-0.5'>{product.slug}</p>
+            <p className='text-xs font-medium text-foreground line-clamp-1'>
+              {product.name}
+            </p>
+            <p className='text-[10px] text-muted-foreground mt-0.5'>
+              {product.slug}
+            </p>
           </div>
         </div>
       </td>
       <td className='px-3 py-3 hidden md:table-cell'>
-        <span className='text-xs text-muted-foreground'>{product.category}</span>
+        <span className='text-xs text-muted-foreground'>
+          {product.category}
+        </span>
       </td>
       <td className='px-3 py-3 hidden sm:table-cell'>
-        <span className='text-xs font-medium text-foreground'>{formatVND(product.price)}</span>
+        <span className='text-xs font-medium text-foreground'>
+          {formatVND(product.price)}
+        </span>
       </td>
       <td className='px-3 py-3'>
         <span
@@ -324,7 +366,9 @@ function ProductRow({
         </span>
       </td>
       <td className='px-3 py-3 hidden lg:table-cell'>
-        <span className='text-[10px] text-muted-foreground'>{product.updatedAt}</span>
+        <span className='text-[10px] text-muted-foreground'>
+          {product.updatedAt}
+        </span>
       </td>
       <td className='px-3 py-3'>
         <DropdownMenu>

@@ -30,10 +30,8 @@ export const ordersService = {
    * Get single order by ID
    */
   getById: async (id: string) => {
-    const response = await http.get<{ order: Order }>(
-      ENDPOINTS.ADMIN.ORDERS.DETAIL(id),
-    );
-    return response.data!.order;
+    const response = await http.get<Order>(ENDPOINTS.ADMIN.ORDERS.DETAIL(id));
+    return response.data!;
   },
 
   /**
