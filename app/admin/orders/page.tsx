@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
 import Link from 'next/link';
-import { Search, Filter, ChevronDown, Eye } from 'lucide-react';
+import { Search, Filter, ChevronDown, Eye, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -22,6 +22,68 @@ import {
   ORDER_STATUS_LABELS,
 } from '@/lib/admin-data';
 import { cn } from '@/lib/utils';
+
+function exportOrdersToCSV(orders: Order[]) {
+  const headers = [
+    'Order Code',
+    'Customer Name',
+    'Phone',
+    'Status',
+    'Fulfillment',
+    'Payment Method',
+    'Paid',
+    'Subtotal (VND)',
+    'Discount (VND)',
+    'Total (VND)',
+    'Pickup At',
+    'Address',
+    'Note',
+    'Created At',
+    'Items',
+  ];
+
+  const rows = orders.map((o) => {
+    const itemsSummary = o.items
+      .map((i) => `${i.name} x${i.quantity}`)
+      .join(' | ');
+    return [
+      o.orderCode,
+      o.customerName,
+      o.phone,
+      ORDER_STATUS_LABELS[o.status],
+      o.fulfillment,
+      o.paymentMethod,
+      o.paid ? 'Yes' : 'No',
+      o.subtotal,
+      o.discount,
+      o.total,
+      o.pickupAt ?? '',
+      o.address ?? '',
+      o.note ?? '',
+      o.createdAt,
+      itemsSummary,
+    ];
+  });
+
+  const escape = (val: string | number) => {
+    const s = String(val);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  };
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map(escape).join(','))
+    .join('\n');
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `orders_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const ALL_STATUSES: OrderStatus[] = [
   'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED', 'PAID',
@@ -54,8 +116,17 @@ export default function OrdersPage() {
             {filtered.length} order{filtered.length !== 1 ? 's' : ''} found
           </p>
         </div>
-        <Button variant='outline' size='sm' className='h-8 text-xs gap-1.5'>
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-8 text-xs gap-1.5'
+          onClick={() => exportOrdersToCSV(filtered)}
+        >
+          <Download size={12} />
           Export CSV
+          {filtered.length !== mockOrders.length && (
+            <span className='ml-0.5 text-muted-foreground'>({filtered.length})</span>
+          )}
         </Button>
       </div>
 

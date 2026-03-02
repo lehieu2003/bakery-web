@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useRef, useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -48,6 +48,53 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = () => {
+    if (!order) return;
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) return;
+    const content = printRef.current?.innerHTML ?? '';
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Order ${order.orderCode}</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; color: #1a1a1a; padding: 32px; }
+            h1 { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+            h2 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 2px solid #1a1a1a; margin-bottom: 24px; }
+            .brand { font-size: 11px; color: #888; margin-top: 4px; }
+            .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid currentColor; }
+            .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+            .section { margin-bottom: 24px; }
+            .label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+            .value { font-size: 13px; color: #1a1a1a; }
+            table { width: 100%; border-collapse: collapse; }
+            th { text-align: left; font-size: 11px; color: #888; font-weight: 500; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
+            td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; vertical-align: middle; }
+            .item-name { font-weight: 600; }
+            .item-opts { font-size: 11px; color: #888; margin-top: 2px; }
+            .totals { width: 280px; margin-left: auto; margin-top: 16px; }
+            .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+            .total-row.grand { font-size: 15px; font-weight: 700; border-top: 2px solid #1a1a1a; padding-top: 10px; margin-top: 6px; }
+            .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #aaa; border-top: 1px dashed #ddd; padding-top: 16px; }
+            @media print { body { padding: 20px; } }
+          </style>
+        </head>
+        <body>${content}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 300);
+  };
 
   if (!order) {
     return (
@@ -95,7 +142,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </div>
           <p className='text-xs text-muted-foreground mt-0.5'>Created {order.createdAt}</p>
         </div>
-        <Button variant='outline' size='sm' className='h-8 text-xs gap-1.5 hidden sm:flex'>
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-8 text-xs gap-1.5 hidden sm:flex'
+          onClick={handlePrint}
+        >
           <Printer size={12} />
           Print
         </Button>
@@ -315,6 +367,115 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Hidden print template */}
+      <div ref={printRef} style={{ display: 'none' }}>
+        <div className='header'>
+          <div>
+            <h1>{order.orderCode}</h1>
+            <div className='brand'>La Douceur Bakery &mdash; Admin Order Receipt</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div className='label'>Status</div>
+            <span className='badge'>{ORDER_STATUS_LABELS[order.status]}</span>
+            <div className='label' style={{ marginTop: 8 }}>Created</div>
+            <div className='value'>{order.createdAt}</div>
+          </div>
+        </div>
+
+        <div className='grid-2'>
+          <div>
+            <h2>Customer</h2>
+            <div className='label'>Name</div>
+            <div className='value'>{order.customerName}</div>
+            <div className='label' style={{ marginTop: 8 }}>Phone</div>
+            <div className='value'>{order.phone}</div>
+            {order.note && (
+              <>
+                <div className='label' style={{ marginTop: 8 }}>Note</div>
+                <div className='value'>{order.note}</div>
+              </>
+            )}
+          </div>
+          <div>
+            <h2>Fulfillment</h2>
+            <div className='label'>Type</div>
+            <div className='value'>{order.fulfillment}</div>
+            {order.pickupAt && (
+              <>
+                <div className='label' style={{ marginTop: 8 }}>Pickup At</div>
+                <div className='value'>{order.pickupAt}</div>
+              </>
+            )}
+            {order.address && (
+              <>
+                <div className='label' style={{ marginTop: 8 }}>Address</div>
+                <div className='value'>{order.address}</div>
+              </>
+            )}
+            <div className='label' style={{ marginTop: 8 }}>Payment</div>
+            <div className='value'>
+              {order.paymentMethod} &mdash; {order.paid ? 'Paid' : 'Unpaid'}
+            </div>
+          </div>
+        </div>
+
+        <div className='section'>
+          <h2>Items</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th style={{ textAlign: 'center' }}>Qty</th>
+                <th style={{ textAlign: 'right' }}>Unit Price</th>
+                <th style={{ textAlign: 'right' }}>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.items.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <div className='item-name'>{item.name}</div>
+                    {item.options && Object.keys(item.options).length > 0 && (
+                      <div className='item-opts'>
+                        {Object.entries(item.options)
+                          .map(([k, v]) => `${k}: ${v}`)
+                          .join(' · ')}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                  <td style={{ textAlign: 'right' }}>{formatVND(item.unitPrice)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    {formatVND(item.unitPrice * item.quantity)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className='totals'>
+            <div className='total-row'>
+              <span>Subtotal</span>
+              <span>{formatVND(order.subtotal)}</span>
+            </div>
+            {order.discount > 0 && (
+              <div className='total-row' style={{ color: '#059669' }}>
+                <span>Discount</span>
+                <span>-{formatVND(order.discount)}</span>
+              </div>
+            )}
+            <div className='total-row grand'>
+              <span>Total</span>
+              <span>{formatVND(order.total)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className='footer'>
+          Printed by La Douceur Admin &mdash; {new Date().toLocaleString('vi-VN')}
         </div>
       </div>
 
