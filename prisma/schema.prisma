@@ -30,17 +30,31 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum MemberLevel {
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum BannerPlacement {
+  HOME_HERO
+  HOME_PROMO
+  CATEGORY
+}
+
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
+  id              String       @id @default(cuid())
+  email           String       @unique
   emailVerifiedAt DateTime?
-  password        String    // Hashed password (required)
+  password        String       // Hashed password (required)
   name            String?
   phone           String?
-  role            UserRole  @default(CUSTOMER)
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  role            UserRole     @default(CUSTOMER)
+  memberLevel     MemberLevel  @default(SILVER)
+  points          Int          @default(0)
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   // Relations
   orders   Order[]
@@ -48,6 +62,7 @@ model User {
 
   @@index([email])
   @@index([role])
+  @@index([memberLevel])
 }
 
 model OtpVerification {
@@ -172,16 +187,28 @@ model OrderItem {
 }
 
 model Banner {
-  id           String   @id @default(cuid())
+  id           String          @id @default(cuid())
   title        String
   description  String?
-  imageUrl     String
+  imageUrl     String?
   linkUrl      String?
-  displayOrder Int      @default(0)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  placement    BannerPlacement @default(HOME_HERO)
+  displayOrder Int             @default(0)
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@index([isActive, displayOrder])
+  @@index([placement])
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
 }
         

@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
           ? 403
           : 500;
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: errorMessage || 'Đã có lỗi xảy ra' },
       { status },
     );
   }

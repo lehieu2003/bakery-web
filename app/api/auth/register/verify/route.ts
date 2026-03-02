@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     });
 
     // Create session
-    const { sessionToken, expiresAt } = await createSession(user.id);
+    const session = await createSession(user.id);
 
     // Send welcome email
     try {
@@ -91,11 +91,11 @@ export async function POST(request: Request) {
       user,
     });
 
-    response.cookies.set('session', sessionToken, {
+    response.cookies.set('bakery_session', session.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      expires: expiresAt,
+      expires: session.expiresAt,
       path: '/',
     });
 
