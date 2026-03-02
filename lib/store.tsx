@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
 export type Screen =
-  | 'splash'
   | 'home'
   | 'category'
   | 'product-detail'
@@ -80,7 +79,7 @@ const MOCK_USER: User = {
 const generateOrderNo = () => 'BK' + Math.floor(20000 + Math.random() * 9999);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [screen, setScreen] = useState<Screen>('splash');
+  const [screen, setScreen] = useState<Screen>('home');
   const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);

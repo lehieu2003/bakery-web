@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Playfair_Display, DM_Sans } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
+import { QueryProvider } from '@/providers/query-provider';
+import { Toaster } from 'sonner';
 import '../styles/globals.css';
 
 const playfair = Playfair_Display({
@@ -48,7 +50,10 @@ export default function RootLayout({
       <body
         className={`${playfair.variable} ${dmSans.variable} font-sans antialiased`}
       >
-        {children}
+        <QueryProvider>
+          {children}
+          <Toaster position='top-right' richColors closeButton />
+        </QueryProvider>
         <Analytics />
       </body>
     </html>
