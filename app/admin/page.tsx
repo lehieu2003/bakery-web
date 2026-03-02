@@ -1,34 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useLogin } from '@/hooks/use-auth';
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
+  const loginMutation = useLogin();
+  const error = loginMutation.error?.message;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    // Simulate auth
-    await new Promise((r) => setTimeout(r, 800));
-
-    if (email === 'admin@ladouceur.vn' && password === 'admin123') {
-      router.push('/admin/dashboard');
-    } else {
-      setError('Invalid credentials. Try admin@ladouceur.vn / admin123');
-    }
-    setLoading(false);
+    loginMutation.mutate({ email, password });
   };
 
   return (
@@ -37,7 +26,9 @@ export default function AdminLoginPage() {
         {/* Logo */}
         <div className='text-center mb-8'>
           <div className='w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md'>
-            <span className='font-serif text-primary-foreground text-xl font-bold'>L</span>
+            <span className='font-serif text-primary-foreground text-xl font-bold'>
+              L
+            </span>
           </div>
           <h1 className='font-serif text-2xl font-semibold text-foreground tracking-wide'>
             La Douceur
@@ -49,7 +40,9 @@ export default function AdminLoginPage() {
 
         {/* Card */}
         <div className='bg-card rounded-2xl border border-border shadow-sm p-6'>
-          <h2 className='font-serif text-lg font-semibold text-foreground mb-1'>Sign in</h2>
+          <h2 className='font-serif text-lg font-semibold text-foreground mb-1'>
+            Sign in
+          </h2>
           <p className='text-xs text-muted-foreground mb-6'>
             Access your bakery management dashboard
           </p>
@@ -113,13 +106,28 @@ export default function AdminLoginPage() {
             <Button
               type='submit'
               className='w-full h-10 text-sm font-medium mt-2'
-              disabled={loading}
+              disabled={loginMutation.isPending}
             >
-              {loading ? (
+              {loginMutation.isPending ? (
                 <span className='flex items-center gap-2'>
-                  <svg className='animate-spin h-3.5 w-3.5' viewBox='0 0 24 24' fill='none'>
-                    <circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4' />
-                    <path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z' />
+                  <svg
+                    className='animate-spin h-3.5 w-3.5'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                  >
+                    <circle
+                      className='opacity-25'
+                      cx='12'
+                      cy='12'
+                      r='10'
+                      stroke='currentColor'
+                      strokeWidth='4'
+                    />
+                    <path
+                      className='opacity-75'
+                      fill='currentColor'
+                      d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
+                    />
                   </svg>
                   Signing in...
                 </span>
@@ -130,7 +138,7 @@ export default function AdminLoginPage() {
           </form>
 
           <p className='text-[10px] text-muted-foreground text-center mt-4'>
-            Demo: admin@ladouceur.vn / admin123
+            Demo: admin@bakeryshop.com / admin123
           </p>
         </div>
       </div>

@@ -5,11 +5,10 @@ export type ProductStatus = 'ACTIVE' | 'INACTIVE';
 export type OrderStatus =
   | 'PENDING'
   | 'CONFIRMED'
-  | 'PREPARING'
+  | 'PROCESSING'
   | 'READY'
   | 'COMPLETED'
-  | 'CANCELLED'
-  | 'PAID';
+  | 'CANCELLED';
 export type FulfillmentType = 'PICKUP' | 'DELIVERY';
 export type BannerPlacement = 'HOME_HERO' | 'HOME_PROMO' | 'CATEGORY';
 export type MemberLevel = 'SILVER' | 'GOLD' | 'PLATINUM';
@@ -90,12 +89,48 @@ export interface Customer {
 // ---- Mock Data ----
 
 export const mockCategories: Category[] = [
-  { id: 'c1', name: 'Birthday Cakes', slug: 'birthday-cakes', type: 'CAKE', productCount: 12 },
-  { id: 'c2', name: 'Wedding Cakes', slug: 'wedding-cakes', type: 'CAKE', productCount: 8 },
-  { id: 'c3', name: 'Seasonal', slug: 'seasonal', type: 'CAKE', productCount: 5 },
-  { id: 'c4', name: 'Flour & Baking', slug: 'flour-baking', type: 'INGREDIENT', productCount: 18 },
-  { id: 'c5', name: 'Chocolate & Cocoa', slug: 'chocolate-cocoa', type: 'INGREDIENT', productCount: 9 },
-  { id: 'c6', name: 'Decorations', slug: 'decorations', type: 'INGREDIENT', productCount: 14 },
+  {
+    id: 'c1',
+    name: 'Birthday Cakes',
+    slug: 'birthday-cakes',
+    type: 'CAKE',
+    productCount: 12,
+  },
+  {
+    id: 'c2',
+    name: 'Wedding Cakes',
+    slug: 'wedding-cakes',
+    type: 'CAKE',
+    productCount: 8,
+  },
+  {
+    id: 'c3',
+    name: 'Seasonal',
+    slug: 'seasonal',
+    type: 'CAKE',
+    productCount: 5,
+  },
+  {
+    id: 'c4',
+    name: 'Flour & Baking',
+    slug: 'flour-baking',
+    type: 'INGREDIENT',
+    productCount: 18,
+  },
+  {
+    id: 'c5',
+    name: 'Chocolate & Cocoa',
+    slug: 'chocolate-cocoa',
+    type: 'INGREDIENT',
+    productCount: 9,
+  },
+  {
+    id: 'c6',
+    name: 'Decorations',
+    slug: 'decorations',
+    type: 'INGREDIENT',
+    productCount: 14,
+  },
 ];
 
 export const mockProducts: Product[] = [
@@ -195,7 +230,14 @@ export const mockOrders: Order[] = [
     paid: false,
     createdAt: '2026-03-02 08:30',
     items: [
-      { id: 'i1', name: 'Rose Garden Birthday Cake', thumbnail: '/images/cake-1.jpg', quantity: 1, unitPrice: 850000, options: { size: 'M', flavor: 'Vanilla', message: 'Happy Birthday!' } },
+      {
+        id: 'i1',
+        name: 'Rose Garden Birthday Cake',
+        thumbnail: '/images/cake-1.jpg',
+        quantity: 1,
+        unitPrice: 850000,
+        options: { size: 'M', flavor: 'Vanilla', message: 'Happy Birthday!' },
+      },
     ],
   },
   {
@@ -213,7 +255,14 @@ export const mockOrders: Order[] = [
     paid: false,
     createdAt: '2026-03-02 09:15',
     items: [
-      { id: 'i2', name: 'Classic White Wedding', thumbnail: '/images/cake-3.jpg', quantity: 1, unitPrice: 2400000, options: { size: 'L', tier: '2-tier' } },
+      {
+        id: 'i2',
+        name: 'Classic White Wedding',
+        thumbnail: '/images/cake-3.jpg',
+        quantity: 1,
+        unitPrice: 2400000,
+        options: { size: 'L', tier: '2-tier' },
+      },
     ],
   },
   {
@@ -231,8 +280,20 @@ export const mockOrders: Order[] = [
     paid: true,
     createdAt: '2026-03-01 20:00',
     items: [
-      { id: 'i3', name: 'Belgian Dark Chocolate 70%', thumbnail: '/images/ing-2.jpg', quantity: 2, unitPrice: 120000 },
-      { id: 'i4', name: 'Edible Gold Flakes', thumbnail: '/images/ing-3.jpg', quantity: 1, unitPrice: 250000 },
+      {
+        id: 'i3',
+        name: 'Belgian Dark Chocolate 70%',
+        thumbnail: '/images/ing-2.jpg',
+        quantity: 2,
+        unitPrice: 120000,
+      },
+      {
+        id: 'i4',
+        name: 'Edible Gold Flakes',
+        thumbnail: '/images/ing-3.jpg',
+        quantity: 1,
+        unitPrice: 250000,
+      },
     ],
   },
   {
@@ -250,7 +311,14 @@ export const mockOrders: Order[] = [
     paid: true,
     createdAt: '2026-03-01 18:00',
     items: [
-      { id: 'i5', name: 'Chocolate Lava Dream', thumbnail: '/images/cake-2.jpg', quantity: 1, unitPrice: 720000, options: { size: 'S', flavor: 'Dark Chocolate' } },
+      {
+        id: 'i5',
+        name: 'Chocolate Lava Dream',
+        thumbnail: '/images/cake-2.jpg',
+        quantity: 1,
+        unitPrice: 720000,
+        options: { size: 'S', flavor: 'Dark Chocolate' },
+      },
     ],
   },
   {
@@ -267,7 +335,13 @@ export const mockOrders: Order[] = [
     paid: true,
     createdAt: '2026-03-01 10:00',
     items: [
-      { id: 'i6', name: 'Rose Garden Birthday Cake', thumbnail: '/images/cake-1.jpg', quantity: 1, unitPrice: 850000 },
+      {
+        id: 'i6',
+        name: 'Rose Garden Birthday Cake',
+        thumbnail: '/images/cake-1.jpg',
+        quantity: 1,
+        unitPrice: 850000,
+      },
     ],
   },
   {
@@ -285,7 +359,13 @@ export const mockOrders: Order[] = [
     paid: false,
     createdAt: '2026-02-28 16:00',
     items: [
-      { id: 'i7', name: 'Matcha Sakura Delight', thumbnail: '/images/cake-4.jpg', quantity: 1, unitPrice: 650000 },
+      {
+        id: 'i7',
+        name: 'Matcha Sakura Delight',
+        thumbnail: '/images/cake-4.jpg',
+        quantity: 1,
+        unitPrice: 650000,
+      },
     ],
   },
 ];
@@ -327,37 +407,88 @@ export const mockBanners: Banner[] = [
 ];
 
 export const mockCustomers: Customer[] = [
-  { id: 'cu1', name: 'Linh Nguyen', email: 'linh@email.com', phone: '0901234567', level: 'GOLD', points: 420, totalOrders: 12, totalSpent: 9800000, createdAt: '2025-06-01' },
-  { id: 'cu2', name: 'An Tran', email: 'an@email.com', phone: '0912345678', level: 'SILVER', points: 180, totalOrders: 5, totalSpent: 3200000, createdAt: '2025-09-15' },
-  { id: 'cu3', name: 'Mai Pham', email: 'mai@email.com', phone: '0923456789', level: 'PLATINUM', points: 1250, totalOrders: 28, totalSpent: 24500000, createdAt: '2025-01-10' },
-  { id: 'cu4', name: 'Duc Le', email: 'duc@email.com', phone: '0934567890', level: 'SILVER', points: 90, totalOrders: 3, totalSpent: 1750000, createdAt: '2025-11-20' },
-  { id: 'cu5', name: 'Hoa Vo', email: 'hoa@email.com', phone: '0945678901', level: 'GOLD', points: 540, totalOrders: 15, totalSpent: 11200000, createdAt: '2025-04-05' },
+  {
+    id: 'cu1',
+    name: 'Linh Nguyen',
+    email: 'linh@email.com',
+    phone: '0901234567',
+    level: 'GOLD',
+    points: 420,
+    totalOrders: 12,
+    totalSpent: 9800000,
+    createdAt: '2025-06-01',
+  },
+  {
+    id: 'cu2',
+    name: 'An Tran',
+    email: 'an@email.com',
+    phone: '0912345678',
+    level: 'SILVER',
+    points: 180,
+    totalOrders: 5,
+    totalSpent: 3200000,
+    createdAt: '2025-09-15',
+  },
+  {
+    id: 'cu3',
+    name: 'Mai Pham',
+    email: 'mai@email.com',
+    phone: '0923456789',
+    level: 'PLATINUM',
+    points: 1250,
+    totalOrders: 28,
+    totalSpent: 24500000,
+    createdAt: '2025-01-10',
+  },
+  {
+    id: 'cu4',
+    name: 'Duc Le',
+    email: 'duc@email.com',
+    phone: '0934567890',
+    level: 'SILVER',
+    points: 90,
+    totalOrders: 3,
+    totalSpent: 1750000,
+    createdAt: '2025-11-20',
+  },
+  {
+    id: 'cu5',
+    name: 'Hoa Vo',
+    email: 'hoa@email.com',
+    phone: '0945678901',
+    level: 'GOLD',
+    points: 540,
+    totalOrders: 15,
+    totalSpent: 11200000,
+    createdAt: '2025-04-05',
+  },
 ];
 
 // ---- Helpers ----
 
 export function formatVND(amount: number) {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(amount);
 }
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING: 'Pending',
   CONFIRMED: 'Confirmed',
-  PREPARING: 'Preparing',
+  PROCESSING: 'Processing',
   READY: 'Ready',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
-  PAID: 'Paid',
 };
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
   CONFIRMED: 'bg-blue-50 text-blue-700 border-blue-200',
-  PREPARING: 'bg-orange-50 text-orange-700 border-orange-200',
+  PROCESSING: 'bg-orange-50 text-orange-700 border-orange-200',
   READY: 'bg-teal-50 text-teal-700 border-teal-200',
   COMPLETED: 'bg-green-50 text-green-700 border-green-200',
   CANCELLED: 'bg-red-50 text-red-700 border-red-200',
-  PAID: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
 export const MEMBER_LEVEL_COLORS: Record<MemberLevel, string> = {

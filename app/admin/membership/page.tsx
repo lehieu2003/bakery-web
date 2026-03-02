@@ -2,101 +2,193 @@
 
 import { useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
-import { Crown, ChevronRight } from 'lucide-react';
+import { Crown, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { MEMBER_LEVEL_COLORS, MemberLevel } from '@/lib/admin-data';
+import {
+  useMembership,
+  useUpdateMembership,
+} from '@/hooks/admin/use-membership';
 
-interface MemberConfig {
-  level: MemberLevel;
+const LEVEL_COLORS: Record<
+  string,
+  { bg: string; text: string; border: string; color: string }
+> = {
+  SILVER: {
+    bg: 'bg-slate-100',
+    text: 'text-slate-700',
+    border: 'border-slate-300',
+    color: '#94a3b8',
+  },
+  GOLD: {
+    bg: 'bg-amber-100',
+    text: 'text-amber-700',
+    border: 'border-amber-300',
+    color: '#f59e0b',
+  },
+  PLATINUM: {
+    bg: 'bg-pink-100',
+    text: 'text-pink-700',
+    border: 'border-pink-300',
+    color: '#ec4899',
+  },
+};
+
+interface LevelConfig {
+  level: string;
   label: string;
   minPoints: number;
   discountPercent: number;
-  color: string;
+  memberCount: number;
 }
 
-const defaultLevels: MemberConfig[] = [
-  { level: 'SILVER', label: 'Silver', minPoints: 0, discountPercent: 3, color: '#94a3b8' },
-  { level: 'GOLD', label: 'Gold', minPoints: 300, discountPercent: 7, color: '#f59e0b' },
-  { level: 'PLATINUM', label: 'Platinum', minPoints: 900, discountPercent: 12, color: '#ec4899' },
-];
+interface MembershipFormProps {
+  initialLevels: LevelConfig[];
+  initialPointsPerOrder: number;
+}
 
-export default function MembershipPage() {
-  const [levels, setLevels] = useState<MemberConfig[]>(defaultLevels);
+function MembershipForm({
+  initialLevels,
+  initialPointsPerOrder,
+}: MembershipFormProps) {
+  const [levels, setLevels] = useState(initialLevels);
+  const [pointsPerOrder, setPointsPerOrder] = useState(initialPointsPerOrder);
   const [simulatePoints, setSimulatePoints] = useState('');
   const [simulateOrder, setSimulateOrder] = useState('');
 
-  const updateLevel = (idx: number, field: keyof MemberConfig, value: string | number) => {
+  const updateMutation = useUpdateMembership();
+
+  const updateLevel = (
+    idx: number,
+    field: 'minPoints' | 'discountPercent',
+    value: number,
+  ) => {
     setLevels((prev) =>
       prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)),
     );
   };
 
+  const handleSave = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        levels: levels.map((l) => ({
+          level: l.level as 'SILVER' | 'GOLD' | 'PLATINUM',
+          minPoints: l.minPoints,
+          discountPercent: l.discountPercent,
+        })),
+        pointsPerOrder,
+      });
+    } catch {
+      // Error handled by mutation
+    }
+  };
+
   const simPoints = Number(simulatePoints);
-  const currentLevel = [...levels].reverse().find((l) => simPoints >= l.minPoints);
-  const pointsEarned = Math.floor(Number(simulateOrder) / 10000);
+  const currentLevel = [...levels]
+    .reverse()
+    .find((l) => simPoints >= l.minPoints);
+  const pointsEarned = Math.floor(Number(simulateOrder) / pointsPerOrder);
 
   return (
-    <AdminShell title='Membership'>
-      <div className='flex items-center justify-between mb-6'>
-        <div>
-          <h1 className='font-serif text-xl font-semibold text-foreground'>Membership</h1>
-          <p className='text-xs text-muted-foreground mt-0.5'>
-            Configure membership levels and benefits
-          </p>
-        </div>
-        <Button size='sm' className='h-8 text-xs'>
-          Save Changes
+    <>
+      <div className='flex items-center justify-end mb-6'>
+        <Button
+          size='sm'
+          className='h-8 text-xs'
+          onClick={handleSave}
+          disabled={updateMutation.isPending}
+        >
+          {updateMutation.isPending ? (
+            <>
+              <Loader2 className='w-3 h-3 animate-spin mr-1' />
+              Saving...
+            </>
+          ) : (
+            'Save Changes'
+          )}
         </Button>
       </div>
 
       <div className='grid lg:grid-cols-2 gap-4'>
         {/* Level configs */}
         <div className='space-y-4'>
-          {levels.map((level, idx) => (
-            <div
-              key={level.level}
-              className='bg-card rounded-xl border border-border shadow-sm overflow-hidden'
-            >
+          {levels.map((level, idx) => {
+            const colors = LEVEL_COLORS[level.level] || LEVEL_COLORS.SILVER;
+            return (
               <div
-                className='px-5 py-3 flex items-center gap-3 border-b border-border'
-                style={{ borderLeftColor: level.color, borderLeftWidth: 3 }}
+                key={level.level}
+                className='bg-card rounded-xl border border-border shadow-sm overflow-hidden'
               >
-                <Crown size={14} style={{ color: level.color }} />
-                <p className='text-sm font-semibold text-foreground'>{level.label}</p>
-                <span
-                  className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${MEMBER_LEVEL_COLORS[level.level]}`}
+                <div
+                  className='px-5 py-3 flex items-center gap-3 border-b border-border'
+                  style={{ borderLeftColor: colors.color, borderLeftWidth: 3 }}
                 >
-                  {level.level}
-                </span>
-              </div>
-              <div className='px-5 py-4 grid grid-cols-2 gap-3'>
-                <div>
-                  <Label className='text-xs font-medium'>Min Points</Label>
-                  <Input
-                    type='number'
-                    className='h-8 text-xs mt-1.5'
-                    value={level.minPoints}
-                    onChange={(e) => updateLevel(idx, 'minPoints', Number(e.target.value))}
-                    disabled={idx === 0}
-                  />
+                  <Crown size={14} style={{ color: colors.color }} />
+                  <p className='text-sm font-semibold text-foreground'>
+                    {level.label}
+                  </p>
+                  <span
+                    className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${colors.bg} ${colors.text} ${colors.border}`}
+                  >
+                    {level.level}
+                  </span>
+                  <span className='text-xs text-muted-foreground'>
+                    {level.memberCount} members
+                  </span>
                 </div>
-                <div>
-                  <Label className='text-xs font-medium'>Discount %</Label>
-                  <Input
-                    type='number'
-                    className='h-8 text-xs mt-1.5'
-                    value={level.discountPercent}
-                    onChange={(e) =>
-                      updateLevel(idx, 'discountPercent', Number(e.target.value))
-                    }
-                  />
+                <div className='px-5 py-4 grid grid-cols-2 gap-3'>
+                  <div>
+                    <Label className='text-xs font-medium'>Min Points</Label>
+                    <Input
+                      type='number'
+                      className='h-8 text-xs mt-1.5'
+                      value={level.minPoints}
+                      onChange={(e) =>
+                        updateLevel(idx, 'minPoints', Number(e.target.value))
+                      }
+                      disabled={idx === 0}
+                    />
+                  </div>
+                  <div>
+                    <Label className='text-xs font-medium'>Discount %</Label>
+                    <Input
+                      type='number'
+                      className='h-8 text-xs mt-1.5'
+                      value={level.discountPercent}
+                      onChange={(e) =>
+                        updateLevel(
+                          idx,
+                          'discountPercent',
+                          Number(e.target.value),
+                        )
+                      }
+                    />
+                  </div>
                 </div>
               </div>
+            );
+          })}
+
+          {/* Points per order config */}
+          <div className='bg-card rounded-xl border border-border shadow-sm p-5'>
+            <h2 className='font-serif text-sm font-semibold text-foreground mb-3 pb-2 border-b border-border'>
+              Points Configuration
+            </h2>
+            <div>
+              <Label className='text-xs font-medium'>VND per Point</Label>
+              <Input
+                type='number'
+                className='h-8 text-xs mt-1.5 max-w-40'
+                value={pointsPerOrder}
+                onChange={(e) => setPointsPerOrder(Number(e.target.value))}
+              />
+              <p className='text-[10px] text-muted-foreground mt-1'>
+                Customer earns 1 point per {pointsPerOrder.toLocaleString()} VND
+                spent
+              </p>
             </div>
-          ))}
+          </div>
         </div>
 
         {/* Simulator */}
@@ -119,7 +211,7 @@ export default function MembershipPage() {
 
               {simulatePoints && currentLevel && (
                 <div
-                  className={`px-4 py-3 rounded-lg border text-xs ${MEMBER_LEVEL_COLORS[currentLevel.level]}`}
+                  className={`px-4 py-3 rounded-lg border text-xs ${LEVEL_COLORS[currentLevel.level]?.bg} ${LEVEL_COLORS[currentLevel.level]?.text} ${LEVEL_COLORS[currentLevel.level]?.border}`}
                 >
                   <div className='flex items-center gap-2'>
                     <Crown size={13} />
@@ -152,10 +244,12 @@ export default function MembershipPage() {
                   <div className='mt-2 px-3 py-2 bg-muted rounded-lg'>
                     <p className='text-xs text-muted-foreground'>
                       Points earned:{' '}
-                      <span className='font-semibold text-foreground'>+{pointsEarned} pts</span>
+                      <span className='font-semibold text-foreground'>
+                        +{pointsEarned} pts
+                      </span>
                     </p>
                     <p className='text-[10px] text-muted-foreground mt-0.5'>
-                      (1 pt per ₫10,000 spent)
+                      (1 pt per {pointsPerOrder.toLocaleString()} VND spent)
                     </p>
                   </div>
                 )}
@@ -171,15 +265,18 @@ export default function MembershipPage() {
             <div className='space-y-3'>
               {levels.map((level, idx) => {
                 const next = levels[idx + 1];
+                const colors = LEVEL_COLORS[level.level] || LEVEL_COLORS.SILVER;
                 return (
                   <div key={level.level} className='flex items-center gap-3'>
                     <div
                       className='w-3 h-3 rounded-full shrink-0'
-                      style={{ background: level.color }}
+                      style={{ background: colors.color }}
                     />
                     <div className='flex-1'>
                       <div className='flex justify-between text-xs'>
-                        <span className='font-medium text-foreground'>{level.label}</span>
+                        <span className='font-medium text-foreground'>
+                          {level.label}
+                        </span>
                         <span className='text-muted-foreground'>
                           {level.minPoints}
                           {next ? ` – ${next.minPoints - 1}` : '+'} pts
@@ -197,6 +294,54 @@ export default function MembershipPage() {
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+export default function MembershipPage() {
+  const { data, isLoading, error } = useMembership();
+
+  if (isLoading) {
+    return (
+      <AdminShell title='Membership'>
+        <div className='flex items-center justify-center min-h-100'>
+          <Loader2 className='w-8 h-8 animate-spin text-primary' />
+        </div>
+      </AdminShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminShell title='Membership'>
+        <div className='flex items-center justify-center min-h-100'>
+          <p className='text-destructive'>
+            Failed to load membership configuration
+          </p>
+        </div>
+      </AdminShell>
+    );
+  }
+
+  return (
+    <AdminShell title='Membership'>
+      <div className='flex items-center justify-between mb-6'>
+        <div>
+          <h1 className='font-serif text-xl font-semibold text-foreground'>
+            Membership
+          </h1>
+          <p className='text-xs text-muted-foreground mt-0.5'>
+            Configure membership levels and benefits • {data?.totalMembers || 0}{' '}
+            total members
+          </p>
+        </div>
+      </div>
+      {data && (
+        <MembershipForm
+          initialLevels={data.levels}
+          initialPointsPerOrder={data.pointsPerOrder}
+        />
+      )}
     </AdminShell>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
 import Image from 'next/image';
-import { Plus, Edit, Trash2, Upload, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,8 +32,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockBanners, Banner, BannerPlacement } from '@/lib/admin-data';
+import {
+  useBanners,
+  useCreateBanner,
+  useUpdateBanner,
+  useDeleteBanner,
+} from '@/hooks/admin/use-banners';
 import { cn } from '@/lib/utils';
+import type { Banner, BannerPlacement } from '@/types/api.types';
 
 const PLACEMENTS: { value: BannerPlacement; label: string }[] = [
   { value: 'HOME_HERO', label: 'Home Hero' },
@@ -48,7 +54,6 @@ const PLACEMENT_COLORS: Record<BannerPlacement, string> = {
 };
 
 export default function BannersPage() {
-  const [banners, setBanners] = useState<Banner[]>(mockBanners);
   const [placementFilter, setPlacementFilter] = useState<string>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -56,92 +61,132 @@ export default function BannersPage() {
 
   // Form
   const [formTitle, setFormTitle] = useState('');
-  const [formPlacement, setFormPlacement] = useState<BannerPlacement>('HOME_HERO');
-  const [formCta, setFormCta] = useState('');
-  const [formCtaLink, setFormCtaLink] = useState('');
-  const [formPriority, setFormPriority] = useState('1');
+  const [formDescription, setFormDescription] = useState('');
+  const [formPlacement, setFormPlacement] =
+    useState<BannerPlacement>('HOME_HERO');
+  const [formLinkUrl, setFormLinkUrl] = useState('');
+  const [formDisplayOrder, setFormDisplayOrder] = useState('1');
   const [formActive, setFormActive] = useState(true);
-  const [formImage, setFormImage] = useState<string | null>(null);
+  const [formImage, setFormImage] = useState<string>('');
+
+  // API hooks
+  const { data: banners, isLoading, error } = useBanners();
+  const createMutation = useCreateBanner();
+  const updateMutation = useUpdateBanner();
+  const deleteMutation = useDeleteBanner();
 
   const filtered =
     placementFilter === 'ALL'
-      ? banners
-      : banners.filter((b) => b.placement === placementFilter);
+      ? banners || []
+      : (banners || []).filter((b) => b.placement === placementFilter);
 
   const openCreate = () => {
     setEditBanner(null);
     setFormTitle('');
+    setFormDescription('');
     setFormPlacement('HOME_HERO');
-    setFormCta('');
-    setFormCtaLink('');
-    setFormPriority('1');
+    setFormLinkUrl('');
+    setFormDisplayOrder('1');
     setFormActive(true);
-    setFormImage(null);
+    setFormImage('');
     setDialogOpen(true);
   };
 
   const openEdit = (b: Banner) => {
     setEditBanner(b);
     setFormTitle(b.title);
+    setFormDescription(b.description || '');
     setFormPlacement(b.placement);
-    setFormCta(b.ctaText);
-    setFormCtaLink(b.ctaLink);
-    setFormPriority(String(b.priority));
-    setFormActive(b.active);
-    setFormImage(b.image);
+    setFormLinkUrl(b.linkUrl || '');
+    setFormDisplayOrder(String(b.displayOrder));
+    setFormActive(b.isActive);
+    setFormImage(b.imageUrl);
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (!formTitle.trim()) return;
-    if (editBanner) {
-      setBanners((prev) =>
-        prev.map((b) =>
-          b.id === editBanner.id
-            ? {
-                ...b,
-                title: formTitle,
-                placement: formPlacement,
-                ctaText: formCta,
-                ctaLink: formCtaLink,
-                priority: Number(formPriority),
-                active: formActive,
-                image: formImage || b.image,
-              }
-            : b,
-        ),
-      );
-    } else {
-      setBanners((prev) => [
-        ...prev,
-        {
-          id: `b${Date.now()}`,
+  const handleSave = async () => {
+    if (!formTitle.trim() || !formImage) return;
+
+    try {
+      if (editBanner) {
+        await updateMutation.mutateAsync({
+          id: editBanner.id,
+          data: {
+            title: formTitle,
+            description: formDescription || undefined,
+            imageUrl: formImage,
+            linkUrl: formLinkUrl || undefined,
+            placement: formPlacement,
+            displayOrder: Number(formDisplayOrder),
+            isActive: formActive,
+          },
+        });
+      } else {
+        await createMutation.mutateAsync({
           title: formTitle,
+          description: formDescription || undefined,
+          imageUrl: formImage,
+          linkUrl: formLinkUrl || undefined,
           placement: formPlacement,
-          image: formImage || '/images/hero-cake.jpg',
-          ctaText: formCta,
-          ctaLink: formCtaLink,
-          priority: Number(formPriority),
-          active: formActive,
-          createdAt: new Date().toISOString().slice(0, 10),
-        },
-      ]);
+          displayOrder: Number(formDisplayOrder),
+          isActive: formActive,
+        });
+      }
+      setDialogOpen(false);
+    } catch {
+      // Error handled by mutation/toast
     }
-    setDialogOpen(false);
   };
 
-  const handleToggleActive = (id: string) => {
-    setBanners((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, active: !b.active } : b)),
-    );
+  const handleToggleActive = async (banner: Banner) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: banner.id,
+        data: { isActive: !banner.isActive },
+      });
+    } catch {
+      // Error handled by mutation/toast
+    }
   };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteMutation.mutateAsync(deleteId);
+      setDeleteId(null);
+    } catch {
+      // Error handled by mutation/toast
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <AdminShell title='Banners'>
+        <div className='flex items-center justify-center min-h-100'>
+          <Loader2 className='w-8 h-8 animate-spin text-primary' />
+        </div>
+      </AdminShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminShell title='Banners'>
+        <div className='flex items-center justify-center min-h-100'>
+          <p className='text-destructive'>Failed to load banners</p>
+        </div>
+      </AdminShell>
+    );
+  }
 
   return (
     <AdminShell title='Banners'>
       {/* Header */}
       <div className='flex items-center justify-between mb-6'>
         <div>
-          <h1 className='font-serif text-xl font-semibold text-foreground'>Banners</h1>
+          <h1 className='font-serif text-xl font-semibold text-foreground'>
+            Banners
+          </h1>
           <p className='text-xs text-muted-foreground mt-0.5'>
             {filtered.length} banner{filtered.length !== 1 ? 's' : ''}
           </p>
@@ -165,7 +210,9 @@ export default function BannersPage() {
                 : 'bg-card text-muted-foreground border-border hover:border-foreground/30',
             )}
           >
-            {f === 'ALL' ? 'All Placements' : PLACEMENTS.find((p) => p.value === f)?.label ?? f}
+            {f === 'ALL'
+              ? 'All Placements'
+              : (PLACEMENTS.find((p) => p.value === f)?.label ?? f)}
           </button>
         ))}
       </div>
@@ -180,7 +227,7 @@ export default function BannersPage() {
             {/* Image preview */}
             <div className='relative h-36 bg-muted'>
               <Image
-                src={banner.image}
+                src={banner.imageUrl}
                 alt={banner.title}
                 fill
                 className='object-cover'
@@ -204,12 +251,16 @@ export default function BannersPage() {
             <div className='px-4 py-3 space-y-2'>
               <div className='flex items-center justify-between'>
                 <div>
-                  <p className='text-xs font-medium text-foreground'>{banner.ctaText}</p>
-                  <p className='text-[10px] text-muted-foreground'>{banner.ctaLink}</p>
+                  <p className='text-xs font-medium text-foreground line-clamp-1'>
+                    {banner.description || 'No description'}
+                  </p>
+                  <p className='text-[10px] text-muted-foreground'>
+                    {banner.linkUrl || 'No link'}
+                  </p>
                 </div>
                 <div className='flex items-center gap-1'>
                   <span className='text-[10px] text-muted-foreground'>
-                    Priority {banner.priority}
+                    Order {banner.displayOrder}
                   </span>
                 </div>
               </div>
@@ -217,12 +268,13 @@ export default function BannersPage() {
               <div className='flex items-center justify-between pt-1 border-t border-border'>
                 <div className='flex items-center gap-2'>
                   <Switch
-                    checked={banner.active}
-                    onCheckedChange={() => handleToggleActive(banner.id)}
+                    checked={banner.isActive}
+                    onCheckedChange={() => handleToggleActive(banner)}
                     className='scale-75 origin-left'
+                    disabled={updateMutation.isPending}
                   />
                   <span className='text-[10px] text-muted-foreground'>
-                    {banner.active ? 'Active' : 'Inactive'}
+                    {banner.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
                 <div className='flex items-center gap-1'>
@@ -262,29 +314,38 @@ export default function BannersPage() {
           <div className='space-y-3 py-2 max-h-[60vh] overflow-y-auto'>
             {/* Image upload */}
             <div>
-              <Label className='text-xs font-medium'>Image</Label>
-              <div
-                className='mt-1.5 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1.5 py-5 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors relative overflow-hidden h-28'
-                onClick={() => setFormImage('/images/hero-cake.jpg')}
-              >
-                {formImage ? (
-                  <>
-                    <Image src={formImage} alt='Preview' fill className='object-cover' />
-                    <div className='absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity'>
-                      <button
-                        type='button'
-                        onClick={(e) => { e.stopPropagation(); setFormImage(null); }}
-                        className='bg-white rounded-full p-1 shadow'
-                      >
-                        <X size={12} className='text-foreground' />
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
+              <Label className='text-xs font-medium'>Image URL</Label>
+              <div className='mt-1.5 space-y-2'>
+                <Input
+                  className='h-8 text-xs'
+                  value={formImage}
+                  onChange={(e) => setFormImage(e.target.value)}
+                  placeholder='https://example.com/image.jpg'
+                />
+                {formImage && (
+                  <div className='relative h-28 rounded-lg overflow-hidden bg-muted'>
+                    <Image
+                      src={formImage}
+                      alt='Preview'
+                      fill
+                      className='object-cover'
+                    />
+                    <button
+                      type='button'
+                      onClick={() => setFormImage('')}
+                      className='absolute top-1 right-1 bg-white rounded-full p-1 shadow'
+                    >
+                      <X size={12} className='text-foreground' />
+                    </button>
+                  </div>
+                )}
+                {!formImage && (
+                  <div className='border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1.5 py-5 h-28'>
                     <Upload size={16} className='text-muted-foreground' />
-                    <p className='text-xs text-muted-foreground'>Click to upload image</p>
-                  </>
+                    <p className='text-xs text-muted-foreground'>
+                      Enter image URL above
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -300,6 +361,16 @@ export default function BannersPage() {
             </div>
 
             <div>
+              <Label className='text-xs font-medium'>Description</Label>
+              <Input
+                className='h-8 text-xs mt-1.5'
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder='Optional description'
+              />
+            </div>
+
+            <div>
               <Label className='text-xs font-medium'>Placement</Label>
               <Select
                 value={formPlacement}
@@ -310,7 +381,11 @@ export default function BannersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {PLACEMENTS.map((p) => (
-                    <SelectItem key={p.value} value={p.value} className='text-xs'>
+                    <SelectItem
+                      key={p.value}
+                      value={p.value}
+                      className='text-xs'
+                    >
                       {p.label}
                     </SelectItem>
                   ))}
@@ -320,33 +395,23 @@ export default function BannersPage() {
 
             <div className='grid grid-cols-2 gap-2'>
               <div>
-                <Label className='text-xs font-medium'>CTA Text</Label>
+                <Label className='text-xs font-medium'>Link URL</Label>
                 <Input
                   className='h-8 text-xs mt-1.5'
-                  value={formCta}
-                  onChange={(e) => setFormCta(e.target.value)}
-                  placeholder='Shop Now'
+                  value={formLinkUrl}
+                  onChange={(e) => setFormLinkUrl(e.target.value)}
+                  placeholder='/category/cakes'
                 />
               </div>
               <div>
-                <Label className='text-xs font-medium'>Priority</Label>
+                <Label className='text-xs font-medium'>Display Order</Label>
                 <Input
                   type='number'
                   className='h-8 text-xs mt-1.5'
-                  value={formPriority}
-                  onChange={(e) => setFormPriority(e.target.value)}
+                  value={formDisplayOrder}
+                  onChange={(e) => setFormDisplayOrder(e.target.value)}
                 />
               </div>
-            </div>
-
-            <div>
-              <Label className='text-xs font-medium'>CTA Link</Label>
-              <Input
-                className='h-8 text-xs mt-1.5'
-                value={formCtaLink}
-                onChange={(e) => setFormCtaLink(e.target.value)}
-                placeholder='/category/cakes'
-              />
             </div>
 
             <div className='flex items-center justify-between py-2 border-t border-border'>
@@ -363,7 +428,15 @@ export default function BannersPage() {
             >
               Cancel
             </Button>
-            <Button size='sm' className='text-xs h-8' onClick={handleSave}>
+            <Button
+              size='sm'
+              className='text-xs h-8'
+              onClick={handleSave}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className='w-3 h-3 animate-spin mr-1' />
+              )}
               {editBanner ? 'Update' : 'Create'}
             </Button>
           </DialogFooter>
@@ -374,20 +447,25 @@ export default function BannersPage() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className='font-serif text-base'>Delete Banner?</AlertDialogTitle>
+            <AlertDialogTitle className='font-serif text-base'>
+              Delete Banner?
+            </AlertDialogTitle>
             <AlertDialogDescription className='text-xs'>
               This banner will be permanently removed from all pages.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className='text-xs h-8'>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className='text-xs h-8'>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className='text-xs h-8 bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-              onClick={() => {
-                setBanners((prev) => prev.filter((b) => b.id !== deleteId));
-                setDeleteId(null);
-              }}
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
             >
+              {deleteMutation.isPending && (
+                <Loader2 className='w-3 h-3 animate-spin mr-1' />
+              )}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

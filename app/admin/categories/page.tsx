@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
-import { Plus, Search, Edit, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,20 +24,15 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { mockCategories, Category, ProductType } from '@/lib/admin-data';
-import { cn } from '@/lib/utils';
-
-type TypeFilter = 'ALL' | ProductType;
+  useCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useDeleteCategory,
+} from '@/hooks/admin/use-categories';
+import type { Category } from '@/types/api.types';
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editCat, setEditCat] = useState<Category | null>(null);
@@ -45,20 +40,28 @@ export default function CategoriesPage() {
   // Form state
   const [formName, setFormName] = useState('');
   const [formSlug, setFormSlug] = useState('');
-  const [formType, setFormType] = useState<ProductType>('CAKE');
+  const [formDescription, setFormDescription] = useState('');
+  const [formDisplayOrder, setFormDisplayOrder] = useState(0);
 
-  const filtered = categories.filter((c) => {
+  // API hooks
+  const { data: categories, isLoading, error } = useCategories();
+  const createMutation = useCreateCategory();
+  const updateMutation = useUpdateCategory();
+  const deleteMutation = useDeleteCategory();
+
+  // Filter by search
+  const filtered = (categories || []).filter((c) => {
     const matchSearch =
       !search || c.name.toLowerCase().includes(search.toLowerCase());
-    const matchType = typeFilter === 'ALL' || c.type === typeFilter;
-    return matchSearch && matchType;
+    return matchSearch;
   });
 
   const openCreate = () => {
     setEditCat(null);
     setFormName('');
     setFormSlug('');
-    setFormType('CAKE');
+    setFormDescription('');
+    setFormDisplayOrder(0);
     setDialogOpen(true);
   };
 
@@ -66,50 +69,85 @@ export default function CategoriesPage() {
     setEditCat(cat);
     setFormName(cat.name);
     setFormSlug(cat.slug);
-    setFormType(cat.type);
+    setFormDescription(cat.description || '');
+    setFormDisplayOrder(cat.displayOrder);
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formName.trim()) return;
     const slug = formSlug || formName.toLowerCase().replace(/\s+/g, '-');
-    if (editCat) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === editCat.id ? { ...c, name: formName, slug, type: formType } : c,
-        ),
-      );
-    } else {
-      setCategories((prev) => [
-        ...prev,
-        {
-          id: `c${Date.now()}`,
+
+    try {
+      if (editCat) {
+        await updateMutation.mutateAsync({
+          id: editCat.id,
+          data: {
+            name: formName,
+            slug,
+            description: formDescription || undefined,
+            displayOrder: formDisplayOrder,
+          },
+        });
+      } else {
+        await createMutation.mutateAsync({
           name: formName,
           slug,
-          type: formType,
-          productCount: 0,
-        },
-      ]);
+          description: formDescription || undefined,
+          displayOrder: formDisplayOrder,
+        });
+      }
+      setDialogOpen(false);
+    } catch {
+      // Error handled by mutation/toast
     }
-    setDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    const cat = categories.find((c) => c.id === id);
-    if (cat && cat.productCount > 0) {
-      alert(`Cannot delete "${cat.name}" — it still has ${cat.productCount} products.`);
+  const handleDelete = async (id: string) => {
+    const cat = categories?.find((c) => c.id === id);
+    if (cat && cat._count && cat._count.products > 0) {
+      alert(
+        `Cannot delete "${cat.name}" — it still has ${cat._count.products} products.`,
+      );
+      setDeleteId(null);
       return;
     }
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-    setDeleteId(null);
+    try {
+      await deleteMutation.mutateAsync(id);
+      setDeleteId(null);
+    } catch {
+      // Error handled by mutation/toast
+    }
   };
+
+  if (isLoading) {
+    return (
+      <AdminShell title='Categories'>
+        <div className='flex items-center justify-center min-h-[400px]'>
+          <Loader2 className='w-8 h-8 animate-spin text-primary' />
+        </div>
+      </AdminShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminShell title='Categories'>
+        <div className='flex items-center justify-center min-h-[400px]'>
+          <p className='text-destructive'>Failed to load categories</p>
+        </div>
+      </AdminShell>
+    );
+  }
 
   return (
     <AdminShell title='Categories'>
       {/* Header */}
       <div className='flex items-center justify-between mb-6'>
         <div>
-          <h1 className='font-serif text-xl font-semibold text-foreground'>Categories</h1>
+          <h1 className='font-serif text-xl font-semibold text-foreground'>
+            Categories
+          </h1>
           <p className='text-xs text-muted-foreground mt-0.5'>
             {filtered.length} categor{filtered.length !== 1 ? 'ies' : 'y'}
           </p>
@@ -134,22 +172,6 @@ export default function CategoriesPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className='flex rounded-lg border border-border overflow-hidden bg-card'>
-          {(['ALL', 'CAKE', 'INGREDIENT'] as TypeFilter[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium transition-colors',
-                typeFilter === t
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted',
-              )}
-            >
-              {t === 'ALL' ? 'All' : t}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Table */}
@@ -163,11 +185,14 @@ export default function CategoriesPage() {
               <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground hidden sm:table-cell'>
                 Slug
               </th>
-              <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground'>
-                Type
+              <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground hidden md:table-cell'>
+                Description
               </th>
               <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground'>
                 Products
+              </th>
+              <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground'>
+                Order
               </th>
               <th className='px-5 py-3 w-20' />
             </tr>
@@ -176,25 +201,36 @@ export default function CategoriesPage() {
             {filtered.map((cat) => (
               <tr key={cat.id} className='hover:bg-muted/20 transition-colors'>
                 <td className='px-5 py-3.5'>
-                  <p className='text-xs font-medium text-foreground'>{cat.name}</p>
+                  <div className='flex items-center gap-2'>
+                    <p className='text-xs font-medium text-foreground'>
+                      {cat.name}
+                    </p>
+                    {!cat.isActive && (
+                      <span className='px-1.5 py-0.5 rounded text-[9px] bg-muted text-muted-foreground'>
+                        Inactive
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className='px-5 py-3.5 hidden sm:table-cell'>
-                  <p className='text-xs text-muted-foreground font-mono'>{cat.slug}</p>
+                  <p className='text-xs text-muted-foreground font-mono'>
+                    {cat.slug}
+                  </p>
+                </td>
+                <td className='px-5 py-3.5 hidden md:table-cell'>
+                  <p className='text-xs text-muted-foreground truncate max-w-[200px]'>
+                    {cat.description || '—'}
+                  </p>
                 </td>
                 <td className='px-5 py-3.5'>
-                  <span
-                    className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
-                      cat.type === 'CAKE'
-                        ? 'bg-pink-50 text-pink-700 border-pink-200'
-                        : 'bg-blue-50 text-blue-700 border-blue-200',
-                    )}
-                  >
-                    {cat.type}
+                  <span className='text-xs text-muted-foreground'>
+                    {cat._count?.products || 0}
                   </span>
                 </td>
                 <td className='px-5 py-3.5'>
-                  <span className='text-xs text-muted-foreground'>{cat.productCount}</span>
+                  <span className='text-xs text-muted-foreground'>
+                    {cat.displayOrder}
+                  </span>
                 </td>
                 <td className='px-5 py-3.5'>
                   <div className='flex items-center gap-1 justify-end'>
@@ -241,9 +277,11 @@ export default function CategoriesPage() {
                 value={formName}
                 onChange={(e) => {
                   setFormName(e.target.value);
-                  setFormSlug(
-                    e.target.value.toLowerCase().replace(/\s+/g, '-'),
-                  );
+                  if (!editCat) {
+                    setFormSlug(
+                      e.target.value.toLowerCase().replace(/\s+/g, '-'),
+                    );
+                  }
                 }}
               />
             </div>
@@ -256,24 +294,24 @@ export default function CategoriesPage() {
               />
             </div>
             <div>
-              <Label className='text-xs font-medium mb-1.5 block'>Type</Label>
-              <div className='flex gap-2'>
-                {(['CAKE', 'INGREDIENT'] as ProductType[]).map((t) => (
-                  <button
-                    key={t}
-                    type='button'
-                    onClick={() => setFormType(t)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
-                      formType === t
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-muted text-muted-foreground border-border hover:border-primary/40',
-                    )}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+              <Label className='text-xs font-medium'>Description</Label>
+              <Input
+                className='h-9 text-sm mt-1.5'
+                placeholder='Optional description'
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className='text-xs font-medium'>Display Order</Label>
+              <Input
+                type='number'
+                className='h-9 text-sm mt-1.5 w-24'
+                value={formDisplayOrder}
+                onChange={(e) =>
+                  setFormDisplayOrder(parseInt(e.target.value) || 0)
+                }
+              />
             </div>
           </div>
           <DialogFooter className='gap-2'>
@@ -285,7 +323,15 @@ export default function CategoriesPage() {
             >
               Cancel
             </Button>
-            <Button size='sm' className='text-xs h-8' onClick={handleSave}>
+            <Button
+              size='sm'
+              className='text-xs h-8'
+              onClick={handleSave}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {createMutation.isPending || updateMutation.isPending ? (
+                <Loader2 className='w-3 h-3 animate-spin mr-1' />
+              ) : null}
               {editCat ? 'Update' : 'Create'}
             </Button>
           </DialogFooter>
@@ -296,17 +342,26 @@ export default function CategoriesPage() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className='font-serif text-base'>Delete Category?</AlertDialogTitle>
+            <AlertDialogTitle className='font-serif text-base'>
+              Delete Category?
+            </AlertDialogTitle>
             <AlertDialogDescription className='text-xs'>
-              This will permanently remove the category. Make sure no products are assigned to it.
+              This will permanently remove the category. Make sure no products
+              are assigned to it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className='text-xs h-8'>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className='text-xs h-8'>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className='text-xs h-8 bg-destructive hover:bg-destructive/90 text-destructive-foreground'
               onClick={() => deleteId && handleDelete(deleteId)}
+              disabled={deleteMutation.isPending}
             >
+              {deleteMutation.isPending ? (
+                <Loader2 className='w-3 h-3 animate-spin mr-1' />
+              ) : null}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

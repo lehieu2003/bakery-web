@@ -1,14 +1,22 @@
-import { PrismaClient } from '@prisma/client';
+import {
+  PrismaClient,
+  OrderStatus,
+  MemberLevel,
+  BannerPlacement,
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting database seed...');
 
-  // Create admin user
+  // ============================================
+  // 1. ADMIN USER
+  // ============================================
   const adminEmail = 'admin@bakeryshop.com';
   const adminPassword =
-    'b109f3bbbc244eb82441917ed06d618b9008dd09b3befd1b5e07394c706a8bb980b1d7785e5976ec049b46df5f1326af5a2ea6d103fd07c95385ffab0cacbc86'; // password: admin123 (hashed with PBKDF2)
+    'b109f3bbbc244eb82441917ed06d618b9008dd09b3befd1b5e07394c706a8bb980b1d7785e5976ec049b46df5f1326af5a2ea6d103fd07c95385ffab0cacbc86'; // password: admin123 (SHA-512)
+
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
     update: {},
@@ -23,145 +31,451 @@ async function main() {
   });
   console.log('✅ Admin user created:', adminUser.email);
 
-  // Create categories
-  const categories = [
+  // ============================================
+  // 2. CUSTOMERS (from mockCustomers)
+  // ============================================
+  const customersData = [
     {
-      name: 'Bánh Mì',
-      slug: 'banh-mi',
-      description: 'Các loại bánh mì tươi ngon mỗi ngày',
-      displayOrder: 1,
+      name: 'Linh Nguyen',
+      email: 'linh@email.com',
+      phone: '0901234567',
+      level: 'GOLD' as MemberLevel,
+      points: 420,
+      createdAt: new Date('2025-06-01'),
     },
     {
-      name: 'Bánh Ngọt',
-      slug: 'banh-ngot',
-      description: 'Bánh ngọt, pastry và desserts',
-      displayOrder: 2,
+      name: 'An Tran',
+      email: 'an@email.com',
+      phone: '0912345678',
+      level: 'SILVER' as MemberLevel,
+      points: 180,
+      createdAt: new Date('2025-09-15'),
     },
     {
-      name: 'Bánh Sinh Nhật',
-      slug: 'banh-sinh-nhat',
-      description: 'Bánh sinh nhật theo yêu cầu',
-      displayOrder: 3,
+      name: 'Mai Pham',
+      email: 'mai@email.com',
+      phone: '0923456789',
+      level: 'PLATINUM' as MemberLevel,
+      points: 1250,
+      createdAt: new Date('2025-01-10'),
     },
     {
-      name: 'Đồ Uống',
-      slug: 'do-uong',
-      description: 'Cà phê, trà và nước ép',
-      displayOrder: 4,
+      name: 'Duc Le',
+      email: 'duc@email.com',
+      phone: '0934567890',
+      level: 'SILVER' as MemberLevel,
+      points: 90,
+      createdAt: new Date('2025-11-20'),
+    },
+    {
+      name: 'Hoa Vo',
+      email: 'hoa@email.com',
+      phone: '0945678901',
+      level: 'GOLD' as MemberLevel,
+      points: 540,
+      createdAt: new Date('2025-04-05'),
+    },
+    {
+      name: 'Nam Bui',
+      email: 'nam@email.com',
+      phone: '0956789012',
+      level: 'SILVER' as MemberLevel,
+      points: 50,
+      createdAt: new Date('2025-12-01'),
     },
   ];
 
-  const createdCategories: Array<{ id: string; name: string }> = [];
-  for (const cat of categories) {
+  const customers: Record<string, { id: string; name: string }> = {};
+  for (const cust of customersData) {
+    const user = await prisma.user.upsert({
+      where: { email: cust.email },
+      update: {},
+      create: {
+        email: cust.email,
+        password: adminPassword, // Same password for demo
+        emailVerifiedAt: new Date(),
+        name: cust.name,
+        phone: cust.phone,
+        role: 'CUSTOMER',
+        memberLevel: cust.level,
+        points: cust.points,
+        isActive: true,
+        createdAt: cust.createdAt,
+      },
+    });
+    customers[cust.name] = { id: user.id, name: user.name || cust.name };
+    console.log('✅ Customer created:', cust.name);
+  }
+
+  // ============================================
+  // 3. CATEGORIES (from mockCategories)
+  // ============================================
+  const categoriesData = [
+    {
+      name: 'Birthday Cakes',
+      slug: 'birthday-cakes',
+      description: 'Beautiful birthday cakes for all ages',
+      displayOrder: 1,
+    },
+    {
+      name: 'Wedding Cakes',
+      slug: 'wedding-cakes',
+      description: 'Elegant wedding cakes for your special day',
+      displayOrder: 2,
+    },
+    {
+      name: 'Seasonal',
+      slug: 'seasonal',
+      description: 'Limited edition seasonal cakes',
+      displayOrder: 3,
+    },
+    {
+      name: 'Flour & Baking',
+      slug: 'flour-baking',
+      description: 'Premium baking flour and essentials',
+      displayOrder: 4,
+    },
+    {
+      name: 'Chocolate & Cocoa',
+      slug: 'chocolate-cocoa',
+      description: 'High-quality chocolate and cocoa products',
+      displayOrder: 5,
+    },
+    {
+      name: 'Decorations',
+      slug: 'decorations',
+      description: 'Cake decorations and toppings',
+      displayOrder: 6,
+    },
+  ];
+
+  const categories: Record<string, string> = {}; // name -> id
+  for (const cat of categoriesData) {
     const category = await prisma.category.upsert({
       where: { slug: cat.slug },
       update: {},
       create: cat,
     });
-    createdCategories.push(category);
-    console.log('✅ Category created:', category.name);
+    categories[cat.name] = category.id;
+    console.log('✅ Category created:', cat.name);
   }
 
-  // Create sample products
-  const products = [
+  // ============================================
+  // 4. PRODUCTS (from mockProducts)
+  // ============================================
+  const productsData = [
     {
-      name: 'Bánh Mì Việt Nam',
-      slug: 'banh-mi-viet-nam',
-      description: 'Bánh mì giòn rụm, thơm ngon',
-      price: 20000,
-      stock: 50,
-      categoryId: createdCategories[0].id,
+      name: 'Rose Garden Birthday Cake',
+      slug: 'rose-garden-birthday-cake',
+      description:
+        'A beautiful rose garden themed birthday cake with delicate buttercream roses.',
+      price: 850000,
+      categoryName: 'Birthday Cakes',
+      imageUrl: '/images/cake-1.jpg',
+      stock: 10,
       isActive: true,
       isFeatured: true,
     },
     {
-      name: 'Bánh Mì Bơ Tỏi',
-      slug: 'banh-mi-bo-toi',
-      description: 'Bánh mì nướng bơ tỏi thơm lừng',
-      price: 25000,
-      stock: 30,
-      categoryId: createdCategories[0].id,
-      isActive: true,
-    },
-    {
-      name: 'Croissant Bơ',
-      slug: 'croissant-bo',
-      description: 'Croissant Pháp xốp mềm, tan trong miệng',
-      price: 35000,
-      comparePrice: 40000,
-      stock: 20,
-      categoryId: createdCategories[1].id,
-      isActive: true,
-      isFeatured: true,
-    },
-    {
-      name: 'Tiramisu',
-      slug: 'tiramisu',
-      description: 'Bánh Tiramisu Ý truyền thống',
-      price: 45000,
+      name: 'Chocolate Lava Dream',
+      slug: 'chocolate-lava-dream',
+      description: 'Rich dark chocolate cake with molten lava center.',
+      price: 720000,
+      categoryName: 'Birthday Cakes',
+      imageUrl: '/images/cake-2.jpg',
       stock: 15,
-      categoryId: createdCategories[1].id,
-      isActive: true,
-    },
-    {
-      name: 'Bánh Sinh Nhật Red Velvet',
-      slug: 'banh-sinh-nhat-red-velvet',
-      description: 'Bánh sinh nhật Red Velvet size 20cm (6-8 người)',
-      price: 350000,
-      stock: 5,
-      categoryId: createdCategories[2].id,
       isActive: true,
       isFeatured: true,
     },
     {
-      name: 'Cà Phê Sữa Đá',
-      slug: 'ca-phe-sua-da',
-      description: 'Cà phê phin truyền thống Việt Nam',
-      price: 25000,
-      stock: 100,
-      categoryId: createdCategories[3].id,
+      name: 'Classic White Wedding',
+      slug: 'classic-white-wedding',
+      description: 'Elegant 3-tier white wedding cake with fondant finish.',
+      price: 2400000,
+      categoryName: 'Wedding Cakes',
+      imageUrl: '/images/cake-3.jpg',
+      stock: 5,
       isActive: true,
+      isFeatured: true,
+    },
+    {
+      name: 'Matcha Sakura Delight',
+      slug: 'matcha-sakura-delight',
+      description: 'Japanese-inspired matcha cake with sakura decoration.',
+      price: 650000,
+      categoryName: 'Seasonal',
+      imageUrl: '/images/cake-4.jpg',
+      stock: 0,
+      isActive: false,
+      isFeatured: false,
+    },
+    {
+      name: 'Premium Almond Flour',
+      slug: 'premium-almond-flour',
+      description: 'Fine ground blanched almond flour, perfect for macarons.',
+      price: 85000,
+      categoryName: 'Flour & Baking',
+      imageUrl: '/images/ing-1.jpg',
+      stock: 100,
+      isActive: true,
+      isFeatured: false,
+    },
+    {
+      name: 'Belgian Dark Chocolate 70%',
+      slug: 'belgian-dark-chocolate',
+      description: 'Premium Belgian dark chocolate with 70% cocoa content.',
+      price: 120000,
+      categoryName: 'Chocolate & Cocoa',
+      imageUrl: '/images/ing-2.jpg',
+      stock: 80,
+      isActive: true,
+      isFeatured: true,
+    },
+    {
+      name: 'Edible Gold Flakes',
+      slug: 'edible-gold-flakes',
+      description: '24K edible gold flakes for luxury cake decoration.',
+      price: 250000,
+      categoryName: 'Decorations',
+      imageUrl: '/images/ing-3.jpg',
+      stock: 30,
+      isActive: true,
+      isFeatured: false,
     },
   ];
 
-  for (const prod of products) {
+  const products: Record<string, { id: string; name: string; price: number }> =
+    {}; // slug -> product info
+  for (const prod of productsData) {
     const product = await prisma.product.upsert({
       where: { slug: prod.slug },
       update: {},
-      create: prod,
+      create: {
+        name: prod.name,
+        slug: prod.slug,
+        description: prod.description,
+        price: prod.price,
+        categoryId: categories[prod.categoryName],
+        imageUrl: prod.imageUrl,
+        stock: prod.stock,
+        isActive: prod.isActive,
+        isFeatured: prod.isFeatured,
+      },
     });
-    console.log('✅ Product created:', product.name);
+    products[prod.slug] = {
+      id: product.id,
+      name: product.name,
+      price: prod.price,
+    };
+    console.log('✅ Product created:', prod.name);
   }
 
-  // Create sample banners
-  const banners = [
+  // ============================================
+  // 5. BANNERS (from mockBanners)
+  // ============================================
+  const bannersData = [
     {
-      title: 'Giảm giá 20% tất cả bánh sinh nhật',
-      description: 'Áp dụng đến hết tháng 3',
-      imageUrl: '/images/banner-birthday.jpg',
-      linkUrl: '/categories/banh-sinh-nhat',
+      title: 'Spring Collection 2026',
+      description: 'Discover our new spring-inspired cake collection!',
+      imageUrl: '/images/hero-cake.jpg',
+      linkUrl: '/category/seasonal',
+      placement: 'HOME_HERO' as BannerPlacement,
       displayOrder: 1,
       isActive: true,
     },
     {
-      title: 'Khuyến mãi bánh mì buổi sáng',
-      description: 'Mua 2 tặng 1 từ 6h-9h sáng',
-      imageUrl: '/images/banner-morning.jpg',
-      linkUrl: '/categories/banh-mi',
+      title: 'Premium Ingredients Sale',
+      description: 'Up to 30% off on premium baking ingredients.',
+      imageUrl: '/images/ing-1.jpg',
+      linkUrl: '/category/ingredients',
+      placement: 'HOME_PROMO' as BannerPlacement,
       displayOrder: 2,
       isActive: true,
     },
+    {
+      title: 'Wedding Season Special',
+      description: 'Book your dream wedding cake today!',
+      imageUrl: '/images/cake-3.jpg',
+      linkUrl: '/category/wedding',
+      placement: 'HOME_HERO' as BannerPlacement,
+      displayOrder: 3,
+      isActive: false,
+    },
   ];
 
-  for (const banner of banners) {
-    const created = await prisma.banner.create({ data: banner });
-    console.log('✅ Banner created:', created.title);
+  // Clear existing banners first (no upsert by unique field available)
+  await prisma.banner.deleteMany({});
+  for (const banner of bannersData) {
+    await prisma.banner.create({ data: banner });
+    console.log('✅ Banner created:', banner.title);
   }
 
-  console.log('🎉 Seed completed successfully!');
+  // ============================================
+  // 6. ORDERS (from mockOrders)
+  // ============================================
+  const ordersData = [
+    {
+      orderNumber: 'BK20241',
+      customerName: 'Linh Nguyen',
+      customerPhone: '0901234567',
+      customerEmail: 'linh@email.com',
+      subtotal: 900000,
+      discount: 20000,
+      total: 880000,
+      status: 'PENDING' as OrderStatus,
+      paymentMethod: 'BANK_TRANSFER',
+      paymentStatus: 'PENDING',
+      createdAt: new Date('2026-03-02T08:30:00'),
+      items: [{ slug: 'rose-garden-birthday-cake', quantity: 1 }],
+    },
+    {
+      orderNumber: 'BK20242',
+      customerName: 'An Tran',
+      customerPhone: '0912345678',
+      customerEmail: 'an@email.com',
+      customerAddress: '123 Nguyen Hue, Dist 1, HCMC',
+      subtotal: 2400000,
+      discount: 0,
+      total: 2400000,
+      status: 'CONFIRMED' as OrderStatus,
+      paymentMethod: 'COD',
+      paymentStatus: 'PENDING',
+      createdAt: new Date('2026-03-02T09:15:00'),
+      items: [{ slug: 'classic-white-wedding', quantity: 1 }],
+    },
+    {
+      orderNumber: 'BK20243',
+      customerName: 'Mai Pham',
+      customerPhone: '0923456789',
+      customerEmail: 'mai@email.com',
+      subtotal: 490000,
+      discount: 0,
+      total: 490000,
+      status: 'PROCESSING' as OrderStatus,
+      paymentMethod: 'COD',
+      paymentStatus: 'PAID',
+      createdAt: new Date('2026-03-01T20:00:00'),
+      items: [
+        { slug: 'belgian-dark-chocolate', quantity: 2 },
+        { slug: 'edible-gold-flakes', quantity: 1 },
+      ],
+    },
+    {
+      orderNumber: 'BK20244',
+      customerName: 'Duc Le',
+      customerPhone: '0934567890',
+      customerEmail: 'duc@email.com',
+      subtotal: 720000,
+      discount: 0,
+      total: 720000,
+      status: 'READY' as OrderStatus,
+      paymentMethod: 'BANK_TRANSFER',
+      paymentStatus: 'PAID',
+      createdAt: new Date('2026-03-01T18:00:00'),
+      items: [{ slug: 'chocolate-lava-dream', quantity: 1 }],
+    },
+    {
+      orderNumber: 'BK20245',
+      customerName: 'Hoa Vo',
+      customerPhone: '0945678901',
+      customerEmail: 'hoa@email.com',
+      subtotal: 850000,
+      discount: 0,
+      total: 850000,
+      status: 'COMPLETED' as OrderStatus,
+      paymentMethod: 'COD',
+      paymentStatus: 'PAID',
+      createdAt: new Date('2026-03-01T10:00:00'),
+      items: [{ slug: 'rose-garden-birthday-cake', quantity: 1 }],
+    },
+    {
+      orderNumber: 'BK20246',
+      customerName: 'Nam Bui',
+      customerPhone: '0956789012',
+      customerEmail: 'nam@email.com',
+      customerAddress: '45 Le Loi, Dist 3, HCMC',
+      subtotal: 650000,
+      discount: 0,
+      total: 650000,
+      status: 'CANCELLED' as OrderStatus,
+      paymentMethod: 'COD',
+      paymentStatus: 'PENDING',
+      createdAt: new Date('2026-02-28T16:00:00'),
+      items: [{ slug: 'matcha-sakura-delight', quantity: 1 }],
+    },
+  ];
+
+  // Clear existing orders first
+  await prisma.orderItem.deleteMany({});
+  await prisma.order.deleteMany({});
+
+  for (const orderData of ordersData) {
+    const { items, ...orderFields } = orderData;
+
+    // Find customer
+    const customer = customers[orderData.customerName];
+
+    const order = await prisma.order.create({
+      data: {
+        ...orderFields,
+        userId: customer?.id,
+        deliveryFee: 0,
+      },
+    });
+
+    // Create order items
+    for (const item of items) {
+      const product = products[item.slug];
+      if (product) {
+        await prisma.orderItem.create({
+          data: {
+            orderId: order.id,
+            productId: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: item.quantity,
+            subtotal: product.price * item.quantity,
+          },
+        });
+      }
+    }
+    console.log('✅ Order created:', order.orderNumber);
+  }
+
+  // ============================================
+  // 7. SETTINGS
+  // ============================================
+  const settingsData = [
+    { key: 'store_name', value: 'La Douceur Bakery' },
+    { key: 'store_phone', value: '0901234567' },
+    { key: 'store_email', value: 'contact@ladouceur.vn' },
+    {
+      key: 'store_address',
+      value: '123 Nguyen Hue, District 1, Ho Chi Minh City',
+    },
+    { key: 'delivery_fee', value: '30000' },
+    { key: 'min_order_free_delivery', value: '500000' },
+    { key: 'points_per_order', value: '10' }, // Points per 100k spent
+    { key: 'silver_threshold', value: '0' },
+    { key: 'gold_threshold', value: '5000000' },
+    { key: 'platinum_threshold', value: '15000000' },
+  ];
+
+  for (const setting of settingsData) {
+    await prisma.setting.upsert({
+      where: { key: setting.key },
+      update: { value: setting.value },
+      create: setting,
+    });
+    console.log('✅ Setting created:', setting.key);
+  }
+
+  console.log('\n🎉 Seed completed successfully!');
   console.log('\n📱 Admin credentials:');
   console.log('Email:', adminEmail);
   console.log('Password: admin123');
+  console.log('\n👥 Customer credentials (all use password: admin123):');
+  customersData.forEach((c) => console.log(`  - ${c.email}`));
 }
 
 main()

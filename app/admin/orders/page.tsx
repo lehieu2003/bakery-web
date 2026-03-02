@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
 import Link from 'next/link';
-import { Search, Filter, ChevronDown, Eye, Download } from 'lucide-react';
+import { Search, ChevronDown, Eye, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,120 +13,133 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  mockOrders,
-  Order,
-  OrderStatus,
-  FulfillmentType,
   formatVND,
   ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
 } from '@/lib/admin-data';
+import type { OrderStatus } from '@/types/api.types';
 import { cn } from '@/lib/utils';
-
-function exportOrdersToCSV(orders: Order[]) {
-  const headers = [
-    'Order Code',
-    'Customer Name',
-    'Phone',
-    'Status',
-    'Fulfillment',
-    'Payment Method',
-    'Paid',
-    'Subtotal (VND)',
-    'Discount (VND)',
-    'Total (VND)',
-    'Pickup At',
-    'Address',
-    'Note',
-    'Created At',
-    'Items',
-  ];
-
-  const rows = orders.map((o) => {
-    const itemsSummary = o.items
-      .map((i) => `${i.name} x${i.quantity}`)
-      .join(' | ');
-    return [
-      o.orderCode,
-      o.customerName,
-      o.phone,
-      ORDER_STATUS_LABELS[o.status],
-      o.fulfillment,
-      o.paymentMethod,
-      o.paid ? 'Yes' : 'No',
-      o.subtotal,
-      o.discount,
-      o.total,
-      o.pickupAt ?? '',
-      o.address ?? '',
-      o.note ?? '',
-      o.createdAt,
-      itemsSummary,
-    ];
-  });
-
-  const escape = (val: string | number) => {
-    const s = String(val);
-    return s.includes(',') || s.includes('"') || s.includes('\n')
-      ? `"${s.replace(/"/g, '""')}"`
-      : s;
-  };
-
-  const csv = [headers, ...rows]
-    .map((row) => row.map(escape).join(','))
-    .join('\n');
-
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `orders_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { useOrders } from '@/hooks/admin/use-orders';
 
 const ALL_STATUSES: OrderStatus[] = [
-  'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED', 'PAID',
+  'PENDING',
+  'CONFIRMED',
+  'PROCESSING',
+  'READY',
+  'COMPLETED',
+  'CANCELLED',
 ];
 
 export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [fulfillmentFilter, setFulfillmentFilter] = useState<string>('ALL');
+  const [page, setPage] = useState(1);
 
-  const filtered = mockOrders.filter((o) => {
-    const matchSearch =
-      !search ||
-      o.orderCode.toLowerCase().includes(search.toLowerCase()) ||
-      o.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      o.phone.includes(search);
-    const matchStatus = statusFilter === 'ALL' || o.status === statusFilter;
-    const matchFulfillment =
-      fulfillmentFilter === 'ALL' || o.fulfillment === fulfillmentFilter;
-    return matchSearch && matchStatus && matchFulfillment;
+  const { data, isLoading, error } = useOrders({
+    page,
+    limit: 20,
+    status: statusFilter !== 'ALL' ? (statusFilter as OrderStatus) : undefined,
+    search: search || undefined,
   });
+
+  if (isLoading) {
+    return (
+      <AdminShell title='Orders'>
+        <div className='flex items-center justify-center min-h-[400px]'>
+          <Loader2 className='w-8 h-8 animate-spin text-primary' />
+        </div>
+      </AdminShell>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <AdminShell title='Orders'>
+        <div className='flex items-center justify-center min-h-[400px]'>
+          <p className='text-destructive'>Failed to load orders</p>
+        </div>
+      </AdminShell>
+    );
+  }
+
+  const { orders, pagination } = data;
 
   return (
     <AdminShell title='Orders'>
       {/* Header */}
       <div className='flex items-center justify-between mb-6'>
         <div>
-          <h1 className='font-serif text-xl font-semibold text-foreground'>Orders</h1>
+          <h1 className='font-serif text-xl font-semibold text-foreground'>
+            Orders
+          </h1>
           <p className='text-xs text-muted-foreground mt-0.5'>
-            {filtered.length} order{filtered.length !== 1 ? 's' : ''} found
+            {pagination.total} order{pagination.total !== 1 ? 's' : ''} total
           </p>
         </div>
         <Button
           variant='outline'
           size='sm'
           className='h-8 text-xs gap-1.5'
-          onClick={() => exportOrdersToCSV(filtered)}
+          onClick={() => {
+            if (!orders.length) return;
+            // Generate CSV content
+            const headers = [
+              'Order Number',
+              'Customer Name',
+              'Phone',
+              'Email',
+              'Address',
+              'Subtotal',
+              'Delivery Fee',
+              'Discount',
+              'Total',
+              'Payment Method',
+              'Payment Status',
+              'Status',
+              'Created At',
+            ];
+            const rows = orders.map((o) => [
+              o.orderNumber,
+              o.customerName,
+              o.customerPhone,
+              o.customerEmail || '',
+              o.customerAddress || '',
+              Number(o.subtotal),
+              Number(o.deliveryFee),
+              Number(o.discount),
+              Number(o.total),
+              o.paymentMethod || '',
+              o.paymentStatus || '',
+              o.status,
+              new Date(o.createdAt).toLocaleString('vi-VN'),
+            ]);
+            const csvContent = [
+              headers.join(','),
+              ...rows.map((row) =>
+                row
+                  .map((cell) =>
+                    typeof cell === 'string' && cell.includes(',')
+                      ? `"${cell}"`
+                      : cell,
+                  )
+                  .join(','),
+              ),
+            ].join('\n');
+            // Add BOM for Excel UTF-8 compatibility
+            const bom = '\uFEFF';
+            const blob = new Blob([bom + csvContent], {
+              type: 'text/csv;charset=utf-8;',
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `orders_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
         >
           <Download size={12} />
           Export CSV
-          {filtered.length !== mockOrders.length && (
-            <span className='ml-0.5 text-muted-foreground'>({filtered.length})</span>
-          )}
         </Button>
       </div>
 
@@ -138,10 +151,13 @@ export default function OrdersPage() {
             className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none'
           />
           <Input
-            placeholder='Search order code, name, phone...'
+            placeholder='Search order number, name, phone...'
             className='pl-8 h-8 text-xs'
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1); // Reset to first page on search
+            }}
           />
         </div>
 
@@ -149,15 +165,22 @@ export default function OrdersPage() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant='outline' size='sm' className='h-8 text-xs gap-1.5'>
-              <Filter size={12} />
-              {statusFilter === 'ALL' ? 'All Status' : ORDER_STATUS_LABELS[statusFilter as OrderStatus]}
+              {statusFilter === 'ALL'
+                ? 'All Status'
+                : ORDER_STATUS_LABELS[statusFilter as OrderStatus]}
               <ChevronDown size={11} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end' className='w-36'>
             <DropdownMenuItem
-              className={cn('text-xs', statusFilter === 'ALL' && 'font-semibold')}
-              onClick={() => setStatusFilter('ALL')}
+              className={cn(
+                'text-xs',
+                statusFilter === 'ALL' && 'font-semibold',
+              )}
+              onClick={() => {
+                setStatusFilter('ALL');
+                setPage(1);
+              }}
             >
               All Status
             </DropdownMenuItem>
@@ -165,37 +188,25 @@ export default function OrdersPage() {
               <DropdownMenuItem
                 key={s}
                 className={cn('text-xs', statusFilter === s && 'font-semibold')}
-                onClick={() => setStatusFilter(s)}
+                onClick={() => {
+                  setStatusFilter(s);
+                  setPage(1);
+                }}
               >
                 {ORDER_STATUS_LABELS[s]}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* Fulfillment filter */}
-        <div className='flex rounded-lg border border-border overflow-hidden bg-card'>
-          {(['ALL', 'PICKUP', 'DELIVERY'] as (string | FulfillmentType)[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFulfillmentFilter(f)}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium transition-colors',
-                fulfillmentFilter === f
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted',
-              )}
-            >
-              {f === 'ALL' ? 'All' : f}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Status quick tabs */}
       <div className='flex gap-1.5 flex-wrap mb-4'>
         <button
-          onClick={() => setStatusFilter('ALL')}
+          onClick={() => {
+            setStatusFilter('ALL');
+            setPage(1);
+          }}
           className={cn(
             'px-3 py-1 rounded-full text-[10px] font-medium border transition-all',
             statusFilter === 'ALL'
@@ -203,26 +214,25 @@ export default function OrdersPage() {
               : 'bg-card text-muted-foreground border-border hover:border-foreground/30',
           )}
         >
-          All ({mockOrders.length})
+          All
         </button>
-        {ALL_STATUSES.map((s) => {
-          const count = mockOrders.filter((o) => o.status === s).length;
-          if (count === 0) return null;
-          return (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                'px-3 py-1 rounded-full text-[10px] font-medium border transition-all',
-                statusFilter === s
-                  ? `${ORDER_STATUS_COLORS[s]} border-current`
-                  : 'bg-card text-muted-foreground border-border hover:border-foreground/30',
-              )}
-            >
-              {ORDER_STATUS_LABELS[s]} ({count})
-            </button>
-          );
-        })}
+        {ALL_STATUSES.map((s) => (
+          <button
+            key={s}
+            onClick={() => {
+              setStatusFilter(s);
+              setPage(1);
+            }}
+            className={cn(
+              'px-3 py-1 rounded-full text-[10px] font-medium border transition-all',
+              statusFilter === s
+                ? `${ORDER_STATUS_COLORS[s]} border-current`
+                : 'bg-card text-muted-foreground border-border hover:border-foreground/30',
+            )}
+          >
+            {ORDER_STATUS_LABELS[s]}
+          </button>
+        ))}
       </div>
 
       {/* Table */}
@@ -240,7 +250,7 @@ export default function OrdersPage() {
                 Total
               </th>
               <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground hidden md:table-cell'>
-                Fulfillment
+                Payment
               </th>
               <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground'>
                 Status
@@ -252,76 +262,116 @@ export default function OrdersPage() {
             </tr>
           </thead>
           <tbody className='divide-y divide-border'>
-            {filtered.map((order) => (
-              <OrderRow key={order.id} order={order} />
+            {orders.map((order) => (
+              <tr
+                key={order.id}
+                className='hover:bg-muted/20 transition-colors'
+              >
+                <td className='px-5 py-3.5'>
+                  <p className='text-xs font-semibold text-foreground'>
+                    {order.orderNumber}
+                  </p>
+                  <p className='text-[10px] text-muted-foreground mt-0.5 sm:hidden'>
+                    {order.customerName}
+                  </p>
+                </td>
+                <td className='px-5 py-3.5 hidden sm:table-cell'>
+                  <p className='text-xs font-medium text-foreground'>
+                    {order.customerName}
+                  </p>
+                  <p className='text-[10px] text-muted-foreground mt-0.5'>
+                    {order.customerPhone}
+                  </p>
+                </td>
+                <td className='px-5 py-3.5'>
+                  <p className='text-xs font-semibold text-foreground'>
+                    {formatVND(Number(order.total))}
+                  </p>
+                  {Number(order.discount) > 0 && (
+                    <p className='text-[10px] text-emerald-600 mt-0.5'>
+                      -{formatVND(Number(order.discount))}
+                    </p>
+                  )}
+                </td>
+                <td className='px-5 py-3.5 hidden md:table-cell'>
+                  <span
+                    className={cn(
+                      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
+                      order.paymentStatus === 'PAID'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200',
+                    )}
+                  >
+                    {order.paymentStatus || 'PENDING'}
+                  </span>
+                  <p className='text-[10px] text-muted-foreground mt-0.5'>
+                    {order.paymentMethod || 'N/A'}
+                  </p>
+                </td>
+                <td className='px-5 py-3.5'>
+                  <span
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}
+                  >
+                    {ORDER_STATUS_LABELS[order.status as OrderStatus]}
+                  </span>
+                </td>
+                <td className='px-5 py-3.5 hidden lg:table-cell'>
+                  <span className='text-[10px] text-muted-foreground'>
+                    {new Date(order.createdAt).toLocaleString('vi-VN')}
+                  </span>
+                </td>
+                <td className='px-5 py-3.5'>
+                  <Link href={`/admin/orders/${order.id}`}>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      className='h-7 text-xs gap-1'
+                    >
+                      <Eye size={11} />
+                      View
+                    </Button>
+                  </Link>
+                </td>
+              </tr>
             ))}
           </tbody>
         </table>
 
-        {filtered.length === 0 && (
+        {orders.length === 0 && (
           <div className='text-center py-12'>
-            <p className='text-sm text-muted-foreground'>No orders match the current filters</p>
+            <p className='text-sm text-muted-foreground'>
+              No orders match the current filters
+            </p>
           </div>
         )}
       </div>
-    </AdminShell>
-  );
-}
 
-function OrderRow({ order }: { order: Order }) {
-  return (
-    <tr className='hover:bg-muted/20 transition-colors'>
-      <td className='px-5 py-3.5'>
-        <p className='text-xs font-semibold text-foreground'>{order.orderCode}</p>
-        <p className='text-[10px] text-muted-foreground mt-0.5 sm:hidden'>
-          {order.customerName}
-        </p>
-      </td>
-      <td className='px-5 py-3.5 hidden sm:table-cell'>
-        <p className='text-xs font-medium text-foreground'>{order.customerName}</p>
-        <p className='text-[10px] text-muted-foreground mt-0.5'>{order.phone}</p>
-      </td>
-      <td className='px-5 py-3.5'>
-        <p className='text-xs font-semibold text-foreground'>{formatVND(order.total)}</p>
-        {order.discount > 0 && (
-          <p className='text-[10px] text-emerald-600 mt-0.5'>
-            -{formatVND(order.discount)}
-          </p>
-        )}
-      </td>
-      <td className='px-5 py-3.5 hidden md:table-cell'>
-        <span
-          className={cn(
-            'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
-            order.fulfillment === 'PICKUP'
-              ? 'bg-blue-50 text-blue-700 border-blue-200'
-              : 'bg-orange-50 text-orange-700 border-orange-200',
-          )}
-        >
-          {order.fulfillment}
-        </span>
-        {order.pickupAt && (
-          <p className='text-[10px] text-muted-foreground mt-0.5'>{order.pickupAt}</p>
-        )}
-      </td>
-      <td className='px-5 py-3.5'>
-        <span
-          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${ORDER_STATUS_COLORS[order.status]}`}
-        >
-          {ORDER_STATUS_LABELS[order.status]}
-        </span>
-      </td>
-      <td className='px-5 py-3.5 hidden lg:table-cell'>
-        <span className='text-[10px] text-muted-foreground'>{order.createdAt}</span>
-      </td>
-      <td className='px-5 py-3.5'>
-        <Link href={`/admin/orders/${order.id}`}>
-          <Button variant='ghost' size='sm' className='h-7 text-xs gap-1'>
-            <Eye size={11} />
-            View
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className='flex items-center justify-center gap-2 mt-4'>
+          <Button
+            variant='outline'
+            size='sm'
+            className='h-8 text-xs'
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+          >
+            Previous
           </Button>
-        </Link>
-      </td>
-    </tr>
+          <span className='text-xs text-muted-foreground'>
+            Page {page} of {pagination.totalPages}
+          </span>
+          <Button
+            variant='outline'
+            size='sm'
+            className='h-8 text-xs'
+            disabled={page === pagination.totalPages}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+    </AdminShell>
   );
 }

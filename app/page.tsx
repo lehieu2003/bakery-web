@@ -2,7 +2,6 @@
 
 import { AppProvider, useApp } from '@/lib/store';
 import WebNavbar from '@/components/ui-custom/WebNavbar';
-import SplashScreen from '@/components/screens/SplashScreen';
 import HomeScreen from '@/components/screens/HomeScreen';
 import CategoryScreen from '@/components/screens/CategoryScreen';
 import ProductDetailScreen from '@/components/screens/ProductDetailScreen';
@@ -15,10 +14,6 @@ import AuthScreen from '@/components/screens/AuthScreen';
 
 function AppRouter() {
   const { screen } = useApp();
-
-  if (screen === 'splash') {
-    return <SplashScreen />;
-  }
 
   return (
     <div className='min-h-screen bg-background flex flex-col'>
