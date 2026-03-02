@@ -209,7 +209,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/products?page=1&limit=10",
+              "raw": "{{baseUrl}}/api/admin/products?page=1&limit=10",
               "host": ["{{baseUrl}}"],
               "path": ["api", "products"],
               "query": [
@@ -248,7 +248,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/products/:id",
+              "raw": "{{baseUrl}}/api/admin/products/:id",
               "host": ["{{baseUrl}}"],
               "path": ["api", "products", ":id"],
               "variable": [
@@ -345,7 +345,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/categories",
+              "raw": "{{baseUrl}}/api/admin/categories",
               "host": ["{{baseUrl}}"],
               "path": ["api", "categories"]
             },
@@ -465,6 +465,55 @@
           "response": []
         },
         {
+          "name": "[Admin] Get Order Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/orders/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "orders", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Lấy chi tiết đơn hàng (Admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "[Admin] Update Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PROCESSING\",\n  \"notes\": \"Đã xác nhận với khách\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/orders/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "orders", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Cập nhật đơn hàng (Admin only)"
+          },
+          "response": []
+        },
+        {
           "name": "[Admin] Update Order Status",
           "request": {
             "method": "PATCH",
@@ -490,6 +539,288 @@
               ]
             },
             "description": "Cập nhật trạng thái đơn hàng (Admin only). Status: PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "[Admin] Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            },
+            "description": "Lấy thống kê dashboard (Admin only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Banners",
+      "item": [
+        {
+          "name": "[Admin] Get All Banners",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/banners",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "banners"]
+            },
+            "description": "Lấy danh sách banner (Admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "[Admin] Create Banner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Banner mới\",\n  \"imageUrl\": \"/images/banner.jpg\",\n  \"linkUrl\": \"/products\",\n  \"placement\": \"HOME_HERO\",\n  \"displayOrder\": 1,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/banners",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "banners"]
+            },
+            "description": "Tạo banner mới (Admin only). Placement: HOME_HERO, HOME_PROMO, CATEGORY"
+          },
+          "response": []
+        },
+        {
+          "name": "[Admin] Update Banner",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Banner updated\",\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/banners/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "banners", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Cập nhật banner (Admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "[Admin] Delete Banner",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/banners/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "banners", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Xóa banner (Admin only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "[Admin] Get All Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/customers?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "level",
+                  "value": "GOLD",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lấy danh sách khách hàng (Admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "[Admin] Get Customer Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/customers/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "customers", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Lấy chi tiết khách hàng (Admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "[Admin] Update Customer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberLevel\": \"GOLD\",\n  \"points\": 500\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/customers/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "customers", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Cập nhật thông tin khách hàng (Admin only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "[Admin] Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "settings"]
+            },
+            "description": "Lấy cấu hình cửa hàng (Admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "[Admin] Update Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"store_name\": \"Bakery Shop\",\n  \"store_email\": \"hello@bakeryshop.com\",\n  \"store_phone\": \"028 3820 1234\",\n  \"allow_delivery\": \"true\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "settings"]
+            },
+            "description": "Cập nhật cấu hình cửa hàng (Admin only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Membership",
+      "item": [
+        {
+          "name": "[Admin] Get Membership Config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/membership",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "membership"]
+            },
+            "description": "Lấy cấu hình hạng thành viên (Admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "[Admin] Update Membership Config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"levels\": [\n    { \"level\": \"SILVER\", \"minPoints\": 0, \"discountPercent\": 3 },\n    { \"level\": \"GOLD\", \"minPoints\": 300, \"discountPercent\": 7 },\n    { \"level\": \"PLATINUM\", \"minPoints\": 900, \"discountPercent\": 12 }\n  ],\n  \"pointsPerOrder\": 10000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/membership",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "membership"]
+            },
+            "description": "Cập nhật cấu hình hạng thành viên (Admin only)"
           },
           "response": []
         }

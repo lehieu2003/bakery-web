@@ -17,11 +17,10 @@ export async function GET() {
       data: {
         user: {
           id: user.id,
-          phone: user.phone,
-          name: user.name,
           email: user.email,
+          name: user.name,
           role: user.role,
-          phoneVerifiedAt: user.phoneVerifiedAt,
+          emailVerifiedAt: user.emailVerifiedAt,
         },
       },
     });
