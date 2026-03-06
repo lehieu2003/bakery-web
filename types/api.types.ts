@@ -116,9 +116,7 @@ export interface Banner {
 
 export interface Customer extends User {
   orders?: Order[];
-  _count?: {
-    orders: number;
-  };
+  totalOrders: number;
   totalSpent?: number;
 }
 

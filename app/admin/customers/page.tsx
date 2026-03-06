@@ -254,7 +254,7 @@ export default function CustomersPage() {
     phone: null, // API doesn't return phone
     level: c.memberLevel || 'SILVER',
     points: c.points || 0,
-    totalOrders: c._count?.orders || 0,
+    totalOrders: c.totalOrders || 0,
     totalSpent: c.totalSpent || 0,
     createdAt: c.createdAt,
   }));
