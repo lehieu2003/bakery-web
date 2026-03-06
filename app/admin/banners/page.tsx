@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
 import Image from 'next/image';
-import { Plus, Edit, Trash2, Upload, X, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Loader2 } from 'lucide-react';
+import { ImageUpload } from '@/components/image-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,6 +69,7 @@ export default function BannersPage() {
   const [formDisplayOrder, setFormDisplayOrder] = useState('1');
   const [formActive, setFormActive] = useState(true);
   const [formImage, setFormImage] = useState<string>('');
+  const [formImagePublicId, setFormImagePublicId] = useState<string>('');
 
   // API hooks
   const { data: banners, isLoading, error } = useBanners();
@@ -89,6 +91,7 @@ export default function BannersPage() {
     setFormDisplayOrder('1');
     setFormActive(true);
     setFormImage('');
+    setFormImagePublicId('');
     setDialogOpen(true);
   };
 
@@ -101,6 +104,7 @@ export default function BannersPage() {
     setFormDisplayOrder(String(b.displayOrder));
     setFormActive(b.isActive);
     setFormImage(b.imageUrl);
+    setFormImagePublicId('');
     setDialogOpen(true);
   };
 
@@ -314,40 +318,20 @@ export default function BannersPage() {
           <div className='space-y-3 py-2 max-h-[60vh] overflow-y-auto'>
             {/* Image upload */}
             <div>
-              <Label className='text-xs font-medium'>Image URL</Label>
-              <div className='mt-1.5 space-y-2'>
-                <Input
-                  className='h-8 text-xs'
-                  value={formImage}
-                  onChange={(e) => setFormImage(e.target.value)}
-                  placeholder='https://example.com/image.jpg'
-                />
-                {formImage && (
-                  <div className='relative h-28 rounded-lg overflow-hidden bg-muted'>
-                    <Image
-                      src={formImage}
-                      alt='Preview'
-                      fill
-                      className='object-cover'
-                    />
-                    <button
-                      type='button'
-                      onClick={() => setFormImage('')}
-                      className='absolute top-1 right-1 bg-white rounded-full p-1 shadow'
-                    >
-                      <X size={12} className='text-foreground' />
-                    </button>
-                  </div>
-                )}
-                {!formImage && (
-                  <div className='border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1.5 py-5 h-28'>
-                    <Upload size={16} className='text-muted-foreground' />
-                    <p className='text-xs text-muted-foreground'>
-                      Enter image URL above
-                    </p>
-                  </div>
-                )}
-              </div>
+              <Label className='text-xs font-medium'>Banner Image</Label>
+              <ImageUpload
+                onUploadComplete={(url, publicId) => {
+                  setFormImage(url);
+                  setFormImagePublicId(publicId);
+                }}
+                onDelete={() => {
+                  setFormImage('');
+                  setFormImagePublicId('');
+                }}
+                folder='banners'
+                currentImage={formImage || undefined}
+                className='mt-1.5'
+              />
             </div>
 
             <div>
