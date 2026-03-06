@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { ChevronLeft, ShoppingBag, Star } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-store';
-import { getProductById } from '@/lib/products';
+import { useProductDetail } from '@/hooks/use-products';
 import Link from 'next/link';
 
 const SIZES = ['15cm', '18cm', '20cm', '25cm'];
@@ -39,15 +39,44 @@ export default function ProductDetailScreen({
   productId,
 }: ProductDetailScreenProps) {
   const { user, addToCart } = useCart();
-  const selectedProduct = getProductById(productId);
+  const {
+    data: selectedProduct,
+    isLoading,
+    error,
+  } = useProductDetail(productId);
   const [size, setSize] = useState(SIZES[1]);
   const [flavor, setFlavor] = useState(FLAVORS[0]);
   const [message, setMessage] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [added, setAdded] = useState(false);
 
-  if (!selectedProduct) return <div>Product not found</div>;
-  const isCake = selectedProduct.type === 'cake';
+  if (isLoading) {
+    return (
+      <div className='bg-background min-h-screen flex items-center justify-center'>
+        <div className='animate-pulse text-muted-foreground'>
+          Loading product...
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !selectedProduct) {
+    return (
+      <div className='bg-background min-h-screen flex items-center justify-center'>
+        <div className='text-center'>
+          <p className='text-destructive mb-4'>Product not found</p>
+          <Link
+            href='/'
+            className='text-primary hover:underline text-sm font-medium'
+          >
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isCake = selectedProduct.categoryId !== null; // Simplified check
 
   const discountLabel =
     user?.level === 'platinum' ? '15%' : user?.level === 'gold' ? '10%' : '5%';
@@ -60,8 +89,8 @@ export default function ProductDetailScreen({
       id: selectedProduct!.id + '-' + Date.now(),
       name: selectedProduct!.name,
       price: selectedProduct!.price,
-      image: selectedProduct!.image,
-      type: selectedProduct!.type,
+      image: selectedProduct!.imageUrl || '/images/placeholder.jpg',
+      type: isCake ? ('cake' as const) : ('ingredient' as const),
       size: isCake ? size : undefined,
       flavor: isCake ? flavor : undefined,
       message: isCake ? message : undefined,
@@ -93,7 +122,7 @@ export default function ProductDetailScreen({
           <div className='space-y-4'>
             <div className='relative w-full rounded-2xl overflow-hidden bg-secondary aspect-square'>
               <Image
-                src={selectedProduct.image}
+                src={selectedProduct.imageUrl || '/images/placeholder.jpg'}
                 alt={selectedProduct.name}
                 fill
                 className='object-cover'
@@ -102,23 +131,24 @@ export default function ProductDetailScreen({
             </div>
             {/* Thumbnail strip (visual) */}
             <div className='flex gap-3'>
-              {[selectedProduct.image, '/images/cake-detail.jpg'].map(
-                (src, i) => (
-                  <div
-                    key={i}
-                    className={`relative w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors ${
-                      i === 0 ? 'border-primary' : 'border-border'
-                    }`}
-                  >
-                    <Image
-                      src={src}
-                      alt={`View ${i + 1}`}
-                      fill
-                      className='object-cover'
-                    />
-                  </div>
-                ),
-              )}
+              {[
+                selectedProduct.imageUrl || '/images/placeholder.jpg',
+                '/images/cake-detail.jpg',
+              ].map((src, i) => (
+                <div
+                  key={i}
+                  className={`relative w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors ${
+                    i === 0 ? 'border-primary' : 'border-border'
+                  }`}
+                >
+                  <Image
+                    src={src}
+                    alt={`View ${i + 1}`}
+                    fill
+                    className='object-cover'
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
@@ -244,10 +274,10 @@ export default function ProductDetailScreen({
             {!isCake && (
               <div className='bg-card rounded-2xl border border-border/50 p-5 mb-6 space-y-3'>
                 {[
-                  { label: 'Weight', value: selectedProduct.weight || '500g' },
+                  { label: 'Weight', value: '500g' },
                   {
                     label: 'Origin',
-                    value: selectedProduct.origin || 'Imported',
+                    value: 'Imported',
                   },
                   { label: 'Best Before', value: '12 months from production' },
                   {

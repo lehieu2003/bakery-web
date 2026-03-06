@@ -15,6 +15,14 @@ export {
   authKeys,
 } from './use-auth';
 
+// Product hooks
+export {
+  useProducts,
+  useProductDetail,
+  useCategories,
+  productKeys,
+} from './use-products';
+
 // UI hooks
 export { useMobile } from './use-mobile';
 export { useToast, toast } from './use-toast';

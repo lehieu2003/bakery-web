@@ -3,9 +3,9 @@
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { useCart } from '@/lib/cart-store';
-import { CAKES, INGREDIENTS } from '@/lib/products';
 import MembershipCard from '@/components/ui-custom/MembershipCard';
 import Link from 'next/link';
+import { useProducts, useCategories } from '@/hooks/use-products';
 
 function ProductCard({
   product,
@@ -41,6 +41,39 @@ function ProductCard({
 
 export default function HomeScreen() {
   const { user } = useCart();
+  const { data: productsData, isLoading: productsLoading } = useProducts();
+  const { data: categoriesData } = useCategories();
+
+  // Get categories for filtering
+  const categories = categoriesData || [];
+  const cakeCategory = categories.find(
+    (cat: { slug: string; name: string; id: string }) =>
+      cat.slug === 'cakes' || cat.name.toLowerCase().includes('cake'),
+  );
+  const ingredientCategory = categories.find(
+    (cat: { slug: string; name: string; id: string }) =>
+      cat.slug === 'ingredients' ||
+      cat.name.toLowerCase().includes('ingredient'),
+  );
+
+  // Filter products by category
+  const products = productsData?.products || [];
+  const cakes = products
+    .filter(
+      (p) =>
+        p.isActive &&
+        (cakeCategory ? p.categoryId === cakeCategory.id : p.isFeatured),
+    )
+    .slice(0, 4);
+  const ingredients = products
+    .filter(
+      (p) =>
+        p.isActive &&
+        (ingredientCategory
+          ? p.categoryId === ingredientCategory.id
+          : !cakeCategory || p.categoryId !== cakeCategory.id),
+    )
+    .slice(0, 4);
 
   return (
     <div className='bg-background'>
@@ -135,9 +168,38 @@ export default function HomeScreen() {
           </Link>
         </div>
         <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
-          {CAKES.map((p) => (
-            <ProductCard key={p.id} product={p} href={`/products/${p.id}`} />
-          ))}
+          {productsLoading ? (
+            // Loading skeleton
+            [...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
+              >
+                <div className='aspect-square bg-secondary' />
+                <div className='p-4 space-y-2'>
+                  <div className='h-4 bg-secondary rounded' />
+                  <div className='h-3 bg-secondary rounded w-2/3' />
+                </div>
+              </div>
+            ))
+          ) : cakes.length > 0 ? (
+            cakes.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={{
+                  id: p.id,
+                  name: p.name,
+                  price: p.price,
+                  image: p.imageUrl || '/images/placeholder.jpg',
+                }}
+                href={`/products/${p.id}`}
+              />
+            ))
+          ) : (
+            <div className='col-span-full text-center py-8 text-muted-foreground'>
+              No products available
+            </div>
+          )}
         </div>
       </section>
 
@@ -165,9 +227,38 @@ export default function HomeScreen() {
           </Link>
         </div>
         <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
-          {INGREDIENTS.map((p) => (
-            <ProductCard key={p.id} product={p} href={`/products/${p.id}`} />
-          ))}
+          {productsLoading ? (
+            // Loading skeleton
+            [...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
+              >
+                <div className='aspect-square bg-secondary' />
+                <div className='p-4 space-y-2'>
+                  <div className='h-4 bg-secondary rounded' />
+                  <div className='h-3 bg-secondary rounded w-2/3' />
+                </div>
+              </div>
+            ))
+          ) : ingredients.length > 0 ? (
+            ingredients.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={{
+                  id: p.id,
+                  name: p.name,
+                  price: p.price,
+                  image: p.imageUrl || '/images/placeholder.jpg',
+                }}
+                href={`/products/${p.id}`}
+              />
+            ))
+          ) : (
+            <div className='col-span-full text-center py-8 text-muted-foreground'>
+              No products available
+            </div>
+          )}
         </div>
       </section>
 

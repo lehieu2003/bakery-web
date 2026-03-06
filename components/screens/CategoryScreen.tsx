@@ -3,8 +3,8 @@
 import Image from 'next/image';
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
-import { ALL_PRODUCTS, Product } from '@/lib/products';
 import Link from 'next/link';
+import { useProducts, useCategories } from '@/hooks/use-products';
 
 type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc';
 const SORT_LABELS: Record<SortOption, string> = {
@@ -24,7 +24,7 @@ const PRICE_FILTERS = [
 const BRANDS = ['All', 'Valrhona', 'Nielsen-Massey', "Bob's Red Mill"];
 
 interface CategoryScreenProps {
-  category: 'cake' | 'ingredient';
+  category: 'cakes' | 'ingredients';
 }
 
 export default function CategoryScreen({ category }: CategoryScreenProps) {
@@ -32,16 +32,32 @@ export default function CategoryScreen({ category }: CategoryScreenProps) {
   const [priceFilter, setPriceFilter] = useState('All');
   const [brandFilter, setBrandFilter] = useState('All');
 
-  const products = ALL_PRODUCTS.filter((p) => p.type === category);
+  // Fetch categories and products
+  const { data: categoriesData } = useCategories();
+  const categories = categoriesData || [];
+
+  // Find category ID based on category slug
+  const categoryData = categories.find(
+    (cat: { slug: string; name: string; id: string }) =>
+      cat.slug === category ||
+      cat.slug.toLowerCase() === category.toLowerCase(),
+  );
+
+  // Fetch products filtered by category
+  const { data: productsData, isLoading } = useProducts({
+    categoryId: categoryData?.id,
+  });
+
+  const products = (productsData?.products || []).filter((p) => p.isActive);
   const sorted = [...products].sort((a, b) => {
     if (sort === 'price-asc') return a.price - b.price;
     if (sort === 'price-desc') return b.price - a.price;
     return 0;
   });
 
-  const title = category === 'cake' ? 'Signature Cakes' : 'Baking Ingredients';
+  const title = category === 'cakes' ? 'Signature Cakes' : 'Baking Ingredients';
   const subtitle =
-    category === 'cake'
+    category === 'cakes'
       ? 'Handcrafted to order, every cake is made with premium ingredients and artisan care.'
       : 'Professional-grade baking ingredients sourced from trusted suppliers worldwide.';
 
@@ -117,7 +133,7 @@ export default function CategoryScreen({ category }: CategoryScreenProps) {
             </div>
 
             {/* Brand (ingredients only) */}
-            {category === 'ingredient' && (
+            {category === 'ingredients' && (
               <div>
                 <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
                   Brand
@@ -170,38 +186,60 @@ export default function CategoryScreen({ category }: CategoryScreenProps) {
           </div>
 
           <div className='grid grid-cols-2 md:grid-cols-3 gap-5'>
-            {sorted.map((p) => (
-              <Link
-                key={p.id}
-                href={`/products/${p.id}`}
-                className='bg-card rounded-2xl overflow-hidden border border-border/50 text-left hover:shadow-lg hover:border-border transition-all duration-300 group block'
-              >
+            {isLoading ? (
+              // Loading skeleton
+              [...Array(6)].map((_, i) => (
                 <div
-                  className='relative w-full overflow-hidden bg-secondary'
-                  style={{ paddingBottom: '100%' }}
+                  key={i}
+                  className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
                 >
-                  <Image
-                    src={p.image}
-                    alt={p.name}
-                    fill
-                    className='object-cover group-hover:scale-105 transition-transform duration-500'
-                  />
+                  <div className='w-full' style={{ paddingBottom: '100%' }}>
+                    <div className='bg-secondary h-full' />
+                  </div>
+                  <div className='p-4 space-y-2'>
+                    <div className='h-4 bg-secondary rounded' />
+                    <div className='h-3 bg-secondary rounded w-2/3' />
+                  </div>
                 </div>
-                <div className='p-4'>
-                  <p className='font-sans text-sm font-semibold text-foreground leading-snug text-balance'>
-                    {p.name}
-                  </p>
-                  {p.description && (
-                    <p className='text-xs text-muted-foreground mt-1 line-clamp-1 leading-relaxed'>
-                      {p.description}
+              ))
+            ) : sorted.length > 0 ? (
+              sorted.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/products/${p.id}`}
+                  className='bg-card rounded-2xl overflow-hidden border border-border/50 text-left hover:shadow-lg hover:border-border transition-all duration-300 group block'
+                >
+                  <div
+                    className='relative w-full overflow-hidden bg-secondary'
+                    style={{ paddingBottom: '100%' }}
+                  >
+                    <Image
+                      src={p.imageUrl || '/images/placeholder.jpg'}
+                      alt={p.name}
+                      fill
+                      className='object-cover group-hover:scale-105 transition-transform duration-500'
+                    />
+                  </div>
+                  <div className='p-4'>
+                    <p className='font-sans text-sm font-semibold text-foreground leading-snug text-balance'>
+                      {p.name}
                     </p>
-                  )}
-                  <p className='font-sans text-base font-bold text-accent mt-2.5'>
-                    {p.price.toLocaleString('vi-VN')}đ
-                  </p>
-                </div>
-              </Link>
-            ))}
+                    {p.description && (
+                      <p className='text-xs text-muted-foreground mt-1 line-clamp-1 leading-relaxed'>
+                        {p.description}
+                      </p>
+                    )}
+                    <p className='font-sans text-base font-bold text-accent mt-2.5'>
+                      {p.price.toLocaleString('vi-VN')}đ
+                    </p>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className='col-span-full text-center py-12 text-muted-foreground'>
+                No products available in this category
+              </div>
+            )}
           </div>
         </div>
       </div>
