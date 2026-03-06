@@ -38,6 +38,7 @@ import { useCategories } from '@/hooks/admin/use-categories';
 import { formatVND } from '@/lib/admin-data';
 import { cn } from '@/lib/utils';
 import type { Product, Category } from '@/types/api.types';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProductsPage() {
   const [search, setSearch] = useState('');
@@ -47,7 +48,9 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const { toast } = useToast();
 
   const {
     data: productsData,
@@ -97,11 +100,51 @@ export default function ProductsPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+
+    console.log('Deleting product with ID:', deleteId);
+
     try {
       await deleteMutation.mutateAsync(deleteId);
+      console.log('Product deleted successfully');
       setDeleteId(null);
-    } catch {
-      // Error handled by mutation/toast
+    } catch (error) {
+      console.error('Delete product error:', error);
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Failed to delete product',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    console.log('Bulk deleting products:', selectedIds);
+
+    try {
+      // Delete all selected products
+      await Promise.all(
+        selectedIds.map((id) => deleteMutation.mutateAsync(id)),
+      );
+
+      console.log('Bulk delete successful');
+      toast({
+        title: 'Success',
+        description: `Deleted ${selectedIds.length} product${selectedIds.length > 1 ? 's' : ''} successfully`,
+      });
+
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Failed to delete products',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -242,6 +285,15 @@ export default function ProductsPage() {
               variant='outline'
               size='sm'
               className='h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10'
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Trash2 size={12} className='mr-1' />
+              Delete
+            </Button>
+            <Button
+              variant='outline'
+              size='sm'
+              className='h-7 text-xs'
               onClick={() => setSelectedIds([])}
             >
               Clear
@@ -457,6 +509,38 @@ export default function ProductsPage() {
                 <Loader2 className='w-3 h-3 animate-spin mr-1' />
               )}
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete confirm */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className='font-serif text-base'>
+              Delete {selectedIds.length} Product
+              {selectedIds.length > 1 ? 's' : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-xs'>
+              This action cannot be undone. {selectedIds.length} product
+              {selectedIds.length > 1 ? 's' : ''} will be permanently removed
+              from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className='text-xs h-8'>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className='text-xs h-8 bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+              onClick={handleBulkDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && (
+                <Loader2 className='w-3 h-3 animate-spin mr-1' />
+              )}
+              Delete All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
