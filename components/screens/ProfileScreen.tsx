@@ -1,7 +1,8 @@
 'use client';
 
 import { LogOut, ChevronRight } from 'lucide-react';
-import { useApp, MemberLevel } from '@/lib/store';
+import { useCart, MemberLevel } from '@/lib/cart-store';
+import Link from 'next/link';
 
 const LEVEL_BENEFITS: Record<
   MemberLevel,
@@ -66,7 +67,7 @@ const MOCK_POINT_HISTORY = [
 ];
 
 export default function ProfileScreen() {
-  const { user, navigate, logout } = useApp();
+  const { user, logout } = useCart();
 
   if (!user) {
     return (
@@ -93,18 +94,18 @@ export default function ProfileScreen() {
               and enjoy personalised bakery experiences at every tier.
             </p>
             <div className='flex gap-4'>
-              <button
-                onClick={() => navigate('auth')}
+              <Link
+                href='/auth'
                 className='px-8 py-3.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-md'
               >
                 Sign In
-              </button>
-              <button
-                onClick={() => navigate('auth')}
+              </Link>
+              <Link
+                href='/auth'
                 className='px-8 py-3.5 border border-primary text-primary rounded-full text-sm font-medium hover:bg-primary/8 transition-colors'
               >
                 Create Account
-              </button>
+              </Link>
             </div>
           </div>
 

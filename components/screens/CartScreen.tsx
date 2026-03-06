@@ -1,13 +1,20 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import { ChevronLeft, Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
-import { useApp } from "@/lib/store";
+import Image from 'next/image';
+import { ChevronLeft, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { useCart } from '@/lib/cart-store';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-const DISCOUNT_RATE: Record<string, number> = { silver: 0.05, gold: 0.10, platinum: 0.15 };
+const DISCOUNT_RATE: Record<string, number> = {
+  silver: 0.05,
+  gold: 0.1,
+  platinum: 0.15,
+};
 
 export default function CartScreen() {
-  const { cart, user, navigate, removeFromCart, updateQty } = useApp();
+  const { cart, user, removeFromCart, updateQty } = useCart();
+  const router = useRouter();
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const discountRate = user ? DISCOUNT_RATE[user.level] : 0;
@@ -15,90 +22,112 @@ export default function CartScreen() {
   const total = subtotal - discount;
 
   return (
-    <div className="bg-background">
+    <div className='bg-background'>
       {/* Page header */}
-      <div className="border-b border-border/60 bg-card">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-          <button
-            onClick={() => navigate("home")}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+      <div className='border-b border-border/60 bg-card'>
+        <div className='max-w-7xl mx-auto px-6 lg:px-8 py-8'>
+          <Link
+            href='/'
+            className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4'
           >
             <ChevronLeft size={16} />
             Continue Shopping
-          </button>
-          <h1 className="font-serif text-3xl font-semibold text-foreground">My Cart</h1>
+          </Link>
+          <h1 className='font-serif text-3xl font-semibold text-foreground'>
+            My Cart
+          </h1>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
+      <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
         {cart.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-6 text-center">
-            <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center">
-              <ShoppingBag size={28} className="text-muted-foreground" />
+          <div className='flex flex-col items-center justify-center py-24 gap-6 text-center'>
+            <div className='w-20 h-20 rounded-full bg-secondary flex items-center justify-center'>
+              <ShoppingBag size={28} className='text-muted-foreground' />
             </div>
             <div>
-              <p className="font-serif text-xl font-semibold text-foreground mb-1">Your cart is empty</p>
-              <p className="text-sm text-muted-foreground">Add some cakes or ingredients to get started.</p>
+              <p className='font-serif text-xl font-semibold text-foreground mb-1'>
+                Your cart is empty
+              </p>
+              <p className='text-sm text-muted-foreground'>
+                Add some cakes or ingredients to get started.
+              </p>
             </div>
-            <button
-              onClick={() => navigate("home")}
-              className="px-8 py-3 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
+            <Link
+              href='/'
+              className='px-8 py-3 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors'
             >
               Browse Menu
-            </button>
+            </Link>
           </div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-10">
+          <div className='flex flex-col lg:flex-row gap-10'>
             {/* Cart items */}
-            <div className="flex-1 min-w-0">
-              <div className="space-y-4">
+            <div className='flex-1 min-w-0'>
+              <div className='space-y-4'>
                 {cart.map((item) => (
                   <div
                     key={item.id}
-                    className="bg-card rounded-2xl border border-border/50 p-5 flex gap-5"
+                    className='bg-card rounded-2xl border border-border/50 p-5 flex gap-5'
                   >
-                    <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-secondary">
-                      <Image src={item.image} alt={item.name} fill className="object-cover" />
+                    <div className='relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-secondary'>
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        className='object-cover'
+                      />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
+                    <div className='flex-1 min-w-0'>
+                      <div className='flex items-start justify-between gap-4'>
                         <div>
-                          <p className="font-sans text-base font-semibold text-foreground">{item.name}</p>
+                          <p className='font-sans text-base font-semibold text-foreground'>
+                            {item.name}
+                          </p>
                           {item.size && (
-                            <p className="text-sm text-muted-foreground mt-0.5">{item.size} · {item.flavor}</p>
+                            <p className='text-sm text-muted-foreground mt-0.5'>
+                              {item.size} · {item.flavor}
+                            </p>
                           )}
                           {item.pickupDate && (
-                            <p className="text-sm text-muted-foreground">Pickup: {item.pickupDate}</p>
+                            <p className='text-sm text-muted-foreground'>
+                              Pickup: {item.pickupDate}
+                            </p>
                           )}
                           {item.message && (
-                            <p className="text-sm text-muted-foreground italic mt-0.5">"{item.message}"</p>
+                            <p className='text-sm text-muted-foreground italic mt-0.5'>
+                              "{item.message}"
+                            </p>
                           )}
                         </div>
                         <button
                           onClick={() => removeFromCart(item.id)}
-                          className="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-secondary flex-shrink-0"
-                          aria-label="Remove item"
+                          className='p-2 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-secondary flex-shrink-0'
+                          aria-label='Remove item'
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
-                      <div className="flex items-center justify-between mt-4">
-                        <p className="font-sans text-lg font-bold text-accent">
-                          {(item.price * item.quantity).toLocaleString("vi-VN")}đ
+                      <div className='flex items-center justify-between mt-4'>
+                        <p className='font-sans text-lg font-bold text-accent'>
+                          {(item.price * item.quantity).toLocaleString('vi-VN')}
+                          đ
                         </p>
-                        <div className="flex items-center gap-3 border border-border rounded-full px-3 py-1.5">
+                        <div className='flex items-center gap-3 border border-border rounded-full px-3 py-1.5'>
                           <button
                             onClick={() => updateQty(item.id, -1)}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label="Decrease quantity"
+                            className='text-muted-foreground hover:text-foreground transition-colors'
+                            aria-label='Decrease quantity'
                           >
                             <Minus size={14} />
                           </button>
-                          <span className="text-sm font-semibold text-foreground w-5 text-center">{item.quantity}</span>
+                          <span className='text-sm font-semibold text-foreground w-5 text-center'>
+                            {item.quantity}
+                          </span>
                           <button
                             onClick={() => updateQty(item.id, 1)}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label="Increase quantity"
+                            className='text-muted-foreground hover:text-foreground transition-colors'
+                            aria-label='Increase quantity'
                           >
                             <Plus size={14} />
                           </button>
@@ -111,40 +140,59 @@ export default function CartScreen() {
             </div>
 
             {/* Sticky order summary */}
-            <aside className="w-full lg:w-80 flex-shrink-0">
-              <div className="sticky top-24">
-                <div className="bg-card rounded-2xl border border-border/50 p-6">
-                  <h2 className="font-serif text-xl font-semibold text-foreground mb-6">Order Summary</h2>
-                  <div className="space-y-3 mb-4">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Subtotal ({cart.reduce((s, i) => s + i.quantity, 0)} items)</span>
-                      <span className="text-sm text-foreground font-medium">{subtotal.toLocaleString("vi-VN")}đ</span>
+            <aside className='w-full lg:w-80 flex-shrink-0'>
+              <div className='sticky top-24'>
+                <div className='bg-card rounded-2xl border border-border/50 p-6'>
+                  <h2 className='font-serif text-xl font-semibold text-foreground mb-6'>
+                    Order Summary
+                  </h2>
+                  <div className='space-y-3 mb-4'>
+                    <div className='flex justify-between'>
+                      <span className='text-sm text-muted-foreground'>
+                        Subtotal ({cart.reduce((s, i) => s + i.quantity, 0)}{' '}
+                        items)
+                      </span>
+                      <span className='text-sm text-foreground font-medium'>
+                        {subtotal.toLocaleString('vi-VN')}đ
+                      </span>
                     </div>
                     {user && discount > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-primary capitalize">
-                          {user.level} Member ({Math.round(discountRate * 100)}% off)
+                      <div className='flex justify-between'>
+                        <span className='text-sm text-primary capitalize'>
+                          {user.level} Member ({Math.round(discountRate * 100)}%
+                          off)
                         </span>
-                        <span className="text-sm text-primary font-semibold">-{discount.toLocaleString("vi-VN")}đ</span>
+                        <span className='text-sm text-primary font-semibold'>
+                          -{discount.toLocaleString('vi-VN')}đ
+                        </span>
                       </div>
                     )}
                   </div>
-                  <div className="h-px bg-border mb-4" />
-                  <div className="flex justify-between items-center bg-secondary/70 rounded-xl px-4 py-3 mb-6">
-                    <span className="font-serif text-base font-bold text-foreground">Total</span>
-                    <span className="font-serif text-xl font-bold text-accent">{total.toLocaleString("vi-VN")}đ</span>
+                  <div className='h-px bg-border mb-4' />
+                  <div className='flex justify-between items-center bg-secondary/70 rounded-xl px-4 py-3 mb-6'>
+                    <span className='font-serif text-base font-bold text-foreground'>
+                      Total
+                    </span>
+                    <span className='font-serif text-xl font-bold text-accent'>
+                      {total.toLocaleString('vi-VN')}đ
+                    </span>
                   </div>
 
                   {!user && (
-                    <p className="text-xs text-muted-foreground text-center mb-4">
-                      <button onClick={() => navigate("profile")} className="text-primary underline underline-offset-2 font-medium">Sign in</button>
-                      {" "}to apply membership savings.
+                    <p className='text-xs text-muted-foreground text-center mb-4'>
+                      <Link
+                        href='/profile'
+                        className='text-primary underline underline-offset-2 font-medium'
+                      >
+                        Sign in
+                      </Link>{' '}
+                      to apply membership savings.
                     </p>
                   )}
 
                   <button
-                    onClick={() => navigate("checkout-info")}
-                    className="w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors"
+                    onClick={() => router.push('/checkout/info')}
+                    className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors'
                   >
                     Proceed to Checkout
                   </button>

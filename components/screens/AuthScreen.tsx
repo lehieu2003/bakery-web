@@ -3,14 +3,15 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
-import { useApp } from '@/lib/store';
 import { useLogin, useRegister, useRegisterVerify } from '@/hooks/use-auth';
 import type { LoginRequest, RegisterVerifyRequest } from '@/types/api.types';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 type Tab = 'login' | 'register';
 
 export default function AuthScreen() {
-  const { navigate } = useApp();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>('login');
   const loginMutation = useLogin();
   const registerMutation = useRegister();
@@ -42,8 +43,13 @@ export default function AuthScreen() {
 
   const onLoginSubmit = (data: LoginRequest) => {
     loginMutation.mutate(data, {
-      onSuccess: () => {
-        navigate('home');
+      onSuccess: (user) => {
+        // Navigate based on user role
+        if (user.role === 'ADMIN') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/');
+        }
       },
     });
   };
@@ -63,8 +69,13 @@ export default function AuthScreen() {
   const onRegisterSubmit = (data: RegisterVerifyRequest) => {
     if (!agreed) return;
     registerVerifyMutation.mutate(data, {
-      onSuccess: () => {
-        navigate('home');
+      onSuccess: (user) => {
+        // Navigate based on user role
+        if (user.role === 'ADMIN') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/');
+        }
       },
     });
   };
@@ -92,13 +103,13 @@ export default function AuthScreen() {
     <div className='min-h-[calc(100vh-64px)] bg-background flex items-center justify-center px-4 py-16'>
       <div className='w-full max-w-md'>
         {/* Back */}
-        <button
-          onClick={() => navigate('home')}
+        <Link
+          href='/'
           className='flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-8 transition-colors'
         >
           <ArrowLeft size={16} />
           Back to home
-        </button>
+        </Link>
 
         {/* Card */}
         <div className='bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden'>

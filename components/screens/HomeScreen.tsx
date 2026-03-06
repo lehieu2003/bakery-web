@@ -2,76 +2,45 @@
 
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
-import { useApp, Product } from '@/lib/store';
+import { useCart } from '@/lib/cart-store';
+import { CAKES, INGREDIENTS } from '@/lib/products';
 import MembershipCard from '@/components/ui-custom/MembershipCard';
+import Link from 'next/link';
 
-const CAKES: Product[] = [
-  {
-    id: 'c1',
-    name: 'Rose Signature Cake',
-    price: 450000,
-    image: '/images/cake-1.jpg',
-    type: 'cake',
-    description: 'Single-tier with white fondant and rose decor',
-  },
-  {
-    id: 'c2',
-    name: 'Dark Chocolate Mousse',
-    price: 380000,
-    image: '/images/cake-2.jpg',
-    type: 'cake',
-    description: 'Glossy ganache with fresh berry topping',
-  },
-  {
-    id: 'c3',
-    name: 'Strawberry Chiffon',
-    price: 320000,
-    image: '/images/cake-3.jpg',
-    type: 'cake',
-    description: 'Light chiffon with whipped cream and strawberries',
-  },
-  {
-    id: 'c4',
-    name: 'Grand Tiered Wedding',
-    price: 1200000,
-    image: '/images/cake-4.jpg',
-    type: 'cake',
-    description: 'Elegant tiered cake with buttercream rosettes',
-  },
-];
-
-const INGREDIENTS: Product[] = [
-  {
-    id: 'i1',
-    name: 'Premium Almond Flour',
-    price: 85000,
-    image: '/images/ing-1.jpg',
-    type: 'ingredient',
-    weight: '500g',
-    origin: 'France',
-  },
-  {
-    id: 'i2',
-    name: 'Dark Couverture Chocolate',
-    price: 120000,
-    image: '/images/ing-2.jpg',
-    type: 'ingredient',
-    weight: '300g',
-    origin: 'Belgium',
-  },
-  {
-    id: 'i3',
-    name: 'Pure Vanilla Extract',
-    price: 95000,
-    image: '/images/ing-3.jpg',
-    type: 'ingredient',
-    weight: '100ml',
-    origin: 'Madagascar',
-  },
-];
+function ProductCard({
+  product,
+  href,
+}: {
+  product: { id: string; name: string; price: number; image: string };
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className='group bg-card rounded-2xl border border-border/50 overflow-hidden hover:border-primary/40 transition-all hover:shadow-lg'
+    >
+      <div className='relative aspect-square bg-secondary overflow-hidden'>
+        <Image
+          src={product.image}
+          alt={product.name}
+          fill
+          className='object-cover transition-transform group-hover:scale-105'
+        />
+      </div>
+      <div className='p-4'>
+        <p className='font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1'>
+          {product.name}
+        </p>
+        <p className='text-xs text-muted-foreground mt-1'>
+          From {product.price.toLocaleString('vi-VN')}đ
+        </p>
+      </div>
+    </Link>
+  );
+}
 
 export default function HomeScreen() {
-  const { user, navigate, selectProduct, setCategory } = useApp();
+  const { user } = useCart();
 
   return (
     <div className='bg-background'>
@@ -103,18 +72,18 @@ export default function HomeScreen() {
                 made to order.
               </p>
               <div className='flex items-center gap-4'>
-                <button
-                  onClick={() => setCategory('cake')}
+                <Link
+                  href='/cakes'
                   className='px-8 py-3.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg'
                 >
                   Explore Cakes
-                </button>
-                <button
-                  onClick={() => setCategory('ingredient')}
+                </Link>
+                <Link
+                  href='/ingredients'
                   className='px-8 py-3.5 bg-white/15 backdrop-blur-sm text-white rounded-full text-sm font-medium hover:bg-white/25 transition-colors border border-white/30'
                 >
                   Shop Ingredients
-                </button>
+                </Link>
               </div>
             </div>
           </div>
@@ -128,13 +97,9 @@ export default function HomeScreen() {
             <MembershipCard user={user} />
           </div>
         ) : (
-          <div
-            className='rounded-2xl border border-border bg-card px-6 py-5 flex items-center justify-between cursor-pointer hover:border-primary/40 transition-colors group'
-            onClick={() => navigate('profile')}
-            role='button'
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && navigate('profile')}
-            aria-label='Join membership'
+          <Link
+            href='/profile'
+            className='rounded-2xl border border-border bg-card px-6 py-5 flex items-center justify-between hover:border-primary/40 transition-colors group'
           >
             <div>
               <p className='font-serif text-base font-semibold text-foreground'>
@@ -147,7 +112,7 @@ export default function HomeScreen() {
             <span className='flex items-center gap-1.5 text-primary text-sm font-medium group-hover:gap-2.5 transition-all'>
               Join now <ArrowRight size={16} />
             </span>
-          </div>
+          </Link>
         )}
       </section>
 
@@ -162,20 +127,16 @@ export default function HomeScreen() {
               Signature Cakes
             </h2>
           </div>
-          <button
-            onClick={() => setCategory('cake')}
+          <Link
+            href='/cakes'
             className='flex items-center gap-1.5 text-sm font-medium text-primary hover:gap-2.5 transition-all'
           >
             View all <ArrowRight size={15} />
-          </button>
+          </Link>
         </div>
         <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
           {CAKES.map((p) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              onPress={() => selectProduct(p)}
-            />
+            <ProductCard key={p.id} product={p} href={`/products/${p.id}`} />
           ))}
         </div>
       </section>
@@ -196,20 +157,16 @@ export default function HomeScreen() {
               Baking Ingredients
             </h2>
           </div>
-          <button
-            onClick={() => setCategory('ingredient')}
+          <Link
+            href='/ingredients'
             className='flex items-center gap-1.5 text-sm font-medium text-primary hover:gap-2.5 transition-all'
           >
             View all <ArrowRight size={15} />
-          </button>
+          </Link>
         </div>
         <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
           {INGREDIENTS.map((p) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              onPress={() => selectProduct(p)}
-            />
+            <ProductCard key={p.id} product={p} href={`/products/${p.id}`} />
           ))}
         </div>
       </section>
@@ -243,45 +200,5 @@ export default function HomeScreen() {
         </div>
       </section>
     </div>
-  );
-}
-
-function ProductCard({
-  product,
-  onPress,
-}: {
-  product: Product;
-  onPress: () => void;
-}) {
-  return (
-    <button
-      onClick={onPress}
-      className='bg-card rounded-2xl overflow-hidden border border-border/50 text-left hover:shadow-lg hover:border-border transition-all duration-300 group'
-    >
-      <div
-        className='relative w-full overflow-hidden bg-secondary'
-        style={{ paddingBottom: '100%' }}
-      >
-        <Image
-          src={product.image}
-          alt={product.name}
-          fill
-          className='object-cover group-hover:scale-105 transition-transform duration-500'
-        />
-      </div>
-      <div className='p-4'>
-        <p className='font-sans text-sm font-semibold text-foreground leading-snug text-balance'>
-          {product.name}
-        </p>
-        {product.description && (
-          <p className='text-xs text-muted-foreground mt-1 line-clamp-1 leading-relaxed'>
-            {product.description}
-          </p>
-        )}
-        <p className='font-sans text-base font-bold text-accent mt-2.5'>
-          {product.price.toLocaleString('vi-VN')}đ
-        </p>
-      </div>
-    </button>
   );
 }
