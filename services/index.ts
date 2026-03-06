@@ -6,6 +6,9 @@
 // Auth
 export { authService } from './auth.service';
 
+// Public Services
+export { productService } from './product.service';
+
 // Admin Services
 export {
   productsService,

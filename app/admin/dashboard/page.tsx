@@ -115,7 +115,7 @@ export default function DashboardPage() {
               Add Product
             </Button>
           </Link>
-          <Link href='/admin/banners/new'>
+          <Link href='/admin/banners'>
             <Button size='sm' variant='outline' className='h-8 text-xs gap-1.5'>
               <ImageIcon size={13} />
               Add Banner

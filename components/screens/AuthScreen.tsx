@@ -1,60 +1,84 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
-import { useApp } from '@/lib/store';
+import { useLogin, useRegister, useRegisterVerify } from '@/hooks/use-auth';
+import type { LoginRequest, RegisterVerifyRequest } from '@/types/api.types';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 type Tab = 'login' | 'register';
 
 export default function AuthScreen() {
-  const { login, navigate } = useApp();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>('login');
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
+  const registerVerifyMutation = useRegisterVerify();
+
+  // Login form
+  const {
+    register: loginRegister,
+    handleSubmit: handleLoginSubmit,
+    formState: { errors: loginErrors },
+  } = useForm<LoginRequest>();
+
+  // Register form
+  const {
+    register: registerRegister,
+    handleSubmit: handleRegisterSubmit,
+    formState: { errors: registerErrors },
+    watch,
+  } = useForm<RegisterVerifyRequest>();
 
   // Login state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
   const [loginShowPw, setLoginShowPw] = useState(false);
-  const [loginError, setLoginError] = useState('');
 
   // Register state
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirm, setRegConfirm] = useState('');
   const [regShowPw, setRegShowPw] = useState(false);
-  const [regShowConfirm, setRegShowConfirm] = useState(false);
-  const [regErrors, setRegErrors] = useState<Record<string, string>>({});
   const [agreed, setAgreed] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const regPassword = watch('password') || '';
 
-  function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    if (!loginEmail || !loginPassword) {
-      setLoginError('Please fill in all fields.');
-      return;
-    }
-    setLoginError('');
-    login();
-  }
+  const onLoginSubmit = (data: LoginRequest) => {
+    loginMutation.mutate(data, {
+      onSuccess: (user) => {
+        // Navigate based on user role
+        if (user.role === 'ADMIN') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/');
+        }
+      },
+    });
+  };
 
-  function handleRegister(e: React.FormEvent) {
-    e.preventDefault();
-    const errors: Record<string, string> = {};
-    if (!regName.trim()) errors.name = 'Full name is required.';
-    if (!regEmail.trim()) errors.email = 'Email is required.';
-    else if (!/\S+@\S+\.\S+/.test(regEmail))
-      errors.email = 'Enter a valid email.';
-    if (!regPassword) errors.password = 'Password is required.';
-    else if (regPassword.length < 8) errors.password = 'Minimum 8 characters.';
-    if (regConfirm !== regPassword) errors.confirm = 'Passwords do not match.';
-    if (!agreed) errors.agreed = 'You must agree to the terms.';
+  const onSendOtp = (email: string) => {
+    if (!agreed) return;
+    registerMutation.mutate(
+      { email },
+      {
+        onSuccess: () => {
+          setOtpSent(true);
+        },
+      },
+    );
+  };
 
-    if (Object.keys(errors).length > 0) {
-      setRegErrors(errors);
-      return;
-    }
-    setRegErrors({});
-    login();
-  }
+  const onRegisterSubmit = (data: RegisterVerifyRequest) => {
+    if (!agreed) return;
+    registerVerifyMutation.mutate(data, {
+      onSuccess: (user) => {
+        // Navigate based on user role
+        if (user.role === 'ADMIN') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/');
+        }
+      },
+    });
+  };
 
   const passwordStrength = (pw: string) => {
     if (!pw) return 0;
@@ -79,13 +103,13 @@ export default function AuthScreen() {
     <div className='min-h-[calc(100vh-64px)] bg-background flex items-center justify-center px-4 py-16'>
       <div className='w-full max-w-md'>
         {/* Back */}
-        <button
-          onClick={() => navigate('home')}
+        <Link
+          href='/'
           className='flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-8 transition-colors'
         >
           <ArrowLeft size={16} />
           Back to home
-        </button>
+        </Link>
 
         {/* Card */}
         <div className='bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden'>
@@ -119,7 +143,11 @@ export default function AuthScreen() {
                   </p>
                 </div>
 
-                <form onSubmit={handleLogin} noValidate className='space-y-5'>
+                <form
+                  onSubmit={handleLoginSubmit(onLoginSubmit)}
+                  noValidate
+                  className='space-y-5'
+                >
                   {/* Email */}
                   <div className='space-y-1.5'>
                     <label
@@ -131,12 +159,22 @@ export default function AuthScreen() {
                     <input
                       id='login-email'
                       type='email'
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
+                      {...loginRegister('email', {
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Invalid email address',
+                        },
+                      })}
                       placeholder='hello@example.com'
-                      className='w-full h-11 px-4 rounded-xl border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all'
+                      className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.email ? 'border-destructive' : 'border-input'}`}
                       autoComplete='email'
                     />
+                    {loginErrors.email && (
+                      <p className='text-xs text-destructive'>
+                        {loginErrors.email.message}
+                      </p>
+                    )}
                   </div>
 
                   {/* Password */}
@@ -159,10 +197,15 @@ export default function AuthScreen() {
                       <input
                         id='login-password'
                         type={loginShowPw ? 'text' : 'password'}
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
+                        {...loginRegister('password', {
+                          required: 'Password is required',
+                          minLength: {
+                            value: 6,
+                            message: 'Password must be at least 6 characters',
+                          },
+                        })}
                         placeholder='Enter your password'
-                        className='w-full h-11 px-4 pr-11 rounded-xl border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all'
+                        className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.password ? 'border-destructive' : 'border-input'}`}
                         autoComplete='current-password'
                       />
                       <button
@@ -176,17 +219,28 @@ export default function AuthScreen() {
                         {loginShowPw ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {loginErrors.password && (
+                      <p className='text-xs text-destructive'>
+                        {loginErrors.password.message}
+                      </p>
+                    )}
                   </div>
 
-                  {loginError && (
-                    <p className='text-xs text-destructive'>{loginError}</p>
+                  {loginMutation.isError && (
+                    <div className='bg-destructive/10 border border-destructive/50 rounded-xl p-3'>
+                      <p className='text-xs text-destructive font-medium'>
+                        {loginMutation.error?.message ||
+                          'Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.'}
+                      </p>
+                    </div>
                   )}
 
                   <button
                     type='submit'
-                    className='w-full h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all'
+                    disabled={loginMutation.isPending}
+                    className='w-full h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed'
                   >
-                    Sign In
+                    {loginMutation.isPending ? 'Signing In...' : 'Sign In'}
                   </button>
                 </form>
 
@@ -227,7 +281,7 @@ export default function AuthScreen() {
                     'Exclusive member-only offers',
                   ].map((perk) => (
                     <div key={perk} className='flex items-center gap-2.5'>
-                      <span className='w-4 h-4 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0'>
+                      <span className='w-4 h-4 rounded-full bg-primary/15 flex items-center justify-center shrink-0'>
                         <Check
                           size={10}
                           className='text-primary'
@@ -240,187 +294,241 @@ export default function AuthScreen() {
                 </div>
 
                 <form
-                  onSubmit={handleRegister}
+                  onSubmit={
+                    otpSent
+                      ? handleRegisterSubmit(onRegisterSubmit)
+                      : handleRegisterSubmit((data) => onSendOtp(data.email))
+                  }
                   noValidate
                   className='space-y-4'
                 >
-                  {/* Full name */}
-                  <div className='space-y-1.5'>
-                    <label
-                      htmlFor='reg-name'
-                      className='text-sm font-medium text-foreground'
-                    >
-                      Full Name
-                    </label>
-                    <input
-                      id='reg-name'
-                      type='text'
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      placeholder='Nguyen Thi Linh'
-                      className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${regErrors.name ? 'border-destructive' : 'border-input'}`}
-                      autoComplete='name'
-                    />
-                    {regErrors.name && (
-                      <p className='text-xs text-destructive'>
-                        {regErrors.name}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Email */}
-                  <div className='space-y-1.5'>
-                    <label
-                      htmlFor='reg-email'
-                      className='text-sm font-medium text-foreground'
-                    >
-                      Email
-                    </label>
-                    <input
-                      id='reg-email'
-                      type='email'
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder='hello@example.com'
-                      className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${regErrors.email ? 'border-destructive' : 'border-input'}`}
-                      autoComplete='email'
-                    />
-                    {regErrors.email && (
-                      <p className='text-xs text-destructive'>
-                        {regErrors.email}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div className='space-y-1.5'>
-                    <label
-                      htmlFor='reg-password'
-                      className='text-sm font-medium text-foreground'
-                    >
-                      Password
-                    </label>
-                    <div className='relative'>
-                      <input
-                        id='reg-password'
-                        type={regShowPw ? 'text' : 'password'}
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        placeholder='Minimum 8 characters'
-                        className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${regErrors.password ? 'border-destructive' : 'border-input'}`}
-                        autoComplete='new-password'
-                      />
-                      <button
-                        type='button'
-                        onClick={() => setRegShowPw(!regShowPw)}
-                        className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
-                        aria-label={
-                          regShowPw ? 'Hide password' : 'Show password'
-                        }
-                      >
-                        {regShowPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    {/* Strength bar */}
-                    {regPassword && (
-                      <div className='flex items-center gap-2 mt-1.5'>
-                        <div className='flex gap-1 flex-1'>
-                          {[1, 2, 3, 4].map((n) => (
-                            <span
-                              key={n}
-                              className={`h-1 flex-1 rounded-full transition-colors ${n <= strength ? strengthColor : 'bg-border'}`}
-                            />
-                          ))}
-                        </div>
-                        <span className='text-xs text-muted-foreground w-10 text-right'>
-                          {strengthLabel}
-                        </span>
+                  {!otpSent ? (
+                    <>
+                      {/* Email */}
+                      <div className='space-y-1.5'>
+                        <label
+                          htmlFor='reg-email'
+                          className='text-sm font-medium text-foreground'
+                        >
+                          Email
+                        </label>
+                        <input
+                          id='reg-email'
+                          type='email'
+                          {...registerRegister('email', {
+                            required: 'Email is required',
+                            pattern: {
+                              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                              message: 'Invalid email address',
+                            },
+                          })}
+                          placeholder='hello@example.com'
+                          className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.email ? 'border-destructive' : 'border-input'}`}
+                          autoComplete='email'
+                        />
+                        {registerErrors.email && (
+                          <p className='text-xs text-destructive'>
+                            {registerErrors.email.message}
+                          </p>
+                        )}
                       </div>
-                    )}
-                    {regErrors.password && (
-                      <p className='text-xs text-destructive'>
-                        {regErrors.password}
-                      </p>
-                    )}
-                  </div>
 
-                  {/* Confirm password */}
-                  <div className='space-y-1.5'>
-                    <label
-                      htmlFor='reg-confirm'
-                      className='text-sm font-medium text-foreground'
-                    >
-                      Confirm Password
-                    </label>
-                    <div className='relative'>
-                      <input
-                        id='reg-confirm'
-                        type={regShowConfirm ? 'text' : 'password'}
-                        value={regConfirm}
-                        onChange={(e) => setRegConfirm(e.target.value)}
-                        placeholder='Re-enter your password'
-                        className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${regErrors.confirm ? 'border-destructive' : 'border-input'}`}
-                        autoComplete='new-password'
-                      />
-                      <button
-                        type='button'
-                        onClick={() => setRegShowConfirm(!regShowConfirm)}
-                        className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
-                        aria-label={
-                          regShowConfirm ? 'Hide password' : 'Show password'
-                        }
-                      >
-                        {regShowConfirm ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
+                      {/* Terms */}
+                      <div className='space-y-1'>
+                        <label className='flex items-start gap-3 cursor-pointer'>
+                          <button
+                            type='button'
+                            role='checkbox'
+                            aria-checked={agreed}
+                            onClick={() => setAgreed(!agreed)}
+                            className={`mt-0.5 w-4 h-4 rounded shrink-0 border flex items-center justify-center transition-colors ${agreed ? 'bg-primary border-primary' : 'border-input'}`}
+                          >
+                            {agreed && (
+                              <Check
+                                size={10}
+                                className='text-white'
+                                strokeWidth={3}
+                              />
+                            )}
+                          </button>
+                          <span className='text-xs text-muted-foreground leading-relaxed'>
+                            I agree to the{' '}
+                            <span className='text-primary'>
+                              Terms of Service
+                            </span>{' '}
+                            and{' '}
+                            <span className='text-primary'>Privacy Policy</span>
+                          </span>
+                        </label>
+                        {!agreed && registerMutation.isError && (
+                          <p className='text-xs text-destructive pl-7'>
+                            You must agree to the terms
+                          </p>
                         )}
-                      </button>
-                    </div>
-                    {regErrors.confirm && (
-                      <p className='text-xs text-destructive'>
-                        {regErrors.confirm}
-                      </p>
-                    )}
-                  </div>
+                      </div>
 
-                  {/* Terms */}
-                  <div className='space-y-1'>
-                    <label className='flex items-start gap-3 cursor-pointer'>
+                      {registerMutation.isError && (
+                        <div className='bg-destructive/10 border border-destructive/50 rounded-xl p-3'>
+                          <p className='text-xs text-destructive font-medium'>
+                            {registerMutation.error?.message ||
+                              'Đăng ký thất bại. Vui lòng thử lại.'}
+                          </p>
+                        </div>
+                      )}
+
                       <button
-                        type='button'
-                        role='checkbox'
-                        aria-checked={agreed}
-                        onClick={() => setAgreed(!agreed)}
-                        className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 border flex items-center justify-center transition-colors ${agreed ? 'bg-primary border-primary' : 'border-input'}`}
+                        type='submit'
+                        disabled={registerMutation.isPending || !agreed}
+                        className='w-full h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed'
                       >
-                        {agreed && (
-                          <Check
-                            size={10}
-                            className='text-white'
-                            strokeWidth={3}
+                        {registerMutation.isPending
+                          ? 'Sending...'
+                          : 'Send OTP Code'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {/* OTP */}
+                      <div className='space-y-1.5'>
+                        <label
+                          htmlFor='reg-otp'
+                          className='text-sm font-medium text-foreground'
+                        >
+                          OTP Code
+                        </label>
+                        <input
+                          id='reg-otp'
+                          type='text'
+                          {...registerRegister('otp', {
+                            required: 'OTP is required',
+                            pattern: {
+                              value: /^[0-9]{6}$/,
+                              message: 'OTP must be 6 digits',
+                            },
+                          })}
+                          placeholder='Enter 6-digit OTP'
+                          className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.otp ? 'border-destructive' : 'border-input'}`}
+                          maxLength={6}
+                        />
+                        {registerErrors.otp && (
+                          <p className='text-xs text-destructive'>
+                            {registerErrors.otp.message}
+                          </p>
+                        )}
+                        <p className='text-xs text-muted-foreground'>
+                          Check your email for the OTP code
+                        </p>
+                      </div>
+
+                      {/* Full name */}
+                      <div className='space-y-1.5'>
+                        <label
+                          htmlFor='reg-name'
+                          className='text-sm font-medium text-foreground'
+                        >
+                          Full Name (Optional)
+                        </label>
+                        <input
+                          id='reg-name'
+                          type='text'
+                          {...registerRegister('name')}
+                          placeholder='Nguyen Thi Linh'
+                          className='w-full h-11 px-4 rounded-xl border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all'
+                          autoComplete='name'
+                        />
+                      </div>
+
+                      {/* Password */}
+                      <div className='space-y-1.5'>
+                        <label
+                          htmlFor='reg-password'
+                          className='text-sm font-medium text-foreground'
+                        >
+                          Password
+                        </label>
+                        <div className='relative'>
+                          <input
+                            id='reg-password'
+                            type={regShowPw ? 'text' : 'password'}
+                            {...registerRegister('password', {
+                              required: 'Password is required',
+                              minLength: {
+                                value: 8,
+                                message:
+                                  'Password must be at least 8 characters',
+                              },
+                            })}
+                            placeholder='Minimum 8 characters'
+                            className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.password ? 'border-destructive' : 'border-input'}`}
+                            autoComplete='new-password'
                           />
+                          <button
+                            type='button'
+                            onClick={() => setRegShowPw(!regShowPw)}
+                            className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
+                            aria-label={
+                              regShowPw ? 'Hide password' : 'Show password'
+                            }
+                          >
+                            {regShowPw ? (
+                              <EyeOff size={16} />
+                            ) : (
+                              <Eye size={16} />
+                            )}
+                          </button>
+                        </div>
+                        {/* Strength bar */}
+                        {regPassword && (
+                          <div className='flex items-center gap-2 mt-1.5'>
+                            <div className='flex gap-1 flex-1'>
+                              {[1, 2, 3, 4].map((n) => (
+                                <span
+                                  key={n}
+                                  className={`h-1 flex-1 rounded-full transition-colors ${n <= strength ? strengthColor : 'bg-border'}`}
+                                />
+                              ))}
+                            </div>
+                            <span className='text-xs text-muted-foreground w-10 text-right'>
+                              {strengthLabel}
+                            </span>
+                          </div>
                         )}
-                      </button>
-                      <span className='text-xs text-muted-foreground leading-relaxed'>
-                        I agree to the{' '}
-                        <span className='text-primary'>Terms of Service</span>{' '}
-                        and <span className='text-primary'>Privacy Policy</span>
-                      </span>
-                    </label>
-                    {regErrors.agreed && (
-                      <p className='text-xs text-destructive pl-7'>
-                        {regErrors.agreed}
-                      </p>
-                    )}
-                  </div>
+                        {registerErrors.password && (
+                          <p className='text-xs text-destructive'>
+                            {registerErrors.password.message}
+                          </p>
+                        )}
+                      </div>
 
-                  <button
-                    type='submit'
-                    className='w-full h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all mt-2'
-                  >
-                    Create Account
-                  </button>
+                      {registerVerifyMutation.isError && (
+                        <div className='bg-destructive/10 border border-destructive/50 rounded-xl p-3'>
+                          <p className='text-xs text-destructive font-medium'>
+                            {registerVerifyMutation.error?.message ||
+                              'Xác thực thất bại. Vui lòng kiểm tra OTP.'}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className='flex gap-2'>
+                        <button
+                          type='button'
+                          onClick={() => setOtpSent(false)}
+                          className='flex-1 h-11 rounded-full border border-input text-foreground text-sm font-semibold tracking-wide hover:bg-muted transition-all'
+                        >
+                          Back
+                        </button>
+                        <button
+                          type='submit'
+                          disabled={registerVerifyMutation.isPending}
+                          className='flex-1 h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+                        >
+                          {registerVerifyMutation.isPending
+                            ? 'Creating...'
+                            : 'Create Account'}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </form>
 
                 <p className='text-center text-sm text-muted-foreground mt-5'>

@@ -31,6 +31,7 @@ export interface RequestConfig extends RequestInit {
   showErrorToast?: boolean;
   showSuccessToast?: boolean;
   successMessage?: string;
+  skipAuthRedirect?: boolean;
 }
 
 export class ApiError extends Error {
@@ -101,13 +102,22 @@ interceptors.request.use((config) => {
   return config;
 });
 
+// Store config for error interceptor to access
+let currentRequestConfig: RequestConfig | null = null;
+
 // Handle 401 Unauthorized - redirect to login
 interceptors.error.use(async (error) => {
   if (error.status === 401) {
+    // Don't redirect if skipAuthRedirect flag is set (e.g., during login)
+    if (currentRequestConfig?.skipAuthRedirect) {
+      return error;
+    }
+
     // Only redirect if we're in the browser and not already on login page
     if (
       typeof window !== 'undefined' &&
-      !window.location.pathname.includes('/login')
+      !window.location.pathname.includes('/login') &&
+      !window.location.pathname.includes('/auth')
     ) {
       window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
     }
@@ -136,8 +146,12 @@ async function request<T>(
     showErrorToast = true,
     showSuccessToast = false,
     successMessage,
+    skipAuthRedirect,
     ...fetchConfig
   } = config;
+
+  // Store config for error interceptor
+  currentRequestConfig = config;
 
   // Build URL with query params
   let fullUrl = url;
