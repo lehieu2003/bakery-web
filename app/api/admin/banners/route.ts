@@ -55,8 +55,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, imageUrl, linkUrl, placement, displayOrder, isActive } =
-      body;
+    const {
+      title,
+      description,
+      imageUrl,
+      linkUrl,
+      placement,
+      displayOrder,
+      isActive,
+    } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -68,6 +75,7 @@ export async function POST(request: NextRequest) {
     const banner = await prisma.banner.create({
       data: {
         title,
+        description: description || null,
         imageUrl: imageUrl || null,
         linkUrl: linkUrl || null,
         placement: placement || 'HOME_HERO',

@@ -16,27 +16,23 @@ export const bannersService = {
    * Get all banners
    */
   getAll: async () => {
-    const response = await http.get<{ banners: Banner[] }>(
-      ENDPOINTS.ADMIN.BANNERS.LIST,
-    );
-    return response.data!.banners;
+    const response = await http.get<Banner[]>(ENDPOINTS.ADMIN.BANNERS.LIST);
+    return response.data!;
   },
 
   /**
    * Get single banner by ID
    */
   getById: async (id: string) => {
-    const response = await http.get<{ banner: Banner }>(
-      ENDPOINTS.ADMIN.BANNERS.DETAIL(id),
-    );
-    return response.data!.banner;
+    const response = await http.get<Banner>(ENDPOINTS.ADMIN.BANNERS.DETAIL(id));
+    return response.data!;
   },
 
   /**
    * Create new banner
    */
   create: async (data: CreateBannerRequest) => {
-    const response = await http.post<{ banner: Banner }>(
+    const response = await http.post<Banner>(
       ENDPOINTS.ADMIN.BANNERS.CREATE,
       data,
       {
@@ -44,14 +40,14 @@ export const bannersService = {
         successMessage: 'Tạo banner thành công!',
       },
     );
-    return response.data!.banner;
+    return response.data!;
   },
 
   /**
    * Update banner
    */
   update: async (id: string, data: UpdateBannerRequest) => {
-    const response = await http.put<{ banner: Banner }>(
+    const response = await http.put<Banner>(
       ENDPOINTS.ADMIN.BANNERS.UPDATE(id),
       data,
       {
@@ -59,7 +55,7 @@ export const bannersService = {
         successMessage: 'Cập nhật banner thành công!',
       },
     );
-    return response.data!.banner;
+    return response.data!;
   },
 
   /**
