@@ -4,6 +4,7 @@
  */
 
 import { toast } from 'sonner';
+import { authToken } from '@/lib/auth-token';
 
 // ============================================================================
 // Types
@@ -93,10 +94,13 @@ export const interceptors = {
 // Default Interceptors
 // ============================================================================
 
-// Add default headers
+// Add default headers and auth token
 interceptors.request.use((config) => {
+  const token = authToken.get();
+
   config.headers = {
     'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...config.headers,
   };
   return config;

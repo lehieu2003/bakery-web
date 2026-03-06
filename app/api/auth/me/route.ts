@@ -20,6 +20,8 @@ export async function GET() {
           email: user.email,
           name: user.name,
           role: user.role,
+          memberLevel: user.memberLevel,
+          points: user.points,
           emailVerifiedAt: user.emailVerifiedAt,
         },
       },

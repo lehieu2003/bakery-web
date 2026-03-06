@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/admin/categories
+// GET /api/admin/categories (PUBLIC - no auth required)
 export async function GET() {
   try {
-    await requireAdmin();
-
+    // Public endpoint - no auth required for viewing categories
     const categories = await prisma.category.findMany({
       include: {
         _count: {

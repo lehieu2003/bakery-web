@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/admin/products/[id] - Get single product
+// GET /api/admin/products/[id] - Get single product (PUBLIC - no auth required)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    // Public endpoint - no auth required for viewing product details
     const { id } = await params;
 
     const product = await prisma.product.findUnique({

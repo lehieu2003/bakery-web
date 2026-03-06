@@ -85,10 +85,21 @@ export async function POST(request: Request) {
       // Don't fail the registration if email fails
     }
 
-    // Set session cookie
+    // Set session cookie (for server-side validation)
     const response = NextResponse.json({
-      message: 'Đăng ký thành công',
-      user,
+      success: true,
+      data: {
+        message: 'Đăng ký thành công',
+        token: session.token, // Access token for frontend
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          memberLevel: user.memberLevel,
+          points: user.points,
+        },
+      },
     });
 
     response.cookies.set('bakery_session', session.token, {

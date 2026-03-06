@@ -1,7 +1,7 @@
 'use client';
 
 import { ShoppingBag, User, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart-store';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -16,7 +16,13 @@ export default function WebNavbar() {
   const { user, cart } = useCart();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  // Prevent hydration mismatch by only rendering user-dependent UI after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -77,7 +83,7 @@ export default function WebNavbar() {
           </Link>
 
           {/* Profile */}
-          {user ? (
+          {mounted && user ? (
             <Link
               href='/profile'
               className='flex items-center gap-2.5 px-3 py-1.5 rounded-full border border-border hover:border-primary/40 transition-colors'

@@ -85,6 +85,11 @@ export const ENDPOINTS = {
       `${API_BASE}/admin/products/${idOrSlug}`,
     CATEGORIES: `${API_BASE}/admin/categories`,
   },
+
+  // ============================================================================
+  // Customer APIs
+  // ============================================================================
+  ORDERS: `${API_BASE}/orders`,
 } as const;
 
 export default ENDPOINTS;

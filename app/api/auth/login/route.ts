@@ -98,18 +98,21 @@ export async function POST(request: NextRequest) {
 
     const session = await createSession(user.id, userAgent, clientIp);
 
-    // Set session cookie
+    // Set session cookie (for server-side validation)
     await setSessionCookie(session.token);
 
     return NextResponse.json({
       success: true,
       data: {
         message: 'Đăng nhập thành công',
+        token: session.token, // Access token for frontend
         user: {
           id: session.user.id,
           email: session.user.email,
           name: session.user.name,
           role: session.user.role,
+          memberLevel: session.user.memberLevel,
+          points: session.user.points,
         },
       },
     });

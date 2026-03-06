@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/admin/products - List all products
+// GET /api/admin/products - List all products (PUBLIC - no auth required)
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin();
-
+    // Public endpoint - no auth required for viewing products
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');

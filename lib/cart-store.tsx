@@ -1,6 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from 'react';
+import { authToken } from '@/lib/auth-token';
+import { authService } from '@/services/auth.service';
 
 export type MemberLevel = 'silver' | 'gold' | 'platinum';
 
@@ -42,6 +50,7 @@ interface CartState {
   cart: CartItem[];
   login: () => void;
   logout: () => void;
+  setUser: (user: User | null) => void;
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   updateQty: (id: string, delta: number) => void;
@@ -62,12 +71,43 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
 
+  // Restore user from token on mount
+  useEffect(() => {
+    const token = authToken.get();
+    if (token) {
+      // Fetch user info from API
+      authService
+        .me()
+        .then((apiUser) => {
+          // Convert API user to cart store user format
+          setUser({
+            name: apiUser.name || apiUser.email,
+            level:
+              (apiUser.memberLevel?.toLowerCase() as
+                | 'silver'
+                | 'gold'
+                | 'platinum') || 'silver',
+            points: apiUser.points || 0,
+            savedThisMonth: 0,
+          });
+        })
+        .catch(() => {
+          // Token invalid or expired, remove it
+          authToken.remove();
+        });
+    }
+  }, []);
+
   const login = useCallback(() => {
     setUser(MOCK_USER);
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
+  }, []);
+
+  const setUserData = useCallback((userData: User | null) => {
+    setUser(userData);
   }, []);
 
   const addToCart = useCallback((item: CartItem) => {
@@ -112,6 +152,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
     <CartContext.Provider
       value={{
+        setUser: setUserData,
         user,
         cart,
         login,

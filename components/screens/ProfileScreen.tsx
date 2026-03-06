@@ -3,6 +3,8 @@
 import { LogOut, ChevronRight } from 'lucide-react';
 import { useCart, MemberLevel } from '@/lib/cart-store';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useOrders } from '@/hooks/use-orders';
 
 const LEVEL_BENEFITS: Record<
   MemberLevel,
@@ -34,30 +36,6 @@ const LEVEL_BENEFITS: Record<
   },
 };
 
-const MOCK_HISTORY = [
-  {
-    id: 'BK20341',
-    date: '15 Mar 2025',
-    total: 450000,
-    items: 'Rose Signature Cake',
-    points: 90,
-  },
-  {
-    id: 'BK20280',
-    date: '01 Mar 2025',
-    total: 205000,
-    items: 'Almond Flour + Chocolate',
-    points: 41,
-  },
-  {
-    id: 'BK20210',
-    date: '14 Feb 2025',
-    total: 380000,
-    items: 'Dark Chocolate Mousse',
-    points: 76,
-  },
-];
-
 const MOCK_POINT_HISTORY = [
   { label: 'Order #BK20341', date: '15 Mar', points: 90, type: 'earn' },
   { label: 'Order #BK20280', date: '01 Mar', points: 41, type: 'earn' },
@@ -67,7 +45,17 @@ const MOCK_POINT_HISTORY = [
 ];
 
 export default function ProfileScreen() {
-  const { user, logout } = useCart();
+  const { user, logout, setUser } = useCart();
+  const router = useRouter();
+  const { data: ordersData, isLoading: ordersLoading } = useOrders();
+  const orders = ordersData || [];
+
+  // Logout handler
+  const handleLogout = () => {
+    setUser(null);
+    logout();
+    router.push('/');
+  };
 
   if (!user) {
     return (
@@ -222,7 +210,7 @@ export default function ProfileScreen() {
               <p className={`text-sm ${lc.text} opacity-70`}>loyalty points</p>
             </div>
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className='flex items-center gap-2 px-4 py-2 rounded-full border border-current/20 text-sm font-medium text-muted-foreground hover:bg-background/60 transition-colors'
               aria-label='Sign out'
             >
@@ -341,49 +329,88 @@ export default function ProfileScreen() {
               Order History
             </h2>
             <div className='space-y-3'>
-              {MOCK_HISTORY.map((order) => (
-                <div
-                  key={order.id}
-                  className='flex items-center justify-between px-5 py-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/40 transition-colors cursor-pointer group'
-                >
-                  <div className='flex items-center gap-5'>
-                    <div className='w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0'>
-                      <span className='font-serif text-xs font-semibold text-muted-foreground'>
-                        {order.id.slice(-3)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className='text-sm font-semibold text-foreground'>
-                        #{order.id}
-                      </p>
-                      <p className='text-xs text-muted-foreground mt-0.5'>
-                        {order.items}
-                      </p>
-                      <p className='text-xs text-muted-foreground'>
-                        {order.date}
-                      </p>
+              {ordersLoading ? (
+                [...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className='px-5 py-4 rounded-xl border border-border animate-pulse'
+                  >
+                    <div className='flex items-center gap-5'>
+                      <div className='w-10 h-10 rounded-full bg-secondary' />
+                      <div className='flex-1 space-y-2'>
+                        <div className='h-4 bg-secondary rounded w-1/3' />
+                        <div className='h-3 bg-secondary rounded w-1/2' />
+                      </div>
                     </div>
                   </div>
-                  <div className='flex items-center gap-6'>
-                    <div className='text-right'>
-                      <p className='text-base font-bold text-accent'>
-                        {order.total.toLocaleString('vi-VN')}đ
-                      </p>
-                      <p className='text-xs text-primary font-medium'>
-                        +{order.points} pts
-                      </p>
+                ))
+              ) : orders.length > 0 ? (
+                orders.map((order) => {
+                  const itemsText =
+                    order.orderItems.length > 1
+                      ? `${order.orderItems[0].name} +${order.orderItems.length - 1} more`
+                      : order.orderItems[0]?.name || 'No items';
+                  const pointsEarned = Math.floor(order.total * 0.2);
+
+                  return (
+                    <div
+                      key={order.id}
+                      className='flex items-center justify-between px-5 py-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/40 transition-colors cursor-pointer group'
+                    >
+                      <div className='flex items-center gap-5'>
+                        <div className='w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0'>
+                          <span className='font-serif text-xs font-semibold text-muted-foreground'>
+                            {order.orderNumber.slice(-3)}
+                          </span>
+                        </div>
+                        <div>
+                          <p className='text-sm font-semibold text-foreground'>
+                            #{order.orderNumber}
+                          </p>
+                          <p className='text-xs text-muted-foreground mt-0.5'>
+                            {itemsText}
+                          </p>
+                          <p className='text-xs text-muted-foreground'>
+                            {new Date(order.createdAt).toLocaleDateString(
+                              'en-GB',
+                              {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              },
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className='flex items-center gap-6'>
+                        <div className='text-right'>
+                          <p className='text-base font-bold text-accent'>
+                            {order.total.toLocaleString('vi-VN')}đ
+                          </p>
+                          <p className='text-xs text-primary font-medium'>
+                            +{pointsEarned} pts
+                          </p>
+                        </div>
+                        <ChevronRight
+                          size={16}
+                          className='text-muted-foreground group-hover:text-foreground transition-colors'
+                        />
+                      </div>
                     </div>
-                    <ChevronRight
-                      size={16}
-                      className='text-muted-foreground group-hover:text-foreground transition-colors'
-                    />
-                  </div>
+                  );
+                })
+              ) : (
+                <div className='text-center py-12 text-muted-foreground'>
+                  <p className='text-sm'>No orders yet</p>
+                  <p className='text-xs mt-1'>
+                    Start shopping to see your order history
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
 
             <button
-              onClick={() => navigate('home')}
+              onClick={() => router.push('/')}
               className='w-full mt-6 py-3.5 border border-border text-muted-foreground rounded-full text-sm font-medium hover:bg-secondary hover:text-foreground transition-colors'
             >
               Place a New Order

@@ -7,11 +7,13 @@ import { useLogin, useRegister, useRegisterVerify } from '@/hooks/use-auth';
 import type { LoginRequest, RegisterVerifyRequest } from '@/types/api.types';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useCart } from '@/lib/cart-store';
 
 type Tab = 'login' | 'register';
 
 export default function AuthScreen() {
   const router = useRouter();
+  const { setUser } = useCart();
   const [tab, setTab] = useState<Tab>('login');
   const loginMutation = useLogin();
   const registerMutation = useRegister();
@@ -44,6 +46,18 @@ export default function AuthScreen() {
   const onLoginSubmit = (data: LoginRequest) => {
     loginMutation.mutate(data, {
       onSuccess: (user) => {
+        // Update cart store with user data
+        setUser({
+          name: user.name || user.email,
+          level:
+            (user.memberLevel?.toLowerCase() as
+              | 'silver'
+              | 'gold'
+              | 'platinum') || 'silver',
+          points: user.points || 0,
+          savedThisMonth: 0,
+        });
+
         // Navigate based on user role
         if (user.role === 'ADMIN') {
           router.push('/admin/dashboard');
@@ -70,6 +84,18 @@ export default function AuthScreen() {
     if (!agreed) return;
     registerVerifyMutation.mutate(data, {
       onSuccess: (user) => {
+        // Update cart store with user data
+        setUser({
+          name: user.name || user.email,
+          level:
+            (user.memberLevel?.toLowerCase() as
+              | 'silver'
+              | 'gold'
+              | 'platinum') || 'silver',
+          points: user.points || 0,
+          savedThisMonth: 0,
+        });
+
         // Navigate based on user role
         if (user.role === 'ADMIN') {
           router.push('/admin/dashboard');

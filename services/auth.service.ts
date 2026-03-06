@@ -5,6 +5,7 @@
 
 import http from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { authToken } from '@/lib/auth-token';
 import type {
   User,
   LoginRequest,
@@ -19,7 +20,7 @@ export const authService = {
    * Login with email and password
    */
   login: async (data: LoginRequest) => {
-    const response = await http.post<{ user: User }>(
+    const response = await http.post<{ user: User; token: string }>(
       ENDPOINTS.AUTH.LOGIN,
       data,
       {
@@ -28,6 +29,12 @@ export const authService = {
         skipAuthRedirect: true, // Don't redirect on 401 - let form handle it
       },
     );
+
+    // Store token in localStorage
+    if (response.data?.token) {
+      authToken.set(response.data.token);
+    }
+
     return response.data!.user;
   },
 
@@ -43,6 +50,10 @@ export const authService = {
         successMessage: 'Đăng xuất thành công!',
       },
     );
+
+    // Remove token from localStorage
+    authToken.remove();
+
     return response.data!;
   },
 
@@ -77,7 +88,7 @@ export const authService = {
    * Verify OTP and complete registration
    */
   registerVerify: async (data: RegisterVerifyRequest) => {
-    const response = await http.post<{ user: User } | User>(
+    const response = await http.post<{ user: User; token: string } | User>(
       ENDPOINTS.AUTH.REGISTER_VERIFY,
       data,
       {
@@ -86,7 +97,19 @@ export const authService = {
         skipAuthRedirect: true,
       },
     );
+
     const responseData = response.data!;
+
+    // Store token if present
+    if (
+      responseData &&
+      typeof responseData === 'object' &&
+      'token' in responseData
+    ) {
+      authToken.set(responseData.token);
+      return responseData.user;
+    }
+
     // Handle both formats: { user: User } or User directly
     if (
       responseData &&
