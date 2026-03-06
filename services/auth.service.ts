@@ -25,6 +25,7 @@ export const authService = {
       {
         showSuccessToast: true,
         successMessage: 'Đăng nhập thành công!',
+        skipAuthRedirect: true, // Don't redirect on 401 - let form handle it
       },
     );
     return response.data!.user;
@@ -51,6 +52,7 @@ export const authService = {
   me: async () => {
     const response = await http.get<{ user: User }>(ENDPOINTS.AUTH.ME, {
       showErrorToast: false, // Don't show error toast for unauthenticated users
+      skipAuthRedirect: true, // Don't redirect when checking auth status
     });
     return response.data!.user;
   },
@@ -65,6 +67,7 @@ export const authService = {
       {
         showSuccessToast: true,
         successMessage: 'Mã OTP đã được gửi đến email của bạn!',
+        skipAuthRedirect: true,
       },
     );
     return response.data!;
@@ -74,15 +77,33 @@ export const authService = {
    * Verify OTP and complete registration
    */
   registerVerify: async (data: RegisterVerifyRequest) => {
-    const response = await http.post<{ user: User; message: string }>(
+    const response = await http.post<{ user: User } | User>(
       ENDPOINTS.AUTH.REGISTER_VERIFY,
       data,
       {
         showSuccessToast: true,
-        successMessage: 'Đăng ký thành công!',
+        successMessage: 'Đăng ký tài khoản thành công!',
+        skipAuthRedirect: true,
       },
     );
-    return response.data!;
+    const responseData = response.data!;
+    // Handle both formats: { user: User } or User directly
+    if (
+      responseData &&
+      typeof responseData === 'object' &&
+      'id' in responseData
+    ) {
+      // It's a User object
+      return responseData as User;
+    } else if (
+      responseData &&
+      typeof responseData === 'object' &&
+      'user' in responseData
+    ) {
+      // It's wrapped in { user: User }
+      return (responseData as { user: User }).user;
+    }
+    return responseData as User;
   },
 
   /**
@@ -95,6 +116,7 @@ export const authService = {
       {
         showSuccessToast: true,
         successMessage: 'Mã OTP đã được gửi đến email của bạn!',
+        skipAuthRedirect: true,
       },
     );
     return response.data!;
@@ -110,6 +132,7 @@ export const authService = {
       {
         showSuccessToast: true,
         successMessage: 'Đặt lại mật khẩu thành công!',
+        skipAuthRedirect: true,
       },
     );
     return response.data!;

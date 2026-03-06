@@ -39,18 +39,12 @@ export function useUser() {
  */
 export function useLogin() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: (data: LoginRequest) => authService.login(data),
     onSuccess: (user) => {
       queryClient.setQueryData(authKeys.user(), user);
-      // Redirect based on role
-      if (user.role === 'ADMIN') {
-        router.push('/admin/dashboard');
-      } else {
-        router.push('/');
-      }
+      // Don't auto-redirect here - let the component handle navigation
     },
   });
 }
@@ -86,14 +80,14 @@ export function useRegister() {
  */
 export function useRegisterVerify() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: (data: RegisterVerifyRequest) =>
       authService.registerVerify(data),
-    onSuccess: (response) => {
-      queryClient.setQueryData(authKeys.user(), response.user);
-      router.push('/');
+    onSuccess: (user) => {
+      console.log('Registration response:', user);
+      queryClient.setQueryData(authKeys.user(), user);
+      // Don't auto-redirect here - let the component handle navigation
     },
   });
 }
