@@ -26,6 +26,7 @@ export interface User {
   id: string;
   email: string;
   name: string | null;
+  phone?: string | null;
   role: UserRole;
   emailVerifiedAt: string | null;
   isActive: boolean;
@@ -116,9 +117,7 @@ export interface Banner {
 
 export interface Customer extends User {
   orders?: Order[];
-  _count?: {
-    orders: number;
-  };
+  totalOrders: number;
   totalSpent?: number;
 }
 

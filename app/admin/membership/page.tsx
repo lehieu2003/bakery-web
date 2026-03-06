@@ -331,7 +331,9 @@ export default function MembershipPage() {
             Membership
           </h1>
           <p className='text-xs text-muted-foreground mt-0.5'>
-            Configure membership levels and benefits • {data?.totalMembers || 0}{' '}
+            Configure membership levels and benefits •{' '}
+            {data?.levels.reduce((sum, level) => sum + level.memberCount, 0) ||
+              0}{' '}
             total members
           </p>
         </div>

@@ -29,17 +29,17 @@ export const customersService = {
    * Get single customer by ID
    */
   getById: async (id: string) => {
-    const response = await http.get<{ customer: Customer }>(
+    const response = await http.get<Customer>(
       ENDPOINTS.ADMIN.CUSTOMERS.DETAIL(id),
     );
-    return response.data!.customer;
+    return response.data!;
   },
 
   /**
    * Update customer
    */
   update: async (id: string, data: UpdateCustomerRequest) => {
-    const response = await http.patch<{ customer: Customer }>(
+    const response = await http.patch<Customer>(
       ENDPOINTS.ADMIN.CUSTOMERS.UPDATE(id),
       data,
       {
@@ -47,7 +47,7 @@ export const customersService = {
         successMessage: 'Cập nhật khách hàng thành công!',
       },
     );
-    return response.data!.customer;
+    return response.data!;
   },
 };
 

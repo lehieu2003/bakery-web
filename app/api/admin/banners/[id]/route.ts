@@ -70,6 +70,7 @@ export async function PUT(
       where: { id },
       data: {
         title: body.title,
+        description: body.description,
         imageUrl: body.imageUrl,
         linkUrl: body.linkUrl,
         placement: body.placement,
@@ -119,7 +120,7 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: 'Banner deleted successfully',
+      data: { message: 'Banner deleted successfully' },
     });
   } catch (error) {
     console.error('Delete banner error:', error);

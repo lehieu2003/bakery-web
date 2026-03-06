@@ -27,7 +27,7 @@ interface CustomerData {
   id: string;
   name: string | null;
   email: string;
-  phone: string | null;
+  phone: string | null | undefined;
   level: MemberLevel;
   points: number;
   totalOrders: number;
@@ -251,10 +251,10 @@ export default function CustomersPage() {
     id: c.id,
     name: c.name,
     email: c.email,
-    phone: null, // API doesn't return phone
+    phone: c.phone,
     level: c.memberLevel || 'SILVER',
     points: c.points || 0,
-    totalOrders: c._count?.orders || 0,
+    totalOrders: c.totalOrders || 0,
     totalSpent: c.totalSpent || 0,
     createdAt: c.createdAt,
   }));
