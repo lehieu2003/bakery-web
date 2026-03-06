@@ -125,7 +125,7 @@ export async function PATCH(
         user: {
           select: { name: true, email: true },
         },
-        items: true,
+        orderItems: true,
       },
     });
 
