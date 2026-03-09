@@ -14,9 +14,13 @@ import Autoplay from 'embla-carousel-autoplay';
 
 interface BannerCarouselProps {
   banners: Banner[];
+  clickable?: boolean;
 }
 
-export default function BannerCarousel({ banners }: BannerCarouselProps) {
+export default function BannerCarousel({
+  banners,
+  clickable = true,
+}: BannerCarouselProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
     Autoplay({ delay: 3000, stopOnInteraction: false }),
   ]);
@@ -59,7 +63,7 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
               key={banner.id}
               className='flex-[0_0_100%] min-w-0 relative h-[400px] md:h-[500px] lg:h-[600px]'
             >
-              {banner.linkUrl ? (
+              {clickable && banner.linkUrl ? (
                 <Link href={banner.linkUrl} className='block w-full h-full'>
                   <BannerContent banner={banner} />
                 </Link>

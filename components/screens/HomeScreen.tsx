@@ -86,6 +86,7 @@ export default function HomeScreen() {
           banners={banners.filter(
             (b) => b.isActive && b.placement === 'HOME_HERO',
           )}
+          clickable={false}
         />
       )}
 
