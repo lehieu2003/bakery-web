@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  ChevronLeft,
-  CreditCard,
-  Banknote,
-  Wallet,
-  Loader2,
-} from 'lucide-react';
+import { ChevronLeft, Banknote, Wallet, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { orderService } from '@/services/order.service';
@@ -28,12 +22,6 @@ const PAYMENT_METHODS = [
     desc: 'Pay at the counter when you collect your order',
   },
   {
-    id: 'card' as const,
-    label: 'Credit / Debit Card',
-    icon: CreditCard,
-    desc: 'Visa, Mastercard, JCB accepted',
-  },
-  {
     id: 'momo' as const,
     label: 'MoMo',
     icon: Wallet,
@@ -52,9 +40,9 @@ const PAYMENT_METHODS = [
 export default function CheckoutPaymentScreen() {
   const { user, cart, checkoutInfo, clearCart } = useCart();
   const router = useRouter();
-  const [payMethod, setPayMethod] = useState<
-    'cash' | 'card' | 'momo' | 'zalopay'
-  >('cash');
+  const [payMethod, setPayMethod] = useState<'cash' | 'momo' | 'zalopay'>(
+    'cash',
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -87,9 +75,7 @@ export default function CheckoutPaymentScreen() {
         })),
       });
 
-      clearCart();
-
-      // If payment gateway returned a URL, redirect to it
+      // If payment gateway returned a URL, redirect to payment gateway
       if (result.paymentUrl) {
         window.location.href = result.paymentUrl;
         return;
@@ -101,7 +87,8 @@ export default function CheckoutPaymentScreen() {
         return;
       }
 
-      // Otherwise go to success page
+      // Cash payment — clear cart and go to success page
+      clearCart();
       router.push(`/checkout/success?order=${result.order.orderNumber}`);
     } catch {
       setError('Failed to place order. Please try again.');
