@@ -3,6 +3,7 @@
 import { ShoppingBag, User, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart-store';
+import { useAuth } from '@/providers/auth-provider';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -14,6 +15,7 @@ const NAV_LINKS = [
 
 export default function WebNavbar() {
   const { user, cart } = useCart();
+  const { isLoading } = useAuth();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -99,16 +101,16 @@ export default function WebNavbar() {
                 {user.level}
               </span>
             </Link>
-          ) : (
+          ) : mounted && !isLoading ? (
             <Link
-              href='/profile'
+              href='/auth'
               className='hidden md:flex items-center gap-2 px-4 py-2 rounded-full border border-border text-sm font-medium text-foreground hover:border-primary/40 transition-colors'
               aria-label='Sign in'
             >
               <User size={16} />
               Sign In
             </Link>
-          )}
+          ) : null}
 
           {/* Mobile menu button */}
           <button
@@ -143,9 +145,9 @@ export default function WebNavbar() {
                 {link.label}
               </Link>
             ))}
-            {!user && (
+            {!user && !isLoading && (
               <Link
-                href='/profile'
+                href='/auth'
                 onClick={() => setMobileMenuOpen(false)}
                 className='block px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors'
               >

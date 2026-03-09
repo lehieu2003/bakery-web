@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Playfair_Display, DM_Sans } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { QueryProvider } from '@/providers/query-provider';
+import { AuthProvider } from '@/providers/auth-provider';
 import { CartProvider } from '@/lib/cart-store';
 import { Toaster } from 'sonner';
 import '../styles/globals.css';
@@ -52,10 +53,12 @@ export default function RootLayout({
         className={`${playfair.variable} ${dmSans.variable} font-sans antialiased`}
       >
         <QueryProvider>
-          <CartProvider>
-            {children}
-            <Toaster position='top-right' richColors closeButton />
-          </CartProvider>
+          <AuthProvider>
+            <CartProvider>
+              {children}
+              <Toaster position='top-right' richColors closeButton />
+            </CartProvider>
+          </AuthProvider>
         </QueryProvider>
         <Analytics />
       </body>

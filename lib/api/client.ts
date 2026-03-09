@@ -117,13 +117,12 @@ interceptors.error.use(async (error) => {
       return error;
     }
 
-    // Only redirect if we're in the browser and not already on login page
+    // Only redirect if we're in the browser and not already on auth page
     if (
       typeof window !== 'undefined' &&
-      !window.location.pathname.includes('/login') &&
       !window.location.pathname.includes('/auth')
     ) {
-      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname)}`;
     }
   }
   return error;

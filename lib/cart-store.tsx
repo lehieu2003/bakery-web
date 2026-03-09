@@ -7,8 +7,7 @@ import React, {
   useCallback,
   useEffect,
 } from 'react';
-import { authToken } from '@/lib/auth-token';
-import { authService } from '@/services/auth.service';
+import { useAuth } from '@/providers/auth-provider';
 
 export type MemberLevel = 'silver' | 'gold' | 'platinum';
 
@@ -48,9 +47,6 @@ export interface Product {
 interface CartState {
   user: User | null;
   cart: CartItem[];
-  login: () => void;
-  logout: () => void;
-  setUser: (user: User | null) => void;
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   updateQty: (id: string, delta: number) => void;
@@ -60,55 +56,29 @@ interface CartState {
 
 const CartContext = createContext<CartState | null>(null);
 
-const MOCK_USER: User = {
-  name: 'Linh Nguyen',
-  level: 'gold',
-  points: 420,
-  savedThisMonth: 120000,
-};
-
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const auth = useAuth();
 
-  // Restore user from token on mount
+  // Sync user from AuthProvider to cart store
   useEffect(() => {
-    const token = authToken.get();
-    if (token) {
-      // Fetch user info from API
-      authService
-        .me()
-        .then((apiUser) => {
-          // Convert API user to cart store user format
-          setUser({
-            name: apiUser.name || apiUser.email,
-            level:
-              (apiUser.memberLevel?.toLowerCase() as
-                | 'silver'
-                | 'gold'
-                | 'platinum') || 'silver',
-            points: apiUser.points || 0,
-            savedThisMonth: 0,
-          });
-        })
-        .catch(() => {
-          // Token invalid or expired, remove it
-          authToken.remove();
-        });
+    if (auth.user) {
+      // Convert API user to cart store user format
+      setUser({
+        name: auth.user.name || auth.user.email,
+        level:
+          (auth.user.memberLevel?.toLowerCase() as
+            | 'silver'
+            | 'gold'
+            | 'platinum') || 'silver',
+        points: auth.user.points || 0,
+        savedThisMonth: 0,
+      });
+    } else {
+      setUser(null);
     }
-  }, []);
-
-  const login = useCallback(() => {
-    setUser(MOCK_USER);
-  }, []);
-
-  const logout = useCallback(() => {
-    setUser(null);
-  }, []);
-
-  const setUserData = useCallback((userData: User | null) => {
-    setUser(userData);
-  }, []);
+  }, [auth.user]);
 
   const addToCart = useCallback((item: CartItem) => {
     setCart((prev) => {
@@ -152,11 +122,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
     <CartContext.Provider
       value={{
-        setUser: setUserData,
         user,
         cart,
-        login,
-        logout,
         addToCart,
         removeFromCart,
         updateQty,

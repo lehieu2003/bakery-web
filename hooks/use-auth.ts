@@ -61,7 +61,7 @@ export function useLogout() {
     onSuccess: () => {
       queryClient.setQueryData(authKeys.user(), null);
       queryClient.clear(); // Clear all cached data
-      router.push('/login');
+      router.push('/');
     },
   });
 }
@@ -111,7 +111,7 @@ export function useResetPasswordVerify() {
     mutationFn: (data: ResetPasswordVerifyRequest) =>
       authService.resetPasswordVerify(data),
     onSuccess: () => {
-      router.push('/login');
+      router.push('/auth');
     },
   });
 }

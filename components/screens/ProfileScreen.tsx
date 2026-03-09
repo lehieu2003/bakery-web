@@ -5,6 +5,8 @@ import { useCart, MemberLevel } from '@/lib/cart-store';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useOrders } from '@/hooks/use-orders';
+import { useLogout } from '@/hooks/use-auth';
+import { useAuth } from '@/providers/auth-provider';
 
 const LEVEL_BENEFITS: Record<
   MemberLevel,
@@ -45,16 +47,19 @@ const MOCK_POINT_HISTORY = [
 ];
 
 export default function ProfileScreen() {
-  const { user, logout, setUser } = useCart();
+  const { user } = useCart(); // Get formatted user from cart store
   const router = useRouter();
   const { data: ordersData, isLoading: ordersLoading } = useOrders();
   const orders = ordersData || [];
+  const { mutate: logout } = useLogout();
+  const { logout: clearAuthUser } = useAuth();
 
   // Logout handler
   const handleLogout = () => {
-    setUser(null);
+    // Clear user from auth provider first
+    clearAuthUser();
+    // Then call API logout
     logout();
-    router.push('/');
   };
 
   if (!user) {

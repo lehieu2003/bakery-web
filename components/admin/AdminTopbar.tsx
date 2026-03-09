@@ -12,6 +12,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
+import { useLogout } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/providers/auth-provider';
 
 interface AdminTopbarProps {
   onMenuClick: () => void;
@@ -20,6 +23,16 @@ interface AdminTopbarProps {
 
 export default function AdminTopbar({ onMenuClick, title }: AdminTopbarProps) {
   const [searchValue, setSearchValue] = useState('');
+  const { user, logout: clearAuthUser } = useAuth();
+  const { mutate: logout } = useLogout();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    // Clear user from auth provider first
+    clearAuthUser();
+    // Then call API logout
+    logout();
+  };
 
   return (
     <header className='h-14 border-b border-border bg-card flex items-center gap-3 px-4 sticky top-0 z-30'>
@@ -34,7 +47,9 @@ export default function AdminTopbar({ onMenuClick, title }: AdminTopbarProps) {
 
       {/* Title (mobile) */}
       {title && (
-        <span className='font-serif text-sm font-semibold lg:hidden'>{title}</span>
+        <span className='font-serif text-sm font-semibold lg:hidden'>
+          {title}
+        </span>
       )}
 
       {/* Search */}
@@ -70,19 +85,28 @@ export default function AdminTopbar({ onMenuClick, title }: AdminTopbarProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className='w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity'>
-              A
+              {user?.name?.charAt(0).toUpperCase() || 'A'}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end' className='w-44'>
             <div className='px-2 py-1.5'>
-              <p className='text-xs font-medium'>Admin</p>
-              <p className='text-[10px] text-muted-foreground'>admin@ladouceur.vn</p>
+              <p className='text-xs font-medium'>{user?.name || 'Admin'}</p>
+              <p className='text-[10px] text-muted-foreground'>
+                {user?.email || 'Loading...'}
+              </p>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className='text-xs'>Profile</DropdownMenuItem>
-            <DropdownMenuItem className='text-xs'>Settings</DropdownMenuItem>
+            <DropdownMenuItem
+              className='text-xs'
+              onClick={() => router.push('/admin/settings')}
+            >
+              Settings
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className='text-xs text-destructive gap-2'>
+            <DropdownMenuItem
+              className='text-xs text-destructive gap-2'
+              onClick={handleLogout}
+            >
               <LogOut size={12} />
               Logout
             </DropdownMenuItem>

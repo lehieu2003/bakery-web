@@ -5,6 +5,6 @@ import type { Order } from '@/types/api.types';
 export const orderService = {
   getMyOrders: async (): Promise<Order[]> => {
     const response = await http.get<{ orders: Order[] }>(ENDPOINTS.ORDERS);
-    return response.orders;
+    return response.data!.orders;
   },
 };
