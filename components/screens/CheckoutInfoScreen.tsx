@@ -69,11 +69,31 @@ function OrderSidebar({ step }: { step: 1 | 2 }) {
 }
 
 export default function CheckoutInfoScreen() {
-  const { user, cart } = useCart();
+  const { user, cart, setCheckoutInfo, checkoutInfo } = useCart();
   const router = useRouter();
-  const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState(
+    checkoutInfo?.customerName || user?.name || '',
+  );
+  const [phone, setPhone] = useState(checkoutInfo?.customerPhone || '');
+  const [phoneError, setPhoneError] = useState('');
   const [method, setMethod] = useState<'pickup' | 'delivery'>('pickup');
+
+  // Vietnamese phone: 0xx or +84xx, 9-11 digits
+  const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+
+  function validatePhone(value: string): boolean {
+    const cleaned = value.replace(/[\s.-]/g, '');
+    if (!cleaned) {
+      setPhoneError('Phone number is required');
+      return false;
+    }
+    if (!VN_PHONE_REGEX.test(cleaned)) {
+      setPhoneError('Please enter a valid Vietnamese phone number');
+      return false;
+    }
+    setPhoneError('');
+    return true;
+  }
 
   const cakeItems = cart.filter((i) => i.type === 'cake');
   const pickupDates = [
@@ -120,10 +140,21 @@ export default function CheckoutInfoScreen() {
             <input
               type='tel'
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                if (phoneError) validatePhone(e.target.value);
+              }}
+              onBlur={() => validatePhone(phone)}
               placeholder='0909 xxx xxx'
-              className='w-full px-5 py-3.5 rounded-2xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors ${
+                phoneError
+                  ? 'border-destructive focus:border-destructive'
+                  : 'border-border focus:border-primary'
+              }`}
             />
+            {phoneError && (
+              <p className='text-xs text-destructive mt-1.5'>{phoneError}</p>
+            )}
           </div>
 
           <div>
@@ -178,7 +209,14 @@ export default function CheckoutInfoScreen() {
           )}
 
           <button
-            onClick={() => router.push('/checkout/payment')}
+            onClick={() => {
+              if (!validatePhone(phone)) return;
+              setCheckoutInfo({
+                customerName: name,
+                customerPhone: phone.replace(/[\s.-]/g, ''),
+              });
+              router.push('/checkout/payment');
+            }}
             disabled={!name || !phone}
             className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
           >

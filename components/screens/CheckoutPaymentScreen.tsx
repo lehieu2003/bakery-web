@@ -1,10 +1,18 @@
 'use client';
 
-import { ChevronLeft, CreditCard, Banknote, Wallet } from 'lucide-react';
+import {
+  ChevronLeft,
+  CreditCard,
+  Banknote,
+  Wallet,
+  Loader2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-store';
+import { orderService } from '@/services/order.service';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 const DISCOUNT_RATE: Record<string, number> = {
   silver: 0.05,
@@ -14,34 +22,93 @@ const DISCOUNT_RATE: Record<string, number> = {
 
 const PAYMENT_METHODS = [
   {
-    id: 'cash',
+    id: 'cash' as const,
     label: 'Cash on Pickup',
     icon: Banknote,
     desc: 'Pay at the counter when you collect your order',
   },
   {
-    id: 'card',
+    id: 'card' as const,
     label: 'Credit / Debit Card',
     icon: CreditCard,
     desc: 'Visa, Mastercard, JCB accepted',
   },
   {
-    id: 'ewallet',
-    label: 'E-Wallet',
+    id: 'momo' as const,
+    label: 'MoMo',
     icon: Wallet,
-    desc: 'MoMo, ZaloPay, VNPay',
+    desc: 'Pay with MoMo e-wallet',
+    logo: '/images/momo-logo.png',
+  },
+  {
+    id: 'zalopay' as const,
+    label: 'ZaloPay',
+    icon: Wallet,
+    desc: 'Pay with ZaloPay e-wallet',
+    logo: '/images/zalopay-logo.png',
   },
 ];
 
 export default function CheckoutPaymentScreen() {
-  const { user, cart, placeOrder } = useCart();
+  const { user, cart, checkoutInfo, clearCart } = useCart();
   const router = useRouter();
-  const [payMethod, setPayMethod] = useState('cash');
+  const [payMethod, setPayMethod] = useState<
+    'cash' | 'card' | 'momo' | 'zalopay'
+  >('cash');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const discountRate = user ? DISCOUNT_RATE[user.level] : 0;
   const discount = Math.round(subtotal * discountRate);
   const total = subtotal - discount;
+
+  async function handlePlaceOrder() {
+    if (!checkoutInfo) {
+      router.push('/checkout/info');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const result = await orderService.createOrder({
+        customerName: checkoutInfo.customerName,
+        customerPhone: checkoutInfo.customerPhone,
+        customerEmail: checkoutInfo.customerEmail,
+        customerNote: checkoutInfo.customerNote,
+        paymentMethod: payMethod,
+        items: cart.map((item) => ({
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+      });
+
+      clearCart();
+
+      // If payment gateway returned a URL, redirect to it
+      if (result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+        return;
+      }
+
+      // If payment gateway failed (e.g. MoMo/ZaloPay config issue)
+      if (result.paymentError) {
+        setError(result.paymentError);
+        return;
+      }
+
+      // Otherwise go to success page
+      router.push(`/checkout/success?order=${result.order.orderNumber}`);
+    } catch {
+      setError('Failed to place order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <div className='bg-background'>
@@ -79,7 +146,7 @@ export default function CheckoutPaymentScreen() {
               Select Payment Method
             </p>
             <div className='space-y-3'>
-              {PAYMENT_METHODS.map(({ id, label, icon: Icon, desc }) => (
+              {PAYMENT_METHODS.map(({ id, label, icon: Icon, desc, logo }) => (
                 <button
                   key={id}
                   onClick={() => setPayMethod(id)}
@@ -90,13 +157,23 @@ export default function CheckoutPaymentScreen() {
                   }`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden ${
                       payMethod === id
                         ? 'bg-primary text-white'
                         : 'bg-secondary text-muted-foreground'
                     }`}
                   >
-                    <Icon size={18} />
+                    {logo ? (
+                      <Image
+                        src={logo}
+                        alt={label}
+                        width={24}
+                        height={24}
+                        className='object-contain'
+                      />
+                    ) : (
+                      <Icon size={18} />
+                    )}
                   </div>
                   <div className='flex-1'>
                     <p
@@ -122,15 +199,25 @@ export default function CheckoutPaymentScreen() {
             </div>
           </div>
 
+          {error && (
+            <div className='px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20'>
+              <p className='text-sm text-destructive'>{error}</p>
+            </div>
+          )}
+
           <button
-            onClick={() =>
-              placeOrder((orderNum) =>
-                router.push(`/checkout/success?order=${orderNum}`),
-              )
-            }
-            className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors'
+            onClick={handlePlaceOrder}
+            disabled={isSubmitting || cart.length === 0}
+            className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
           >
-            Place Order — {total.toLocaleString('vi-VN')}đ
+            {isSubmitting ? (
+              <>
+                <Loader2 size={17} className='animate-spin' />
+                Processing...
+              </>
+            ) : (
+              `Place Order — ${total.toLocaleString('vi-VN')}đ`
+            )}
           </button>
         </div>
 

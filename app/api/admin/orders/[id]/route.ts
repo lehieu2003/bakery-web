@@ -117,6 +117,16 @@ export async function PATCH(
       updateData.customerPhone = body.customerPhone;
     if (body.shippingAddress !== undefined)
       updateData.shippingAddress = body.shippingAddress;
+    if (body.paymentStatus !== undefined) {
+      const validPaymentStatuses = ['UNPAID', 'PENDING', 'PAID', 'FAILED'];
+      if (!validPaymentStatuses.includes(body.paymentStatus)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid payment status' },
+          { status: 400 },
+        );
+      }
+      updateData.paymentStatus = body.paymentStatus;
+    }
 
     const order = await prisma.order.update({
       where: { id },

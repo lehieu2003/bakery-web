@@ -21,6 +21,7 @@ export interface User {
 
 export interface CartItem {
   id: string;
+  productId: string;
   name: string;
   price: number;
   image: string;
@@ -44,14 +45,22 @@ export interface Product {
   brand?: string;
 }
 
+export interface CheckoutInfo {
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerNote?: string;
+}
+
 interface CartState {
   user: User | null;
   cart: CartItem[];
+  checkoutInfo: CheckoutInfo | null;
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   updateQty: (id: string, delta: number) => void;
   clearCart: () => void;
-  placeOrder: (onSuccess: (orderNum: string) => void) => void;
+  setCheckoutInfo: (info: CheckoutInfo) => void;
 }
 
 const CartContext = createContext<CartState | null>(null);
@@ -59,6 +68,9 @@ const CartContext = createContext<CartState | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [checkoutInfo, setCheckoutInfoState] = useState<CheckoutInfo | null>(
+    null,
+  );
   const auth = useAuth();
 
   // Sync user from AuthProvider to cart store
@@ -108,15 +120,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = useCallback(() => {
     setCart([]);
+    setCheckoutInfoState(null);
   }, []);
 
-  const placeOrder = useCallback((onSuccess: (orderNum: string) => void) => {
-    // Generate a random order number
-    const orderNum = `BK${Date.now().toString().slice(-6)}`;
-    // Clear cart
-    setCart([]);
-    // Call success callback
-    onSuccess(orderNum);
+  const setCheckoutInfo = useCallback((info: CheckoutInfo) => {
+    setCheckoutInfoState(info);
   }, []);
 
   return (
@@ -124,11 +132,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         cart,
+        checkoutInfo,
         addToCart,
         removeFromCart,
         updateQty,
         clearCart,
-        placeOrder,
+        setCheckoutInfo,
       }}
     >
       {children}

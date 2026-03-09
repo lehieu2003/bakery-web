@@ -111,6 +111,7 @@ export default function ProductDetailScreen({
   function handleAddToCart() {
     addToCart({
       id: selectedProduct!.id + '-' + Date.now(),
+      productId: selectedProduct!.id,
       name: selectedProduct!.name,
       price: selectedProduct!.price,
       image: selectedProduct!.imageUrl || '/images/placeholder.jpg',
