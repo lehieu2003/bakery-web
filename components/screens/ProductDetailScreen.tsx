@@ -31,6 +31,9 @@ const RELATED = [
   },
 ];
 
+const PLACEHOLDER_BLUR =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
+
 interface ProductDetailScreenProps {
   productId: string;
 }
@@ -52,9 +55,30 @@ export default function ProductDetailScreen({
 
   if (isLoading) {
     return (
-      <div className='bg-background min-h-screen flex items-center justify-center'>
-        <div className='animate-pulse text-muted-foreground'>
-          Loading product...
+      <div className='bg-background'>
+        <div className='border-b border-border/60 bg-card'>
+          <div className='max-w-7xl mx-auto px-6 lg:px-8 py-4'>
+            <div className='h-5 w-32 bg-secondary rounded animate-pulse' />
+          </div>
+        </div>
+        <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16'>
+            <div className='space-y-4'>
+              <div className='aspect-square bg-secondary rounded-2xl animate-pulse' />
+              <div className='flex gap-3'>
+                <div className='w-20 h-20 bg-secondary rounded-xl animate-pulse' />
+                <div className='w-20 h-20 bg-secondary rounded-xl animate-pulse' />
+              </div>
+            </div>
+            <div className='space-y-4'>
+              <div className='h-9 bg-secondary rounded w-3/4 animate-pulse' />
+              <div className='h-7 bg-secondary rounded w-1/3 animate-pulse' />
+              <div className='h-4 bg-secondary rounded w-full animate-pulse' />
+              <div className='h-4 bg-secondary rounded w-2/3 animate-pulse' />
+              <div className='h-px bg-border my-6' />
+              <div className='h-12 bg-secondary rounded-full animate-pulse' />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -145,6 +169,10 @@ export default function ProductDetailScreen({
                     src={src}
                     alt={`View ${i + 1}`}
                     fill
+                    loading='lazy'
+                    sizes='80px'
+                    placeholder='blur'
+                    blurDataURL={PLACEHOLDER_BLUR}
                     className='object-cover'
                   />
                 </div>
@@ -346,6 +374,10 @@ export default function ProductDetailScreen({
                     src={r.image}
                     alt={r.name}
                     fill
+                    loading='lazy'
+                    sizes='(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw'
+                    placeholder='blur'
+                    blurDataURL={PLACEHOLDER_BLUR}
                     className='object-cover'
                   />
                 </div>

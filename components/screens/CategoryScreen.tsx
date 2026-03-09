@@ -23,6 +23,9 @@ const PRICE_FILTERS = [
 ];
 const BRANDS = ['All', 'Valrhona', 'Nielsen-Massey', "Bob's Red Mill"];
 
+const PLACEHOLDER_BLUR =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
+
 interface CategoryScreenProps {
   category: 'cakes' | 'ingredients';
 }
@@ -217,6 +220,10 @@ export default function CategoryScreen({ category }: CategoryScreenProps) {
                       src={p.imageUrl || '/images/placeholder.jpg'}
                       alt={p.name}
                       fill
+                      loading='lazy'
+                      sizes='(max-width: 768px) 50vw, 33vw'
+                      placeholder='blur'
+                      blurDataURL={PLACEHOLDER_BLUR}
                       className='object-cover group-hover:scale-105 transition-transform duration-500'
                     />
                   </div>
