@@ -9,7 +9,6 @@ import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Banner } from '@/types/api.types';
 import Autoplay from 'embla-carousel-autoplay';
 
@@ -19,17 +18,9 @@ interface BannerCarouselProps {
 
 export default function BannerCarousel({ banners }: BannerCarouselProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
-    Autoplay({ delay: 5000, stopOnInteraction: true }),
+    Autoplay({ delay: 3000, stopOnInteraction: false }),
   ]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-
-  const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev();
-  }, [emblaApi]);
-
-  const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext();
-  }, [emblaApi]);
 
   const scrollTo = useCallback(
     (index: number) => {
@@ -79,26 +70,6 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
           ))}
         </div>
       </div>
-
-      {/* Navigation Arrows */}
-      {banners.length > 1 && (
-        <>
-          <button
-            onClick={scrollPrev}
-            className='absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-lg transition-all z-10 backdrop-blur-sm'
-            aria-label='Previous banner'
-          >
-            <ChevronLeft size={20} className='text-foreground' />
-          </button>
-          <button
-            onClick={scrollNext}
-            className='absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-lg transition-all z-10 backdrop-blur-sm'
-            aria-label='Next banner'
-          >
-            <ChevronRight size={20} className='text-foreground' />
-          </button>
-        </>
-      )}
 
       {/* Dots Indicator */}
       {banners.length > 1 && (
