@@ -80,10 +80,11 @@ export const ENDPOINTS = {
   // Public APIs
   // ============================================================================
   PUBLIC: {
-    PRODUCTS: `${API_BASE}/admin/products`,
+    PRODUCTS: `${API_BASE}/public/products`,
     PRODUCT_DETAIL: (idOrSlug: string) =>
-      `${API_BASE}/admin/products/${idOrSlug}`,
-    CATEGORIES: `${API_BASE}/admin/categories`,
+      `${API_BASE}/public/products/${idOrSlug}`,
+    CATEGORIES: `${API_BASE}/public/categories`,
+    BANNERS: `${API_BASE}/public/banners`,
   },
 
   // ============================================================================

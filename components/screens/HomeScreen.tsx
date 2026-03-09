@@ -4,8 +4,10 @@ import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { useCart } from '@/lib/cart-store';
 import MembershipCard from '@/components/ui-custom/MembershipCard';
+import BannerCarousel from '@/components/ui-custom/BannerCarousel';
 import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';
+import { useBanners } from '@/hooks/use-banners';
 
 function ProductCard({
   product,
@@ -43,6 +45,7 @@ export default function HomeScreen() {
   const { user } = useCart();
   const { data: productsData, isLoading: productsLoading } = useProducts();
   const { data: categoriesData } = useCategories();
+  const { data: banners, isLoading: bannersLoading } = useBanners();
 
   // Get categories for filtering
   const categories = categoriesData || [];
@@ -77,57 +80,68 @@ export default function HomeScreen() {
 
   return (
     <div className='bg-background'>
-      {/* Hero */}
-      <section className='relative h-[560px] lg:h-[640px] w-full overflow-hidden'>
-        <Image
-          src='/images/hero-cake.jpg'
-          alt='Signature hero cake'
-          fill
-          className='object-cover object-center'
-          priority
+      {/* Banner Carousel */}
+      {!bannersLoading && banners && banners.length > 0 && (
+        <BannerCarousel
+          banners={banners.filter(
+            (b) => b.isActive && b.placement === 'HOME_HERO',
+          )}
         />
-        <div className='absolute inset-0 bg-gradient-to-r from-foreground/65 via-foreground/30 to-transparent' />
-        <div className='absolute inset-0 flex items-center'>
-          <div className='max-w-7xl mx-auto px-6 lg:px-8 w-full'>
-            <div className='max-w-xl'>
-              <p className='text-white/70 text-xs tracking-[0.28em] uppercase font-sans font-light mb-4'>
-                New Collection · 2025
-              </p>
-              <h1 className='font-serif text-4xl lg:text-6xl font-semibold text-white leading-tight text-balance mb-6'>
-                Celebrate Every
-                <br />
-                Moment With
-                <br />
-                Our Signature Cakes
-              </h1>
-              <p className='text-white/75 text-base font-sans font-light leading-relaxed mb-8 max-w-sm'>
-                Handcrafted with premium ingredients, each cake is a work of art
-                made to order.
-              </p>
-              <div className='flex items-center gap-4'>
-                <Link
-                  href='/cakes'
-                  className='px-8 py-3.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg'
-                >
-                  Explore Cakes
-                </Link>
-                <Link
-                  href='/ingredients'
-                  className='px-8 py-3.5 bg-white/15 backdrop-blur-sm text-white rounded-full text-sm font-medium hover:bg-white/25 transition-colors border border-white/30'
-                >
-                  Shop Ingredients
-                </Link>
+      )}
+
+      {/* Fallback Hero (if no banners) */}
+      {!bannersLoading && (!banners || banners.length === 0) && (
+        <section className='relative h-[560px] lg:h-[640px] w-full overflow-hidden'>
+          <Image
+            src='/images/hero-cake.jpg'
+            alt='Signature hero cake'
+            fill
+            className='object-cover object-center'
+            priority
+          />
+          <div className='absolute inset-0 bg-gradient-to-r from-foreground/65 via-foreground/30 to-transparent' />
+          <div className='absolute inset-0 flex items-center'>
+            <div className='max-w-7xl mx-auto px-6 lg:px-8 w-full'>
+              <div className='max-w-xl'>
+                <p className='text-white/70 text-xs tracking-[0.28em] uppercase font-sans font-light mb-4'>
+                  New Collection · 2025
+                </p>
+                <h1 className='font-serif text-4xl lg:text-6xl font-semibold text-white leading-tight text-balance mb-6'>
+                  Celebrate Every
+                  <br />
+                  Moment With
+                  <br />
+                  Our Signature Cakes
+                </h1>
+                <p className='text-white/75 text-base font-sans font-light leading-relaxed mb-8 max-w-sm'>
+                  Handcrafted with premium ingredients, each cake is a work of
+                  art made to order.
+                </p>
+                <div className='flex items-center gap-4'>
+                  <Link
+                    href='/cakes'
+                    className='px-8 py-3.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg'
+                  >
+                    Explore Cakes
+                  </Link>
+                  <Link
+                    href='/ingredients'
+                    className='px-8 py-3.5 bg-white/15 backdrop-blur-sm text-white rounded-full text-sm font-medium hover:bg-white/25 transition-colors border border-white/30'
+                  >
+                    Shop Ingredients
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Membership Banner */}
       <section className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
         {user ? (
           <div className='max-w-xl'>
-            <MembershipCard user={user} />
+            <MembershipCard user={user!} />
           </div>
         ) : (
           <Link
