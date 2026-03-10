@@ -1,53 +1,54 @@
+'use client';
+
 import Link from 'next/link';
 import { MapPin, Phone, Mail, Instagram, Facebook, Youtube } from 'lucide-react';
 import NewsletterForm from './newsletter-form';
+import { useCategories } from '@/hooks/use-products';
 
-const footerLinks = {
-  explore: [
-    { label: 'Bánh sinh nhật', href: '/categories/banh-sinh-nhat' },
-    { label: 'Bánh cưới', href: '/categories/banh-cuoi' },
-    { label: 'Bánh mousse', href: '/categories/banh-mousse' },
-    { label: 'Bánh theo mùa', href: '/categories/banh-theo-mua' },
-    { label: 'Tất cả sản phẩm', href: '/cakes' },
-  ],
-  info: [
-    { label: 'Về chúng tôi', href: '#' },
-    { label: 'Chính sách giao hàng', href: '#' },
-    { label: 'Chính sách đổi trả', href: '#' },
-    { label: 'Điều khoản sử dụng', href: '#' },
-    { label: 'Chính sách bảo mật', href: '#' },
-  ],
-};
+const infoLinks = [
+  { label: 'Về chúng tôi', href: '#' },
+  { label: 'Chính sách giao hàng', href: '#' },
+  { label: 'Chính sách đổi trả', href: '#' },
+  { label: 'Điều khoản sử dụng', href: '#' },
+  { label: 'Chính sách bảo mật', href: '#' },
+];
 
 const socialLinks = [
-  {
-    label: 'Instagram',
-    href: '#',
-    icon: Instagram,
-  },
-  {
-    label: 'Facebook',
-    href: '#',
-    icon: Facebook,
-  },
-  {
-    label: 'YouTube',
-    href: '#',
-    icon: Youtube,
-  },
+  { label: 'Instagram', href: '#', icon: Instagram },
+  { label: 'Facebook', href: '#', icon: Facebook },
+  { label: 'YouTube', href: '#', icon: Youtube },
 ];
 
 export default function WebFooter() {
+  const { data: categoriesData } = useCategories();
+
+  // Flatten to at most 6 root categories for the "Khám phá" column
+  const exploreLinks = (categoriesData || []).slice(0, 6).map((cat) => ({
+    label: cat.name,
+    href: `/categories/${cat.slug}`,
+  }));
+
+  // Fallback static links while loading
+  const displayLinks =
+    exploreLinks.length > 0
+      ? exploreLinks
+      : [
+          { label: 'Bánh sinh nhật', href: '/categories/banh-sinh-nhat' },
+          { label: 'Bánh cưới', href: '/categories/banh-cuoi' },
+          { label: 'Bánh mousse', href: '/categories/banh-mousse' },
+          { label: 'Tất cả sản phẩm', href: '/cakes' },
+        ];
+
   return (
-    <footer className='bg-[#2a1a14] text-[#f5ebe4]'>
+    <footer className='bg-[#3d1a0f] text-[#f5ebe4]'>
       {/* Newsletter banner */}
       <div className='border-b border-white/10'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-6'>
           <div>
             <p className='font-serif text-xl font-semibold text-white text-balance'>
-              Nhận ưu đãi & công thức bánh mỗi tuần
+              Nhận ưu đãi &amp; công thức bánh mỗi tuần
             </p>
-            <p className='text-sm text-[#c9a89a] mt-1'>
+            <p className='text-sm text-primary/80 mt-1'>
               Đăng ký nhận bản tin để không bỏ lỡ bộ sưu tập mới nhất.
             </p>
           </div>
@@ -66,11 +67,11 @@ export default function WebFooter() {
             >
               La Douceur
             </p>
-            <p className='text-[10px] tracking-widest text-[#c9a89a] uppercase font-light mt-0.5'>
+            <p className='text-[10px] tracking-widest text-primary/70 uppercase font-light mt-0.5'>
               Artisan Bakery
             </p>
           </Link>
-          <p className='text-sm text-[#c9a89a] leading-relaxed mt-5 text-pretty'>
+          <p className='text-sm text-[#f5ebe4]/70 leading-relaxed mt-5 text-pretty'>
             Mỗi chiếc bánh là một tác phẩm nghệ thuật — được làm thủ công từ
             những nguyên liệu tươi ngon nhất, gửi gắm tình yêu vào từng lớp
             kem.
@@ -83,7 +84,7 @@ export default function WebFooter() {
                 key={label}
                 href={href}
                 aria-label={label}
-                className='w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-[#c9a89a] hover:border-primary hover:text-primary transition-colors'
+                className='w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-primary/70 hover:border-primary hover:text-primary transition-colors'
               >
                 <Icon size={16} />
               </a>
@@ -91,36 +92,44 @@ export default function WebFooter() {
           </div>
         </div>
 
-        {/* Explore links */}
+        {/* Explore links — dynamic from API */}
         <div>
-          <p className='text-xs font-semibold uppercase tracking-widest text-[#c9a89a] mb-5'>
+          <p className='text-xs font-semibold uppercase tracking-widest text-primary/70 mb-5'>
             Khám phá
           </p>
           <ul className='space-y-3'>
-            {footerLinks.explore.map((link) => (
+            {displayLinks.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className='text-sm text-[#f5ebe4]/80 hover:text-white transition-colors'
+                  className='text-sm text-[#f5ebe4]/75 hover:text-white transition-colors'
                 >
                   {link.label}
                 </Link>
               </li>
             ))}
+            <li>
+              <Link
+                href='/cakes'
+                className='text-sm text-primary hover:text-primary/80 transition-colors font-medium'
+              >
+                Tất cả sản phẩm →
+              </Link>
+            </li>
           </ul>
         </div>
 
         {/* Info links */}
         <div>
-          <p className='text-xs font-semibold uppercase tracking-widest text-[#c9a89a] mb-5'>
+          <p className='text-xs font-semibold uppercase tracking-widest text-primary/70 mb-5'>
             Thông tin
           </p>
           <ul className='space-y-3'>
-            {footerLinks.info.map((link) => (
+            {infoLinks.map((link) => (
               <li key={link.label}>
                 <Link
                   href={link.href}
-                  className='text-sm text-[#f5ebe4]/80 hover:text-white transition-colors'
+                  className='text-sm text-[#f5ebe4]/75 hover:text-white transition-colors'
                 >
                   {link.label}
                 </Link>
@@ -131,14 +140,14 @@ export default function WebFooter() {
 
         {/* Contact */}
         <div>
-          <p className='text-xs font-semibold uppercase tracking-widest text-[#c9a89a] mb-5'>
+          <p className='text-xs font-semibold uppercase tracking-widest text-primary/70 mb-5'>
             Liên hệ
           </p>
           <ul className='space-y-4'>
             <li>
               <a
                 href='tel:19007799'
-                className='flex items-start gap-3 text-sm text-[#f5ebe4]/80 hover:text-white transition-colors group'
+                className='flex items-start gap-3 text-sm text-[#f5ebe4]/75 hover:text-white transition-colors group'
               >
                 <Phone
                   size={15}
@@ -150,7 +159,7 @@ export default function WebFooter() {
             <li>
               <a
                 href='mailto:hello@ladouceur.vn'
-                className='flex items-start gap-3 text-sm text-[#f5ebe4]/80 hover:text-white transition-colors group'
+                className='flex items-start gap-3 text-sm text-[#f5ebe4]/75 hover:text-white transition-colors group'
               >
                 <Mail
                   size={15}
@@ -160,11 +169,8 @@ export default function WebFooter() {
               </a>
             </li>
             <li>
-              <div className='flex items-start gap-3 text-sm text-[#f5ebe4]/80'>
-                <MapPin
-                  size={15}
-                  className='text-primary mt-0.5 shrink-0'
-                />
+              <div className='flex items-start gap-3 text-sm text-[#f5ebe4]/75'>
+                <MapPin size={15} className='text-primary mt-0.5 shrink-0' />
                 <span className='leading-relaxed'>
                   123 Đường Nguyễn Huệ,
                   <br />
@@ -172,8 +178,8 @@ export default function WebFooter() {
                 </span>
               </div>
             </li>
-            <li className='text-sm text-[#f5ebe4]/80'>
-              <span className='text-[#c9a89a] text-xs uppercase tracking-wider font-medium'>
+            <li className='text-sm text-[#f5ebe4]/75'>
+              <span className='text-primary/70 text-xs uppercase tracking-wider font-medium'>
                 Giờ mở cửa
               </span>
               <p className='mt-1'>Thứ 2 – Chủ nhật: 8:00 – 21:00</p>
@@ -185,11 +191,11 @@ export default function WebFooter() {
       {/* Bottom bar */}
       <div className='border-t border-white/10'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3'>
-          <p className='text-xs text-[#c9a89a]'>
+          <p className='text-xs text-[#f5ebe4]/50'>
             &copy; {new Date().getFullYear()} La Douceur Artisan Bakery. All
             rights reserved.
           </p>
-          <p className='text-xs text-[#c9a89a]/60 italic font-serif'>
+          <p className='text-xs text-[#f5ebe4]/40 italic font-serif'>
             Handcrafted with love in Saigon
           </p>
         </div>
