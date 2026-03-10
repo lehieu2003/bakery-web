@@ -43,8 +43,12 @@ export async function GET() {
               select: {
                 id: true,
                 name: true,
-                imageUrl: true,
                 price: true,
+                images: {
+                  select: { url: true, isPrimary: true },
+                  where: { isPrimary: true },
+                  take: 1,
+                },
               },
             },
           },

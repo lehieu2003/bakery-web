@@ -35,7 +35,15 @@ export async function GET(request: NextRequest) {
           orderItems: {
             include: {
               product: {
-                select: { id: true, name: true, imageUrl: true },
+                select: {
+                  id: true,
+                  name: true,
+                  images: {
+                    select: { url: true, isPrimary: true },
+                    where: { isPrimary: true },
+                    take: 1,
+                  },
+                },
               },
             },
           },

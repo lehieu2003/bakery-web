@@ -15,7 +15,15 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
-    if (categoryId) where.categoryId = categoryId;
+    if (categoryId) {
+      // Include products from child categories too
+      const childCategories = await prisma.category.findMany({
+        where: { parentId: categoryId },
+        select: { id: true },
+      });
+      const categoryIds = [categoryId, ...childCategories.map((c) => c.id)];
+      where.categoryId = { in: categoryIds };
+    }
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -30,6 +38,7 @@ export async function GET(request: NextRequest) {
           category: {
             select: { id: true, name: true, slug: true },
           },
+          images: true,
         },
         skip,
         take: limit,
@@ -83,9 +92,10 @@ export async function POST(request: NextRequest) {
       stock,
       imageUrl,
       images,
+      variants,
       isActive,
       isFeatured,
-    } = body;
+    } = body as Record<string, any>;
 
     // Validate required fields
     if (!name || !slug || !price || !categoryId) {
@@ -104,6 +114,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Build image create data from imageUrl or images array
+    const imageCreateData: { url: string; isPrimary: boolean }[] = [];
+    if (imageUrl) {
+      imageCreateData.push({ url: imageUrl, isPrimary: true });
+    }
+    if (images && Array.isArray(images)) {
+      for (const img of images) {
+        const url = typeof img === 'string' ? img : img.url;
+        if (url && !imageCreateData.some((i) => i.url === url)) {
+          imageCreateData.push({
+            url,
+            isPrimary: imageCreateData.length === 0,
+          });
+        }
+      }
+    }
+
+    // Build variant create data
+    const variantCreateData: {
+      name: string;
+      sku: string | null;
+      price: number;
+      stock: number;
+    }[] = [];
+    if (variants && Array.isArray(variants)) {
+      for (const v of variants) {
+        if (v.name && typeof v.price === 'number') {
+          variantCreateData.push({
+            name: v.name,
+            sku: v.sku || null,
+            price: v.price,
+            stock: typeof v.stock === 'number' ? v.stock : 0,
+          });
+        }
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
         name,
@@ -113,13 +160,19 @@ export async function POST(request: NextRequest) {
         comparePrice,
         categoryId,
         stock: stock || 0,
-        imageUrl,
-        images: images || [],
         isActive: isActive !== undefined ? isActive : true,
         isFeatured: isFeatured || false,
+        ...(imageCreateData.length > 0
+          ? { images: { create: imageCreateData } }
+          : {}),
+        ...(variantCreateData.length > 0
+          ? { variants: { create: variantCreateData } }
+          : {}),
       },
       include: {
         category: true,
+        images: true,
+        variants: true,
       },
     });
 

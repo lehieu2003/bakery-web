@@ -5,6 +5,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';
+import { getProductImage } from '@/lib/utils';
 
 type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc';
 const SORT_LABELS: Record<SortOption, string> = {
@@ -14,55 +15,44 @@ const SORT_LABELS: Record<SortOption, string> = {
   'price-desc': 'Price: High to Low',
 };
 
-const PRICE_FILTERS = [
-  'All',
-  'Under 100k',
-  '100k – 300k',
-  '300k – 600k',
-  'Above 600k',
-];
-const BRANDS = ['All', 'Valrhona', 'Nielsen-Massey', "Bob's Red Mill"];
-
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
 
 interface CategoryScreenProps {
-  category: 'cakes' | 'ingredients';
+  categorySlug: string;
 }
 
-export default function CategoryScreen({ category }: CategoryScreenProps) {
+export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
   const [sort, setSort] = useState<SortOption>('popular');
-  const [priceFilter, setPriceFilter] = useState('All');
-  const [brandFilter, setBrandFilter] = useState('All');
+  const [subCategoryId, setSubCategoryId] = useState<string>('all');
 
-  // Fetch categories and products
+  // Fetch categories and find the matching one by slug
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
 
-  // Find category ID based on category slug
-  const categoryData = categories.find(
-    (cat: { slug: string; name: string; id: string }) =>
-      cat.slug === category ||
-      cat.slug.toLowerCase() === category.toLowerCase(),
-  );
+  const categoryData = categories.find((cat) => cat.slug === categorySlug);
+
+  // Sub-categories from tree
+  const subCategories = (categoryData as any)?.children || [];
 
   // Fetch products filtered by category
   const { data: productsData, isLoading } = useProducts({
     categoryId: categoryData?.id,
   });
 
-  const products = (productsData?.products || []).filter((p) => p.isActive);
+  const products = (productsData?.products || []).filter((p) => {
+    if (!p.isActive) return false;
+    if (subCategoryId !== 'all') return p.categoryId === subCategoryId;
+    return true;
+  });
   const sorted = [...products].sort((a, b) => {
     if (sort === 'price-asc') return a.price - b.price;
     if (sort === 'price-desc') return b.price - a.price;
     return 0;
   });
 
-  const title = category === 'cakes' ? 'Signature Cakes' : 'Baking Ingredients';
-  const subtitle =
-    category === 'cakes'
-      ? 'Handcrafted to order, every cake is made with premium ingredients and artisan care.'
-      : 'Professional-grade baking ingredients sourced from trusted suppliers worldwide.';
+  const title = categoryData?.name || categorySlug;
+  const subtitle = categoryData?.description || '';
 
   return (
     <div className='bg-background'>
@@ -79,9 +69,11 @@ export default function CategoryScreen({ category }: CategoryScreenProps) {
           <h1 className='font-serif text-4xl font-semibold text-foreground mb-2'>
             {title}
           </h1>
-          <p className='text-muted-foreground text-sm max-w-lg leading-relaxed'>
-            {subtitle}
-          </p>
+          {subtitle && (
+            <p className='text-muted-foreground text-sm max-w-lg leading-relaxed'>
+              {subtitle}
+            </p>
+          )}
         </div>
       </div>
 
@@ -89,6 +81,40 @@ export default function CategoryScreen({ category }: CategoryScreenProps) {
         {/* Sidebar filters */}
         <aside className='hidden lg:block w-56 flex-shrink-0'>
           <div className='sticky top-24 space-y-8'>
+            {/* Sub-categories */}
+            {subCategories.length > 0 && (
+              <div>
+                <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
+                  Sub-categories
+                </p>
+                <div className='space-y-1'>
+                  <button
+                    onClick={() => setSubCategoryId('all')}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                      subCategoryId === 'all'
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {subCategories.map((sub: { id: string; name: string }) => (
+                    <button
+                      key={sub.id}
+                      onClick={() => setSubCategoryId(sub.id)}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        subCategoryId === sub.id
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                      }`}
+                    >
+                      {sub.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Sort */}
             <div>
               <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
@@ -112,57 +138,40 @@ export default function CategoryScreen({ category }: CategoryScreenProps) {
                 )}
               </div>
             </div>
-
-            {/* Price filter */}
-            <div>
-              <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
-                Price Range
-              </p>
-              <div className='space-y-1'>
-                {PRICE_FILTERS.map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setPriceFilter(f)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      priceFilter === f
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Brand (ingredients only) */}
-            {category === 'ingredients' && (
-              <div>
-                <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
-                  Brand
-                </p>
-                <div className='space-y-1'>
-                  {BRANDS.map((b) => (
-                    <button
-                      key={b}
-                      onClick={() => setBrandFilter(b)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        brandFilter === b
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                      }`}
-                    >
-                      {b}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </aside>
 
         {/* Product grid */}
         <div className='flex-1 min-w-0'>
+          {/* Mobile sub-category chips */}
+          {subCategories.length > 0 && (
+            <div className='lg:hidden flex gap-2 overflow-x-auto pb-3 mb-3 scrollbar-hide'>
+              <button
+                onClick={() => setSubCategoryId('all')}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  subCategoryId === 'all'
+                    ? 'bg-primary text-white border-primary'
+                    : 'border-border text-muted-foreground bg-card'
+                }`}
+              >
+                All
+              </button>
+              {subCategories.map((sub: { id: string; name: string }) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setSubCategoryId(sub.id)}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    subCategoryId === sub.id
+                      ? 'bg-primary text-white border-primary'
+                      : 'border-border text-muted-foreground bg-card'
+                  }`}
+                >
+                  {sub.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Mobile sort chips */}
           <div className='lg:hidden flex gap-2 overflow-x-auto pb-3 mb-5 scrollbar-hide'>
             {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(
@@ -217,7 +226,7 @@ export default function CategoryScreen({ category }: CategoryScreenProps) {
                     style={{ paddingBottom: '100%' }}
                   >
                     <Image
-                      src={p.imageUrl || '/images/placeholder.jpg'}
+                      src={getProductImage(p)}
                       alt={p.name}
                       fill
                       loading='lazy'

@@ -30,6 +30,7 @@ import {
 } from '@/lib/admin-data';
 import { useOrder, useUpdateOrder } from '@/hooks/admin/use-orders';
 import type { OrderStatus } from '@/types/api.types';
+import { getProductImage } from '@/lib/utils';
 
 const NEXT_STATUSES: Partial<Record<OrderStatus, OrderStatus[]>> = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
@@ -200,9 +201,9 @@ export default function OrderDetailPage({
               {order.orderItems.map((item) => (
                 <div key={item.id} className='flex gap-3 px-5 py-4'>
                   <div className='w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-muted'>
-                    {item.product?.imageUrl ? (
+                    {item.product ? (
                       <Image
-                        src={item.product.imageUrl}
+                        src={getProductImage(item.product)}
                         alt={item.product.name}
                         width={48}
                         height={48}

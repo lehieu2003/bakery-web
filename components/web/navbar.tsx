@@ -1,25 +1,32 @@
 'use client';
 
 import { ShoppingBag, User, Menu, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useAuth } from '@/providers/auth-provider';
+import { useCategories } from '@/hooks/use-products';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
-const NAV_LINKS = [
-  { label: 'Home', href: '/' },
-  { label: 'Cakes', href: '/cakes' },
-  { label: 'Ingredients', href: '/ingredients' },
-];
 
 export default function WebNavbar() {
   const { user, cart } = useCart();
   const { isLoading } = useAuth();
+  const { data: categoriesData } = useCategories();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  // Build nav links dynamically from root categories
+  const navLinks = useMemo(() => {
+    const links = [{ label: 'Home', href: '/' }];
+    if (categoriesData) {
+      for (const cat of categoriesData) {
+        links.push({ label: cat.name, href: `/categories/${cat.slug}` });
+      }
+    }
+    return links;
+  }, [categoriesData]);
 
   // Prevent hydration mismatch by only rendering user-dependent UI after mount
   useEffect(() => {
@@ -53,9 +60,9 @@ export default function WebNavbar() {
           className='hidden md:flex items-center gap-1'
           aria-label='Main navigation'
         >
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <Link
-              key={link.label}
+              key={link.href}
               href={link.href}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 isActive(link.href)
@@ -131,9 +138,9 @@ export default function WebNavbar() {
       {mobileMenuOpen && (
         <div className='md:hidden border-t border-border/60 bg-background'>
           <nav className='max-w-7xl mx-auto px-6 py-4 space-y-2'>
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <Link
-                key={link.label}
+                key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

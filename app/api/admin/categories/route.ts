@@ -11,13 +11,22 @@ export async function GET() {
         _count: {
           select: { products: true },
         },
+        children: {
+          include: {
+            _count: { select: { products: true } },
+          },
+          orderBy: { displayOrder: 'asc' },
+        },
       },
       orderBy: { displayOrder: 'asc' },
     });
 
+    // Return tree: only root categories with nested children
+    const tree = categories.filter((c) => c.parentId === null);
+
     return NextResponse.json({
       success: true,
-      data: { categories },
+      data: { categories: tree },
     });
   } catch (error) {
     console.error('Admin categories error:', error);
@@ -42,7 +51,16 @@ export async function POST(request: NextRequest) {
     await requireAdmin();
     const body = await request.json();
 
-    const { name, slug, description, imageUrl, displayOrder, isActive } = body;
+    const {
+      name,
+      slug,
+      description,
+      imageUrl,
+      parentId,
+      level,
+      displayOrder,
+      isActive,
+    } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -51,14 +69,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate parentId if provided
+    if (parentId) {
+      const parent = await prisma.category.findUnique({
+        where: { id: parentId },
+      });
+      if (!parent) {
+        return NextResponse.json(
+          { success: false, error: 'Parent category not found' },
+          { status: 400 },
+        );
+      }
+    }
+
     const category = await prisma.category.create({
       data: {
         name,
         slug,
         description,
         imageUrl,
+        parentId: parentId || null,
+        level: level ?? (parentId ? 2 : 1),
         displayOrder: displayOrder || 0,
         isActive: isActive !== undefined ? isActive : true,
+      },
+      include: {
+        _count: { select: { products: true } },
       },
     });
 

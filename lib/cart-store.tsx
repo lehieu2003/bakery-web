@@ -26,6 +26,8 @@ export interface CartItem {
   price: number;
   image: string;
   type: 'cake' | 'ingredient';
+  variantId?: string;
+  variantName?: string;
   size?: string;
   flavor?: string;
   message?: string;

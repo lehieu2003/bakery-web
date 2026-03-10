@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import AdminShell from '@/components/admin/AdminShell';
@@ -38,6 +38,7 @@ import { useCategories } from '@/hooks/admin/use-categories';
 import { formatVND } from '@/lib/admin-data';
 import { cn } from '@/lib/utils';
 import type { Product, Category } from '@/types/api.types';
+import { getProductImage } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProductsPage() {
@@ -256,19 +257,35 @@ export default function ProductsPage() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {(categories || []).map((c: Category) => (
-              <DropdownMenuItem
-                key={c.id}
-                className={cn(
-                  'text-xs',
-                  categoryFilter === c.id && 'font-semibold',
-                )}
-                onClick={() => {
-                  setCategoryFilter(c.id);
-                  setPage(1);
-                }}
-              >
-                {c.name}
-              </DropdownMenuItem>
+              <React.Fragment key={c.id}>
+                <DropdownMenuItem
+                  className={cn(
+                    'text-xs font-medium',
+                    categoryFilter === c.id && 'font-semibold',
+                  )}
+                  onClick={() => {
+                    setCategoryFilter(c.id);
+                    setPage(1);
+                  }}
+                >
+                  {c.name}
+                </DropdownMenuItem>
+                {(c as any).children?.map((child: any) => (
+                  <DropdownMenuItem
+                    key={child.id}
+                    className={cn(
+                      'text-xs pl-6',
+                      categoryFilter === child.id && 'font-semibold',
+                    )}
+                    onClick={() => {
+                      setCategoryFilter(child.id);
+                      setPage(1);
+                    }}
+                  >
+                    └ {child.name}
+                  </DropdownMenuItem>
+                ))}
+              </React.Fragment>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -370,19 +387,13 @@ export default function ProductsPage() {
                   <td className='px-3 py-3'>
                     <div className='flex items-center gap-3'>
                       <div className='w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-muted'>
-                        {product.imageUrl ? (
-                          <Image
-                            src={product.imageUrl}
-                            alt={product.name}
-                            width={40}
-                            height={40}
-                            className='w-full h-full object-cover'
-                          />
-                        ) : (
-                          <div className='w-full h-full flex items-center justify-center text-muted-foreground text-xs'>
-                            No img
-                          </div>
-                        )}
+                        <Image
+                          src={getProductImage(product)}
+                          alt={product.name}
+                          width={40}
+                          height={40}
+                          className='w-full h-full object-cover'
+                        />
                       </div>
                       <div>
                         <p className='text-xs font-medium text-foreground line-clamp-1'>

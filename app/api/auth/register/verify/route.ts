@@ -70,6 +70,8 @@ export async function POST(request: Request) {
         email: true,
         name: true,
         role: true,
+        memberLevel: true,
+        points: true,
         createdAt: true,
       },
     });
