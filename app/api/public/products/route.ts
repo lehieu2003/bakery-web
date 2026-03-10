@@ -13,7 +13,15 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
-    if (categoryId) where.categoryId = categoryId;
+    if (categoryId) {
+      // Include products from child categories too
+      const childCategories = await prisma.category.findMany({
+        where: { parentId: categoryId },
+        select: { id: true },
+      });
+      const categoryIds = [categoryId, ...childCategories.map((c) => c.id)];
+      where.categoryId = { in: categoryIds };
+    }
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -28,6 +36,7 @@ export async function GET(request: NextRequest) {
           category: {
             select: { id: true, name: true, slug: true },
           },
+          images: true,
         },
         skip,
         take: limit,

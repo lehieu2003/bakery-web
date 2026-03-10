@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { useCart } from '@/lib/cart-store';
+import { getProductImage } from '@/lib/utils';
 import MembershipCard from '@/components/ui-custom/MembershipCard';
 import BannerCarousel from '@/components/ui-custom/BannerCarousel';
 import Link from 'next/link';
@@ -54,36 +55,36 @@ export default function HomeScreen() {
   const { data: categoriesData } = useCategories();
   const { data: banners, isLoading: bannersLoading } = useBanners();
 
-  // Get categories for filtering
+  // Root categories from API (dynamic)
   const categories = categoriesData || [];
-  const cakeCategory = categories.find(
-    (cat: { slug: string; name: string; id: string }) =>
-      cat.slug === 'cakes' || cat.name.toLowerCase().includes('cake'),
-  );
-  const ingredientCategory = categories.find(
-    (cat: { slug: string; name: string; id: string }) =>
-      cat.slug === 'ingredients' ||
-      cat.name.toLowerCase().includes('ingredient'),
-  );
 
-  // Filter products by category
+  // Collect all category IDs including children for filtering
+  const getCategoryIds = (cat: { id: string; children?: { id: string }[] }) => {
+    const ids = [cat.id];
+    if ((cat as any).children)
+      ids.push(...(cat as any).children.map((c: { id: string }) => c.id));
+    return ids;
+  };
+
+  // Group products by root category
   const products = productsData?.products || [];
-  const cakes = products
-    .filter(
-      (p) =>
-        p.isActive &&
-        (cakeCategory ? p.categoryId === cakeCategory.id : p.isFeatured),
-    )
-    .slice(0, 4);
-  const ingredients = products
-    .filter(
-      (p) =>
-        p.isActive &&
-        (ingredientCategory
-          ? p.categoryId === ingredientCategory.id
-          : !cakeCategory || p.categoryId !== cakeCategory.id),
-    )
-    .slice(0, 4);
+  const productsByCategory = categories.map((cat) => {
+    const catIds = getCategoryIds(cat);
+    return {
+      category: cat,
+      products: products
+        .filter((p) => p.isActive && catIds.includes(p.categoryId))
+        .slice(0, 4),
+    };
+  });
+
+  // First category link for hero CTA
+  const firstCategoryHref =
+    categories.length > 0 ? `/categories/${categories[0].slug}` : '/';
+  const secondCategoryHref =
+    categories.length > 1
+      ? `/categories/${categories[1].slug}`
+      : firstCategoryHref;
 
   return (
     <div className='bg-background'>
@@ -127,17 +128,19 @@ export default function HomeScreen() {
                 </p>
                 <div className='flex items-center gap-4'>
                   <Link
-                    href='/cakes'
+                    href={firstCategoryHref}
                     className='px-8 py-3.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg'
                   >
-                    Explore Cakes
+                    Explore Menu
                   </Link>
-                  <Link
-                    href='/ingredients'
-                    className='px-8 py-3.5 bg-white/15 backdrop-blur-sm text-white rounded-full text-sm font-medium hover:bg-white/25 transition-colors border border-white/30'
-                  >
-                    Shop Ingredients
-                  </Link>
+                  {categories.length > 1 && (
+                    <Link
+                      href={secondCategoryHref}
+                      className='px-8 py-3.5 bg-white/15 backdrop-blur-sm text-white rounded-full text-sm font-medium hover:bg-white/25 transition-colors border border-white/30'
+                    >
+                      {categories[1].name}
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -171,118 +174,71 @@ export default function HomeScreen() {
         )}
       </section>
 
-      {/* Signature Cakes */}
-      <section className='max-w-7xl mx-auto px-6 lg:px-8 pb-14'>
-        <div className='flex items-end justify-between mb-8'>
-          <div>
-            <p className='text-xs tracking-[0.22em] uppercase text-muted-foreground font-sans font-light mb-1.5'>
-              Our Speciality
-            </p>
-            <h2 className='font-serif text-3xl font-semibold text-foreground'>
-              Signature Cakes
-            </h2>
-          </div>
-          <Link
-            href='/cakes'
-            className='flex items-center gap-1.5 text-sm font-medium text-primary hover:gap-2.5 transition-all'
-          >
-            View all <ArrowRight size={15} />
-          </Link>
-        </div>
-        <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
-          {productsLoading ? (
-            // Loading skeleton
-            [...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
-              >
-                <div className='aspect-square bg-secondary' />
-                <div className='p-4 space-y-2'>
-                  <div className='h-4 bg-secondary rounded' />
-                  <div className='h-3 bg-secondary rounded w-2/3' />
-                </div>
+      {/* Category Sections */}
+      {productsByCategory.map(
+        ({ category: cat, products: catProducts }, idx) => (
+          <section key={cat.id}>
+            {idx > 0 && (
+              <div className='max-w-7xl mx-auto px-6 lg:px-8'>
+                <div className='h-px bg-border' />
               </div>
-            ))
-          ) : cakes.length > 0 ? (
-            cakes.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={{
-                  id: p.id,
-                  name: p.name,
-                  price: p.price,
-                  image: p.imageUrl || '/images/placeholder.jpg',
-                }}
-                href={`/products/${p.id}`}
-              />
-            ))
-          ) : (
-            <div className='col-span-full text-center py-8 text-muted-foreground'>
-              No products available
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Divider */}
-      <div className='max-w-7xl mx-auto px-6 lg:px-8'>
-        <div className='h-px bg-border' />
-      </div>
-
-      {/* Baking Ingredients */}
-      <section className='max-w-7xl mx-auto px-6 lg:px-8 py-14'>
-        <div className='flex items-end justify-between mb-8'>
-          <div>
-            <p className='text-xs tracking-[0.22em] uppercase text-muted-foreground font-sans font-light mb-1.5'>
-              Premium Selection
-            </p>
-            <h2 className='font-serif text-3xl font-semibold text-foreground'>
-              Baking Ingredients
-            </h2>
-          </div>
-          <Link
-            href='/ingredients'
-            className='flex items-center gap-1.5 text-sm font-medium text-primary hover:gap-2.5 transition-all'
-          >
-            View all <ArrowRight size={15} />
-          </Link>
-        </div>
-        <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
-          {productsLoading ? (
-            // Loading skeleton
-            [...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
-              >
-                <div className='aspect-square bg-secondary' />
-                <div className='p-4 space-y-2'>
-                  <div className='h-4 bg-secondary rounded' />
-                  <div className='h-3 bg-secondary rounded w-2/3' />
+            )}
+            <div className='max-w-7xl mx-auto px-6 lg:px-8 py-14'>
+              <div className='flex items-end justify-between mb-8'>
+                <div>
+                  {cat.description && (
+                    <p className='text-xs tracking-[0.22em] uppercase text-muted-foreground font-sans font-light mb-1.5'>
+                      {cat.description}
+                    </p>
+                  )}
+                  <h2 className='font-serif text-3xl font-semibold text-foreground'>
+                    {cat.name}
+                  </h2>
                 </div>
+                <Link
+                  href={`/categories/${cat.slug}`}
+                  className='flex items-center gap-1.5 text-sm font-medium text-primary hover:gap-2.5 transition-all'
+                >
+                  View all <ArrowRight size={15} />
+                </Link>
               </div>
-            ))
-          ) : ingredients.length > 0 ? (
-            ingredients.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={{
-                  id: p.id,
-                  name: p.name,
-                  price: p.price,
-                  image: p.imageUrl || '/images/placeholder.jpg',
-                }}
-                href={`/products/${p.id}`}
-              />
-            ))
-          ) : (
-            <div className='col-span-full text-center py-8 text-muted-foreground'>
-              No products available
+              <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
+                {productsLoading ? (
+                  [...Array(4)].map((_, i) => (
+                    <div
+                      key={i}
+                      className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
+                    >
+                      <div className='aspect-square bg-secondary' />
+                      <div className='p-4 space-y-2'>
+                        <div className='h-4 bg-secondary rounded' />
+                        <div className='h-3 bg-secondary rounded w-2/3' />
+                      </div>
+                    </div>
+                  ))
+                ) : catProducts.length > 0 ? (
+                  catProducts.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={{
+                        id: p.id,
+                        name: p.name,
+                        price: p.price,
+                        image: getProductImage(p),
+                      }}
+                      href={`/products/${p.id}`}
+                    />
+                  ))
+                ) : (
+                  <div className='col-span-full text-center py-8 text-muted-foreground'>
+                    No products available
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      </section>
+          </section>
+        ),
+      )}
 
       {/* Value strip */}
       <section className='bg-card border-y border-border'>

@@ -3,6 +3,7 @@ import {
   OrderStatus,
   MemberLevel,
   BannerPlacement,
+  DiscountType,
 } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -108,60 +109,102 @@ async function main() {
   }
 
   // ============================================
-  // 3. CATEGORIES (from mockCategories)
+  // 3. CATEGORIES (with tree structure)
   // ============================================
-  const categoriesData = [
+
+  // Parent categories
+  const parentCategoriesData = [
     {
-      name: 'Birthday Cakes',
-      slug: 'birthday-cakes',
-      description: 'Beautiful birthday cakes for all ages',
+      name: 'Cakes',
+      slug: 'cakes',
+      description: 'All types of cakes',
       displayOrder: 1,
+      level: 1,
     },
     {
-      name: 'Wedding Cakes',
-      slug: 'wedding-cakes',
-      description: 'Elegant wedding cakes for your special day',
+      name: 'Ingredients',
+      slug: 'ingredients',
+      description: 'Baking ingredients and supplies',
       displayOrder: 2,
-    },
-    {
-      name: 'Seasonal',
-      slug: 'seasonal',
-      description: 'Limited edition seasonal cakes',
-      displayOrder: 3,
-    },
-    {
-      name: 'Flour & Baking',
-      slug: 'flour-baking',
-      description: 'Premium baking flour and essentials',
-      displayOrder: 4,
-    },
-    {
-      name: 'Chocolate & Cocoa',
-      slug: 'chocolate-cocoa',
-      description: 'High-quality chocolate and cocoa products',
-      displayOrder: 5,
-    },
-    {
-      name: 'Decorations',
-      slug: 'decorations',
-      description: 'Cake decorations and toppings',
-      displayOrder: 6,
+      level: 1,
     },
   ];
 
   const categories: Record<string, string> = {}; // name -> id
-  for (const cat of categoriesData) {
+  for (const cat of parentCategoriesData) {
     const category = await prisma.category.upsert({
       where: { slug: cat.slug },
       update: {},
       create: cat,
     });
     categories[cat.name] = category.id;
-    console.log('✅ Category created:', cat.name);
+    console.log('✅ Parent category created:', cat.name);
+  }
+
+  // Child categories
+  const childCategoriesData = [
+    {
+      name: 'Birthday Cakes',
+      slug: 'birthday-cakes',
+      description: 'Beautiful birthday cakes for all ages',
+      displayOrder: 1,
+      level: 2,
+      parentId: categories['Cakes'],
+    },
+    {
+      name: 'Wedding Cakes',
+      slug: 'wedding-cakes',
+      description: 'Elegant wedding cakes for your special day',
+      displayOrder: 2,
+      level: 2,
+      parentId: categories['Cakes'],
+    },
+    {
+      name: 'Seasonal',
+      slug: 'seasonal',
+      description: 'Limited edition seasonal cakes',
+      displayOrder: 3,
+      level: 2,
+      parentId: categories['Cakes'],
+    },
+    {
+      name: 'Flour & Baking',
+      slug: 'flour-baking',
+      description: 'Premium baking flour and essentials',
+      displayOrder: 1,
+      level: 2,
+      parentId: categories['Ingredients'],
+    },
+    {
+      name: 'Chocolate & Cocoa',
+      slug: 'chocolate-cocoa',
+      description: 'High-quality chocolate and cocoa products',
+      displayOrder: 2,
+      level: 2,
+      parentId: categories['Ingredients'],
+    },
+    {
+      name: 'Decorations',
+      slug: 'decorations',
+      description: 'Cake decorations and toppings',
+      displayOrder: 3,
+      level: 2,
+      parentId: categories['Ingredients'],
+    },
+  ];
+
+  for (const cat of childCategoriesData) {
+    const category = await prisma.category.upsert({
+      where: { slug: cat.slug },
+      update: {},
+      create: cat,
+    });
+    categories[cat.name] = category.id;
+    console.log('✅ Child category created:', cat.name);
   }
 
   // ============================================
-  // 4. PRODUCTS (from mockProducts)
+  // 4. PRODUCTS with images (ProductImage table)
   // ============================================
   const productsData = [
     {
@@ -171,7 +214,10 @@ async function main() {
         'A beautiful rose garden themed birthday cake with delicate buttercream roses.',
       price: 850000,
       categoryName: 'Birthday Cakes',
-      imageUrl: '/images/cake-1.jpg',
+      images: [
+        { url: '/images/cake-1.jpg', isPrimary: true },
+        { url: '/images/cake-detail.jpg', isPrimary: false },
+      ],
       stock: 10,
       isActive: true,
       isFeatured: true,
@@ -182,7 +228,7 @@ async function main() {
       description: 'Rich dark chocolate cake with molten lava center.',
       price: 720000,
       categoryName: 'Birthday Cakes',
-      imageUrl: '/images/cake-2.jpg',
+      images: [{ url: '/images/cake-2.jpg', isPrimary: true }],
       stock: 15,
       isActive: true,
       isFeatured: true,
@@ -193,7 +239,7 @@ async function main() {
       description: 'Elegant 3-tier white wedding cake with fondant finish.',
       price: 2400000,
       categoryName: 'Wedding Cakes',
-      imageUrl: '/images/cake-3.jpg',
+      images: [{ url: '/images/cake-3.jpg', isPrimary: true }],
       stock: 5,
       isActive: true,
       isFeatured: true,
@@ -204,7 +250,7 @@ async function main() {
       description: 'Japanese-inspired matcha cake with sakura decoration.',
       price: 650000,
       categoryName: 'Seasonal',
-      imageUrl: '/images/cake-4.jpg',
+      images: [{ url: '/images/cake-4.jpg', isPrimary: true }],
       stock: 0,
       isActive: false,
       isFeatured: false,
@@ -215,7 +261,12 @@ async function main() {
       description: 'Fine ground blanched almond flour, perfect for macarons.',
       price: 85000,
       categoryName: 'Flour & Baking',
-      imageUrl: '/images/ing-1.jpg',
+      images: [{ url: '/images/ing-1.jpg', isPrimary: true }],
+      variants: [
+        { name: '250g', price: 85000, stock: 100 },
+        { name: '500g', price: 155000, stock: 60 },
+        { name: '1kg', price: 280000, stock: 30 },
+      ],
       stock: 100,
       isActive: true,
       isFeatured: false,
@@ -226,7 +277,11 @@ async function main() {
       description: 'Premium Belgian dark chocolate with 70% cocoa content.',
       price: 120000,
       categoryName: 'Chocolate & Cocoa',
-      imageUrl: '/images/ing-2.jpg',
+      images: [{ url: '/images/ing-2.jpg', isPrimary: true }],
+      variants: [
+        { name: '200g', price: 120000, stock: 80 },
+        { name: '500g', price: 270000, stock: 40 },
+      ],
       stock: 80,
       isActive: true,
       isFeatured: true,
@@ -237,7 +292,7 @@ async function main() {
       description: '24K edible gold flakes for luxury cake decoration.',
       price: 250000,
       categoryName: 'Decorations',
-      imageUrl: '/images/ing-3.jpg',
+      images: [{ url: '/images/ing-3.jpg', isPrimary: true }],
       stock: 30,
       isActive: true,
       isFeatured: false,
@@ -256,10 +311,19 @@ async function main() {
         description: prod.description,
         price: prod.price,
         categoryId: categories[prod.categoryName],
-        imageUrl: prod.imageUrl,
         stock: prod.stock,
         isActive: prod.isActive,
         isFeatured: prod.isFeatured,
+        images: {
+          create: prod.images,
+        },
+        ...(prod.variants
+          ? {
+              variants: {
+                create: prod.variants,
+              },
+            }
+          : {}),
       },
     });
     products[prod.slug] = {
@@ -406,6 +470,12 @@ async function main() {
   ];
 
   // Clear existing orders first
+  await prisma.review.deleteMany({});
+  await prisma.wishlist.deleteMany({});
+  await prisma.cartItem.deleteMany({});
+  await prisma.cart.deleteMany({});
+  await prisma.address.deleteMany({});
+  await prisma.coupon.deleteMany({});
   await prisma.orderItem.deleteMany({});
   await prisma.order.deleteMany({});
 
@@ -468,6 +538,111 @@ async function main() {
       create: setting,
     });
     console.log('✅ Setting created:', setting.key);
+  }
+
+  // ============================================
+  // 8. ADDRESSES (sample addresses for customers)
+  // ============================================
+  const addressesData = [
+    {
+      userId: customers['Linh Nguyen'].id,
+      fullName: 'Linh Nguyen',
+      phone: '0901234567',
+      province: 'Hồ Chí Minh',
+      district: 'Quận 1',
+      ward: 'Phường Bến Nghé',
+      street: '123 Nguyễn Huệ',
+      isDefault: true,
+    },
+    {
+      userId: customers['Mai Pham'].id,
+      fullName: 'Mai Pham',
+      phone: '0923456789',
+      province: 'Hồ Chí Minh',
+      district: 'Quận 3',
+      ward: 'Phường 6',
+      street: '45 Lê Lợi',
+      isDefault: true,
+    },
+    {
+      userId: customers['An Tran'].id,
+      fullName: 'An Tran',
+      phone: '0912345678',
+      province: 'Hồ Chí Minh',
+      district: 'Quận 7',
+      ward: 'Phường Tân Phú',
+      street: '78 Nguyễn Thị Thập',
+      isDefault: true,
+    },
+  ];
+
+  for (const addr of addressesData) {
+    await prisma.address.create({ data: addr });
+    console.log('✅ Address created for:', addr.fullName);
+  }
+
+  // ============================================
+  // 9. REVIEWS (sample product reviews)
+  // ============================================
+  const reviewsData = [
+    {
+      userId: customers['Linh Nguyen'].id,
+      productId: products['rose-garden-birthday-cake'].id,
+      rating: 5,
+      comment: 'Bánh đẹp quá, gia đình rất thích!',
+    },
+    {
+      userId: customers['Mai Pham'].id,
+      productId: products['rose-garden-birthday-cake'].id,
+      rating: 4,
+      comment: 'Bánh ngon, trang trí đẹp. Giao hàng hơi chậm.',
+    },
+    {
+      userId: customers['An Tran'].id,
+      productId: products['classic-white-wedding'].id,
+      rating: 5,
+      comment: 'Tuyệt vời cho đám cưới!',
+    },
+    {
+      userId: customers['Hoa Vo'].id,
+      productId: products['belgian-dark-chocolate'].id,
+      rating: 5,
+      comment: 'Chocolate chất lượng cao, rất hài lòng.',
+    },
+  ];
+
+  for (const review of reviewsData) {
+    await prisma.review.create({ data: review });
+    console.log('✅ Review created for product:', review.productId);
+  }
+
+  // ============================================
+  // 10. COUPONS (sample coupon codes)
+  // ============================================
+  const couponsData = [
+    {
+      code: 'WELCOME10',
+      type: 'PERCENTAGE' as DiscountType,
+      value: 10,
+      minOrder: 200000,
+      startAt: new Date('2026-01-01'),
+      endAt: new Date('2026-12-31'),
+      usageLimit: 100,
+    },
+    {
+      code: 'SAVE50K',
+      type: 'FIXED' as DiscountType,
+      value: 50000,
+      minOrder: 500000,
+      startAt: new Date('2026-03-01'),
+      endAt: new Date('2026-06-30'),
+      usageLimit: 50,
+    },
+  ];
+
+  for (const coupon of couponsData) {
+    await prisma.coupon.create({ data: coupon });
+    console.log('✅ Coupon created:', coupon.code);
   }
 
   console.log('\n🎉 Seed completed successfully!');

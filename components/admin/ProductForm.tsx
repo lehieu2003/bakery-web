@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -38,6 +38,7 @@ import { useCategories } from '@/hooks/admin/use-categories';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useImageUpload } from '@/hooks/use-image-upload';
+import { getProductImage } from '@/lib/utils';
 
 // Validation schema
 const productSchema = z.object({
@@ -187,6 +188,16 @@ export default function ProductForm({ productId }: { productId?: string }) {
   );
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
 
+  // Variants
+  interface VariantRow {
+    id?: string;
+    name: string;
+    sku: string;
+    price: number;
+    stock: number;
+  }
+  const [variants, setVariants] = useState<VariantRow[]>([]);
+
   // Populate form when editing existing product
   useEffect(() => {
     if (existingProduct) {
@@ -199,7 +210,19 @@ export default function ProductForm({ productId }: { productId?: string }) {
         fullDesc: existingProduct.description || '',
         isActive: existingProduct.isActive,
       });
-      setThumbnail(existingProduct.imageUrl || null);
+      setThumbnail(getProductImage(existingProduct, ''));
+      // Populate variants
+      if (existingProduct.variants && existingProduct.variants.length > 0) {
+        setVariants(
+          existingProduct.variants.map((v) => ({
+            id: v.id,
+            name: v.name,
+            sku: v.sku || '',
+            price: v.price,
+            stock: v.stock,
+          })),
+        );
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingProduct]);
@@ -302,9 +325,17 @@ export default function ProductForm({ productId }: { productId?: string }) {
         stock: 100, // Default stock
         categoryId: values.categoryId,
         imageUrl: finalImageUrl || undefined,
-        images: finalImageUrl ? [finalImageUrl] : undefined,
         isActive: publish ? values.isActive : false,
         isFeatured: false,
+        variants: variants
+          .filter((v) => v.name.trim())
+          .map((v) => ({
+            ...(v.id ? { id: v.id } : {}),
+            name: v.name.trim(),
+            sku: v.sku.trim() || null,
+            price: v.price,
+            stock: v.stock,
+          })),
       };
 
       if (isEdit && productId) {
@@ -464,13 +495,23 @@ export default function ProductForm({ productId }: { productId?: string }) {
                           </div>
                         ) : (
                           categories.map((c) => (
-                            <SelectItem
-                              key={c.id}
-                              value={c.id}
-                              className='text-xs'
-                            >
-                              {c.name}
-                            </SelectItem>
+                            <React.Fragment key={c.id}>
+                              <SelectItem
+                                value={c.id}
+                                className='text-xs font-medium'
+                              >
+                                {c.name}
+                              </SelectItem>
+                              {(c as any).children?.map((child: any) => (
+                                <SelectItem
+                                  key={child.id}
+                                  value={child.id}
+                                  className='text-xs pl-6'
+                                >
+                                  └ {child.name}
+                                </SelectItem>
+                              ))}
+                            </React.Fragment>
                           ))
                         )}
                       </SelectContent>
@@ -596,7 +637,139 @@ export default function ProductForm({ productId }: { productId?: string }) {
             </div>
           </div>
 
-          {/* C) Options */}
+          {/* C) Variants */}
+          <div className='bg-card rounded-xl border border-border p-5 shadow-sm space-y-4'>
+            <div className='flex items-center justify-between pb-2 border-b border-border'>
+              <h2 className='font-serif text-sm font-semibold text-foreground'>
+                Variants
+              </h2>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                className='text-xs h-7 gap-1'
+                onClick={() =>
+                  setVariants([
+                    ...variants,
+                    {
+                      name: '',
+                      sku: '',
+                      price: form.getValues('price') || 0,
+                      stock: 0,
+                    },
+                  ])
+                }
+              >
+                <Plus size={11} />
+                Add Variant
+              </Button>
+            </div>
+
+            {variants.length === 0 ? (
+              <p className='text-xs text-muted-foreground py-2'>
+                No variants yet. Add variants for different sizes, flavors, etc.
+              </p>
+            ) : (
+              <div className='space-y-3'>
+                {variants.map((v, idx) => (
+                  <div
+                    key={v.id || idx}
+                    className='grid grid-cols-[1fr_0.7fr_0.7fr_0.5fr_auto] gap-2 items-end'
+                  >
+                    <div>
+                      {idx === 0 && (
+                        <Label className='text-[10px] font-medium text-muted-foreground'>
+                          Name
+                        </Label>
+                      )}
+                      <Input
+                        className='h-8 text-xs'
+                        placeholder='e.g. 15cm Vanilla'
+                        value={v.name}
+                        onChange={(e) => {
+                          const updated = [...variants];
+                          updated[idx] = { ...v, name: e.target.value };
+                          setVariants(updated);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      {idx === 0 && (
+                        <Label className='text-[10px] font-medium text-muted-foreground'>
+                          SKU
+                        </Label>
+                      )}
+                      <Input
+                        className='h-8 text-xs font-mono'
+                        placeholder='SKU'
+                        value={v.sku}
+                        onChange={(e) => {
+                          const updated = [...variants];
+                          updated[idx] = { ...v, sku: e.target.value };
+                          setVariants(updated);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      {idx === 0 && (
+                        <Label className='text-[10px] font-medium text-muted-foreground'>
+                          Price
+                        </Label>
+                      )}
+                      <Input
+                        type='number'
+                        className='h-8 text-xs'
+                        placeholder='0'
+                        value={v.price}
+                        onChange={(e) => {
+                          const updated = [...variants];
+                          updated[idx] = {
+                            ...v,
+                            price: Number(e.target.value),
+                          };
+                          setVariants(updated);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      {idx === 0 && (
+                        <Label className='text-[10px] font-medium text-muted-foreground'>
+                          Stock
+                        </Label>
+                      )}
+                      <Input
+                        type='number'
+                        className='h-8 text-xs'
+                        placeholder='0'
+                        value={v.stock}
+                        onChange={(e) => {
+                          const updated = [...variants];
+                          updated[idx] = {
+                            ...v,
+                            stock: Number(e.target.value),
+                          };
+                          setVariants(updated);
+                        }}
+                      />
+                    </div>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      className='h-8 w-8 p-0 text-muted-foreground hover:text-destructive'
+                      onClick={() =>
+                        setVariants(variants.filter((_, i) => i !== idx))
+                      }
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* D) Options */}
           <div className='bg-card rounded-xl border border-border p-5 shadow-sm space-y-4'>
             <h2 className='font-serif text-sm font-semibold text-foreground pb-2 border-b border-border'>
               Options {productType === 'CAKE' ? '(Cake)' : '(Ingredient)'}
@@ -717,7 +890,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
             )}
           </div>
 
-          {/* D) SEO */}
+          {/* E) SEO */}
           <div className='bg-card rounded-xl border border-border p-5 shadow-sm space-y-4'>
             <h2 className='font-serif text-sm font-semibold text-foreground pb-2 border-b border-border'>
               SEO (Optional)

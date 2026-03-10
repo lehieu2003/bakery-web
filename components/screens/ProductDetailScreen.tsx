@@ -2,13 +2,12 @@
 
 import Image from 'next/image';
 import { ChevronLeft, ShoppingBag, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useProductDetail } from '@/hooks/use-products';
+import { getProductImage, getProductImages } from '@/lib/utils';
 import Link from 'next/link';
-
-const SIZES = ['15cm', '18cm', '20cm', '25cm'];
-const FLAVORS = ['Vanilla', 'Chocolate', 'Strawberry', 'Matcha', 'Taro'];
+import { ProductVariant } from '@/types/api.types';
 
 const RELATED = [
   {
@@ -47,11 +46,21 @@ export default function ProductDetailScreen({
     isLoading,
     error,
   } = useProductDetail(productId);
-  const [size, setSize] = useState(SIZES[1]);
-  const [flavor, setFlavor] = useState(FLAVORS[0]);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null,
+  );
   const [message, setMessage] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [added, setAdded] = useState(false);
+
+  const variants = selectedProduct?.variants || [];
+
+  // Auto-select first variant when product loads
+  useEffect(() => {
+    if (variants.length > 0 && !selectedVariant) {
+      setSelectedVariant(variants[0]);
+    }
+  }, [variants, selectedVariant]);
 
   if (isLoading) {
     return (
@@ -102,6 +111,10 @@ export default function ProductDetailScreen({
 
   const isCake = selectedProduct.categoryId !== null; // Simplified check
 
+  const categorySlug = selectedProduct.category?.slug;
+  const categoryName = selectedProduct.category?.name;
+  const categoryHref = categorySlug ? `/categories/${categorySlug}` : '/';
+
   const discountLabel =
     user?.level === 'platinum' ? '15%' : user?.level === 'gold' ? '10%' : '5%';
   const levelLabel = user?.level
@@ -109,15 +122,16 @@ export default function ProductDetailScreen({
     : '';
 
   function handleAddToCart() {
+    const variantSuffix = selectedVariant ? `-${selectedVariant.id}` : '';
     addToCart({
-      id: selectedProduct!.id + '-' + Date.now(),
+      id: selectedProduct!.id + variantSuffix + '-' + Date.now(),
       productId: selectedProduct!.id,
       name: selectedProduct!.name,
-      price: selectedProduct!.price,
-      image: selectedProduct!.imageUrl || '/images/placeholder.jpg',
+      price: selectedVariant?.price ?? selectedProduct!.price,
+      image: getProductImage(selectedProduct!),
       type: isCake ? ('cake' as const) : ('ingredient' as const),
-      size: isCake ? size : undefined,
-      flavor: isCake ? flavor : undefined,
+      variantId: selectedVariant?.id,
+      variantName: selectedVariant?.name,
       message: isCake ? message : undefined,
       pickupDate: isCake ? pickupDate : undefined,
       quantity: 1,
@@ -132,11 +146,11 @@ export default function ProductDetailScreen({
       <div className='border-b border-border/60 bg-card'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-4'>
           <Link
-            href={isCake ? '/cakes' : '/ingredients'}
+            href={categoryHref}
             className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors'
           >
             <ChevronLeft size={16} />
-            {isCake ? 'Signature Cakes' : 'Baking Ingredients'}
+            {categoryName || 'Back'}
           </Link>
         </div>
       </div>
@@ -147,19 +161,16 @@ export default function ProductDetailScreen({
           <div className='space-y-4'>
             <div className='relative w-full rounded-2xl overflow-hidden bg-secondary aspect-square'>
               <Image
-                src={selectedProduct.imageUrl || '/images/placeholder.jpg'}
+                src={getProductImage(selectedProduct)}
                 alt={selectedProduct.name}
                 fill
                 className='object-cover'
                 priority
               />
             </div>
-            {/* Thumbnail strip (visual) */}
+            {/* Thumbnail strip */}
             <div className='flex gap-3'>
-              {[
-                selectedProduct.imageUrl || '/images/placeholder.jpg',
-                '/images/cake-detail.jpg',
-              ].map((src, i) => (
+              {getProductImages(selectedProduct).map((src, i) => (
                 <div
                   key={i}
                   className={`relative w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors ${
@@ -189,7 +200,10 @@ export default function ProductDetailScreen({
 
             <div className='flex items-center gap-4 mb-4'>
               <span className='font-sans text-2xl font-bold text-accent'>
-                {selectedProduct.price.toLocaleString('vi-VN')}đ
+                {(
+                  selectedVariant?.price ?? selectedProduct.price
+                ).toLocaleString('vi-VN')}
+                đ
               </span>
               <div className='flex items-center gap-1'>
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -226,47 +240,33 @@ export default function ProductDetailScreen({
             {/* Cake customisation */}
             {isCake && (
               <div className='space-y-5 mb-6'>
-                <div>
-                  <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
-                    Size
-                  </p>
-                  <div className='flex gap-2 flex-wrap'>
-                    {SIZES.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setSize(s)}
-                        className={`px-5 py-2 rounded-full text-sm font-medium border transition-colors ${
-                          size === s
-                            ? 'bg-primary text-white border-primary'
-                            : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
+                {variants.length > 0 && (
+                  <div>
+                    <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
+                      Variant
+                    </p>
+                    <div className='flex gap-2 flex-wrap'>
+                      {variants.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVariant(v)}
+                          className={`px-5 py-2 rounded-full text-sm font-medium border transition-colors ${
+                            selectedVariant?.id === v.id
+                              ? 'bg-primary text-white border-primary'
+                              : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          }`}
+                        >
+                          {v.name}
+                          {v.price !== selectedProduct.price && (
+                            <span className='ml-1.5 text-xs opacity-75'>
+                              ({v.price.toLocaleString('vi-VN')}đ)
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
-                    Flavor
-                  </p>
-                  <div className='flex gap-2 flex-wrap'>
-                    {FLAVORS.map((f) => (
-                      <button
-                        key={f}
-                        onClick={() => setFlavor(f)}
-                        className={`px-5 py-2 rounded-full text-sm font-medium border transition-colors ${
-                          flavor === f
-                            ? 'bg-primary text-white border-primary'
-                            : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                        }`}
-                      >
-                        {f}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                )}
 
                 <div>
                   <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 block'>
@@ -301,31 +301,63 @@ export default function ProductDetailScreen({
 
             {/* Ingredient specs */}
             {!isCake && (
-              <div className='bg-card rounded-2xl border border-border/50 p-5 mb-6 space-y-3'>
-                {[
-                  { label: 'Weight', value: '500g' },
-                  {
-                    label: 'Origin',
-                    value: 'Imported',
-                  },
-                  { label: 'Best Before', value: '12 months from production' },
-                  {
-                    label: 'Storage',
-                    value: 'Cool, dry place away from sunlight',
-                  },
-                ].map(({ label, value }) => (
-                  <div
-                    key={label}
-                    className='flex items-center justify-between py-1.5 border-b border-border/50 last:border-0'
-                  >
-                    <span className='text-sm text-muted-foreground'>
-                      {label}
-                    </span>
-                    <span className='text-sm font-medium text-foreground'>
-                      {value}
-                    </span>
+              <div className='space-y-5 mb-6'>
+                {variants.length > 0 && (
+                  <div>
+                    <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
+                      Variant
+                    </p>
+                    <div className='flex gap-2 flex-wrap'>
+                      {variants.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVariant(v)}
+                          className={`px-5 py-2 rounded-full text-sm font-medium border transition-colors ${
+                            selectedVariant?.id === v.id
+                              ? 'bg-primary text-white border-primary'
+                              : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          }`}
+                        >
+                          {v.name}
+                          {v.price !== selectedProduct.price && (
+                            <span className='ml-1.5 text-xs opacity-75'>
+                              ({v.price.toLocaleString('vi-VN')}đ)
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
+                <div className='bg-card rounded-2xl border border-border/50 p-5 space-y-3'>
+                  {[
+                    { label: 'Weight', value: '500g' },
+                    {
+                      label: 'Origin',
+                      value: 'Imported',
+                    },
+                    {
+                      label: 'Best Before',
+                      value: '12 months from production',
+                    },
+                    {
+                      label: 'Storage',
+                      value: 'Cool, dry place away from sunlight',
+                    },
+                  ].map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className='flex items-center justify-between py-1.5 border-b border-border/50 last:border-0'
+                    >
+                      <span className='text-sm text-muted-foreground'>
+                        {label}
+                      </span>
+                      <span className='text-sm font-medium text-foreground'>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

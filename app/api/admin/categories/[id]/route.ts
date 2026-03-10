@@ -82,6 +82,27 @@ export async function PUT(
       }
     }
 
+    // Prevent setting self as parent (circular ref)
+    if (body.parentId && body.parentId === id) {
+      return NextResponse.json(
+        { success: false, error: 'A category cannot be its own parent' },
+        { status: 400 },
+      );
+    }
+
+    // Prevent setting a child as parent (circular ref)
+    if (body.parentId) {
+      const children = await prisma.category.findMany({
+        where: { parentId: id },
+      });
+      if (children.some((c) => c.id === body.parentId)) {
+        return NextResponse.json(
+          { success: false, error: 'Cannot set a child category as parent' },
+          { status: 400 },
+        );
+      }
+    }
+
     const category = await prisma.category.update({
       where: { id },
       data: {
@@ -89,8 +110,18 @@ export async function PUT(
         slug: body.slug,
         description: body.description,
         imageUrl: body.imageUrl,
+        parentId:
+          body.parentId !== undefined ? body.parentId || null : undefined,
+        level: body.level,
         displayOrder: body.displayOrder,
         isActive: body.isActive,
+      },
+      include: {
+        _count: { select: { products: true } },
+        children: {
+          include: { _count: { select: { products: true } } },
+          orderBy: { displayOrder: 'asc' },
+        },
       },
     });
 

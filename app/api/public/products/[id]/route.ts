@@ -16,6 +16,13 @@ export async function GET(
       },
       include: {
         category: true,
+        images: true,
+        variants: true,
+        reviews: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
       },
     });
 

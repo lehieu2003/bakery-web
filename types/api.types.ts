@@ -17,6 +17,7 @@ export type OrderStatus =
   | 'CANCELLED';
 export type MemberLevel = 'SILVER' | 'GOLD' | 'PLATINUM';
 export type BannerPlacement = 'HOME_HERO' | 'HOME_PROMO' | 'CATEGORY';
+export type DiscountType = 'PERCENTAGE' | 'FIXED';
 
 // ============================================================================
 // Base Models
@@ -42,13 +43,34 @@ export interface Category {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  parentId: string | null;
+  level: number;
   displayOrder: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  children?: Category[];
   _count?: {
     products: number;
   };
+}
+
+export interface ProductImage {
+  id: string;
+  productId: string;
+  url: string;
+  isPrimary: boolean;
+}
+
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string | null;
+  price: number;
+  stock: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Product {
@@ -58,11 +80,13 @@ export interface Product {
   description: string | null;
   price: number;
   comparePrice: number | null;
-  imageUrl: string | null;
-  images: string[];
+  // Legacy fields kept for backward compatibility during migration
+  imageUrl?: string | null;
+  images: ProductImage[] | string[];
   stock: number;
-  categoryId: string | null;
+  categoryId: string;
   category?: Category;
+  variants?: ProductVariant[];
   isActive: boolean;
   isFeatured: boolean;
   createdAt: string;
@@ -73,8 +97,10 @@ export interface OrderItem {
   id: string;
   orderId: string;
   productId: string;
+  variantId?: string | null;
   name: string;
   product?: Product;
+  variant?: ProductVariant;
   quantity: number;
   price: number;
   subtotal: number;
@@ -111,6 +137,67 @@ export interface Banner {
   placement: BannerPlacement;
   displayOrder: number;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Address {
+  id: string;
+  userId: string;
+  fullName: string;
+  phone: string;
+  province: string;
+  district: string;
+  ward: string;
+  street: string;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface Review {
+  id: string;
+  userId: string;
+  productId: string;
+  rating: number;
+  comment: string | null;
+  user?: Pick<User, 'id' | 'name'>;
+  createdAt: string;
+}
+
+export interface WishlistItem {
+  id: string;
+  userId: string;
+  productId: string;
+  product?: Product;
+  createdAt: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  type: DiscountType;
+  value: number;
+  minOrder: number | null;
+  startAt: string;
+  endAt: string;
+  usageLimit: number | null;
+  createdAt: string;
+}
+
+export interface CartItem {
+  id: string;
+  cartId: string;
+  productId: string;
+  variantId: string | null;
+  quantity: number;
+  product?: Product;
+  variant?: ProductVariant;
+}
+
+export interface Cart {
+  id: string;
+  userId: string | null;
+  items: CartItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -233,6 +320,8 @@ export interface CreateCategoryRequest {
   slug: string;
   description?: string;
   imageUrl?: string;
+  parentId?: string;
+  level?: number;
   displayOrder?: number;
   isActive?: boolean;
 }
@@ -273,6 +362,35 @@ export interface UpdateMembershipRequest {
   }>;
   pointsPerOrder?: number;
 }
+
+export interface CreateAddressRequest {
+  fullName: string;
+  phone: string;
+  province: string;
+  district: string;
+  ward: string;
+  street: string;
+  isDefault?: boolean;
+}
+
+export type UpdateAddressRequest = Partial<CreateAddressRequest>;
+
+export interface CreateReviewRequest {
+  rating: number;
+  comment?: string;
+}
+
+export interface CreateCouponRequest {
+  code: string;
+  type: DiscountType;
+  value: number;
+  minOrder?: number;
+  startAt: string;
+  endAt: string;
+  usageLimit?: number;
+}
+
+export type UpdateCouponRequest = Partial<CreateCouponRequest>;
 
 // ============================================================================
 // Query Params Types

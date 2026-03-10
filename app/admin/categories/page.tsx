@@ -2,10 +2,25 @@
 
 import { useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
-import { Plus, Search, Edit, Trash2, Loader2 } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Loader2,
+  ChevronRight,
+  FolderOpen,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +46,21 @@ import {
 } from '@/hooks/admin/use-categories';
 import type { Category } from '@/types/api.types';
 
+/** Flatten tree into a list with depth info for search */
+function flattenTree(
+  categories: Category[],
+  depth = 0,
+): (Category & { depth: number })[] {
+  const result: (Category & { depth: number })[] = [];
+  for (const cat of categories) {
+    result.push({ ...cat, depth });
+    if (cat.children && cat.children.length > 0) {
+      result.push(...flattenTree(cat.children, depth + 1));
+    }
+  }
+  return result;
+}
+
 export default function CategoriesPage() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,6 +72,7 @@ export default function CategoriesPage() {
   const [formSlug, setFormSlug] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formDisplayOrder, setFormDisplayOrder] = useState(0);
+  const [formParentId, setFormParentId] = useState<string>('');
 
   // API hooks
   const { data: categories, isLoading, error } = useCategories();
@@ -49,19 +80,25 @@ export default function CategoriesPage() {
   const updateMutation = useUpdateCategory();
   const deleteMutation = useDeleteCategory();
 
-  // Filter by search
-  const filtered = (categories || []).filter((c) => {
-    const matchSearch =
-      !search || c.name.toLowerCase().includes(search.toLowerCase());
-    return matchSearch;
+  // Flatten for search + display
+  const allFlat = flattenTree(categories || []);
+  const filtered = allFlat.filter((c) => {
+    if (!search) return true;
+    return c.name.toLowerCase().includes(search.toLowerCase());
   });
 
-  const openCreate = () => {
+  // For parent selector: only root-level categories (exclude current edit target)
+  const parentOptions = (categories || []).filter(
+    (c) => !editCat || c.id !== editCat.id,
+  );
+
+  const openCreate = (parentId?: string) => {
     setEditCat(null);
     setFormName('');
     setFormSlug('');
     setFormDescription('');
     setFormDisplayOrder(0);
+    setFormParentId(parentId || '');
     setDialogOpen(true);
   };
 
@@ -71,6 +108,7 @@ export default function CategoriesPage() {
     setFormSlug(cat.slug);
     setFormDescription(cat.description || '');
     setFormDisplayOrder(cat.displayOrder);
+    setFormParentId(cat.parentId || '');
     setDialogOpen(true);
   };
 
@@ -86,6 +124,8 @@ export default function CategoriesPage() {
             name: formName,
             slug,
             description: formDescription || undefined,
+            parentId: formParentId || undefined,
+            level: formParentId ? 2 : 1,
             displayOrder: formDisplayOrder,
           },
         });
@@ -94,6 +134,8 @@ export default function CategoriesPage() {
           name: formName,
           slug,
           description: formDescription || undefined,
+          parentId: formParentId || undefined,
+          level: formParentId ? 2 : 1,
           displayOrder: formDisplayOrder,
         });
       }
@@ -104,10 +146,17 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const cat = categories?.find((c) => c.id === id);
+    const cat = allFlat.find((c) => c.id === id);
     if (cat && cat._count && cat._count.products > 0) {
       alert(
         `Cannot delete "${cat.name}" — it still has ${cat._count.products} products.`,
+      );
+      setDeleteId(null);
+      return;
+    }
+    if (cat && cat.children && cat.children.length > 0) {
+      alert(
+        `Cannot delete "${cat.name}" — it still has ${cat.children.length} sub-categories. Delete or move them first.`,
       );
       setDeleteId(null);
       return;
@@ -149,10 +198,14 @@ export default function CategoriesPage() {
             Categories
           </h1>
           <p className='text-xs text-muted-foreground mt-0.5'>
-            {filtered.length} categor{filtered.length !== 1 ? 'ies' : 'y'}
+            {allFlat.length} categor{allFlat.length !== 1 ? 'ies' : 'y'}
           </p>
         </div>
-        <Button size='sm' className='h-8 text-xs gap-1.5' onClick={openCreate}>
+        <Button
+          size='sm'
+          className='h-8 text-xs gap-1.5'
+          onClick={() => openCreate()}
+        >
           <Plus size={13} />
           Add Category
         </Button>
@@ -194,14 +247,29 @@ export default function CategoriesPage() {
               <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground'>
                 Order
               </th>
-              <th className='px-5 py-3 w-20' />
+              <th className='px-5 py-3 w-24' />
             </tr>
           </thead>
           <tbody className='divide-y divide-border'>
             {filtered.map((cat) => (
               <tr key={cat.id} className='hover:bg-muted/20 transition-colors'>
                 <td className='px-5 py-3.5'>
-                  <div className='flex items-center gap-2'>
+                  <div
+                    className='flex items-center gap-2'
+                    style={{ paddingLeft: `${cat.depth * 24}px` }}
+                  >
+                    {cat.depth > 0 && (
+                      <ChevronRight
+                        size={12}
+                        className='text-muted-foreground/50'
+                      />
+                    )}
+                    {cat.depth === 0 && (
+                      <FolderOpen
+                        size={14}
+                        className='text-primary/60 shrink-0'
+                      />
+                    )}
                     <p className='text-xs font-medium text-foreground'>
                       {cat.name}
                     </p>
@@ -234,6 +302,15 @@ export default function CategoriesPage() {
                 </td>
                 <td className='px-5 py-3.5'>
                   <div className='flex items-center gap-1 justify-end'>
+                    {cat.depth === 0 && (
+                      <button
+                        onClick={() => openCreate(cat.id)}
+                        className='p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground'
+                        title='Add sub-category'
+                      >
+                        <Plus size={13} />
+                      </button>
+                    )}
                     <button
                       onClick={() => openEdit(cat)}
                       className='p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground'
@@ -269,6 +346,27 @@ export default function CategoriesPage() {
             </DialogTitle>
           </DialogHeader>
           <div className='space-y-3 py-2'>
+            <div>
+              <Label className='text-xs font-medium'>Parent Category</Label>
+              <Select
+                value={formParentId || '_none'}
+                onValueChange={(v) => setFormParentId(v === '_none' ? '' : v)}
+              >
+                <SelectTrigger className='h-9 text-xs mt-1.5'>
+                  <SelectValue placeholder='None (root category)' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='_none' className='text-xs'>
+                    None (root category)
+                  </SelectItem>
+                  {parentOptions.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className='text-xs'>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label className='text-xs font-medium'>Name</Label>
               <Input
@@ -347,7 +445,7 @@ export default function CategoriesPage() {
             </AlertDialogTitle>
             <AlertDialogDescription className='text-xs'>
               This will permanently remove the category. Make sure no products
-              are assigned to it.
+              or sub-categories are assigned to it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

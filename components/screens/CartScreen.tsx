@@ -84,7 +84,12 @@ export default function CartScreen() {
                           <p className='font-sans text-base font-semibold text-foreground'>
                             {item.name}
                           </p>
-                          {item.size && (
+                          {item.variantName && (
+                            <p className='text-sm text-muted-foreground mt-0.5'>
+                              {item.variantName}
+                            </p>
+                          )}
+                          {item.size && !item.variantName && (
                             <p className='text-sm text-muted-foreground mt-0.5'>
                               {item.size} · {item.flavor}
                             </p>

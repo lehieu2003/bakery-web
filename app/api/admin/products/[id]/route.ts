@@ -15,6 +15,8 @@ export async function GET(
       where: { id },
       include: {
         category: true,
+        images: true,
+        variants: true,
       },
     });
 
@@ -56,11 +58,58 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    const { imageUrl, images, variants, category, ...updateData } =
+      body as Record<string, any>;
+
+    // Handle variant CRUD if variants array is provided
+    if (Array.isArray(variants)) {
+      const incoming = variants as {
+        id?: string;
+        name: string;
+        sku?: string;
+        price: number;
+        stock?: number;
+      }[];
+      const incomingIds = incoming.filter((v) => v.id).map((v) => v.id!);
+
+      // Delete variants that are no longer in the list
+      await prisma.productVariant.deleteMany({
+        where: { productId: id, id: { notIn: incomingIds } },
+      });
+
+      // Upsert each variant
+      for (const v of incoming) {
+        if (v.id) {
+          await prisma.productVariant.update({
+            where: { id: v.id },
+            data: {
+              name: v.name,
+              sku: v.sku || null,
+              price: v.price,
+              stock: typeof v.stock === 'number' ? v.stock : 0,
+            },
+          });
+        } else {
+          await prisma.productVariant.create({
+            data: {
+              productId: id,
+              name: v.name,
+              sku: v.sku || null,
+              price: v.price,
+              stock: typeof v.stock === 'number' ? v.stock : 0,
+            },
+          });
+        }
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id },
-      data: body,
+      data: updateData,
       include: {
         category: true,
+        images: true,
+        variants: true,
       },
     });
 
