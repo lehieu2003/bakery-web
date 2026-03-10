@@ -88,10 +88,11 @@ export default function ProductDetailScreen({
     );
   }
 
-  const isCake = selectedProduct.categoryId !== null; // Simplified check
+  const isCake = (selectedProduct.categories || []).length > 0; // Simplified check
 
-  const categorySlug = selectedProduct.category?.slug;
-  const categoryName = selectedProduct.category?.name;
+  const firstCategory = selectedProduct.categories?.[0]?.category;
+  const categorySlug = firstCategory?.slug;
+  const categoryName = firstCategory?.name;
   const categoryHref = categorySlug ? `/categories/${categorySlug}` : '/';
 
   const discountLabel =

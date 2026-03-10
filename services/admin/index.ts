@@ -11,6 +11,8 @@ export { bannersService } from './banners.service';
 export { dashboardService } from './dashboard.service';
 export { settingsService } from './settings.service';
 export { membershipService } from './membership.service';
+export { pagesService } from './pages.service';
+export { menuService } from './menu.service';
 
 // Default export as namespace
 import { productsService } from './products.service';
@@ -21,6 +23,8 @@ import { bannersService } from './banners.service';
 import { dashboardService } from './dashboard.service';
 import { settingsService } from './settings.service';
 import { membershipService } from './membership.service';
+import { pagesService } from './pages.service';
+import { menuService } from './menu.service';
 
 const adminServices = {
   products: productsService,
@@ -31,6 +35,8 @@ const adminServices = {
   dashboard: dashboardService,
   settings: settingsService,
   membership: membershipService,
+  pages: pagesService,
+  menu: menuService,
 };
 
 export default adminServices;

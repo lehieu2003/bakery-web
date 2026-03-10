@@ -51,7 +51,7 @@ export interface CheckoutInfo {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
-  customerNote?: string;
+  customerAddress?: string;
 }
 
 interface CartState {

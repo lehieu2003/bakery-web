@@ -23,21 +23,30 @@ export async function POST(request: NextRequest) {
     const { orderId, resultCode } = body;
 
     // Idempotency: only update if payment is still PENDING
-    const order = await prisma.order.findUnique({ where: { id: orderId } });
-    if (!order || order.paymentStatus !== 'PENDING') {
+    const payment = await prisma.payment.findUnique({
+      where: { orderId },
+    });
+    if (!payment || payment.status !== 'PENDING') {
       return NextResponse.json({ resultCode: 0, message: 'already processed' });
     }
 
     // resultCode 0 = success
     const paymentStatus = resultCode === 0 ? 'PAID' : 'FAILED';
 
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        paymentStatus,
-        ...(paymentStatus === 'PAID' && { status: 'CONFIRMED' }),
-      },
-    });
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { orderId },
+        data: { status: paymentStatus },
+      }),
+      ...(paymentStatus === 'PAID'
+        ? [
+            prisma.order.update({
+              where: { id: orderId },
+              data: { status: 'CONFIRMED' },
+            }),
+          ]
+        : []),
+    ]);
 
     // MoMo expects this exact response format
     return NextResponse.json({ resultCode: 0, message: 'OK' });

@@ -4,7 +4,6 @@ import { OtpPurpose } from '@prisma/client';
 
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
-const LOCK_DURATION_MINUTES = 15;
 
 /**
  * Generate a random 6-digit OTP
@@ -56,7 +55,6 @@ export async function createOtpVerification(
       data: {
         otpHash,
         expiresAt,
-        sentCount: { increment: 1 },
         attempts: 0, // Reset attempts on resend
       },
     });
@@ -103,13 +101,10 @@ export async function verifyOtp(
   }
 
   // Check if locked due to too many attempts
-  if (record.lockedUntil && record.lockedUntil > new Date()) {
-    const minutesRemaining = Math.ceil(
-      (record.lockedUntil.getTime() - Date.now()) / 60000,
-    );
+  if (record.attempts >= MAX_ATTEMPTS) {
     return {
       success: false,
-      message: `Tài khoản bị khóa tạm thời. Vui lòng thử lại sau ${minutesRemaining} phút`,
+      message: `Đã nhập sai quá nhiều lần. Vui lòng yêu cầu OTP mới`,
     };
   }
 
@@ -127,20 +122,10 @@ export async function verifyOtp(
   if (!isValid) {
     // Increment attempts
     const newAttempts = record.attempts + 1;
-    const updateData: { attempts: number; lockedUntil?: Date } = {
-      attempts: newAttempts,
-    };
-
-    // Lock if max attempts reached
-    if (newAttempts >= MAX_ATTEMPTS) {
-      updateData.lockedUntil = new Date(
-        Date.now() + LOCK_DURATION_MINUTES * 60 * 1000,
-      );
-    }
 
     await prisma.otpVerification.update({
       where: { id: record.id },
-      data: updateData,
+      data: { attempts: newAttempts },
     });
 
     const attemptsRemaining = Math.max(0, MAX_ATTEMPTS - newAttempts);
@@ -149,7 +134,7 @@ export async function verifyOtp(
       message:
         attemptsRemaining > 0
           ? `OTP không đúng. Còn ${attemptsRemaining} lần thử`
-          : `Đã nhập sai quá nhiều lần. Tài khoản bị khóa ${LOCK_DURATION_MINUTES} phút`,
+          : `Đã nhập sai quá nhiều lần. Vui lòng yêu cầu OTP mới`,
     };
   }
 

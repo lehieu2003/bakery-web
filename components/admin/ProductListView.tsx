@@ -345,7 +345,7 @@ function ProductRow({
       </td>
       <td className='px-3 py-3 hidden md:table-cell'>
         <span className='text-xs text-muted-foreground'>
-          {product.category}
+          {product.categories?.[0]?.category?.name || product.category || '—'}
         </span>
       </td>
       <td className='px-3 py-3 hidden sm:table-cell'>

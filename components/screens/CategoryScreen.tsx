@@ -42,7 +42,8 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
 
   const products = (productsData?.products || []).filter((p) => {
     if (!p.isActive) return false;
-    if (subCategoryId !== 'all') return p.categoryId === subCategoryId;
+    if (subCategoryId !== 'all')
+      return (p.categories || []).some((pc) => pc.categoryId === subCategoryId);
     return true;
   });
   const sorted = [...products].sort((a, b) => {

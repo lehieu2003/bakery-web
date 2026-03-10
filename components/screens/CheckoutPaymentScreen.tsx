@@ -16,20 +16,20 @@ const DISCOUNT_RATE: Record<string, number> = {
 
 const PAYMENT_METHODS = [
   {
-    id: 'cash' as const,
+    id: 'COD' as const,
     label: 'Cash on Pickup',
     icon: Banknote,
     desc: 'Pay at the counter when you collect your order',
   },
   {
-    id: 'momo' as const,
+    id: 'MOMO' as const,
     label: 'MoMo',
     icon: Wallet,
     desc: 'Pay with MoMo e-wallet',
     logo: '/images/momo-logo.png',
   },
   {
-    id: 'zalopay' as const,
+    id: 'ZALOPAY' as const,
     label: 'ZaloPay',
     icon: Wallet,
     desc: 'Pay with ZaloPay e-wallet',
@@ -40,9 +40,7 @@ const PAYMENT_METHODS = [
 export default function CheckoutPaymentScreen() {
   const { user, cart, checkoutInfo, clearCart } = useCart();
   const router = useRouter();
-  const [payMethod, setPayMethod] = useState<'cash' | 'momo' | 'zalopay'>(
-    'cash',
-  );
+  const [payMethod, setPayMethod] = useState<'COD' | 'MOMO' | 'ZALOPAY'>('COD');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -65,7 +63,7 @@ export default function CheckoutPaymentScreen() {
         customerName: checkoutInfo.customerName,
         customerPhone: checkoutInfo.customerPhone,
         customerEmail: checkoutInfo.customerEmail,
-        customerNote: checkoutInfo.customerNote,
+        customerAddress: checkoutInfo.customerAddress,
         paymentMethod: payMethod,
         items: cart.map((item) => ({
           productId: item.productId,

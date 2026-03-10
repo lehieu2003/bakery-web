@@ -15,8 +15,12 @@ export async function GET(
         OR: [{ id }, { slug: id }],
       },
       include: {
-        category: true,
-        images: true,
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        images: { orderBy: { displayOrder: 'asc' } },
         variants: true,
         reviews: {
           include: { user: { select: { id: true, name: true } } },

@@ -115,6 +115,7 @@ export async function PUT(
         level: body.level,
         displayOrder: body.displayOrder,
         isActive: body.isActive,
+        showInMenu: body.showInMenu,
       },
       include: {
         _count: { select: { products: true } },

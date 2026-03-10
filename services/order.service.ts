@@ -6,8 +6,8 @@ export interface CreateOrderPayload {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
-  customerNote?: string;
-  paymentMethod: 'cash' | 'card' | 'momo' | 'zalopay';
+  customerAddress?: string;
+  paymentMethod: 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
   items: Array<{
     productId: string;
     name: string;

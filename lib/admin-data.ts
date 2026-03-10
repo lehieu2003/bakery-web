@@ -10,7 +10,6 @@ export type OrderStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 export type FulfillmentType = 'PICKUP' | 'DELIVERY';
-export type BannerPlacement = 'HOME_HERO' | 'HOME_PROMO' | 'CATEGORY';
 export type MemberLevel = 'SILVER' | 'GOLD' | 'PLATINUM';
 
 export interface Category {
@@ -65,7 +64,6 @@ export interface Order {
 export interface Banner {
   id: string;
   title: string;
-  placement: BannerPlacement;
   image: string;
   ctaText: string;
   ctaLink: string;
@@ -374,7 +372,6 @@ export const mockBanners: Banner[] = [
   {
     id: 'b1',
     title: 'Spring Collection 2026',
-    placement: 'HOME_HERO',
     image: '/images/hero-cake.jpg',
     ctaText: 'Shop Now',
     ctaLink: '/category/seasonal',
@@ -385,7 +382,6 @@ export const mockBanners: Banner[] = [
   {
     id: 'b2',
     title: 'Premium Ingredients Sale',
-    placement: 'HOME_PROMO',
     image: '/images/ing-1.jpg',
     ctaText: 'View Deals',
     ctaLink: '/category/ingredients',
@@ -396,7 +392,6 @@ export const mockBanners: Banner[] = [
   {
     id: 'b3',
     title: 'Wedding Season Special',
-    placement: 'HOME_HERO',
     image: '/images/cake-3.jpg',
     ctaText: 'Book Now',
     ctaLink: '/category/wedding',

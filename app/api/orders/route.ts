@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
 import { createMoMoPayment } from '@/lib/payment/momo';
 import { createZaloPayPayment } from '@/lib/payment/zalopay';
+import { PaymentMethod } from '@prisma/client';
 
 const DISCOUNT_RATE: Record<string, number> = {
   SILVER: 0.05,
@@ -10,8 +11,12 @@ const DISCOUNT_RATE: Record<string, number> = {
   PLATINUM: 0.15,
 };
 
-const VALID_PAYMENT_METHODS = ['cash', 'card', 'momo', 'zalopay'] as const;
-type PaymentMethod = (typeof VALID_PAYMENT_METHODS)[number];
+const VALID_PAYMENT_METHODS: PaymentMethod[] = [
+  'COD',
+  'BANK_TRANSFER',
+  'MOMO',
+  'ZALOPAY',
+];
 
 function generateOrderNumber(): string {
   const now = new Date();
@@ -53,6 +58,7 @@ export async function GET() {
             },
           },
         },
+        payment: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -76,14 +82,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      customerName,
-      customerPhone,
-      customerEmail,
-      customerNote,
-      paymentMethod,
-      items,
-    } = body;
+    const { customerName, customerPhone, customerEmail, paymentMethod, items } =
+      body;
 
     // Validate required fields
     if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
@@ -211,15 +211,11 @@ export async function POST(request: NextRequest) {
           customerName,
           customerPhone,
           customerEmail: customerEmail || user?.email || null,
-          customerNote: customerNote || null,
           subtotal,
+          deliveryFee: 0,
           discount,
           total,
           paymentMethod: paymentMethod as PaymentMethod,
-          paymentStatus:
-            paymentMethod === 'cash' || paymentMethod === 'card'
-              ? 'UNPAID'
-              : 'PENDING',
           status: 'PENDING',
           orderItems: {
             create: orderItems,
@@ -235,7 +231,17 @@ export async function POST(request: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
 
-    if (paymentMethod === 'momo') {
+    if (paymentMethod === 'MOMO') {
+      // Create payment record
+      await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          provider: 'MOMO',
+          amount: totalInt,
+          status: 'PENDING',
+        },
+      });
+
       const result = await createMoMoPayment({
         orderId: order.id,
         orderNumber,
@@ -246,7 +252,6 @@ export async function POST(request: NextRequest) {
       });
 
       if ('error' in result) {
-        // Payment creation failed — order is still created with PENDING payment
         return NextResponse.json({
           success: true,
           data: {
@@ -263,7 +268,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (paymentMethod === 'zalopay') {
+    if (paymentMethod === 'ZALOPAY') {
+      // Create payment record
+      await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          provider: 'ZALOPAY',
+          amount: totalInt,
+          status: 'PENDING',
+        },
+      });
+
       const result = await createZaloPayPayment({
         orderId: order.id,
         orderNumber,
@@ -297,7 +312,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Cash or card — no payment URL needed
+    // COD or BANK_TRANSFER — no payment URL needed
     return NextResponse.json({
       success: true,
       data: { order: { ...order, orderNumber }, paymentUrl: null },

@@ -308,16 +308,6 @@ export default function OrderDetailPage({
                   </p>
                 </div>
               )}
-              {order.customerNote && (
-                <div>
-                  <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
-                    Note
-                  </p>
-                  <p className='text-xs text-foreground italic'>
-                    {order.customerNote}
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -340,7 +330,7 @@ export default function OrderDetailPage({
                   Status
                 </p>
                 <p className='text-xs text-foreground'>
-                  {order.paymentStatus || 'N/A'}
+                  {order.payment?.status || order.paymentMethod || 'N/A'}
                 </p>
               </div>
             </div>

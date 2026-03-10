@@ -1,22 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // GET: List all active banners (public endpoint - no auth required)
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const placement = searchParams.get('placement');
-
-    const where: Record<string, unknown> = {
-      isActive: true, // Only return active banners for public endpoint
-    };
-
-    if (placement && placement !== 'ALL') {
-      where.placement = placement;
-    }
-
     const banners = await prisma.banner.findMany({
-      where,
+      where: { isActive: true },
       orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
     });
 

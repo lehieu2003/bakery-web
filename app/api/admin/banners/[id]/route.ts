@@ -73,7 +73,6 @@ export async function PUT(
         description: body.description,
         imageUrl: body.imageUrl,
         linkUrl: body.linkUrl,
-        placement: body.placement,
         displayOrder: body.displayOrder,
         isActive: body.isActive,
       },

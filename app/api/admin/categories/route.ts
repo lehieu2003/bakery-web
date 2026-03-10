@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
         level: level ?? (parentId ? 2 : 1),
         displayOrder: displayOrder || 0,
         isActive: isActive !== undefined ? isActive : true,
+        showInMenu: body.showInMenu !== undefined ? body.showInMenu : true,
       },
       include: {
         _count: { select: { products: true } },

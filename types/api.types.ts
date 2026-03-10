@@ -7,7 +7,7 @@
 // Enums
 // ============================================================================
 
-export type UserRole = 'ADMIN' | 'CUSTOMER' | 'GUEST';
+export type UserRole = 'ADMIN' | 'CUSTOMER';
 export type OrderStatus =
   | 'PENDING'
   | 'CONFIRMED'
@@ -16,8 +16,9 @@ export type OrderStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 export type MemberLevel = 'SILVER' | 'GOLD' | 'PLATINUM';
-export type BannerPlacement = 'HOME_HERO' | 'HOME_PROMO' | 'CATEGORY';
 export type DiscountType = 'PERCENTAGE' | 'FIXED';
+export type PaymentMethod = 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
+export type MenuType = 'CATEGORY' | 'PAGE' | 'LINK';
 
 // ============================================================================
 // Base Models
@@ -47,6 +48,7 @@ export interface Category {
   level: number;
   displayOrder: number;
   isActive: boolean;
+  showInMenu: boolean;
   createdAt: string;
   updatedAt: string;
   children?: Category[];
@@ -59,6 +61,8 @@ export interface ProductImage {
   id: string;
   productId: string;
   url: string;
+  altText: string | null;
+  displayOrder: number;
   isPrimary: boolean;
 }
 
@@ -73,19 +77,29 @@ export interface ProductVariant {
   updatedAt: string;
 }
 
+export interface ProductCategory {
+  productId: string;
+  categoryId: string;
+  category?: Category;
+  product?: Product;
+}
+
 export interface Product {
   id: string;
   name: string;
   slug: string;
   description: string | null;
+  shortDescription: string | null;
   price: number;
   comparePrice: number | null;
-  // Legacy fields kept for backward compatibility during migration
-  imageUrl?: string | null;
-  images: ProductImage[] | string[];
+  costPrice: number | null;
+  sku: string | null;
+  barcode: string | null;
   stock: number;
-  categoryId: string;
-  category?: Category;
+  trackStock: boolean;
+  weight: number | null;
+  images: ProductImage[];
+  categories?: ProductCategory[];
   variants?: ProductVariant[];
   isActive: boolean;
   isFeatured: boolean;
@@ -115,30 +129,37 @@ export interface Order {
   customerPhone: string;
   customerEmail: string | null;
   customerAddress: string | null;
-  customerNote: string | null;
   status: OrderStatus;
   subtotal: number;
   deliveryFee: number;
   discount: number;
   total: number;
-  paymentMethod: string | null;
-  paymentStatus: string | null;
+  paymentMethod: PaymentMethod | null;
   orderItems: OrderItem[];
+  payment?: Payment;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Payment {
+  id: string;
+  orderId: string;
+  provider: string;
+  transactionId: string | null;
+  amount: number;
+  status: string;
+  createdAt: string;
 }
 
 export interface Banner {
   id: string;
   title: string;
   description: string | null;
-  imageUrl: string;
+  imageUrl: string | null;
   linkUrl: string | null;
-  placement: BannerPlacement;
   displayOrder: number;
   isActive: boolean;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface Address {
@@ -178,10 +199,37 @@ export interface Coupon {
   type: DiscountType;
   value: number;
   minOrder: number | null;
+  maxDiscount: number | null;
+  usageLimit: number | null;
   startAt: string;
   endAt: string;
-  usageLimit: number | null;
+  isActive: boolean;
   createdAt: string;
+}
+
+export interface MenuItem {
+  id: string;
+  title: string;
+  url: string | null;
+  parentId: string | null;
+  categoryId: string | null;
+  pageId: string | null;
+  type: MenuType;
+  displayOrder: number;
+  isActive: boolean;
+  children?: MenuItem[];
+  category?: Category;
+  page?: Page;
+}
+
+export interface Page {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CartItem {
@@ -303,12 +351,23 @@ export interface CreateProductRequest {
   name: string;
   slug: string;
   description?: string;
+  shortDescription?: string;
   price: number;
   comparePrice?: number;
+  costPrice?: number;
+  sku?: string;
+  barcode?: string;
   stock: number;
-  categoryId?: string;
-  imageUrl?: string;
+  trackStock?: boolean;
+  weight?: number;
+  categoryIds?: string[];
   images?: string[];
+  variants?: Array<{
+    name: string;
+    sku?: string;
+    price: number;
+    stock?: number;
+  }>;
   isActive?: boolean;
   isFeatured?: boolean;
 }
@@ -324,6 +383,7 @@ export interface CreateCategoryRequest {
   level?: number;
   displayOrder?: number;
   isActive?: boolean;
+  showInMenu?: boolean;
 }
 
 export type UpdateCategoryRequest = Partial<CreateCategoryRequest>;
@@ -343,9 +403,8 @@ export interface UpdateCustomerRequest {
 export interface CreateBannerRequest {
   title: string;
   description?: string;
-  imageUrl: string;
+  imageUrl?: string;
   linkUrl?: string;
-  placement: BannerPlacement;
   displayOrder?: number;
   isActive?: boolean;
 }
@@ -385,12 +444,36 @@ export interface CreateCouponRequest {
   type: DiscountType;
   value: number;
   minOrder?: number;
+  maxDiscount?: number;
   startAt: string;
   endAt: string;
   usageLimit?: number;
+  isActive?: boolean;
 }
 
 export type UpdateCouponRequest = Partial<CreateCouponRequest>;
+
+export interface CreateMenuItemRequest {
+  title: string;
+  url?: string;
+  parentId?: string;
+  categoryId?: string;
+  pageId?: string;
+  type?: MenuType;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export type UpdateMenuItemRequest = Partial<CreateMenuItemRequest>;
+
+export interface CreatePageRequest {
+  title: string;
+  slug: string;
+  content: string;
+  isPublished?: boolean;
+}
+
+export type UpdatePageRequest = Partial<CreatePageRequest>;
 
 // ============================================================================
 // Query Params Types

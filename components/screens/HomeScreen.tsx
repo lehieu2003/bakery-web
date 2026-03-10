@@ -73,7 +73,11 @@ export default function HomeScreen() {
     return {
       category: cat,
       products: products
-        .filter((p) => p.isActive && catIds.includes(p.categoryId))
+        .filter(
+          (p) =>
+            p.isActive &&
+            (p.categories || []).some((pc) => catIds.includes(pc.categoryId)),
+        )
         .slice(0, 4),
     };
   });
@@ -91,9 +95,7 @@ export default function HomeScreen() {
       {/* Banner Carousel - full width, breaks out of parent padding */}
       {!bannersLoading && banners && banners.length > 0 && (
         <BannerCarousel
-          banners={banners.filter(
-            (b) => b.isActive && b.placement === 'HOME_HERO',
-          )}
+          banners={banners.filter((b) => b.isActive)}
           clickable={false}
         />
       )}
