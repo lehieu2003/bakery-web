@@ -87,8 +87,8 @@ export default function HomeScreen() {
       : firstCategoryHref;
 
   return (
-    <div className='bg-background'>
-      {/* Banner Carousel */}
+    <div className='bg-background -mx-4 lg:-mx-8'>
+      {/* Banner Carousel - full width, breaks out of parent padding */}
       {!bannersLoading && banners && banners.length > 0 && (
         <BannerCarousel
           banners={banners.filter(
@@ -100,7 +100,7 @@ export default function HomeScreen() {
 
       {/* Fallback Hero (if no banners) */}
       {!bannersLoading && (!banners || banners.length === 0) && (
-        <section className='relative h-[560px] lg:h-[640px] w-full overflow-hidden'>
+        <section className='relative h-[400px] md:h-[480px] lg:h-[560px] w-full overflow-hidden'>
           <Image
             src='/images/hero-cake.jpg'
             alt='Signature hero cake'
@@ -148,126 +148,125 @@ export default function HomeScreen() {
         </section>
       )}
 
-      {/* Membership Banner */}
-      <section className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
-        {user ? (
-          <div className='max-w-xl'>
-            <MembershipCard user={user!} />
-          </div>
-        ) : (
-          <Link
-            href='/profile'
-            className='rounded-2xl border border-border bg-card px-6 py-5 flex items-center justify-between hover:border-primary/40 transition-colors group'
-          >
-            <div>
-              <p className='font-serif text-base font-semibold text-foreground'>
-                Join Our Membership Club
-              </p>
-              <p className='text-muted-foreground text-sm mt-0.5'>
-                Enjoy exclusive rewards and up to 15% off every order.
-              </p>
+      {/* Inner padded content */}
+      <div className='px-4 lg:px-8'>
+        {/* Membership Banner */}
+        <section className='py-8'>
+          {user ? (
+            <div className='max-w-xl'>
+              <MembershipCard user={user!} />
             </div>
-            <span className='flex items-center gap-1.5 text-primary text-sm font-medium group-hover:gap-2.5 transition-all'>
-              Join now <ArrowRight size={16} />
-            </span>
-          </Link>
-        )}
-      </section>
+          ) : (
+            <Link
+              href='/profile'
+              className='rounded-2xl border border-border bg-card px-6 py-5 flex items-center justify-between hover:border-primary/40 transition-colors group'
+            >
+              <div>
+                <p className='font-serif text-base font-semibold text-foreground'>
+                  Join Our Membership Club
+                </p>
+                <p className='text-muted-foreground text-sm mt-0.5'>
+                  Enjoy exclusive rewards and up to 15% off every order.
+                </p>
+              </div>
+              <span className='flex items-center gap-1.5 text-primary text-sm font-medium group-hover:gap-2.5 transition-all'>
+                Join now <ArrowRight size={16} />
+              </span>
+            </Link>
+          )}
+        </section>
 
-      {/* Category Sections */}
-      {productsByCategory.map(
-        ({ category: cat, products: catProducts }, idx) => (
-          <section key={cat.id}>
-            {idx > 0 && (
-              <div className='max-w-7xl mx-auto px-6 lg:px-8'>
-                <div className='h-px bg-border' />
-              </div>
-            )}
-            <div className='max-w-7xl mx-auto px-6 lg:px-8 py-14'>
-              <div className='flex items-end justify-between mb-8'>
-                <div>
-                  {cat.description && (
-                    <p className='text-xs tracking-[0.22em] uppercase text-muted-foreground font-sans font-light mb-1.5'>
-                      {cat.description}
-                    </p>
-                  )}
-                  <h2 className='font-serif text-3xl font-semibold text-foreground'>
-                    {cat.name}
-                  </h2>
-                </div>
-                <Link
-                  href={`/categories/${cat.slug}`}
-                  className='flex items-center gap-1.5 text-sm font-medium text-primary hover:gap-2.5 transition-all'
-                >
-                  View all <ArrowRight size={15} />
-                </Link>
-              </div>
-              <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
-                {productsLoading ? (
-                  [...Array(4)].map((_, i) => (
-                    <div
-                      key={i}
-                      className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
-                    >
-                      <div className='aspect-square bg-secondary' />
-                      <div className='p-4 space-y-2'>
-                        <div className='h-4 bg-secondary rounded' />
-                        <div className='h-3 bg-secondary rounded w-2/3' />
-                      </div>
-                    </div>
-                  ))
-                ) : catProducts.length > 0 ? (
-                  catProducts.map((p) => (
-                    <ProductCard
-                      key={p.id}
-                      product={{
-                        id: p.id,
-                        name: p.name,
-                        price: p.price,
-                        image: getProductImage(p),
-                      }}
-                      href={`/products/${p.id}`}
-                    />
-                  ))
-                ) : (
-                  <div className='col-span-full text-center py-8 text-muted-foreground'>
-                    No products available
+        {/* Category Sections */}
+        {productsByCategory.map(
+          ({ category: cat, products: catProducts }, idx) => (
+            <section key={cat.id}>
+              {idx > 0 && <div className='h-px bg-border' />}
+              <div className='py-12'>
+                <div className='flex items-end justify-between mb-8'>
+                  <div>
+                    {cat.description && (
+                      <p className='text-xs tracking-[0.22em] uppercase text-muted-foreground font-sans font-light mb-1.5'>
+                        {cat.description}
+                      </p>
+                    )}
+                    <h2 className='font-serif text-3xl font-semibold text-foreground'>
+                      {cat.name}
+                    </h2>
                   </div>
-                )}
+                  <Link
+                    href={`/categories/${cat.slug}`}
+                    className='flex items-center gap-1.5 text-sm font-medium text-primary hover:gap-2.5 transition-all'
+                  >
+                    View all <ArrowRight size={15} />
+                  </Link>
+                </div>
+                <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
+                  {productsLoading ? (
+                    [...Array(4)].map((_, i) => (
+                      <div
+                        key={i}
+                        className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
+                      >
+                        <div className='aspect-square bg-secondary' />
+                        <div className='p-4 space-y-2'>
+                          <div className='h-4 bg-secondary rounded' />
+                          <div className='h-3 bg-secondary rounded w-2/3' />
+                        </div>
+                      </div>
+                    ))
+                  ) : catProducts.length > 0 ? (
+                    catProducts.map((p) => (
+                      <ProductCard
+                        key={p.id}
+                        product={{
+                          id: p.id,
+                          name: p.name,
+                          price: p.price,
+                          image: getProductImage(p),
+                        }}
+                        href={`/products/${p.id}`}
+                      />
+                    ))
+                  ) : (
+                    <div className='col-span-full text-center py-8 text-muted-foreground'>
+                      No products available
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </section>
-        ),
-      )}
+            </section>
+          ),
+        )}
 
-      {/* Value strip */}
-      <section className='bg-card border-y border-border'>
-        <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-1 md:grid-cols-3 gap-8'>
-          {[
-            {
-              heading: 'Made to Order',
-              body: 'Every cake is baked fresh specifically for your celebration, never off the shelf.',
-            },
-            {
-              heading: 'Premium Ingredients',
-              body: 'We source only the finest couverture chocolate, French butter, and organic eggs.',
-            },
-            {
-              heading: 'Loyalty Rewards',
-              body: 'Earn points on every order and unlock exclusive discounts at Gold and Platinum level.',
-            },
-          ].map(({ heading, body }) => (
-            <div key={heading} className='flex flex-col gap-2'>
-              <h3 className='font-serif text-base font-semibold text-foreground'>
-                {heading}
-              </h3>
-              <p className='text-sm text-muted-foreground leading-relaxed'>
-                {body}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+        {/* Value strip */}
+        <section className='bg-card border border-border rounded-2xl my-8'>
+          <div className='px-6 py-10 grid grid-cols-1 md:grid-cols-3 gap-8'>
+            {[
+              {
+                heading: 'Made to Order',
+                body: 'Every cake is baked fresh specifically for your celebration, never off the shelf.',
+              },
+              {
+                heading: 'Premium Ingredients',
+                body: 'We source only the finest couverture chocolate, French butter, and organic eggs.',
+              },
+              {
+                heading: 'Loyalty Rewards',
+                body: 'Earn points on every order and unlock exclusive discounts at Gold and Platinum level.',
+              },
+            ].map(({ heading, body }) => (
+              <div key={heading} className='flex flex-col gap-2'>
+                <h3 className='font-serif text-base font-semibold text-foreground'>
+                  {heading}
+                </h3>
+                <p className='text-sm text-muted-foreground leading-relaxed'>
+                  {body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

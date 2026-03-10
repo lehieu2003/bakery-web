@@ -20,8 +20,8 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'La Douceur – Luxury Bakery',
-  description: 'Handcrafted Cakes for Every Celebration',
+  title: 'Abby – Đồ Làm Bánh, Nấu Ăn Và Pha Chế',
+  description: 'Abby - Chuyên cung cấp nguyên liệu và dụng cụ làm bánh, nấu ăn và pha chế chất lượng cao.',
   generator: 'v0.app',
   icons: {
     icon: [
