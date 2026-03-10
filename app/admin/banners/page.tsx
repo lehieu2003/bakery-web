@@ -27,35 +27,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   useBanners,
   useCreateBanner,
   useUpdateBanner,
   useDeleteBanner,
 } from '@/hooks/admin/use-banners';
-import { cn } from '@/lib/utils';
-import type { Banner, BannerPlacement } from '@/types/api.types';
-
-const PLACEMENTS: { value: BannerPlacement; label: string }[] = [
-  { value: 'HOME_HERO', label: 'Home Hero' },
-  { value: 'HOME_PROMO', label: 'Home Promo' },
-  { value: 'CATEGORY', label: 'Category' },
-];
-
-const PLACEMENT_COLORS: Record<BannerPlacement, string> = {
-  HOME_HERO: 'bg-pink-50 text-pink-700 border-pink-200',
-  HOME_PROMO: 'bg-blue-50 text-blue-700 border-blue-200',
-  CATEGORY: 'bg-amber-50 text-amber-700 border-amber-200',
-};
+import type { Banner } from '@/types/api.types';
 
 export default function BannersPage() {
-  const [placementFilter, setPlacementFilter] = useState<string>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editBanner, setEditBanner] = useState<Banner | null>(null);
@@ -63,8 +42,6 @@ export default function BannersPage() {
   // Form
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formPlacement, setFormPlacement] =
-    useState<BannerPlacement>('HOME_HERO');
   const [formLinkUrl, setFormLinkUrl] = useState('');
   const [formDisplayOrder, setFormDisplayOrder] = useState('1');
   const [formActive, setFormActive] = useState(true);
@@ -77,16 +54,12 @@ export default function BannersPage() {
   const updateMutation = useUpdateBanner();
   const deleteMutation = useDeleteBanner();
 
-  const filtered =
-    placementFilter === 'ALL'
-      ? banners || []
-      : (banners || []).filter((b) => b.placement === placementFilter);
+  const filtered = banners || [];
 
   const openCreate = () => {
     setEditBanner(null);
     setFormTitle('');
     setFormDescription('');
-    setFormPlacement('HOME_HERO');
     setFormLinkUrl('');
     setFormDisplayOrder('1');
     setFormActive(true);
@@ -99,7 +72,6 @@ export default function BannersPage() {
     setEditBanner(b);
     setFormTitle(b.title);
     setFormDescription(b.description || '');
-    setFormPlacement(b.placement);
     setFormLinkUrl(b.linkUrl || '');
     setFormDisplayOrder(String(b.displayOrder));
     setFormActive(b.isActive);
@@ -120,7 +92,6 @@ export default function BannersPage() {
             description: formDescription || undefined,
             imageUrl: formImage,
             linkUrl: formLinkUrl || undefined,
-            placement: formPlacement,
             displayOrder: Number(formDisplayOrder),
             isActive: formActive,
           },
@@ -131,7 +102,6 @@ export default function BannersPage() {
           description: formDescription || undefined,
           imageUrl: formImage,
           linkUrl: formLinkUrl || undefined,
-          placement: formPlacement,
           displayOrder: Number(formDisplayOrder),
           isActive: formActive,
         });
@@ -201,26 +171,6 @@ export default function BannersPage() {
         </Button>
       </div>
 
-      {/* Placement filter */}
-      <div className='flex gap-1.5 flex-wrap mb-4'>
-        {['ALL', ...PLACEMENTS.map((p) => p.value)].map((f) => (
-          <button
-            key={f}
-            onClick={() => setPlacementFilter(f)}
-            className={cn(
-              'px-3 py-1 rounded-full text-[10px] font-medium border transition-all',
-              placementFilter === f
-                ? 'bg-foreground text-background border-foreground'
-                : 'bg-card text-muted-foreground border-border hover:border-foreground/30',
-            )}
-          >
-            {f === 'ALL'
-              ? 'All Placements'
-              : (PLACEMENTS.find((p) => p.value === f)?.label ?? f)}
-          </button>
-        ))}
-      </div>
-
       {/* Banner grid */}
       <div className='grid sm:grid-cols-2 lg:grid-cols-3 gap-4'>
         {filtered.map((banner) => (
@@ -237,13 +187,6 @@ export default function BannersPage() {
                 className='object-cover'
               />
               <div className='absolute inset-0 bg-black/30' />
-              <div className='absolute top-2 right-2 flex gap-1.5'>
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-white/90 ${PLACEMENT_COLORS[banner.placement]}`}
-                >
-                  {PLACEMENTS.find((p) => p.value === banner.placement)?.label}
-                </span>
-              </div>
               <div className='absolute bottom-2 left-2'>
                 <p className='text-white text-xs font-semibold drop-shadow-sm'>
                   {banner.title}
@@ -352,29 +295,6 @@ export default function BannersPage() {
                 onChange={(e) => setFormDescription(e.target.value)}
                 placeholder='Optional description'
               />
-            </div>
-
-            <div>
-              <Label className='text-xs font-medium'>Placement</Label>
-              <Select
-                value={formPlacement}
-                onValueChange={(v) => setFormPlacement(v as BannerPlacement)}
-              >
-                <SelectTrigger className='h-8 text-xs mt-1.5'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLACEMENTS.map((p) => (
-                    <SelectItem
-                      key={p.value}
-                      value={p.value}
-                      className='text-xs'
-                    >
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             <div className='grid grid-cols-2 gap-2'>

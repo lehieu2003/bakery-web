@@ -90,16 +90,42 @@ export async function PUT(
       );
     }
 
-    // Prevent setting a child as parent (circular ref)
+    // Prevent setting a child/descendant as parent (circular ref)
     if (body.parentId) {
-      const children = await prisma.category.findMany({
-        where: { parentId: id },
-      });
-      if (children.some((c) => c.id === body.parentId)) {
+      const getAllDescendantIds = async (catId: string): Promise<string[]> => {
+        const children = await prisma.category.findMany({
+          where: { parentId: catId },
+          select: { id: true },
+        });
+        const ids = children.map((c) => c.id);
+        for (const child of children) {
+          ids.push(...(await getAllDescendantIds(child.id)));
+        }
+        return ids;
+      };
+      const descendantIds = await getAllDescendantIds(id);
+      if (descendantIds.includes(body.parentId)) {
         return NextResponse.json(
-          { success: false, error: 'Cannot set a child category as parent' },
+          {
+            success: false,
+            error: 'Cannot set a descendant category as parent',
+          },
           { status: 400 },
         );
+      }
+    }
+
+    // Auto-calculate level from parent
+    let newLevel: number | undefined;
+    if (body.parentId !== undefined) {
+      if (body.parentId) {
+        const parent = await prisma.category.findUnique({
+          where: { id: body.parentId },
+          select: { level: true },
+        });
+        newLevel = parent ? parent.level + 1 : 1;
+      } else {
+        newLevel = 1;
       }
     }
 
@@ -112,14 +138,21 @@ export async function PUT(
         imageUrl: body.imageUrl,
         parentId:
           body.parentId !== undefined ? body.parentId || null : undefined,
-        level: body.level,
+        level: newLevel,
         displayOrder: body.displayOrder,
         isActive: body.isActive,
+        showInMenu: body.showInMenu,
       },
       include: {
         _count: { select: { products: true } },
         children: {
-          include: { _count: { select: { products: true } } },
+          include: {
+            _count: { select: { products: true } },
+            children: {
+              include: { _count: { select: { products: true } } },
+              orderBy: { displayOrder: 'asc' },
+            },
+          },
           orderBy: { displayOrder: 'asc' },
         },
       },

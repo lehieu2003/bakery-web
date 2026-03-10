@@ -14,13 +14,9 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const placement = searchParams.get('placement');
     const activeOnly = searchParams.get('active') === 'true';
 
     const where: Record<string, unknown> = {};
-    if (placement && placement !== 'ALL') {
-      where.placement = placement;
-    }
     if (activeOnly) {
       where.isActive = true;
     }
@@ -55,15 +51,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      title,
-      description,
-      imageUrl,
-      linkUrl,
-      placement,
-      displayOrder,
-      isActive,
-    } = body;
+    const { title, description, imageUrl, linkUrl, displayOrder, isActive } =
+      body;
 
     if (!title) {
       return NextResponse.json(
@@ -78,7 +67,6 @@ export async function POST(request: NextRequest) {
         description: description || null,
         imageUrl: imageUrl || null,
         linkUrl: linkUrl || null,
-        placement: placement || 'HOME_HERO',
         displayOrder: displayOrder || 0,
         isActive: isActive ?? true,
       },

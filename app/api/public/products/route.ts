@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { isActive: true };
     if (categoryId) {
       // Include products from child categories too
       const childCategories = await prisma.category.findMany({
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         select: { id: true },
       });
       const categoryIds = [categoryId, ...childCategories.map((c) => c.id)];
-      where.categoryId = { in: categoryIds };
+      where.categories = { some: { categoryId: { in: categoryIds } } };
     }
     if (search) {
       where.OR = [
@@ -33,10 +33,12 @@ export async function GET(request: NextRequest) {
       prisma.product.findMany({
         where,
         include: {
-          category: {
-            select: { id: true, name: true, slug: true },
+          categories: {
+            include: {
+              category: { select: { id: true, name: true, slug: true } },
+            },
           },
-          images: true,
+          images: { orderBy: { displayOrder: 'asc' } },
         },
         skip,
         take: limit,

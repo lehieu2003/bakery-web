@@ -75,7 +75,8 @@ export default function ProductsPage() {
       statusFilter === 'ALL' ||
       (statusFilter === 'ACTIVE' ? p.isActive : !p.isActive);
     const matchCategory =
-      categoryFilter === 'ALL' || p.categoryId === categoryFilter;
+      categoryFilter === 'ALL' ||
+      (p.categories || []).some((pc) => pc.categoryId === categoryFilter);
     return matchStatus && matchCategory;
   });
 
@@ -407,7 +408,7 @@ export default function ProductsPage() {
                   </td>
                   <td className='px-3 py-3 hidden md:table-cell'>
                     <span className='text-xs text-muted-foreground'>
-                      {product.category?.name || '—'}
+                      {product.categories?.[0]?.category?.name || '—'}
                     </span>
                   </td>
                   <td className='px-3 py-3 hidden sm:table-cell'>

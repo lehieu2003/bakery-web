@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         select: { id: true },
       });
       const categoryIds = [categoryId, ...childCategories.map((c) => c.id)];
-      where.categoryId = { in: categoryIds };
+      where.categories = { some: { categoryId: { in: categoryIds } } };
     }
     if (search) {
       where.OR = [
@@ -35,10 +35,13 @@ export async function GET(request: NextRequest) {
       prisma.product.findMany({
         where,
         include: {
-          category: {
-            select: { id: true, name: true, slug: true },
+          categories: {
+            include: {
+              category: { select: { id: true, name: true, slug: true } },
+            },
           },
-          images: true,
+          images: { orderBy: { displayOrder: 'asc' } },
+          variants: true,
         },
         skip,
         take: limit,
@@ -86,11 +89,16 @@ export async function POST(request: NextRequest) {
       name,
       slug,
       description,
+      shortDescription,
       price,
       comparePrice,
-      categoryId,
+      costPrice,
+      sku,
+      barcode,
+      categoryIds,
       stock,
-      imageUrl,
+      trackStock,
+      weight,
       images,
       variants,
       isActive,
@@ -98,7 +106,7 @@ export async function POST(request: NextRequest) {
     } = body as Record<string, any>;
 
     // Validate required fields
-    if (!name || !slug || !price || !categoryId) {
+    if (!name || !slug || !price) {
       return NextResponse.json(
         { success: false, error: 'Thiếu thông tin bắt buộc' },
         { status: 400 },
@@ -114,18 +122,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build image create data from imageUrl or images array
-    const imageCreateData: { url: string; isPrimary: boolean }[] = [];
-    if (imageUrl) {
-      imageCreateData.push({ url: imageUrl, isPrimary: true });
-    }
+    // Build image create data
+    const imageCreateData: {
+      url: string;
+      isPrimary: boolean;
+      displayOrder: number;
+    }[] = [];
     if (images && Array.isArray(images)) {
-      for (const img of images) {
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
         const url = typeof img === 'string' ? img : img.url;
-        if (url && !imageCreateData.some((i) => i.url === url)) {
+        if (url && !imageCreateData.some((d) => d.url === url)) {
           imageCreateData.push({
             url,
             isPrimary: imageCreateData.length === 0,
+            displayOrder: i,
           });
         }
       }
@@ -151,15 +162,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Build category connections
+    const categoryConnect = Array.isArray(categoryIds)
+      ? categoryIds.map((cid: string) => ({ productId: '', categoryId: cid }))
+      : [];
+
     const product = await prisma.product.create({
       data: {
         name,
         slug,
         description,
+        shortDescription,
         price,
         comparePrice,
-        categoryId,
+        costPrice,
+        sku,
+        barcode,
         stock: stock || 0,
+        trackStock: trackStock !== undefined ? trackStock : true,
+        weight,
         isActive: isActive !== undefined ? isActive : true,
         isFeatured: isFeatured || false,
         ...(imageCreateData.length > 0
@@ -168,10 +189,19 @@ export async function POST(request: NextRequest) {
         ...(variantCreateData.length > 0
           ? { variants: { create: variantCreateData } }
           : {}),
+        ...(categoryConnect.length > 0
+          ? {
+              categories: {
+                create: categoryConnect.map((c: { categoryId: string }) => ({
+                  categoryId: c.categoryId,
+                })),
+              },
+            }
+          : {}),
       },
       include: {
-        category: true,
-        images: true,
+        categories: { include: { category: true } },
+        images: { orderBy: { displayOrder: 'asc' } },
         variants: true,
       },
     });

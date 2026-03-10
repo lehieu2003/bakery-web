@@ -14,8 +14,8 @@ export async function GET(
     const product = await prisma.product.findUnique({
       where: { id },
       include: {
-        category: true,
-        images: true,
+        categories: { include: { category: true } },
+        images: { orderBy: { displayOrder: 'asc' } },
         variants: true,
       },
     });
@@ -58,8 +58,27 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const { imageUrl, images, variants, category, ...updateData } =
-      body as Record<string, any>;
+    const {
+      images,
+      variants,
+      categories,
+      categoryIds,
+      category,
+      ...updateData
+    } = body as Record<string, any>;
+
+    // Handle category connections if categoryIds provided
+    if (Array.isArray(categoryIds)) {
+      await prisma.productCategory.deleteMany({ where: { productId: id } });
+      if (categoryIds.length > 0) {
+        await prisma.productCategory.createMany({
+          data: categoryIds.map((cid: string) => ({
+            productId: id,
+            categoryId: cid,
+          })),
+        });
+      }
+    }
 
     // Handle variant CRUD if variants array is provided
     if (Array.isArray(variants)) {
@@ -107,8 +126,8 @@ export async function PUT(
       where: { id },
       data: updateData,
       include: {
-        category: true,
-        images: true,
+        categories: { include: { category: true } },
+        images: { orderBy: { displayOrder: 'asc' } },
         variants: true,
       },
     });

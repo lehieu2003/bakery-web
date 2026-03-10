@@ -9,6 +9,7 @@ import BannerCarousel from '@/components/ui-custom/BannerCarousel';
 import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';
 import { useBanners } from '@/hooks/use-banners';
+import type { Category } from '@/types/api.types';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
@@ -58,11 +59,17 @@ export default function HomeScreen() {
   // Root categories from API (dynamic)
   const categories = categoriesData || [];
 
-  // Collect all category IDs including children for filtering
-  const getCategoryIds = (cat: { id: string; children?: { id: string }[] }) => {
+  // Collect all category IDs including children + grandchildren for filtering
+  const getCategoryIds = (cat: {
+    id: string;
+    children?: Category[];
+  }): string[] => {
     const ids = [cat.id];
-    if ((cat as any).children)
-      ids.push(...(cat as any).children.map((c: { id: string }) => c.id));
+    if (cat.children) {
+      for (const child of cat.children) {
+        ids.push(...getCategoryIds(child));
+      }
+    }
     return ids;
   };
 
@@ -73,7 +80,11 @@ export default function HomeScreen() {
     return {
       category: cat,
       products: products
-        .filter((p) => p.isActive && catIds.includes(p.categoryId))
+        .filter(
+          (p) =>
+            p.isActive &&
+            (p.categories || []).some((pc) => catIds.includes(pc.categoryId)),
+        )
         .slice(0, 4),
     };
   });
@@ -91,9 +102,7 @@ export default function HomeScreen() {
       {/* Banner Carousel - full width, breaks out of parent padding */}
       {!bannersLoading && banners && banners.length > 0 && (
         <BannerCarousel
-          banners={banners.filter(
-            (b) => b.isActive && b.placement === 'HOME_HERO',
-          )}
+          banners={banners.filter((b) => b.isActive)}
           clickable={false}
         />
       )}
@@ -150,6 +159,19 @@ export default function HomeScreen() {
                     View all <ArrowRight size={15} />
                   </Link>
                 </div>
+                {cat.children && cat.children.length > 0 && (
+                  <div className='flex flex-wrap gap-2 mb-6'>
+                    {cat.children.map((sub) => (
+                      <Link
+                        key={sub.id}
+                        href={`/categories/${cat.slug}?sub=${sub.id}`}
+                        className='px-4 py-1.5 rounded-full text-xs font-medium border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors'
+                      >
+                        {sub.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
                 <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
                   {productsLoading ? (
                     [...Array(4)].map((_, i) => (

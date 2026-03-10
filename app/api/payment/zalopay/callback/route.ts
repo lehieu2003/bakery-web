@@ -27,21 +27,26 @@ export async function POST(request: NextRequest) {
     const orderId = appTransId.split('_').slice(1).join('_');
 
     // Idempotency: only update if payment is still PENDING
-    const order = await prisma.order.findUnique({ where: { id: orderId } });
-    if (!order || order.paymentStatus !== 'PENDING') {
+    const payment = await prisma.payment.findUnique({
+      where: { orderId },
+    });
+    if (!payment || payment.status !== 'PENDING') {
       return NextResponse.json({
         return_code: 1,
         return_message: 'already processed',
       });
     }
 
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        paymentStatus: 'PAID',
-        status: 'CONFIRMED',
-      },
-    });
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { orderId },
+        data: { status: 'PAID' },
+      }),
+      prisma.order.update({
+        where: { id: orderId },
+        data: { status: 'CONFIRMED' },
+      }),
+    ]);
 
     // ZaloPay expects return_code: 1 for success
     return NextResponse.json({ return_code: 1, return_message: 'success' });

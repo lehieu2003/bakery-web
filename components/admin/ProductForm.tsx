@@ -53,7 +53,9 @@ const productSchema = z.object({
       /^[a-z0-9-]+$/,
       'Slug must contain only lowercase letters, numbers, and hyphens',
     ),
-  categoryId: z.string().min(1, 'Please select a category'),
+  categoryIds: z
+    .array(z.string())
+    .min(1, 'Please select at least one category'),
   price: z.coerce.number().positive('Price must be greater than 0'),
   shortDesc: z.string().max(150, 'Short description is too long').optional(),
   fullDesc: z.string().optional(),
@@ -147,7 +149,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
   } = useProduct(productId || '');
   const existingProduct = productData;
 
-  const initialType = existingProduct?.categoryId
+  const initialType = existingProduct?.categories?.length
     ? 'CAKE' // Default, since we don't have type in Product model
     : (searchParams.get('type')?.toUpperCase() as ProductType) || 'CAKE';
 
@@ -157,7 +159,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
     defaultValues: {
       name: '',
       slug: '',
-      categoryId: '',
+      categoryIds: [],
       price: 0,
       shortDesc: '',
       fullDesc: '',
@@ -204,7 +206,8 @@ export default function ProductForm({ productId }: { productId?: string }) {
       form.reset({
         name: existingProduct.name,
         slug: existingProduct.slug,
-        categoryId: existingProduct.categoryId || '',
+        categoryIds:
+          existingProduct.categories?.map((pc) => pc.categoryId) || [],
         price: existingProduct.price,
         shortDesc: existingProduct.description?.slice(0, 80) || '',
         fullDesc: existingProduct.description || '',
@@ -323,7 +326,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
         description: values.fullDesc?.trim() || undefined,
         price: values.price,
         stock: 100, // Default stock
-        categoryId: values.categoryId,
+        categoryIds: values.categoryIds,
         imageUrl: finalImageUrl || undefined,
         isActive: publish ? values.isActive : false,
         isFeatured: false,
@@ -332,7 +335,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
           .map((v) => ({
             ...(v.id ? { id: v.id } : {}),
             name: v.name.trim(),
-            sku: v.sku.trim() || null,
+            sku: v.sku.trim() || undefined,
             price: v.price,
             stock: v.stock,
           })),
@@ -472,13 +475,16 @@ export default function ProductForm({ productId }: { productId?: string }) {
             <div className='grid grid-cols-2 gap-3'>
               <FormField
                 control={form.control}
-                name='categoryId'
+                name='categoryIds'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className='text-xs font-medium'>
                       Category
                     </FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value?.[0] || ''}
+                      onValueChange={(v) => field.onChange([v])}
+                    >
                       <FormControl>
                         <SelectTrigger className='h-9 text-xs'>
                           <SelectValue placeholder='Select category' />

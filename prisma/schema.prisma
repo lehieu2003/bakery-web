@@ -9,14 +9,13 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ============================================================================
-// Enums
-// ============================================================================
+////////////////////////////////////////////////////////////
+// ENUMS
+////////////////////////////////////////////////////////////
 
 enum UserRole {
   ADMIN
   CUSTOMER
-  GUEST
 }
 
 enum OtpPurpose {
@@ -40,377 +39,502 @@ enum MemberLevel {
   PLATINUM
 }
 
-enum BannerPlacement {
-  HOME_HERO
-  HOME_PROMO
-  CATEGORY
-}
-
 enum DiscountType {
   PERCENTAGE
   FIXED
 }
 
-// ============================================================================
-// User & Auth
-// ============================================================================
+enum PaymentMethod {
+  COD
+  BANK_TRANSFER
+  MOMO
+  ZALOPAY
+}
+
+enum MenuType {
+  CATEGORY
+  PAGE
+  LINK
+}
+
+////////////////////////////////////////////////////////////
+// USER & AUTH
+////////////////////////////////////////////////////////////
 
 model User {
-  id              String       @id @default(cuid())
-  email           String       @unique
-  emailVerifiedAt DateTime?
+  id              String      @id @default(cuid())
+  email           String      @unique
   password        String
   name            String?
   phone           String?
-  role            UserRole     @default(CUSTOMER)
-  memberLevel     MemberLevel  @default(SILVER)
-  points          Int          @default(0)
-  isActive        Boolean      @default(true)
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  role            UserRole    @default(CUSTOMER)
 
-  orders          Order[]
-  sessions        Session[]
-  addresses       Address[]
-  reviews         Review[]
-  wishlist        Wishlist[]
-  cart            Cart?
+  memberLevel     MemberLevel @default(SILVER)
+  points          Int         @default(0)
+
+  emailVerifiedAt DateTime?
+
+  isActive        Boolean     @default(true)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  sessions  Session[]
+  orders    Order[]
+  addresses Address[]
+  reviews   Review[]
+  wishlist  Wishlist[]
+
+  cart Cart?
 
   @@index([email])
-  @@index([role])
-  @@index([memberLevel])
 }
 
 model Session {
   id        String   @id @default(cuid())
+
   userId    String
   token     String   @unique
+
   expiresAt DateTime
+
   userAgent String?
   ipAddress String?
 
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
 }
 
 model OtpVerification {
-  id          String     @id @default(cuid())
-  email       String
-  purpose     OtpPurpose
-  otpHash     String
-  expiresAt   DateTime
-  attempts    Int        @default(0)
-  sentCount   Int        @default(1)
-  usedAt      DateTime?
-  lockedUntil DateTime?
+  id        String     @id @default(cuid())
 
-  createdAt   DateTime   @default(now())
+  email     String
+  purpose   OtpPurpose
 
-  @@index([email, purpose, expiresAt])
-  @@index([createdAt])
+  otpHash   String
+
+  expiresAt DateTime
+
+  attempts  Int        @default(0)
+
+  usedAt    DateTime?
+
+  createdAt DateTime   @default(now())
+
+  @@index([email])
 }
 
+////////////////////////////////////////////////////////////
+// ADDRESS
+////////////////////////////////////////////////////////////
+
 model Address {
-  id        String  @id @default(cuid())
-  userId    String
+  id String @id @default(cuid())
 
-  fullName  String
-  phone     String
+  userId String
 
-  province  String
-  district  String
-  ward      String
-  street    String
+  fullName String
+  phone    String
+
+  province String
+  district String
+  ward     String
+  street   String
 
   isDefault Boolean  @default(false)
 
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
-// ============================================================================
-// Catalog
-// ============================================================================
+////////////////////////////////////////////////////////////
+// CATEGORY TREE
+////////////////////////////////////////////////////////////
 
 model Category {
-  id           String     @id @default(cuid())
-  name         String
-  slug         String     @unique
-  description  String?
-  imageUrl     String?
+  id String @id @default(cuid())
 
-  parentId     String?
-  parent       Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children     Category[] @relation("CategoryTree")
+  name String
+  slug String @unique
 
-  level        Int        @default(1)
-  displayOrder Int        @default(0)
+  description String?
 
-  isActive     Boolean    @default(true)
+  imageUrl String?
 
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  parentId String?
 
-  products Product[]
+  level        Int @default(1)
+  displayOrder Int @default(0)
 
-  @@index([slug])
-  @@index([isActive])
-  @@index([parentId])
+  isActive   Boolean @default(true)
+  showInMenu Boolean @default(true)
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+
+  products  ProductCategory[]
+  menuItems MenuItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
+////////////////////////////////////////////////////////////
+// PRODUCT
+////////////////////////////////////////////////////////////
 
 model Product {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  description  String?
+  id String @id @default(cuid())
+
+  name String
+  slug String @unique
+
+  description      String?
+  shortDescription String?
 
   price        Decimal  @db.Decimal(10, 2)
-  comparePrice Decimal? @db.Decimal(10, 2)
+  comparePrice Decimal?
+  costPrice    Decimal?
 
-  categoryId   String
+  sku     String?
+  barcode String?
 
-  stock        Int      @default(0)
+  stock      Int     @default(0)
+  trackStock Boolean @default(true)
 
-  isActive     Boolean  @default(true)
-  isFeatured   Boolean  @default(false)
+  weight Float?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  category     Category        @relation(fields: [categoryId], references: [id])
-
-  images       ProductImage[]
-  variants     ProductVariant[]
-  reviews      Review[]
-  wishlist     Wishlist[]
-  orderItems   OrderItem[]
-  cartItems    CartItem[]
-
-  @@index([slug])
-  @@index([categoryId])
-  @@index([isActive, isFeatured])
-}
-
-model ProductImage {
-  id        String  @id @default(cuid())
-  productId String
-  url       String
-  isPrimary Boolean @default(false)
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-}
-
-model ProductVariant {
-  id        String   @id @default(cuid())
-  productId String
-  name      String
-  sku       String?
-  price     Decimal  @db.Decimal(10, 2)
-  stock     Int      @default(0)
+  isActive   Boolean @default(true)
+  isFeatured Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  cartItems  CartItem[]
+  images     ProductImage[]
+  variants   ProductVariant[]
+  categories ProductCategory[]
+  reviews    Review[]
+  wishlist   Wishlist[]
   orderItems OrderItem[]
-
-  @@index([productId])
+  cartItems  CartItem[]
 }
 
-// ============================================================================
-// Cart
-// ============================================================================
+////////////////////////////////////////////////////////////
+// PRODUCT CATEGORY (many-to-many)
+////////////////////////////////////////////////////////////
+
+model ProductCategory {
+  productId  String
+  categoryId String
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+}
+
+////////////////////////////////////////////////////////////
+// PRODUCT IMAGES
+////////////////////////////////////////////////////////////
+
+model ProductImage {
+  id String @id @default(cuid())
+
+  productId String
+
+  url String
+
+  altText String?
+
+  displayOrder Int @default(0)
+
+  isPrimary Boolean @default(false)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+////////////////////////////////////////////////////////////
+// PRODUCT VARIANTS
+////////////////////////////////////////////////////////////
+
+model ProductVariant {
+  id String @id @default(cuid())
+
+  productId String
+
+  name String
+
+  sku String?
+
+  price Decimal @db.Decimal(10, 2)
+
+  stock Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+}
+
+////////////////////////////////////////////////////////////
+// CART
+////////////////////////////////////////////////////////////
 
 model Cart {
-  id     String  @id @default(cuid())
+  id String @id @default(cuid())
+
   userId String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
   items CartItem[]
 }
 
 model CartItem {
-  id        String @id @default(cuid())
-  cartId    String
+  id String @id @default(cuid())
+
+  cartId String
 
   productId String
   variantId String?
 
-  quantity  Int @default(1)
+  quantity Int @default(1)
 
   cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
   product Product         @relation(fields: [productId], references: [id])
   variant ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@unique([cartId, productId, variantId])
-  @@index([cartId])
 }
 
-// ============================================================================
-// Orders
-// ============================================================================
+////////////////////////////////////////////////////////////
+// ORDER
+////////////////////////////////////////////////////////////
 
 model Order {
-  id              String      @id @default(cuid())
-  orderNumber     String      @unique
+  id String @id @default(cuid())
 
-  userId          String?
+  orderNumber String @unique
+
+  userId String?
 
   customerName    String
   customerPhone   String
   customerEmail   String?
   customerAddress String?
-  customerNote    String?
 
-  subtotal        Decimal     @db.Decimal(10, 2)
-  deliveryFee     Decimal     @db.Decimal(10, 2) @default(0)
-  discount        Decimal     @db.Decimal(10, 2) @default(0)
-  total           Decimal     @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+  deliveryFee Decimal @db.Decimal(10, 2)
+  discount    Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
 
-  status          OrderStatus @default(PENDING)
+  status OrderStatus @default(PENDING)
 
-  paymentMethod   String?
-  paymentStatus   String?
-
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  user       User?       @relation(fields: [userId], references: [id])
-  orderItems OrderItem[]
-
-  @@index([orderNumber])
-  @@index([userId])
-  @@index([customerPhone])
-  @@index([status])
-  @@index([createdAt])
-}
-
-model OrderItem {
-  id         String  @id @default(cuid())
-  orderId    String
-
-  productId  String
-  variantId  String?
-
-  name       String
-  price      Decimal @db.Decimal(10, 2)
-  quantity   Int
-  subtotal   Decimal @db.Decimal(10, 2)
-
-  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product         @relation(fields: [productId], references: [id])
-  variant ProductVariant? @relation(fields: [variantId], references: [id])
-
-  @@index([orderId])
-  @@index([productId])
-}
-
-// ============================================================================
-// Reviews & Wishlist
-// ============================================================================
-
-model Review {
-  id        String @id @default(cuid())
-
-  userId    String
-  productId String
-
-  rating    Int
-  comment   String?
-
-  createdAt DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
-
-  @@unique([userId, productId])
-  @@index([productId])
-}
-
-model Wishlist {
-  id        String @id @default(cuid())
-
-  userId    String
-  productId String
-
-  createdAt DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
-
-  @@unique([userId, productId])
-}
-
-// ============================================================================
-// Coupon
-// ============================================================================
-
-model Coupon {
-  id        String @id @default(cuid())
-
-  code      String @unique
-
-  type      DiscountType
-  value     Decimal @db.Decimal(10, 2)
-
-  minOrder  Decimal? @db.Decimal(10, 2)
-
-  startAt   DateTime
-  endAt     DateTime
-
-  usageLimit Int?
-
-  createdAt DateTime @default(now())
-}
-
-// ============================================================================
-// CMS & Settings
-// ============================================================================
-
-model Banner {
-  id           String          @id @default(cuid())
-  title        String
-  description  String?
-
-  imageUrl     String?
-  linkUrl      String?
-
-  placement    BannerPlacement @default(HOME_HERO)
-
-  displayOrder Int             @default(0)
-
-  isActive     Boolean         @default(true)
-
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-
-  @@index([isActive, displayOrder])
-  @@index([placement])
-}
-
-model Setting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
+  paymentMethod PaymentMethod?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([key])
+  user       User?       @relation(fields: [userId], references: [id])
+  orderItems OrderItem[]
+  payment    Payment?
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+
+  productId String
+  variantId String?
+
+  name String
+
+  price Decimal @db.Decimal(10, 2)
+
+  quantity Int
+
+  subtotal Decimal @db.Decimal(10, 2)
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+////////////////////////////////////////////////////////////
+// PAYMENT
+////////////////////////////////////////////////////////////
+
+model Payment {
+  id String @id @default(cuid())
+
+  orderId String @unique
+
+  provider String
+
+  transactionId String?
+
+  amount Decimal @db.Decimal(10, 2)
+
+  status String
+
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+////////////////////////////////////////////////////////////
+// REVIEW
+////////////////////////////////////////////////////////////
+
+model Review {
+  id String @id @default(cuid())
+
+  userId    String
+  productId String
+
+  rating  Int
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+////////////////////////////////////////////////////////////
+// WISHLIST
+////////////////////////////////////////////////////////////
+
+model Wishlist {
+  id String @id @default(cuid())
+
+  userId    String
+  productId String
+
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+////////////////////////////////////////////////////////////
+// COUPON
+////////////////////////////////////////////////////////////
+
+model Coupon {
+  id String @id @default(cuid())
+
+  code String @unique
+
+  type  DiscountType
+  value Decimal      @db.Decimal(10, 2)
+
+  minOrder    Decimal?
+  maxDiscount Decimal?
+
+  usageLimit Int?
+
+  startAt DateTime
+  endAt   DateTime
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+}
+
+////////////////////////////////////////////////////////////
+// MENU (for navigation)
+////////////////////////////////////////////////////////////
+
+model MenuItem {
+  id String @id @default(cuid())
+
+  title String
+
+  url String?
+
+  parentId   String?
+  categoryId String?
+  pageId     String?
+
+  type MenuType @default(CATEGORY)
+
+  displayOrder Int @default(0)
+
+  isActive Boolean @default(true)
+
+  parent   MenuItem?  @relation("MenuTree", fields: [parentId], references: [id])
+  children MenuItem[] @relation("MenuTree")
+
+  category Category? @relation(fields: [categoryId], references: [id])
+  page     Page?     @relation(fields: [pageId], references: [id])
+}
+
+////////////////////////////////////////////////////////////
+// CMS PAGE
+////////////////////////////////////////////////////////////
+
+model Page {
+  id String @id @default(cuid())
+
+  title String
+  slug  String @unique
+
+  content String
+
+  isPublished Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menuItems MenuItem[]
+}
+
+////////////////////////////////////////////////////////////
+// BANNER
+////////////////////////////////////////////////////////////
+
+model Banner {
+  id String @id @default(cuid())
+
+  title       String
+  description String?
+
+  imageUrl String?
+  linkUrl  String?
+
+  displayOrder Int @default(0)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+}
+
+////////////////////////////////////////////////////////////
+// SETTINGS
+////////////////////////////////////////////////////////////
+
+model Setting {
+  id String @id @default(cuid())
+
+  key   String @unique
+  value String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
         

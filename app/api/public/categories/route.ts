@@ -15,6 +15,13 @@ export async function GET() {
           where: { isActive: true },
           include: {
             _count: { select: { products: true } },
+            children: {
+              where: { isActive: true },
+              include: {
+                _count: { select: { products: true } },
+              },
+              orderBy: { displayOrder: 'asc' },
+            },
           },
           orderBy: { displayOrder: 'asc' },
         },

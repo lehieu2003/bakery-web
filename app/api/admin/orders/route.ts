@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
           user: {
             select: { id: true, phone: true, name: true },
           },
+          payment: true,
           orderItems: {
             include: {
               product: {

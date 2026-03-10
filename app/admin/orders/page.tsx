@@ -109,7 +109,7 @@ export default function OrdersPage() {
               Number(o.discount),
               Number(o.total),
               o.paymentMethod || '',
-              o.paymentStatus || '',
+              o.payment?.status || 'N/A',
               o.status,
               new Date(o.createdAt).toLocaleString('vi-VN'),
             ]);
@@ -297,12 +297,12 @@ export default function OrdersPage() {
                   <span
                     className={cn(
                       'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
-                      order.paymentStatus === 'PAID'
+                      order.payment?.status === 'PAID'
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-amber-50 text-amber-700 border-amber-200',
                     )}
                   >
-                    {order.paymentStatus || 'PENDING'}
+                    {order.payment?.status || 'N/A'}
                   </span>
                   <p className='text-[10px] text-muted-foreground mt-0.5'>
                     {order.paymentMethod || 'N/A'}
