@@ -12,6 +12,8 @@ import {
   Settings,
   X,
   Crown,
+  FileText,
+  Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +49,16 @@ const navItems: NavItem[] = [
     label: 'Banners',
     href: '/admin/banners',
     icon: <Image size={16} />,
+  },
+  {
+    label: 'Pages',
+    href: '/admin/pages',
+    icon: <FileText size={16} />,
+  },
+  {
+    label: 'Menu',
+    href: '/admin/menu',
+    icon: <Menu size={16} />,
   },
   {
     label: 'Membership',

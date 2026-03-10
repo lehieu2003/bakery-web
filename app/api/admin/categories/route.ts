@@ -14,6 +14,12 @@ export async function GET() {
         children: {
           include: {
             _count: { select: { products: true } },
+            children: {
+              include: {
+                _count: { select: { products: true } },
+              },
+              orderBy: { displayOrder: 'asc' },
+            },
           },
           orderBy: { displayOrder: 'asc' },
         },
@@ -57,7 +63,6 @@ export async function POST(request: NextRequest) {
       description,
       imageUrl,
       parentId,
-      level,
       displayOrder,
       isActive,
     } = body;
@@ -70,9 +75,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate parentId if provided
+    let parentLevel = 0;
     if (parentId) {
       const parent = await prisma.category.findUnique({
         where: { id: parentId },
+        select: { id: true, level: true },
       });
       if (!parent) {
         return NextResponse.json(
@@ -80,6 +87,7 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
+      parentLevel = parent.level;
     }
 
     const category = await prisma.category.create({
@@ -89,7 +97,7 @@ export async function POST(request: NextRequest) {
         description,
         imageUrl,
         parentId: parentId || null,
-        level: level ?? (parentId ? 2 : 1),
+        level: parentId ? parentLevel + 1 : 1,
         displayOrder: displayOrder || 0,
         isActive: isActive !== undefined ? isActive : true,
         showInMenu: body.showInMenu !== undefined ? body.showInMenu : true,

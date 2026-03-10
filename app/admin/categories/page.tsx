@@ -87,10 +87,21 @@ export default function CategoriesPage() {
     return c.name.toLowerCase().includes(search.toLowerCase());
   });
 
-  // For parent selector: only root-level categories (exclude current edit target)
-  const parentOptions = (categories || []).filter(
-    (c) => !editCat || c.id !== editCat.id,
-  );
+  // For parent selector: all categories flattened (exclude current edit target and its children)
+  const getDescendantIds = (catId: string): string[] => {
+    const cat = allFlat.find((c) => c.id === catId);
+    if (!cat?.children) return [];
+    const ids: string[] = [];
+    for (const child of cat.children) {
+      ids.push(child.id);
+      ids.push(...getDescendantIds(child.id));
+    }
+    return ids;
+  };
+  const excludeIds = editCat
+    ? [editCat.id, ...getDescendantIds(editCat.id)]
+    : [];
+  const parentOptions = allFlat.filter((c) => !excludeIds.includes(c.id));
 
   const openCreate = (parentId?: string) => {
     setEditCat(null);
@@ -125,7 +136,6 @@ export default function CategoriesPage() {
             slug,
             description: formDescription || undefined,
             parentId: formParentId || undefined,
-            level: formParentId ? 2 : 1,
             displayOrder: formDisplayOrder,
           },
         });
@@ -135,7 +145,6 @@ export default function CategoriesPage() {
           slug,
           description: formDescription || undefined,
           parentId: formParentId || undefined,
-          level: formParentId ? 2 : 1,
           displayOrder: formDisplayOrder,
         });
       }
@@ -302,7 +311,7 @@ export default function CategoriesPage() {
                 </td>
                 <td className='px-5 py-3.5'>
                   <div className='flex items-center gap-1 justify-end'>
-                    {cat.depth === 0 && (
+                    {cat.depth < 2 && (
                       <button
                         onClick={() => openCreate(cat.id)}
                         className='p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground'
@@ -361,7 +370,7 @@ export default function CategoriesPage() {
                   </SelectItem>
                   {parentOptions.map((c) => (
                     <SelectItem key={c.id} value={c.id} className='text-xs'>
-                      {c.name}
+                      {'—'.repeat(c.depth)} {c.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
