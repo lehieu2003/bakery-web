@@ -50,6 +50,29 @@ const navItems: NavItem[] = [
     href: '/admin/banners',
     icon: <Image size={16} />,
   },
+  // Blog section
+  {
+    label: 'Blog',
+    href: '/admin/blog/posts',
+    icon: <FileText size={16} />,
+    children: [
+      {
+        label: 'Bài viết',
+        href: '/admin/blog/posts',
+        icon: <FileText size={14} />,
+      },
+      {
+        label: 'Danh mục',
+        href: '/admin/blog/categories',
+        icon: <ListTree size={14} />,
+      },
+      {
+        label: 'Tags',
+        href: '/admin/blog/tags',
+        icon: <Menu size={14} />,
+      },
+    ],
+  },
   {
     label: 'Pages',
     href: '/admin/pages',

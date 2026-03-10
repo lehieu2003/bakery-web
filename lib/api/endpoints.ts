@@ -92,6 +92,34 @@ export const ENDPOINTS = {
       UPDATE: (id: string) => `${ADMIN_BASE}/menu/${id}`,
       DELETE: (id: string) => `${ADMIN_BASE}/menu/${id}`,
     },
+
+    // Blog Posts
+    BLOG_POSTS: {
+      LIST: `${ADMIN_BASE}/blog/posts`,
+      DETAIL: (id: string) => `${ADMIN_BASE}/blog/posts/${id}`,
+      CREATE: `${ADMIN_BASE}/blog/posts`,
+      UPDATE: (id: string) => `${ADMIN_BASE}/blog/posts/${id}`,
+      DELETE: (id: string) => `${ADMIN_BASE}/blog/posts/${id}`,
+      UPDATE_STATUS: (id: string) => `${ADMIN_BASE}/blog/posts/${id}/status`,
+    },
+
+    // Blog Categories
+    BLOG_CATEGORIES: {
+      LIST: `${ADMIN_BASE}/blog/categories`,
+      DETAIL: (id: string) => `${ADMIN_BASE}/blog/categories/${id}`,
+      CREATE: `${ADMIN_BASE}/blog/categories`,
+      UPDATE: (id: string) => `${ADMIN_BASE}/blog/categories/${id}`,
+      DELETE: (id: string) => `${ADMIN_BASE}/blog/categories/${id}`,
+    },
+
+    // Blog Tags
+    BLOG_TAGS: {
+      LIST: `${ADMIN_BASE}/blog/tags`,
+      DETAIL: (id: string) => `${ADMIN_BASE}/blog/tags/${id}`,
+      CREATE: `${ADMIN_BASE}/blog/tags`,
+      UPDATE: (id: string) => `${ADMIN_BASE}/blog/tags/${id}`,
+      DELETE: (id: string) => `${ADMIN_BASE}/blog/tags/${id}`,
+    },
   },
 
   // ============================================================================
@@ -106,6 +134,12 @@ export const ENDPOINTS = {
     PAGES: `${API_BASE}/public/pages`,
     PAGE_DETAIL: (slug: string) => `${API_BASE}/public/pages/${slug}`,
     MENU: `${API_BASE}/public/menu`,
+
+    // Blog
+    BLOG_POSTS: `${API_BASE}/blog/posts`,
+    BLOG_POST_DETAIL: (slug: string) => `${API_BASE}/blog/posts/${slug}`,
+    BLOG_CATEGORIES: `${API_BASE}/blog/categories`,
+    BLOG_TAGS: `${API_BASE}/blog/tags`,
   },
 
   // ============================================================================
