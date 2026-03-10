@@ -9,27 +9,6 @@ import { getProductImage, getProductImages } from '@/lib/utils';
 import Link from 'next/link';
 import { ProductVariant } from '@/types/api.types';
 
-const RELATED = [
-  {
-    id: 'c2',
-    name: 'Dark Chocolate Mousse',
-    price: 380000,
-    image: '/images/cake-2.jpg',
-  },
-  {
-    id: 'c3',
-    name: 'Strawberry Chiffon',
-    price: 320000,
-    image: '/images/cake-3.jpg',
-  },
-  {
-    id: 'i1',
-    name: 'Premium Almond Flour',
-    price: 85000,
-    image: '/images/ing-1.jpg',
-  },
-];
-
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
 
@@ -385,45 +364,6 @@ export default function ProductDetailScreen({
                 to enjoy membership discounts.
               </p>
             )}
-          </div>
-        </div>
-
-        {/* Frequently Bought Together */}
-        <div className='mt-16 pt-10 border-t border-border'>
-          <h2 className='font-serif text-2xl font-semibold text-foreground mb-7'>
-            Frequently Bought Together
-          </h2>
-          <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
-            {RELATED.map((r) => (
-              <div
-                key={r.id}
-                className='bg-card rounded-2xl overflow-hidden border border-border/50 hover:shadow-md transition-shadow'
-              >
-                <div
-                  className='relative w-full overflow-hidden bg-secondary'
-                  style={{ paddingBottom: '80%' }}
-                >
-                  <Image
-                    src={r.image}
-                    alt={r.name}
-                    fill
-                    loading='lazy'
-                    sizes='(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw'
-                    placeholder='blur'
-                    blurDataURL={PLACEHOLDER_BLUR}
-                    className='object-cover'
-                  />
-                </div>
-                <div className='p-4'>
-                  <p className='text-sm font-semibold text-foreground text-balance'>
-                    {r.name}
-                  </p>
-                  <p className='text-sm font-bold text-accent mt-1.5'>
-                    {r.price.toLocaleString('vi-VN')}đ
-                  </p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
