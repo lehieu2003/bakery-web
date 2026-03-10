@@ -21,7 +21,11 @@ import type { Category } from '@/types/api.types';
 interface NavLink {
   label: string;
   href: string;
-  children: { label: string; href: string; children: { label: string; href: string }[] }[];
+  children: {
+    label: string;
+    href: string;
+    children: { label: string; href: string }[];
+  }[];
 }
 
 export default function WebNavbar() {
@@ -30,7 +34,9 @@ export default function WebNavbar() {
   const { data: categoriesData } = useCategories();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [openMobileCategory, setOpenMobileCategory] = useState<string | null>(null);
+  const [openMobileCategory, setOpenMobileCategory] = useState<string | null>(
+    null,
+  );
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -212,8 +218,11 @@ export default function WebNavbar() {
 
       {/* Navigation bar + mega-menu container */}
       <div className='bg-white border-b border-gray-100 hidden md:block'>
-        <div className='max-w-7xl mx-auto px-4 lg:px-8'>
-          <nav className='flex items-center' aria-label='Category navigation'>
+        <div className='mx-auto px-4 lg:px-8'>
+          <nav
+            className='flex items-center overflow-x-auto scrollbar-hide'
+            aria-label='Category navigation'
+          >
             {navLinks.map((link) => (
               <div
                 key={link.href}
@@ -322,7 +331,9 @@ export default function WebNavbar() {
                         : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
                     }`}
                   >
-                    <span className='uppercase tracking-wide'>{link.label}</span>
+                    <span className='uppercase tracking-wide'>
+                      {link.label}
+                    </span>
                   </Link>
                   {link.children.length > 0 && (
                     <button
@@ -345,24 +356,25 @@ export default function WebNavbar() {
                 </div>
 
                 {/* Mobile subcategories accordion */}
-                {link.children.length > 0 && openMobileCategory === link.href && (
-                  <div className='ml-4 mt-1 space-y-0.5 border-l-2 border-primary/20 pl-3'>
-                    {link.children.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                          isActive(child.href)
-                            ? 'bg-primary/10 text-primary font-medium'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
-                        }`}
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
+                {link.children.length > 0 &&
+                  openMobileCategory === link.href && (
+                    <div className='ml-4 mt-1 space-y-0.5 border-l-2 border-primary/20 pl-3'>
+                      {link.children.map((child) => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                            isActive(child.href)
+                              ? 'bg-primary/10 text-primary font-medium'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
+                          }`}
+                        >
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
               </div>
             ))}
             {!user && !isLoading && (
