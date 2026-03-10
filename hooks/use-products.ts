@@ -26,16 +26,20 @@ export const productKeys = {
 /**
  * Hook to get products with optional filters
  */
-export function useProducts(params?: {
-  categoryId?: string;
-  search?: string;
-  page?: number;
-  limit?: number;
-}) {
+export function useProducts(
+  params?: {
+    categoryId?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: productKeys.list(params),
     queryFn: () => productService.getProducts(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: options?.enabled ?? true,
   });
 }
 

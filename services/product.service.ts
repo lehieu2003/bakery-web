@@ -17,7 +17,10 @@ export const productService = {
     page?: number;
     limit?: number;
   }) => {
-    const response = await http.get<{ products: Product[]; total: number }>(
+    const response = await http.get<{
+      products: Product[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(
       ENDPOINTS.PUBLIC.PRODUCTS,
       {
         params,

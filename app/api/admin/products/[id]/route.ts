@@ -64,6 +64,7 @@ export async function PUT(
       categories,
       categoryIds,
       category,
+      imageUrl,
       ...updateData
     } = body as Record<string, any>;
 
