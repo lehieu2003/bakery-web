@@ -6,6 +6,19 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';
 import { getProductImage } from '@/lib/utils';
+import type { Category } from '@/types/api.types';
+
+/** Recursively search the category tree by slug */
+function findCategoryBySlug(categories: Category[], slug: string): Category | undefined {
+  for (const cat of categories) {
+    if (cat.slug === slug) return cat;
+    if (cat.children?.length) {
+      const found = findCategoryBySlug(cat.children, slug);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
 
 type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc';
 const SORT_LABELS: Record<SortOption, string> = {
@@ -26,19 +39,21 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
   const [sort, setSort] = useState<SortOption>('popular');
   const [subCategoryId, setSubCategoryId] = useState<string>('all');
 
-  // Fetch categories and find the matching one by slug
+  // Fetch categories and find the matching one by slug (searches all levels)
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
 
-  const categoryData = categories.find((cat) => cat.slug === categorySlug);
+  const categoryData = findCategoryBySlug(categories, categorySlug);
 
   // Sub-categories from tree
-  const subCategories = (categoryData as any)?.children || [];
+  const subCategories = categoryData?.children || [];
 
-  // Fetch products filtered by category
-  const { data: productsData, isLoading } = useProducts({
-    categoryId: categoryData?.id,
-  });
+  // Fetch products filtered by category — wait until categories are loaded
+  // so we always query with the correct categoryId (never undefined).
+  const { data: productsData, isLoading } = useProducts(
+    { categoryId: categoryData?.id },
+    { enabled: !!categoriesData },
+  );
 
   const products = (productsData?.products || []).filter((p) => {
     if (!p.isActive) return false;

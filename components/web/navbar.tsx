@@ -9,13 +9,21 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useAuth } from '@/providers/auth-provider';
 import { useCategories } from '@/hooks/use-products';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { Category } from '@/types/api.types';
+
+interface NavLink {
+  label: string;
+  href: string;
+  children: { label: string; href: string; children: { label: string; href: string }[] }[];
+}
 
 export default function WebNavbar() {
   const { user, cart } = useCart();
@@ -23,20 +31,40 @@ export default function WebNavbar() {
   const { data: categoriesData } = useCategories();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openMobileCategory, setOpenMobileCategory] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const dropdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
-  // Build nav links dynamically from root categories
-  const navLinks = useMemo(() => {
-    const links: { label: string; href: string }[] = [];
-    if (categoriesData) {
-      for (const cat of categoriesData) {
-        links.push({ label: cat.name, href: `/categories/${cat.slug}` });
-      }
-    }
-    return links;
+  // Build nav links dynamically from root categories, preserving children
+  const navLinks = useMemo((): NavLink[] => {
+    if (!categoriesData) return [];
+    return categoriesData.map((cat: Category) => ({
+      label: cat.name,
+      href: `/categories/${cat.slug}`,
+      children: (cat.children || []).map((child) => ({
+        label: child.name,
+        href: `/categories/${child.slug}`,
+        children: (child.children || []).map((grand) => ({
+          label: grand.name,
+          href: `/categories/${grand.slug}`,
+        })),
+      })),
+    }));
   }, [categoriesData]);
+
+  const handleMouseEnter = (href: string) => {
+    if (dropdownTimerRef.current) clearTimeout(dropdownTimerRef.current);
+    setActiveDropdown(href);
+  };
+
+  const handleMouseLeave = () => {
+    dropdownTimerRef.current = setTimeout(() => {
+      setActiveDropdown(null);
+    }, 120);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -188,18 +216,77 @@ export default function WebNavbar() {
         <div className='mx-auto px-4 lg:px-8'>
           <nav className='flex items-center' aria-label='Category navigation'>
             {navLinks.map((link) => (
-              <Link
+              <div
                 key={link.href}
-                href={link.href}
-                className={`flex items-center gap-1 px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 ${
-                  isActive(link.href)
-                    ? 'text-primary border-primary'
-                    : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
-                }`}
+                className='relative'
+                onMouseEnter={() => handleMouseEnter(link.href)}
+                onMouseLeave={handleMouseLeave}
               >
-                {link.label}
-                <ChevronDown size={13} className='text-gray-400' />
-              </Link>
+                <Link
+                  href={link.href}
+                  className={`flex items-center gap-1 px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 ${
+                    isActive(link.href)
+                      ? 'text-primary border-primary'
+                      : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
+                  }`}
+                >
+                  {link.label}
+                  {link.children.length > 0 && (
+                    <ChevronDown
+                      size={13}
+                      className={`transition-transform duration-200 ${
+                        activeDropdown === link.href ? 'rotate-180 text-primary' : 'text-gray-400'
+                      }`}
+                    />
+                  )}
+                </Link>
+
+                {/* Dropdown submenu */}
+                {link.children.length > 0 && activeDropdown === link.href && (
+                  <div
+                    className='absolute left-0 top-full z-50 min-w-[200px] bg-white border border-gray-100 rounded-lg shadow-lg py-2'
+                    onMouseEnter={() => handleMouseEnter(link.href)}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    {link.children.map((child) => (
+                      <div key={child.href} className='relative group/child'>
+                        <Link
+                          href={child.href}
+                          className={`flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${
+                            isActive(child.href)
+                              ? 'text-primary bg-primary/5 font-medium'
+                              : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+                          }`}
+                        >
+                          <span>{child.label}</span>
+                          {child.children.length > 0 && (
+                            <ChevronRight size={13} className='text-gray-400' />
+                          )}
+                        </Link>
+
+                        {/* Third-level submenu */}
+                        {child.children.length > 0 && (
+                          <div className='absolute left-full top-0 z-50 min-w-[180px] bg-white border border-gray-100 rounded-lg shadow-lg py-2 hidden group-hover/child:block'>
+                            {child.children.map((grand) => (
+                              <Link
+                                key={grand.href}
+                                href={grand.href}
+                                className={`block px-4 py-2.5 text-sm transition-colors ${
+                                  isActive(grand.href)
+                                    ? 'text-primary bg-primary/5 font-medium'
+                                    : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+                                }`}
+                              >
+                                {grand.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </nav>
         </div>
@@ -210,19 +297,59 @@ export default function WebNavbar() {
         <div className='md:hidden border-t border-gray-100 bg-white shadow-lg'>
           <nav className='max-w-7xl mx-auto px-4 py-4 space-y-1'>
             {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive(link.href)
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
-                }`}
-              >
-                <span className='uppercase tracking-wide'>{link.label}</span>
-                <ChevronDown size={14} className='text-gray-400' />
-              </Link>
+              <div key={link.href}>
+                <div className='flex items-center'>
+                  <Link
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex-1 flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive(link.href)
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
+                    }`}
+                  >
+                    <span className='uppercase tracking-wide'>{link.label}</span>
+                  </Link>
+                  {link.children.length > 0 && (
+                    <button
+                      onClick={() =>
+                        setOpenMobileCategory(
+                          openMobileCategory === link.href ? null : link.href,
+                        )
+                      }
+                      className='p-2.5 text-gray-400 hover:text-primary transition-colors'
+                      aria-label={`Toggle ${link.label} submenu`}
+                    >
+                      <ChevronDown
+                        size={15}
+                        className={`transition-transform duration-200 ${
+                          openMobileCategory === link.href ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile subcategories accordion */}
+                {link.children.length > 0 && openMobileCategory === link.href && (
+                  <div className='ml-4 mt-1 space-y-0.5 border-l-2 border-primary/20 pl-3'>
+                    {link.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isActive(child.href)
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
+                        }`}
+                      >
+                        {child.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
             {!user && !isLoading && (
               <Link
