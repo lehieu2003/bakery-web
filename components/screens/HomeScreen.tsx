@@ -220,7 +220,7 @@ export default function HomeScreen() {
             <p className='text-xs tracking-[0.25em] uppercase text-muted-foreground font-sans font-light mb-3'>
               Chuỗi tiệm bánh kết hợp không gian F&B tại TP.HCM
             </p>
-            <h2 className='font-serif text-2xl lg:text-3xl font-semibold text-[#7b3f2e] leading-snug mb-6 text-balance'>
+            <h2 className='font-serif text-2xl lg:text-3xl font-semibold text-primary leading-snug mb-6 text-balance'>
               LA DOUCEUR – TIỆM BÁNH NGON Ở SÀI GÒN VỚI KHÔNG GIAN ĂN UỐNG
               THOẢI MÁI
             </h2>
