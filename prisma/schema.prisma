@@ -57,6 +57,12 @@ enum MenuType {
   LINK
 }
 
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 ////////////////////////////////////////////////////////////
 // USER & AUTH
 ////////////////////////////////////////////////////////////
@@ -85,6 +91,8 @@ model User {
   addresses Address[]
   reviews   Review[]
   wishlist  Wishlist[]
+  blogPosts BlogPost[]
+  blogComments BlogComment[]
 
   cart Cart?
 
@@ -522,6 +530,108 @@ model Banner {
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
+}
+
+////////////////////////////////////////////////////////////
+// BLOG
+////////////////////////////////////////////////////////////
+
+model BlogCategory {
+  id String @id @default(cuid())
+
+  name String
+  slug String @unique
+
+  description String?
+  imageUrl    String?
+
+  displayOrder Int @default(0)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts BlogPost[]
+}
+
+model BlogTag {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  posts BlogPostTag[]
+}
+
+model BlogPost {
+  id String @id @default(cuid())
+
+  title   String
+  slug    String @unique
+  excerpt String?
+
+  content  String
+  coverUrl String?
+
+  authorId   String
+  categoryId String?
+
+  status      BlogPostStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  viewCount Int @default(0)
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User          @relation(fields: [authorId], references: [id])
+  category BlogCategory? @relation(fields: [categoryId], references: [id])
+
+  tags     BlogPostTag[]
+  comments BlogComment[]
+
+  @@index([slug])
+  @@index([status, publishedAt])
+}
+
+model BlogPostTag {
+  postId String
+  tagId  String
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+model BlogComment {
+  id String @id @default(cuid())
+
+  postId   String
+  userId   String?
+
+  // Guest comment (không cần đăng nhập)
+  guestName  String?
+  guestEmail String?
+
+  content String
+
+  isApproved Boolean @default(false)
+
+  parentId String?
+  parent   BlogComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  BlogComment[] @relation("CommentReplies")
+
+  createdAt DateTime @default(now())
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User?    @relation(fields: [userId], references: [id])
+
+  @@index([postId])
 }
 
 ////////////////////////////////////////////////////////////
