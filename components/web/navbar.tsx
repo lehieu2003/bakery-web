@@ -1,6 +1,15 @@
 'use client';
 
-import { ShoppingCart, Search, Phone, MapPin, User, Menu, X, ChevronDown } from 'lucide-react';
+import {
+  ShoppingCart,
+  Search,
+  Phone,
+  MapPin,
+  User,
+  Menu,
+  X,
+  ChevronDown,
+} from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useAuth } from '@/providers/auth-provider';
@@ -46,7 +55,10 @@ export default function WebNavbar() {
           <div className='flex items-center gap-1'>
             <MapPin size={12} className='text-primary' />
             <span>Khu vực của bạn:</span>
-            <a href='#' className='text-primary font-medium hover:underline ml-1'>
+            <a
+              href='#'
+              className='text-primary font-medium hover:underline ml-1'
+            >
               Nội thành TP. HCM
             </a>
           </div>
@@ -57,9 +69,13 @@ export default function WebNavbar() {
             </a>
           </div>
           <div className='hidden md:flex items-center gap-4'>
-            <a href='#' className='hover:text-primary transition-colors'>Blog</a>
+            <a href='#' className='hover:text-primary transition-colors'>
+              Blog
+            </a>
             <span className='text-gray-300'>|</span>
-            <a href='#' className='hover:text-primary transition-colors'>Địa chỉ</a>
+            <a href='#' className='hover:text-primary transition-colors'>
+              Địa chỉ
+            </a>
           </div>
         </div>
       </div>
@@ -70,8 +86,11 @@ export default function WebNavbar() {
           {/* Logo */}
           <Link href='/' className='flex-shrink-0' aria-label='Go to home'>
             <div className='flex flex-col items-center leading-none'>
-              <span className='font-serif text-3xl font-bold text-primary tracking-tight' style={{ fontFamily: 'Georgia, serif' }}>
-                abby
+              <span
+                className='font-serif text-3xl font-bold text-primary tracking-tight'
+                style={{ fontFamily: 'Georgia, serif' }}
+              >
+                La Douceur
               </span>
               <span className='text-[8px] tracking-widest text-gray-400 uppercase font-light -mt-0.5'>
                 Make something different
@@ -89,7 +108,7 @@ export default function WebNavbar() {
           <div className='flex-1 relative'>
             <input
               type='text'
-              placeholder='Bạn tìm gì ở Abby'
+              placeholder='Bạn tìm gì ở La Douceur?'
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className='w-full border border-gray-200 rounded-md px-4 py-2.5 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
@@ -118,7 +137,9 @@ export default function WebNavbar() {
                   </span>
                 )}
               </div>
-              <span className='hidden md:block text-sm font-medium'>{cartCount}</span>
+              <span className='hidden md:block text-sm font-medium'>
+                {cartCount}
+              </span>
             </Link>
 
             {/* Profile */}
