@@ -501,3 +501,93 @@ export interface CustomersQueryParams extends PaginationParams {
   search?: string;
   level?: MemberLevel;
 }
+
+// Enum
+export type BlogPostStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+// Models
+export interface BlogCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { posts: number };
+}
+
+export interface BlogTag {
+  id: string;
+  name: string;
+  slug: string;
+  _count?: { posts: number };
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: string;
+  coverUrl: string | null;
+  authorId: string;
+  author?: Pick<User, 'id' | 'name'>;
+  categoryId: string | null;
+  category?: BlogCategory | null;
+  tags?: BlogTag[];
+  status: BlogPostStatus;
+  publishedAt: string | null;
+  viewCount: number;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Requests
+export interface CreateBlogPostRequest {
+  title: string;
+  slug: string;
+  excerpt?: string;
+  content: string;
+  coverUrl?: string;
+  categoryId?: string;
+  tagIds?: string[];
+  status?: BlogPostStatus;
+  publishedAt?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+}
+
+export type UpdateBlogPostRequest = Partial<CreateBlogPostRequest>;
+
+export interface CreateBlogCategoryRequest {
+  name: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export type UpdateBlogCategoryRequest = Partial<CreateBlogCategoryRequest>;
+
+export interface CreateBlogTagRequest {
+  name: string;
+  slug: string;
+}
+
+export type UpdateBlogTagRequest = Partial<CreateBlogTagRequest>;
+
+// Query Params
+export interface BlogPostsQueryParams extends PaginationParams {
+  search?: string;
+  status?: BlogPostStatus;
+  categoryId?: string;
+  categorySlug?: string;
+  tagId?: string;
+  tagSlug?: string;
+}
