@@ -98,56 +98,6 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* Fallback Hero (if no banners) */}
-      {!bannersLoading && (!banners || banners.length === 0) && (
-        <section className='relative h-[400px] md:h-[480px] lg:h-[560px] w-full overflow-hidden'>
-          <Image
-            src='/images/hero-cake.jpg'
-            alt='Signature hero cake'
-            fill
-            className='object-cover object-center'
-            priority
-          />
-          <div className='absolute inset-0 bg-gradient-to-r from-foreground/65 via-foreground/30 to-transparent' />
-          <div className='absolute inset-0 flex items-center'>
-            <div className='max-w-7xl mx-auto px-6 lg:px-8 w-full'>
-              <div className='max-w-xl'>
-                <p className='text-white/70 text-xs tracking-[0.28em] uppercase font-sans font-light mb-4'>
-                  New Collection · 2025
-                </p>
-                <h1 className='font-serif text-4xl lg:text-6xl font-semibold text-white leading-tight text-balance mb-6'>
-                  Celebrate Every
-                  <br />
-                  Moment With
-                  <br />
-                  Our Signature Cakes
-                </h1>
-                <p className='text-white/75 text-base font-sans font-light leading-relaxed mb-8 max-w-sm'>
-                  Handcrafted with premium ingredients, each cake is a work of
-                  art made to order.
-                </p>
-                <div className='flex items-center gap-4'>
-                  <Link
-                    href={firstCategoryHref}
-                    className='px-8 py-3.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg'
-                  >
-                    Explore Menu
-                  </Link>
-                  {categories.length > 1 && (
-                    <Link
-                      href={secondCategoryHref}
-                      className='px-8 py-3.5 bg-white/15 backdrop-blur-sm text-white rounded-full text-sm font-medium hover:bg-white/25 transition-colors border border-white/30'
-                    >
-                      {categories[1].name}
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Inner padded content */}
       <div className='px-4 lg:px-8'>
         {/* Membership Banner */}

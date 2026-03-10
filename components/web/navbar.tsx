@@ -185,7 +185,7 @@ export default function WebNavbar() {
 
       {/* Navigation bar */}
       <div className='bg-white border-b border-gray-100 hidden md:block'>
-        <div className='max-w-7xl mx-auto px-4 lg:px-8'>
+        <div className='mx-auto px-4 lg:px-8'>
           <nav className='flex items-center' aria-label='Category navigation'>
             {navLinks.map((link) => (
               <Link
@@ -201,13 +201,6 @@ export default function WebNavbar() {
                 <ChevronDown size={13} className='text-gray-400' />
               </Link>
             ))}
-            {/* Static workshop link */}
-            <Link
-              href='/'
-              className='px-4 py-3 text-sm font-semibold uppercase tracking-wide text-gray-700 border-b-2 border-transparent hover:text-primary hover:border-primary transition-colors'
-            >
-              Workshop
-            </Link>
           </nav>
         </div>
       </div>
@@ -221,7 +214,7 @@ export default function WebNavbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive(link.href)
                     ? 'bg-primary/10 text-primary'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
