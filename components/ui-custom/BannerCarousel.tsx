@@ -61,7 +61,7 @@ export default function BannerCarousel({
           {banners.map((banner) => (
             <div
               key={banner.id}
-              className='flex-[0_0_100%] min-w-0 relative h-[400px] md:h-[500px] lg:h-[600px]'
+              className='flex-[0_0_100%] min-w-0 relative h-[300px] md:h-[400px] lg:h-[500px]'
             >
               {clickable && banner.linkUrl ? (
                 <Link href={banner.linkUrl} className='block w-full h-full'>
