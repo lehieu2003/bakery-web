@@ -8,6 +8,7 @@ import BannerCarousel from '@/components/ui-custom/BannerCarousel';
 import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';
 import { useBanners } from '@/hooks/use-banners';
+import BestSellersSection from '@/components/screens/BestSellersSection';
 import type { Category } from '@/types/api.types';
 
 const PLACEHOLDER_BLUR =
@@ -97,6 +98,9 @@ export default function HomeScreen() {
           clickable={false}
         />
       )}
+
+      {/* ── Best Sellers ── */}
+      <BestSellersSection />
 
       {/* ── La Douceur – About section ── */}
       <section className='px-4 lg:px-8 py-16 bg-[#faf8f5]'>

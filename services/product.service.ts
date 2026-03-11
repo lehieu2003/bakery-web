@@ -44,6 +44,17 @@ export const productService = {
   },
 
   /**
+   * Get best-selling products ranked by quantity sold
+   */
+  getBestSellers: async (limit = 10) => {
+    const response = await http.get<{ products: (Product & { totalSold: number })[] }>(
+      ENDPOINTS.PUBLIC.BEST_SELLERS,
+      { params: { limit }, showErrorToast: false },
+    );
+    return response.data!.products;
+  },
+
+  /**
    * Get all categories
    */
   getCategories: async () => {
