@@ -32,25 +32,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Restore user from token on mount
   useEffect(() => {
-    const token = authToken.get();
-    if (token) {
-      // Fetch user info from API
-      authService
-        .me()
-        .then((apiUser) => {
-          setUser(apiUser);
-        })
-        .catch(() => {
-          // Token invalid or expired, remove it
-          authToken.remove();
-          setUser(null);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    } else {
-      setIsLoading(false);
-    }
+    const initAuth = async () => {
+      const token = authToken.get();
+
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const apiUser = await authService.me();
+        setUser(apiUser);
+      } catch {
+        authToken.remove();
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
   const logout = useCallback(() => {
