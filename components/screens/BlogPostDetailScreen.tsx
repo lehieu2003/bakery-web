@@ -202,8 +202,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
 
         {/* Sidebar */}
         <aside className='w-full lg:w-72 flex-shrink-0'>
-          <div className='lg:sticky lg:top-24 space-y-5'>
-
+          <div className='lg:sticky lg:top-40 space-y-5'>
             {/* Author Card */}
             {post.author && (
               <div className='bg-card rounded-2xl border border-border p-5'>
@@ -248,7 +247,6 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
                 </Link>
               </div>
             )}
-
           </div>
         </aside>
       </div>
