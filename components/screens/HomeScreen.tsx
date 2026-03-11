@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { useCart } from '@/lib/cart-store';
 import { getProductImage } from '@/lib/utils';
-import MembershipCard from '@/components/ui-custom/MembershipCard';
 import BannerCarousel from '@/components/ui-custom/BannerCarousel';
 import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';
@@ -109,32 +108,6 @@ export default function HomeScreen() {
 
       {/* Inner padded content */}
       <div className='px-4 lg:px-8'>
-        {/* Membership Banner */}
-        <section className='py-8'>
-          {user ? (
-            <div className='max-w-xl'>
-              <MembershipCard user={user!} />
-            </div>
-          ) : (
-            <Link
-              href='/profile'
-              className='rounded-2xl border border-border bg-card px-6 py-5 flex items-center justify-between hover:border-primary/40 transition-colors group'
-            >
-              <div>
-                <p className='font-serif text-base font-semibold text-foreground'>
-                  Join Our Membership Club
-                </p>
-                <p className='text-muted-foreground text-sm mt-0.5'>
-                  Enjoy exclusive rewards and up to 15% off every order.
-                </p>
-              </div>
-              <span className='flex items-center gap-1.5 text-primary text-sm font-medium group-hover:gap-2.5 transition-all'>
-                Join now <ArrowRight size={16} />
-              </span>
-            </Link>
-          )}
-        </section>
-
         {/* Category Sections */}
         {productsByCategory.map(
           ({ category: cat, products: catProducts }, idx) => (
@@ -209,7 +182,6 @@ export default function HomeScreen() {
             </section>
           ),
         )}
-
       </div>
 
       {/* ── La Douceur – About section ── */}
@@ -221,34 +193,32 @@ export default function HomeScreen() {
               Chuỗi tiệm bánh kết hợp không gian F&B tại TP.HCM
             </p>
             <h2 className='font-serif text-2xl lg:text-3xl font-semibold text-primary leading-snug mb-6 text-balance'>
-              LA DOUCEUR – TIỆM BÁNH NGON Ở SÀI GÒN VỚI KHÔNG GIAN ĂN UỐNG
-              THOẢI MÁI
+              LA DOUCEUR – TIỆM BÁNH NGON Ở SÀI GÒN VỚI KHÔNG GIAN ĂN UỐNG THOẢI
+              MÁI
             </h2>
             <div className='space-y-4 text-sm text-foreground leading-relaxed'>
               <p>
-                La Douceur là{' '}
-                <strong>tiệm bánh ngon ở Sài Gòn</strong> được nhiều khách hàng
-                lựa chọn nhờ sự kết hợp hài hòa giữa bánh chất lượng, nước
-                uống đa dạng và{' '}
+                La Douceur là <strong>tiệm bánh ngon ở Sài Gòn</strong> được
+                nhiều khách hàng lựa chọn nhờ sự kết hợp hài hòa giữa bánh chất
+                lượng, nước uống đa dạng và{' '}
                 <strong>không gian ngồi lại thoải mái</strong>. Với hệ thống{' '}
-                <strong>8 chi nhánh tại TP.HCM</strong>, La Douceur không chỉ
-                là nơi mua bánh mang đi mà còn là điểm hẹn quen thuộc cho gia
-                đình, nhóm bạn hay những buổi gặp gỡ cuối tuần.
+                <strong>8 chi nhánh tại TP.HCM</strong>, La Douceur không chỉ là
+                nơi mua bánh mang đi mà còn là điểm hẹn quen thuộc cho gia đình,
+                nhóm bạn hay những buổi gặp gỡ cuối tuần.
               </p>
               <p>
                 Các dòng bánh nổi bật tại La Douceur gồm{' '}
-                <strong>bánh nướng phô mai tan chảy – best seller</strong>,
-                bánh cookies đa dạng và bánh lạnh nhẹ nhàng như su kem,
-                tiramisu, panna cotta. Bên cạnh đó, menu{' '}
+                <strong>bánh nướng phô mai tan chảy – best seller</strong>, bánh
+                cookies đa dạng và bánh lạnh nhẹ nhàng như su kem, tiramisu,
+                panna cotta. Bên cạnh đó, menu{' '}
                 <strong>nước uống dùng tại chỗ</strong> giúp trải nghiệm thưởng
                 thức bánh trở nên trọn vẹn và thư giãn hơn.
               </p>
               <p>
-                Nhờ không gian hiện đại, dễ chịu cùng menu phong phú, La
-                Douceur dần trở thành{' '}
-                <strong>tiệm bánh ngon tại TP.HCM</strong> phù hợp cho nhiều
-                nhu cầu: ăn nhẹ, trò chuyện, hẹn hò hay đưa trẻ nhỏ đi chơi
-                cuối tuần.
+                Nhờ không gian hiện đại, dễ chịu cùng menu phong phú, La Douceur
+                dần trở thành <strong>tiệm bánh ngon tại TP.HCM</strong> phù hợp
+                cho nhiều nhu cầu: ăn nhẹ, trò chuyện, hẹn hò hay đưa trẻ nhỏ đi
+                chơi cuối tuần.
               </p>
             </div>
           </div>
