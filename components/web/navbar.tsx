@@ -81,7 +81,7 @@ export default function WebNavbar() {
   };
 
   return (
-    <header className='sticky top-0 z-50 bg-white shadow-sm'>
+    <header className='bg-white shadow-sm'>
       {/* Top bar */}
       <div className='bg-white border-b border-gray-100'>
         <div className='max-w-7xl mx-auto px-4 lg:px-8 h-9 flex items-center justify-between text-xs text-gray-500'>

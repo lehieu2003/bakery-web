@@ -88,16 +88,8 @@ export default function HomeScreen() {
     };
   });
 
-  // First category link for hero CTA
-  const firstCategoryHref =
-    categories.length > 0 ? `/categories/${categories[0].slug}` : '/';
-  const secondCategoryHref =
-    categories.length > 1
-      ? `/categories/${categories[1].slug}`
-      : firstCategoryHref;
-
   return (
-    <div className='bg-background -mx-4 lg:-mx-8'>
+    <div className='bg-background mx-4 lg:-mx-8'>
       {/* Banner Carousel - full width, breaks out of parent padding */}
       {!bannersLoading && banners && banners.length > 0 && (
         <BannerCarousel
@@ -105,84 +97,6 @@ export default function HomeScreen() {
           clickable={false}
         />
       )}
-
-      {/* Inner padded content */}
-      <div className='px-4 lg:px-8'>
-        {/* Category Sections */}
-        {productsByCategory.map(
-          ({ category: cat, products: catProducts }, idx) => (
-            <section key={cat.id}>
-              {idx > 0 && <div className='h-px bg-border' />}
-              <div className='py-12'>
-                <div className='flex items-end justify-between mb-8'>
-                  <div>
-                    {cat.description && (
-                      <p className='text-xs tracking-[0.22em] uppercase text-muted-foreground font-sans font-light mb-1.5'>
-                        {cat.description}
-                      </p>
-                    )}
-                    <h2 className='font-serif text-3xl font-semibold text-foreground'>
-                      {cat.name}
-                    </h2>
-                  </div>
-                  <Link
-                    href={`/categories/${cat.slug}`}
-                    className='flex items-center gap-1.5 text-sm font-medium text-primary hover:gap-2.5 transition-all'
-                  >
-                    View all <ArrowRight size={15} />
-                  </Link>
-                </div>
-                {cat.children && cat.children.length > 0 && (
-                  <div className='flex flex-wrap gap-2 mb-6'>
-                    {cat.children.map((sub) => (
-                      <Link
-                        key={sub.id}
-                        href={`/categories/${cat.slug}?sub=${sub.id}`}
-                        className='px-4 py-1.5 rounded-full text-xs font-medium border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors'
-                      >
-                        {sub.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'>
-                  {productsLoading ? (
-                    [...Array(4)].map((_, i) => (
-                      <div
-                        key={i}
-                        className='bg-card rounded-2xl border border-border/50 overflow-hidden animate-pulse'
-                      >
-                        <div className='aspect-square bg-secondary' />
-                        <div className='p-4 space-y-2'>
-                          <div className='h-4 bg-secondary rounded' />
-                          <div className='h-3 bg-secondary rounded w-2/3' />
-                        </div>
-                      </div>
-                    ))
-                  ) : catProducts.length > 0 ? (
-                    catProducts.map((p) => (
-                      <ProductCard
-                        key={p.id}
-                        product={{
-                          id: p.id,
-                          name: p.name,
-                          price: p.price,
-                          image: getProductImage(p),
-                        }}
-                        href={`/products/${p.id}`}
-                      />
-                    ))
-                  ) : (
-                    <div className='col-span-full text-center py-8 text-muted-foreground'>
-                      No products available
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-          ),
-        )}
-      </div>
 
       {/* ── La Douceur – About section ── */}
       <section className='px-4 lg:px-8 py-16 bg-[#faf8f5]'>
