@@ -16,6 +16,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/providers/auth-provider';
 
 interface NavItem {
   label: string;
@@ -106,7 +107,7 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   const pathname = usePathname();
-
+  const { user } = useAuth();
   const isActive = (href: string) => {
     if (href === '/admin/dashboard') return pathname === href;
     return pathname.startsWith(href);
@@ -186,10 +187,10 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
           </div>
           <div className='flex-1 min-w-0'>
             <p className='text-xs font-medium text-sidebar-foreground truncate'>
-              Admin
+              {user?.name}
             </p>
             <p className='text-[10px] text-muted-foreground truncate'>
-              admin@ladouceur.vn
+              {user?.email}
             </p>
           </div>
         </div>
