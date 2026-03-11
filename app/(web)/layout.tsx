@@ -1,5 +1,6 @@
 import WebNavbar from '@/components/web/navbar';
 import WebFooter from '@/components/web/footer';
+import ChatbotBubble from '@/components/ui-custom/ChatbotBubble';
 
 export default function WebLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function WebLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <WebFooter />
+      <ChatbotBubble />
     </>
   );
 }
