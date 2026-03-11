@@ -2,12 +2,14 @@
 
 import Image from 'next/image';
 import { ChevronLeft, ShoppingBag, Star } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useProductDetail } from '@/hooks/use-products';
 import { getProductImage, getProductImages } from '@/lib/utils';
 import Link from 'next/link';
 import { ProductVariant } from '@/types/api.types';
+import useEmblaCarousel from 'embla-carousel-react';
+import Autoplay from 'embla-carousel-autoplay';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
@@ -29,6 +31,27 @@ export default function ProductDetailScreen({
     null,
   );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const autoplayRef = useRef(Autoplay({ delay: 3000, stopOnInteraction: false }));
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [autoplayRef.current]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setActiveImageIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', onSelect);
+    return () => { emblaApi.off('select', onSelect); };
+  }, [emblaApi, onSelect]);
+
+  const scrollTo = useCallback(
+    (index: number) => {
+      emblaApi?.scrollTo(index);
+    },
+    [emblaApi],
+  );
+
   const [message, setMessage] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [added, setAdded] = useState(false);
@@ -140,25 +163,55 @@ export default function ProductDetailScreen({
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16'>
           {/* Left: Image Gallery */}
           <div className='space-y-3'>
-            {/* Main image */}
-            <div className='relative w-full rounded-2xl overflow-hidden bg-secondary aspect-square'>
-              <Image
-                src={
-                  getProductImages(selectedProduct)[activeImageIndex] ||
-                  getProductImage(selectedProduct)
-                }
-                alt={selectedProduct.name}
-                fill
-                className='object-cover transition-opacity duration-200'
-                priority
-              />
-              {/* Image counter badge */}
-              {getProductImages(selectedProduct).length > 1 && (
-                <div className='absolute bottom-3 right-3 bg-black/50 text-white text-xs rounded-full px-2.5 py-1'>
-                  {activeImageIndex + 1} / {getProductImages(selectedProduct).length}
-                </div>
-              )}
+            {/* Embla main carousel */}
+            <div
+              className='overflow-hidden rounded-2xl bg-secondary aspect-square'
+              ref={emblaRef}
+            >
+              <div className='flex h-full'>
+                {getProductImages(selectedProduct).map((src, i) => (
+                  <div
+                    key={i}
+                    className='relative flex-shrink-0 w-full h-full'
+                  >
+                    <Image
+                      src={src}
+                      alt={`${selectedProduct.name} - view ${i + 1}`}
+                      fill
+                      className='object-cover'
+                      priority={i === 0}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Counter + dots */}
+            {getProductImages(selectedProduct).length > 1 && (
+              <div className='flex items-center justify-between px-1'>
+                {/* Dot indicators */}
+                <div className='flex gap-1.5'>
+                  {getProductImages(selectedProduct).map((_, i) => (
+                    <button
+                      key={i}
+                      type='button'
+                      onClick={() => scrollTo(i)}
+                      className={`rounded-full transition-all focus:outline-none ${
+                        i === activeImageIndex
+                          ? 'w-5 h-2 bg-primary'
+                          : 'w-2 h-2 bg-border hover:bg-primary/40'
+                      }`}
+                      aria-label={`Go to image ${i + 1}`}
+                    />
+                  ))}
+                </div>
+                <span className='text-xs text-muted-foreground'>
+                  {activeImageIndex + 1} / {getProductImages(selectedProduct).length}
+                </span>
+              </div>
+            )}
+
             {/* Thumbnail strip */}
             {getProductImages(selectedProduct).length > 1 && (
               <div className='flex gap-2 overflow-x-auto pb-1'>
@@ -166,7 +219,7 @@ export default function ProductDetailScreen({
                   <button
                     key={i}
                     type='button'
-                    onClick={() => setActiveImageIndex(i)}
+                    onClick={() => scrollTo(i)}
                     className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors focus:outline-none ${
                       i === activeImageIndex
                         ? 'border-primary'
