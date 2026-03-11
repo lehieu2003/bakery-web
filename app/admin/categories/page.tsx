@@ -44,6 +44,7 @@ import {
   useUpdateCategory,
   useDeleteCategory,
 } from '@/hooks/admin/use-categories';
+import { ImageUpload } from '@/components/image-upload';
 import type { Category } from '@/types/api.types';
 
 /** Flatten tree into a list with depth info for search */
@@ -73,6 +74,7 @@ export default function CategoriesPage() {
   const [formDescription, setFormDescription] = useState('');
   const [formDisplayOrder, setFormDisplayOrder] = useState(0);
   const [formParentId, setFormParentId] = useState<string>('');
+  const [formImageUrl, setFormImageUrl] = useState<string>('');
 
   // API hooks
   const { data: categories, isLoading, error } = useCategories();
@@ -110,6 +112,7 @@ export default function CategoriesPage() {
     setFormDescription('');
     setFormDisplayOrder(0);
     setFormParentId(parentId || '');
+    setFormImageUrl('');
     setDialogOpen(true);
   };
 
@@ -120,6 +123,7 @@ export default function CategoriesPage() {
     setFormDescription(cat.description || '');
     setFormDisplayOrder(cat.displayOrder);
     setFormParentId(cat.parentId || '');
+    setFormImageUrl(cat.imageUrl || '');
     setDialogOpen(true);
   };
 
@@ -137,6 +141,7 @@ export default function CategoriesPage() {
             description: formDescription || undefined,
             parentId: formParentId || undefined,
             displayOrder: formDisplayOrder,
+            imageUrl: formImageUrl || undefined,
           },
         });
       } else {
@@ -146,6 +151,7 @@ export default function CategoriesPage() {
           description: formDescription || undefined,
           parentId: formParentId || undefined,
           displayOrder: formDisplayOrder,
+          imageUrl: formImageUrl || undefined,
         });
       }
       setDialogOpen(false);
@@ -241,6 +247,9 @@ export default function CategoriesPage() {
         <table className='w-full text-sm'>
           <thead>
             <tr className='border-b border-border bg-muted/30'>
+              <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground w-12'>
+                Image
+              </th>
               <th className='text-left px-5 py-3 text-xs font-medium text-muted-foreground'>
                 Name
               </th>
@@ -262,6 +271,20 @@ export default function CategoriesPage() {
           <tbody className='divide-y divide-border'>
             {filtered.map((cat) => (
               <tr key={cat.id} className='hover:bg-muted/20 transition-colors'>
+                <td className='px-5 py-3.5'>
+                  {cat.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={cat.imageUrl}
+                      alt={cat.name}
+                      className='w-9 h-9 rounded-md object-cover border border-border'
+                    />
+                  ) : (
+                    <div className='w-9 h-9 rounded-md bg-muted flex items-center justify-center'>
+                      <FolderOpen size={14} className='text-muted-foreground/40' />
+                    </div>
+                  )}
+                </td>
                 <td className='px-5 py-3.5'>
                   <div
                     className='flex items-center gap-2'
@@ -355,6 +378,18 @@ export default function CategoriesPage() {
             </DialogTitle>
           </DialogHeader>
           <div className='space-y-3 py-2'>
+            <div>
+              <Label className='text-xs font-medium'>Category Image</Label>
+              <div className='mt-1.5'>
+                <ImageUpload
+                  folder='categories'
+                  currentImage={formImageUrl || undefined}
+                  onUploadComplete={(url) => setFormImageUrl(url)}
+                  onDelete={() => setFormImageUrl('')}
+                  className='[&>button]:h-32 [&_.relative]:h-32'
+                />
+              </div>
+            </div>
             <div>
               <Label className='text-xs font-medium'>Parent Category</Label>
               <Select
