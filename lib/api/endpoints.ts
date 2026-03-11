@@ -146,6 +146,10 @@ export const ENDPOINTS = {
   // Customer APIs
   // ============================================================================
   ORDERS: `${API_BASE}/orders`,
+
+  // ============================================================================
+  // Chatbot API
+  CHATBOT: `${API_BASE}/chat`,
 } as const;
 
 export default ENDPOINTS;

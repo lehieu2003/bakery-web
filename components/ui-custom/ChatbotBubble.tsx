@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Loader2, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { ENDPOINTS } from '@/lib/api/endpoints';
+import { http } from '@/lib/api/client';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -36,9 +38,7 @@ function parseMessageContent(text: string) {
           </Link>,
         );
       } else {
-        parts.push(
-          <span key={`text-${lineIdx}-${segIdx}`}>{seg}</span>,
-        );
+        parts.push(<span key={`text-${lineIdx}-${segIdx}`}>{seg}</span>);
       }
     });
   });
@@ -87,7 +87,7 @@ export default function ChatbotBubble() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await http.post(ENDPOINTS.CHATBOT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,7 +129,10 @@ export default function ChatbotBubble() {
       {open && (
         <div
           className='bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden'
-          style={{ width: 'min(380px, calc(100vw - 48px))', height: 'min(540px, calc(100svh - 120px))' }}
+          style={{
+            width: 'min(380px, calc(100vw - 48px))',
+            height: 'min(540px, calc(100svh - 120px))',
+          }}
           role='dialog'
           aria-label='Chatbot tư vấn bánh'
         >
@@ -140,8 +143,12 @@ export default function ChatbotBubble() {
                 <MessageCircle size={16} />
               </div>
               <div>
-                <p className='text-sm font-semibold leading-tight'>La Douceur</p>
-                <p className='text-[11px] opacity-75 leading-tight'>Trợ lý tư vấn bánh</p>
+                <p className='text-sm font-semibold leading-tight'>
+                  La Douceur
+                </p>
+                <p className='text-[11px] opacity-75 leading-tight'>
+                  Trợ lý tư vấn bánh
+                </p>
               </div>
             </div>
             <button
