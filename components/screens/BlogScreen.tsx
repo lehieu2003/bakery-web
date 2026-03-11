@@ -33,24 +33,17 @@ function FeaturedPostCard({ post }: { post: BlogPost }) {
     >
       {/* Cover Image */}
       <div className='relative aspect-[16/7] bg-secondary overflow-hidden'>
-        {post.coverUrl ? (
-          <Image
-            src={post.coverUrl}
-            alt={post.title}
-            fill
-            priority
-            sizes='(max-width: 768px) 100vw, 80vw'
-            placeholder='blur'
-            blurDataURL={PLACEHOLDER_BLUR}
-            className='object-cover transition-transform duration-500 group-hover:scale-105'
-          />
-        ) : (
-          <div className='absolute inset-0 bg-gradient-to-br from-secondary to-muted flex items-center justify-center'>
-            <span className='font-serif text-5xl text-muted-foreground/30'>
-              La Douceur
-            </span>
-          </div>
-        )}
+        <Image
+          src={post.coverUrl}
+          alt={post.title}
+          fill
+          priority
+          sizes='(max-width: 768px) 100vw, 80vw'
+          placeholder='blur'
+          blurDataURL={PLACEHOLDER_BLUR}
+          className='object-cover transition-transform duration-500 group-hover:scale-105'
+        />
+
         {/* Gradient overlay */}
         <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
 
@@ -102,24 +95,17 @@ function BlogPostCard({ post }: { post: BlogPost }) {
     >
       {/* Thumbnail */}
       <div className='relative aspect-[16/9] bg-secondary overflow-hidden flex-shrink-0'>
-        {post.coverUrl ? (
-          <Image
-            src={post.coverUrl}
-            alt={post.title}
-            fill
-            loading='lazy'
-            sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw'
-            placeholder='blur'
-            blurDataURL={PLACEHOLDER_BLUR}
-            className='object-cover transition-transform duration-500 group-hover:scale-105'
-          />
-        ) : (
-          <div className='absolute inset-0 flex items-center justify-center bg-secondary'>
-            <span className='font-serif text-2xl text-muted-foreground/30'>
-              La Douceur
-            </span>
-          </div>
-        )}
+        <Image
+          src={post.coverUrl}
+          alt={post.title}
+          fill
+          loading='lazy'
+          sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw'
+          placeholder='blur'
+          blurDataURL={PLACEHOLDER_BLUR}
+          className='object-cover transition-transform duration-500 group-hover:scale-105'
+        />
+
         {post.category && (
           <span className='absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-widest uppercase bg-primary text-primary-foreground shadow-sm'>
             {post.category.name}
@@ -344,7 +330,10 @@ export default function BlogScreen() {
 
   const posts = data?.posts ?? [];
   const pagination = data?.pagination;
-  const featuredPost = page === 1 && !search && !activeCategorySlug && !activeTagSlug ? posts[0] : null;
+  const featuredPost =
+    page === 1 && !search && !activeCategorySlug && !activeTagSlug
+      ? posts[0]
+      : null;
   const remainingPosts = featuredPost ? posts.slice(1) : posts;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -392,8 +381,8 @@ export default function BlogScreen() {
           Blog & Câu chuyện
         </h1>
         <p className='text-muted-foreground text-base leading-relaxed max-w-xl'>
-          Khám phá công thức, mẹo làm bánh và những câu chuyện thú vị từ đội
-          ngũ thợ bánh La Douceur.
+          Khám phá công thức, mẹo làm bánh và những câu chuyện thú vị từ đội ngũ
+          thợ bánh La Douceur.
         </p>
 
         {/* Search Bar */}
@@ -433,12 +422,15 @@ export default function BlogScreen() {
             )}
             {activeCategorySlug && (
               <span className='inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary'>
-                {categories.find((c) => c.slug === activeCategorySlug)?.name ?? activeCategorySlug}
+                {categories.find((c) => c.slug === activeCategorySlug)?.name ??
+                  activeCategorySlug}
               </span>
             )}
             {activeTagSlug && (
               <span className='inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary'>
-                #{tags.find((t) => t.slug === activeTagSlug)?.name ?? activeTagSlug}
+                #
+                {tags.find((t) => t.slug === activeTagSlug)?.name ??
+                  activeTagSlug}
               </span>
             )}
             <button

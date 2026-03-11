@@ -76,9 +76,9 @@ function Skeleton() {
 export default function BlogPostDetailScreen({ slug }: { slug: string }) {
   const { data: post, isLoading, error } = usePublicBlogPost(slug);
   const { data: relatedData } = usePublicBlogPosts({ limit: 4 });
-  const relatedPosts = (relatedData?.posts ?? []).filter(
-    (p) => p.slug !== slug,
-  ).slice(0, 3);
+  const relatedPosts = (relatedData?.posts ?? [])
+    .filter((p) => p.slug !== slug)
+    .slice(0, 3);
 
   if (isLoading) return <Skeleton />;
 
