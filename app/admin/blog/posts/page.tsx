@@ -537,9 +537,10 @@ export default function BlogPostsAdminPage() {
               <Label className='text-xs font-medium'>Ảnh bìa</Label>
               <div className='mt-1.5'>
                 <ImageUpload
-                  value={formCoverUrl}
-                  onChange={(url) => setFormCoverUrl(url)}
-                  onRemove={() => setFormCoverUrl('')}
+                  currentImage={formCoverUrl || undefined}
+                  onUploadComplete={(url) => setFormCoverUrl(url)}
+                  onDelete={() => setFormCoverUrl('')}
+                  folder='blog'
                 />
               </div>
             </div>
