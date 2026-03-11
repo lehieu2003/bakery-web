@@ -112,7 +112,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
         </Link>
       </nav>
 
-      <div className='flex flex-col lg:flex-row gap-12'>
+      <div className='flex flex-col-reverse lg:flex-row gap-10 lg:gap-12'>
         {/* Main Article */}
         <div className='flex-1 min-w-0'>
           {/* Category Badge */}
@@ -177,7 +177,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
 
           {/* Content */}
           <div
-            className='prose prose-sm lg:prose-base prose-headings:font-serif prose-headings:text-foreground prose-p:text-foreground prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground prose-img:rounded-xl max-w-none'
+            className='blog-content prose prose-sm lg:prose-base prose-headings:font-serif prose-headings:text-foreground prose-p:text-foreground prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground prose-img:rounded-xl max-w-none'
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
 
@@ -202,51 +202,53 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
 
         {/* Sidebar */}
         <aside className='w-full lg:w-72 flex-shrink-0'>
-          <div className='lg:sticky lg:top-24 space-y-6'>
-          {/* Table of Contents */}
-          <TableOfContents contentSelector='.prose' />
+          <div className='lg:sticky lg:top-24 space-y-5'>
 
-          {/* Author Card */}
-          {post.author && (
-            <div className='bg-card rounded-2xl border border-border p-5'>
-              <h3 className='font-serif text-sm font-semibold text-foreground mb-3 uppercase tracking-widest'>
-                Tác giả
-              </h3>
-              <div className='flex items-center gap-3'>
-                <div className='w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0'>
-                  {post.author.name.charAt(0)}
-                </div>
-                <div>
-                  <p className='text-sm font-medium text-foreground'>
-                    {post.author.name}
-                  </p>
-                  <p className='text-xs text-muted-foreground'>
-                    La Douceur Bakery
-                  </p>
+            {/* Author Card */}
+            {post.author && (
+              <div className='bg-card rounded-2xl border border-border p-5'>
+                <h3 className='font-serif text-sm font-semibold text-foreground mb-3 uppercase tracking-widest'>
+                  Tác giả
+                </h3>
+                <div className='flex items-center gap-3'>
+                  <div className='w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0'>
+                    {post.author.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className='text-sm font-medium text-foreground'>
+                      {post.author.name}
+                    </p>
+                    <p className='text-xs text-muted-foreground'>
+                      La Douceur Bakery
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Related Posts */}
-          {relatedPosts.length > 0 && (
-            <div className='bg-card rounded-2xl border border-border p-5'>
-              <h3 className='font-serif text-sm font-semibold text-foreground mb-4 uppercase tracking-widest'>
-                Bài viết liên quan
-              </h3>
-              <div className='space-y-4'>
-                {relatedPosts.map((p) => (
-                  <RelatedPostCard key={p.id} post={p} />
-                ))}
+            {/* Table of Contents */}
+            <TableOfContents content={post.content} />
+
+            {/* Related Posts */}
+            {relatedPosts.length > 0 && (
+              <div className='bg-card rounded-2xl border border-border p-5'>
+                <h3 className='font-serif text-sm font-semibold text-foreground mb-4 uppercase tracking-widest'>
+                  Bài viết liên quan
+                </h3>
+                <div className='space-y-4'>
+                  {relatedPosts.map((p) => (
+                    <RelatedPostCard key={p.id} post={p} />
+                  ))}
+                </div>
+                <Link
+                  href='/blog'
+                  className='mt-5 flex items-center gap-1.5 text-xs font-medium text-primary hover:underline'
+                >
+                  Xem tất cả bài viết
+                </Link>
               </div>
-              <Link
-                href='/blog'
-                className='mt-5 flex items-center gap-1.5 text-xs font-medium text-primary hover:underline'
-              >
-                Xem tất cả bài viết
-              </Link>
-            </div>
-          )}
+            )}
+
           </div>
         </aside>
       </div>

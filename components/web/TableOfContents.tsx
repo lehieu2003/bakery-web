@@ -20,68 +20,83 @@ function slugify(text: string): string {
 }
 
 interface TableOfContentsProps {
-  contentSelector?: string;
+  /** Raw HTML content of the blog post */
+  content: string;
 }
 
-export default function TableOfContents({
-  contentSelector = '.prose',
-}: TableOfContentsProps) {
+export default function TableOfContents({ content }: TableOfContentsProps) {
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [activeId, setActiveId] = useState<string>('');
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // Extract h2 headings from the rendered prose and assign IDs
+  // Parse headings from raw HTML string — no DOM timing issues
   useEffect(() => {
-    const container = document.querySelector(contentSelector);
-    if (!container) return;
+    if (!content) return;
 
-    const h2Elements = Array.from(container.querySelectorAll('h2'));
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    const h2Elements = Array.from(doc.querySelectorAll('h2'));
+
     const extracted: Heading[] = h2Elements.map((el, index) => {
-      const text = el.textContent ?? '';
+      const text = el.textContent?.trim() ?? '';
       const id = el.id || `toc-${slugify(text)}-${index}`;
-      el.id = id;
       return { id, text };
     });
 
     setHeadings(extracted);
-  }, [contentSelector]);
+  }, [content]);
 
-  // Observe headings for active highlight
+  // After headings are known, assign IDs to real DOM nodes
   useEffect(() => {
     if (headings.length === 0) return;
 
-    observerRef.current?.disconnect();
+    // Wait a tick for dangerouslySetInnerHTML to finish rendering
+    const timer = setTimeout(() => {
+      const container = document.querySelector('.blog-content');
+      if (!container) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Find the topmost intersecting heading
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      const h2Elements = Array.from(container.querySelectorAll('h2'));
+      h2Elements.forEach((el, index) => {
+        const text = el.textContent?.trim() ?? '';
+        const id = el.id || `toc-${slugify(text)}-${index}`;
+        el.id = id;
+      });
 
-        if (visible.length > 0) {
-          setActiveId(visible[0].target.id);
-        }
-      },
-      {
-        rootMargin: '0px 0px -70% 0px',
-        threshold: 0,
-      }
-    );
+      // Set up IntersectionObserver after IDs are assigned
+      observerRef.current?.disconnect();
 
-    headings.forEach(({ id }) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
+      const observer = new IntersectionObserver(
+        (entries) => {
+          // Pick the topmost visible heading
+          const visible = entries
+            .filter((e) => e.isIntersecting)
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
 
-    observerRef.current = observer;
-    return () => observer.disconnect();
+          if (visible.length > 0) {
+            setActiveId(visible[0].target.id);
+          }
+        },
+        { rootMargin: '-80px 0px -65% 0px', threshold: 0 }
+      );
+
+      headings.forEach(({ id }) => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
+      });
+
+      observerRef.current = observer;
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      observerRef.current?.disconnect();
+    };
   }, [headings]);
 
   const handleClick = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const top = el.getBoundingClientRect().top + window.scrollY - 96;
+    const top = el.getBoundingClientRect().top + window.scrollY - 100;
     window.scrollTo({ top, behavior: 'smooth' });
   };
 
@@ -94,7 +109,7 @@ export default function TableOfContents({
         Nội dung bài viết
       </h3>
       <nav aria-label='Table of contents'>
-        <ul className='space-y-1'>
+        <ul className='space-y-0.5'>
           {headings.map(({ id, text }) => {
             const isActive = activeId === id;
             return (
@@ -103,7 +118,7 @@ export default function TableOfContents({
                   onClick={() => handleClick(id)}
                   className={`w-full text-left text-sm leading-snug py-1.5 px-2 rounded-lg transition-colors ${
                     isActive
-                      ? 'text-primary font-medium bg-primary/8'
+                      ? 'text-primary font-medium bg-primary/10'
                       : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                   }`}
                 >
