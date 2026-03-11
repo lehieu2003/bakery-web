@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // POST /api/chat
 export async function POST(request: NextRequest) {
@@ -25,7 +30,11 @@ export async function POST(request: NextRequest) {
         stock: true,
         isFeatured: true,
         categories: {
-          select: { category: { select: { name: true } } },
+          select: {
+            category: {
+              select: { name: true },
+            },
+          },
         },
       },
       orderBy: { isFeatured: 'desc' },
@@ -37,7 +46,11 @@ export async function POST(request: NextRequest) {
         const categories = p.categories.map((c) => c.category.name).join(', ');
         return [
           `- Tên: ${p.name}`,
-          `  Giá: ${Number(p.price).toLocaleString('vi-VN')}đ${p.comparePrice ? ` (gốc ${Number(p.comparePrice).toLocaleString('vi-VN')}đ)` : ''}`,
+          `  Giá: ${Number(p.price).toLocaleString('vi-VN')}đ${
+            p.comparePrice
+              ? ` (gốc ${Number(p.comparePrice).toLocaleString('vi-VN')}đ)`
+              : ''
+          }`,
           `  Danh mục: ${categories || 'Chưa phân loại'}`,
           `  Mô tả: ${p.shortDescription || 'Không có mô tả'}`,
           `  Còn hàng: ${p.stock > 0 ? 'Có' : 'Hết hàng'}`,
@@ -46,7 +59,9 @@ export async function POST(request: NextRequest) {
       })
       .join('\n\n');
 
-    const systemPrompt = `Bạn là trợ lý tư vấn bánh của tiệm bánh. Nhiệm vụ của bạn là giúp khách hàng tìm và chọn bánh phù hợp với nhu cầu.
+    const systemPrompt = `
+Bạn là trợ lý tư vấn bánh của tiệm bánh.
+Nhiệm vụ của bạn là giúp khách hàng tìm và chọn bánh phù hợp với nhu cầu.
 
 Danh sách sản phẩm hiện có:
 ${productContext}
@@ -63,49 +78,42 @@ Hướng dẫn:
 Định dạng khi gợi ý sản phẩm:
 🎂 **Tên bánh** - Giá
 Lý do phù hợp ngắn gọn
-👉 /products/[slug]`;
+👉 /products/[slug]
+    `.trim();
 
-    // Build Gemini contents array (multi-turn history)
-    const contents = [
-      ...history.map((h: { role: string; content: string }) => ({
-        role: h.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: h.content }],
-      })),
-      { role: 'user', parts: [{ text: message }] },
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: systemPrompt,
+      },
+      ...(history.map((h: { role: string; content: string }) => ({
+        role: h.role === 'assistant' ? 'assistant' : 'user',
+        content: h.content,
+      })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]),
+      {
+        role: 'user',
+        content: message,
+      },
     ];
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const aiResponse = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents,
-        generationConfig: {
-          maxOutputTokens: 1024,
-          temperature: 0.7,
-        },
-      }),
+    const completion = await openai.chat.completions.create({
+      model: process.env.GPT_MODEL_MINI || 'gpt-4.1-mini',
+      messages,
+      temperature: 0.7,
+      max_tokens: 1024,
     });
 
-    if (!aiResponse.ok) {
-      console.error('Gemini API error:', await aiResponse.text());
-      return NextResponse.json(
-        { success: false, error: 'Chatbot tạm thời không khả dụng' },
-        { status: 500 },
-      );
-    }
-
-    const aiData = await aiResponse.json();
     const reply =
-      aiData.candidates?.[0]?.content?.parts?.[0]?.text ||
+      completion.choices?.[0]?.message?.content ||
       'Xin lỗi, tôi không hiểu yêu cầu của bạn.';
 
-    return NextResponse.json({ success: true, data: { reply } });
+    return NextResponse.json({
+      success: true,
+      data: { reply },
+    });
   } catch (error) {
     console.error('Chat API error:', error);
+
     return NextResponse.json(
       { success: false, error: 'Lỗi hệ thống' },
       { status: 500 },
