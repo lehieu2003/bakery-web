@@ -223,6 +223,16 @@ export default function WebNavbar() {
             className='flex items-center overflow-x-auto scrollbar-hide'
             aria-label='Category navigation'
           >
+            <Link
+              href='/blog'
+              className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                isActive('/blog')
+                  ? 'text-primary border-primary'
+                  : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
+              }`}
+            >
+              Blog
+            </Link>
             {navLinks.map((link) => (
               <div
                 key={link.href}
