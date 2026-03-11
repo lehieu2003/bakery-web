@@ -36,7 +36,6 @@ import {
 } from '@/hooks/admin/use-products';
 import { useCategories } from '@/hooks/admin/use-categories';
 import { useToast } from '@/hooks/use-toast';
-import { useImageUpload } from '@/hooks/use-image-upload';
 
 // Validation schema
 const productSchema = z.object({
