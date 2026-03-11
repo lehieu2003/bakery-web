@@ -21,6 +21,7 @@ export const productKeys = {
   details: () => [...productKeys.all, 'detail'] as const,
   detail: (id: string) => [...productKeys.details(), id] as const,
   categories: () => ['categories'] as const,
+  bestSellers: (limit?: number) => [...productKeys.all, 'best-sellers', limit] as const,
 };
 
 /**
@@ -52,6 +53,17 @@ export function useProductDetail(idOrSlug: string) {
     queryFn: () => productService.getProductDetail(idOrSlug),
     enabled: !!idOrSlug,
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+/**
+ * Hook to get best-selling products
+ */
+export function useBestSellers(limit = 10) {
+  return useQuery({
+    queryKey: productKeys.bestSellers(limit),
+    queryFn: () => productService.getBestSellers(limit),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
