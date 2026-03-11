@@ -102,9 +102,9 @@ export default function WebNavbar() {
             </a>
           </div>
           <div className='hidden md:flex items-center gap-4'>
-            <a href='#' className='hover:text-primary transition-colors'>
+            <Link href='/blog' className='hover:text-primary transition-colors'>
               Blog
-            </a>
+            </Link>
             <span className='text-gray-300'>|</span>
             <a href='#' className='hover:text-primary transition-colors'>
               Địa chỉ
@@ -377,6 +377,17 @@ export default function WebNavbar() {
                   )}
               </div>
             ))}
+            <Link
+              href='/blog'
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                isActive('/blog')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
+              }`}
+            >
+              <span className='uppercase tracking-wide'>Blog</span>
+            </Link>
             {!user && !isLoading && (
               <Link
                 href='/auth'
