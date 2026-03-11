@@ -28,6 +28,7 @@ export default function ProductDetailScreen({
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null,
   );
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [message, setMessage] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [added, setAdded] = useState(false);
@@ -137,39 +138,55 @@ export default function ProductDetailScreen({
 
       <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16'>
-          {/* Left: Image */}
-          <div className='space-y-4'>
+          {/* Left: Image Gallery */}
+          <div className='space-y-3'>
+            {/* Main image */}
             <div className='relative w-full rounded-2xl overflow-hidden bg-secondary aspect-square'>
               <Image
-                src={getProductImage(selectedProduct)}
+                src={
+                  getProductImages(selectedProduct)[activeImageIndex] ||
+                  getProductImage(selectedProduct)
+                }
                 alt={selectedProduct.name}
                 fill
-                className='object-cover'
+                className='object-cover transition-opacity duration-200'
                 priority
               />
+              {/* Image counter badge */}
+              {getProductImages(selectedProduct).length > 1 && (
+                <div className='absolute bottom-3 right-3 bg-black/50 text-white text-xs rounded-full px-2.5 py-1'>
+                  {activeImageIndex + 1} / {getProductImages(selectedProduct).length}
+                </div>
+              )}
             </div>
             {/* Thumbnail strip */}
-            <div className='flex gap-3'>
-              {getProductImages(selectedProduct).map((src, i) => (
-                <div
-                  key={i}
-                  className={`relative w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors ${
-                    i === 0 ? 'border-primary' : 'border-border'
-                  }`}
-                >
-                  <Image
-                    src={src}
-                    alt={`View ${i + 1}`}
-                    fill
-                    loading='lazy'
-                    sizes='80px'
-                    placeholder='blur'
-                    blurDataURL={PLACEHOLDER_BLUR}
-                    className='object-cover'
-                  />
-                </div>
-              ))}
-            </div>
+            {getProductImages(selectedProduct).length > 1 && (
+              <div className='flex gap-2 overflow-x-auto pb-1'>
+                {getProductImages(selectedProduct).map((src, i) => (
+                  <button
+                    key={i}
+                    type='button'
+                    onClick={() => setActiveImageIndex(i)}
+                    className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors focus:outline-none ${
+                      i === activeImageIndex
+                        ? 'border-primary'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <Image
+                      src={src}
+                      alt={`View ${i + 1}`}
+                      fill
+                      loading='lazy'
+                      sizes='80px'
+                      placeholder='blur'
+                      blurDataURL={PLACEHOLDER_BLUR}
+                      className='object-cover'
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right: Details + Options */}

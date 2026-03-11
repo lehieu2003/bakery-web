@@ -5,8 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ChevronLeft, X, Plus, Save, Eye } from 'lucide-react';
-import { ImageUpload } from '@/components/image-upload';
+import { ChevronLeft, X, Plus, Save, Eye, Upload, Loader2, Star } from 'lucide-react';
+import { useImageUpload } from '@/hooks/use-image-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,9 +36,7 @@ import {
 } from '@/hooks/admin/use-products';
 import { useCategories } from '@/hooks/admin/use-categories';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
 import { useImageUpload } from '@/hooks/use-image-upload';
-import { getProductImage } from '@/lib/utils';
 
 // Validation schema
 const productSchema = z.object({
@@ -139,7 +137,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
   const updateMutation = useUpdateProduct();
   const { data: categoriesData, isLoading: categoriesLoading } =
     useCategories();
-  const { upload: uploadImage } = useImageUpload();
+  const { upload: uploadImage, uploading: singleUploading } = useImageUpload();
 
   // Load existing product when editing
   const {
@@ -183,12 +181,14 @@ export default function ProductForm({ productId }: { productId?: string }) {
   const [packagings, setPackagings] = useState<string[]>(['Bag']);
   const [origin, setOrigin] = useState('');
 
-  // Images
-  const [thumbnail, setThumbnail] = useState<string | null>(null);
-  const [thumbnailPublicId, setThumbnailPublicId] = useState<string | null>(
-    null,
-  );
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  // Images — array of { url, file? } where file means pending upload
+  interface ImageItem {
+    url: string; // preview URL (blob or remote)
+    file?: File; // if pending upload
+    isPrimary: boolean;
+  }
+  const [images, setImages] = useState<ImageItem[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   // Variants
   interface VariantRow {
@@ -213,7 +213,17 @@ export default function ProductForm({ productId }: { productId?: string }) {
         fullDesc: existingProduct.description || '',
         isActive: existingProduct.isActive,
       });
-      setThumbnail(getProductImage(existingProduct, ''));
+      
+      // Populate images from product
+      if (existingProduct.images && existingProduct.images.length > 0) {
+        setImages(
+          existingProduct.images.map((img, idx) => ({
+            url: img.url,
+            isPrimary: img.isPrimary || idx === 0,
+          })),
+        );
+      }
+
       // Populate variants
       if (existingProduct.variants && existingProduct.variants.length > 0) {
         setVariants(
@@ -308,17 +318,22 @@ export default function ProductForm({ productId }: { productId?: string }) {
     publish = true,
   ) => {
     try {
-      let finalImageUrl = thumbnail;
+      setUploadingImages(true);
 
-      // Upload image if user selected a new file
-      if (thumbnailFile) {
-        const uploadResult = await uploadImage(thumbnailFile, 'products');
-        if (uploadResult) {
-          finalImageUrl = uploadResult.url;
-          setThumbnail(uploadResult.url);
-          setThumbnailPublicId(uploadResult.publicId);
+      // Upload all pending images
+      const finalImages: { url: string; isPrimary: boolean }[] = [];
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        if (img.file) {
+          const result = await uploadImage(img.file, 'products');
+          if (result) {
+            finalImages.push({ url: result.url, isPrimary: img.isPrimary });
+          }
+        } else {
+          finalImages.push({ url: img.url, isPrimary: img.isPrimary });
         }
       }
+      setUploadingImages(false);
 
       const productData = {
         name: values.name.trim(),
@@ -327,7 +342,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
         price: values.price,
         stock: 100, // Default stock
         categoryIds: values.categoryIds,
-        imageUrl: finalImageUrl || undefined,
+        images: finalImages,
         isActive: publish ? values.isActive : false,
         isFeatured: false,
         variants: variants
@@ -365,6 +380,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
         router.push('/admin/products');
       }
     } catch (error) {
+      setUploadingImages(false);
       console.error('Save product error:', error);
       toast({
         title: 'Error',
@@ -615,32 +631,109 @@ export default function ProductForm({ productId }: { productId?: string }) {
 
           {/* B) Media */}
           <div className='bg-card rounded-xl border border-border p-5 shadow-sm space-y-4'>
-            <h2 className='font-serif text-sm font-semibold text-foreground pb-2 border-b border-border'>
-              Media
-            </h2>
-
-            <div>
-              <Label className='text-xs font-medium'>Thumbnail</Label>
-              <ImageUpload
-                deferUpload={true}
-                onFileSelect={(file) => {
-                  setThumbnailFile(file);
-                }}
-                onUploadComplete={(url, publicId) => {
-                  // This won't be called in deferred mode
-                  setThumbnail(url);
-                  setThumbnailPublicId(publicId);
-                }}
-                onDelete={() => {
-                  setThumbnail(null);
-                  setThumbnailPublicId(null);
-                  setThumbnailFile(null);
-                }}
-                folder='products'
-                currentImage={thumbnail || undefined}
-                className='mt-1.5'
-              />
+            <div className='flex items-center justify-between pb-2 border-b border-border'>
+              <h2 className='font-serif text-sm font-semibold text-foreground'>
+                Media
+              </h2>
+              <span className='text-[10px] text-muted-foreground'>
+                {images.length} / 10 ảnh
+              </span>
             </div>
+
+            {/* Image grid */}
+            <div className='grid grid-cols-3 sm:grid-cols-4 gap-2'>
+              {images.map((img, idx) => (
+                <div
+                  key={idx}
+                  className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
+                    img.isPrimary ? 'border-primary' : 'border-border'
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img.url}
+                    alt={`Product image ${idx + 1}`}
+                    className='w-full h-full object-cover'
+                  />
+                  {/* Primary badge */}
+                  {img.isPrimary && (
+                    <div className='absolute top-1 left-1 bg-primary text-primary-foreground rounded px-1 py-0.5 flex items-center gap-0.5'>
+                      <Star size={8} className='fill-primary-foreground' />
+                      <span className='text-[9px] font-medium leading-none'>Chính</span>
+                    </div>
+                  )}
+                  {/* Actions overlay */}
+                  <div className='absolute inset-0 bg-black/0 hover:bg-black/40 transition-colors flex items-center justify-center gap-1 opacity-0 hover:opacity-100'>
+                    {!img.isPrimary && (
+                      <button
+                        type='button'
+                        title='Đặt làm ảnh chính'
+                        onClick={() =>
+                          setImages(
+                            images.map((im, i) => ({
+                              ...im,
+                              isPrimary: i === idx,
+                            })),
+                          )
+                        }
+                        className='p-1 bg-white rounded text-foreground hover:bg-primary hover:text-primary-foreground transition-colors'
+                      >
+                        <Star size={12} />
+                      </button>
+                    )}
+                    <button
+                      type='button'
+                      title='Xóa ảnh'
+                      onClick={() =>
+                        setImages((prev) => {
+                          const next = prev.filter((_, i) => i !== idx);
+                          // If removed was primary, make first primary
+                          if (img.isPrimary && next.length > 0) {
+                            next[0] = { ...next[0], isPrimary: true };
+                          }
+                          return next;
+                        })
+                      }
+                      className='p-1 bg-white rounded text-destructive hover:bg-destructive hover:text-white transition-colors'
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add image button */}
+              {images.length < 10 && (
+                <label className='aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-muted/30 hover:bg-muted/60'>
+                  <input
+                    type='file'
+                    accept='image/*'
+                    multiple
+                    className='hidden'
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      const newItems = files
+                        .slice(0, 10 - images.length)
+                        .map((file, i) => ({
+                          url: URL.createObjectURL(file),
+                          file,
+                          isPrimary: images.length === 0 && i === 0,
+                        }));
+                      setImages((prev) => [...prev, ...newItems]);
+                      e.target.value = '';
+                    }}
+                  />
+                  <Upload size={16} className='text-muted-foreground' />
+                  <span className='text-[10px] text-muted-foreground text-center leading-tight'>
+                    Thêm ảnh
+                  </span>
+                </label>
+              )}
+            </div>
+
+            <p className='text-[10px] text-muted-foreground'>
+              Ảnh đầu tiên hoặc ảnh được đánh dấu sẽ là ảnh chính. Tối đa 10 ảnh, mỗi ảnh tối đa 10MB.
+            </p>
           </div>
 
           {/* C) Variants */}
@@ -927,7 +1020,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
             size='sm'
             className='text-xs h-8 text-muted-foreground'
             onClick={() => router.back()}
-            disabled={createMutation.isPending || updateMutation.isPending}
+            disabled={createMutation.isPending || updateMutation.isPending || uploadingImages}
           >
             Cancel
           </Button>
@@ -938,7 +1031,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
               size='sm'
               className='text-xs h-8 gap-1.5'
               onClick={form.handleSubmit((values) => handleSave(values, false))}
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending || uploadingImages}
             >
               <Save size={12} />
               Save Draft
@@ -948,30 +1041,12 @@ export default function ProductForm({ productId }: { productId?: string }) {
               size='sm'
               className='text-xs h-8 gap-1.5'
               onClick={form.handleSubmit((values) => handleSave(values, true))}
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending || uploadingImages}
             >
-              {createMutation.isPending || updateMutation.isPending ? (
+              {createMutation.isPending || updateMutation.isPending || uploadingImages ? (
                 <>
-                  <svg
-                    className='animate-spin h-3 w-3'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                  >
-                    <circle
-                      className='opacity-25'
-                      cx='12'
-                      cy='12'
-                      r='10'
-                      stroke='currentColor'
-                      strokeWidth='4'
-                    />
-                    <path
-                      className='opacity-75'
-                      fill='currentColor'
-                      d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
-                    />
-                  </svg>
-                  Saving...
+                  <Loader2 className='h-3 w-3 animate-spin' />
+                  {uploadingImages ? 'Uploading...' : 'Saving...'}
                 </>
               ) : (
                 <>
