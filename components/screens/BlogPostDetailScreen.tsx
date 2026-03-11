@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Calendar, Eye, Tag, User } from 'lucide-react';
 import { usePublicBlogPost, usePublicBlogPosts } from '@/hooks/use-blog';
 import type { BlogPost } from '@/types/api.types';
+import TableOfContents from '@/components/web/TableOfContents';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwMCIgaGVpZ2h0PSI2MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyMDAiIGhlaWdodD0iNjAwIiBmaWxsPSIjZjFlOWRmIi8+PC9zdmc+';
@@ -200,7 +201,11 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
         </div>
 
         {/* Sidebar */}
-        <aside className='w-full lg:w-72 flex-shrink-0 space-y-6'>
+        <aside className='w-full lg:w-72 flex-shrink-0'>
+          <div className='lg:sticky lg:top-24 space-y-6'>
+          {/* Table of Contents */}
+          <TableOfContents contentSelector='.prose' />
+
           {/* Author Card */}
           {post.author && (
             <div className='bg-card rounded-2xl border border-border p-5'>
@@ -242,6 +247,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
               </Link>
             </div>
           )}
+          </div>
         </aside>
       </div>
     </article>
