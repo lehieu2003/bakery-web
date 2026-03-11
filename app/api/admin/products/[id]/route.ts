@@ -81,6 +81,23 @@ export async function PUT(
       }
     }
 
+    // Handle images array — replace all images
+    if (Array.isArray(images)) {
+      await prisma.productImage.deleteMany({ where: { productId: id } });
+      if (images.length > 0) {
+        await prisma.productImage.createMany({
+          data: images.map(
+            (img: { url: string; isPrimary?: boolean }, idx: number) => ({
+              productId: id,
+              url: img.url,
+              isPrimary: img.isPrimary ?? idx === 0,
+              displayOrder: idx,
+            }),
+          ),
+        });
+      }
+    }
+
     // Handle variant CRUD if variants array is provided
     if (Array.isArray(variants)) {
       const incoming = variants as {

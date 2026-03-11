@@ -2,12 +2,14 @@
 
 import Image from 'next/image';
 import { ChevronLeft, ShoppingBag, Star } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useProductDetail } from '@/hooks/use-products';
 import { getProductImage, getProductImages } from '@/lib/utils';
 import Link from 'next/link';
 import { ProductVariant } from '@/types/api.types';
+import useEmblaCarousel from 'embla-carousel-react';
+import Autoplay from 'embla-carousel-autoplay';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
@@ -28,6 +30,28 @@ export default function ProductDetailScreen({
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null,
   );
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const autoplayRef = useRef(Autoplay({ delay: 3000, stopOnInteraction: false }));
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [autoplayRef.current]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setActiveImageIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', onSelect);
+    return () => { emblaApi.off('select', onSelect); };
+  }, [emblaApi, onSelect]);
+
+  const scrollTo = useCallback(
+    (index: number) => {
+      emblaApi?.scrollTo(index);
+    },
+    [emblaApi],
+  );
+
   const [message, setMessage] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [added, setAdded] = useState(false);
@@ -137,39 +161,85 @@ export default function ProductDetailScreen({
 
       <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16'>
-          {/* Left: Image */}
-          <div className='space-y-4'>
-            <div className='relative w-full rounded-2xl overflow-hidden bg-secondary aspect-square'>
-              <Image
-                src={getProductImage(selectedProduct)}
-                alt={selectedProduct.name}
-                fill
-                className='object-cover'
-                priority
-              />
+          {/* Left: Image Gallery */}
+          <div className='space-y-3'>
+            {/* Embla main carousel */}
+            <div
+              className='overflow-hidden rounded-2xl bg-secondary aspect-square'
+              ref={emblaRef}
+            >
+              <div className='flex h-full'>
+                {getProductImages(selectedProduct).map((src, i) => (
+                  <div
+                    key={i}
+                    className='relative flex-shrink-0 w-full h-full'
+                  >
+                    <Image
+                      src={src}
+                      alt={`${selectedProduct.name} - view ${i + 1}`}
+                      fill
+                      className='object-cover'
+                      priority={i === 0}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-            {/* Thumbnail strip */}
-            <div className='flex gap-3'>
-              {getProductImages(selectedProduct).map((src, i) => (
-                <div
-                  key={i}
-                  className={`relative w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors ${
-                    i === 0 ? 'border-primary' : 'border-border'
-                  }`}
-                >
-                  <Image
-                    src={src}
-                    alt={`View ${i + 1}`}
-                    fill
-                    loading='lazy'
-                    sizes='80px'
-                    placeholder='blur'
-                    blurDataURL={PLACEHOLDER_BLUR}
-                    className='object-cover'
-                  />
+
+            {/* Counter + dots */}
+            {getProductImages(selectedProduct).length > 1 && (
+              <div className='flex items-center justify-between px-1'>
+                {/* Dot indicators */}
+                <div className='flex gap-1.5'>
+                  {getProductImages(selectedProduct).map((_, i) => (
+                    <button
+                      key={i}
+                      type='button'
+                      onClick={() => scrollTo(i)}
+                      className={`rounded-full transition-all focus:outline-none ${
+                        i === activeImageIndex
+                          ? 'w-5 h-2 bg-primary'
+                          : 'w-2 h-2 bg-border hover:bg-primary/40'
+                      }`}
+                      aria-label={`Go to image ${i + 1}`}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+                <span className='text-xs text-muted-foreground'>
+                  {activeImageIndex + 1} / {getProductImages(selectedProduct).length}
+                </span>
+              </div>
+            )}
+
+            {/* Thumbnail strip */}
+            {getProductImages(selectedProduct).length > 1 && (
+              <div className='flex gap-2 overflow-x-auto pb-1'>
+                {getProductImages(selectedProduct).map((src, i) => (
+                  <button
+                    key={i}
+                    type='button'
+                    onClick={() => scrollTo(i)}
+                    className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors focus:outline-none ${
+                      i === activeImageIndex
+                        ? 'border-primary'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <Image
+                      src={src}
+                      alt={`View ${i + 1}`}
+                      fill
+                      loading='lazy'
+                      sizes='80px'
+                      placeholder='blur'
+                      blurDataURL={PLACEHOLDER_BLUR}
+                      className='object-cover'
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right: Details + Options */}
