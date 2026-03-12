@@ -4,7 +4,6 @@ import ChatbotBubble from '@/components/ui-custom/ChatbotBubble';
 import ZaloPhoneBubble from '@/components/ui-custom/ZaloPhoneBubble';
 import { prisma } from '@/lib/prisma';
 import { HydrationBoundary, QueryClient, dehydrate } from '@tanstack/react-query';
-import { productKeys } from '@/hooks/use-products';
 import type { Category } from '@/types/api.types';
 
 async function getCategories(): Promise<Category[]> {
@@ -41,7 +40,7 @@ export default async function WebLayout({ children }: { children: React.ReactNod
 
   // Pre-fill the React Query cache so the client never needs to fetch categories
   await queryClient.prefetchQuery({
-    queryKey: productKeys.categories(),
+    queryKey: ['categories'],
     queryFn: () => Promise.resolve(categories),
     staleTime: 10 * 60 * 1000,
   });
