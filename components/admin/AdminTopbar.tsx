@@ -52,20 +52,6 @@ export default function AdminTopbar({ onMenuClick, title }: AdminTopbarProps) {
         </span>
       )}
 
-      {/* Search */}
-      <div className='flex-1 max-w-sm hidden sm:flex relative'>
-        <Search
-          size={14}
-          className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none'
-        />
-        <Input
-          placeholder='Search products, orders...'
-          className='pl-8 h-8 text-xs bg-muted/50 border-0 focus-visible:ring-1 focus-visible:bg-background'
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-        />
-      </div>
-
       <div className='ml-auto flex items-center gap-2'>
         {/* Quick actions */}
         <Link href='/admin/products/new'>
@@ -74,12 +60,6 @@ export default function AdminTopbar({ onMenuClick, title }: AdminTopbarProps) {
             Add Product
           </Button>
         </Link>
-
-        {/* Notifications */}
-        <button className='relative p-1.5 rounded-md hover:bg-muted text-muted-foreground'>
-          <Bell size={16} />
-          <span className='absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full' />
-        </button>
 
         {/* Avatar menu */}
         <DropdownMenu>
