@@ -39,7 +39,9 @@ import {
   useCreateBanner,
   useUpdateBanner,
   useDeleteBanner,
+  bannerKeys,
 } from '@/hooks/admin/use-banners';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Banner } from '@/types/api.types';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable, isSortable } from '@dnd-kit/react/sortable';
@@ -165,6 +167,8 @@ export default function BannersPage() {
   const [formImage, setFormImage] = useState<string>('');
   const [formImagePublicId, setFormImagePublicId] = useState<string>('');
 
+  const queryClient = useQueryClient();
+
   // API hooks
   const { data: banners, isLoading, error } = useBanners();
   const createMutation = useCreateBanner();
@@ -282,9 +286,17 @@ export default function BannersPage() {
 
       if (!res.ok) throw new Error('Failed to save order');
 
-      setSortedBanners((prev) =>
-        prev.map((b, i) => ({ ...b, displayOrder: i + 1 })),
-      );
+      // Build the updated list with new displayOrder values
+      const updatedBanners = sortedBanners.map((b, i) => ({
+        ...b,
+        displayOrder: i + 1,
+      }));
+
+      // Update React Query cache immediately so the useEffect sync
+      // doesn't overwrite the new order when hasReordered is set to false
+      queryClient.setQueryData(bannerKeys.list(), updatedBanners);
+
+      setSortedBanners(updatedBanners);
       setHasReordered(false);
       toast.success('Thứ tự banner đã được lưu');
     } catch {
