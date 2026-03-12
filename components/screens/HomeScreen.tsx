@@ -10,6 +10,7 @@ import { useProducts, useCategories } from '@/hooks/use-products';
 import { useBanners } from '@/hooks/use-banners';
 import BestSellersSection from '@/components/screens/BestSellersSection';
 import type { Category } from '@/types/api.types';
+import CategoriesSection from './CategoriesSection';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
@@ -101,6 +102,9 @@ export default function HomeScreen() {
 
       {/* ── Best Sellers ── */}
       <BestSellersSection />
+
+      {/* ── Categories ── */}
+      <CategoriesSection />
 
       {/* ── La Douceur – About section ── */}
       <section className='px-4 lg:px-8 py-16 bg-[#faf8f5]'>

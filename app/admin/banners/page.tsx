@@ -75,7 +75,7 @@ export default function BannersPage() {
     setFormLinkUrl(b.linkUrl || '');
     setFormDisplayOrder(String(b.displayOrder));
     setFormActive(b.isActive);
-    setFormImage(b.imageUrl);
+    setFormImage(b.imageUrl || '');
     setFormImagePublicId('');
     setDialogOpen(true);
   };
@@ -181,7 +181,7 @@ export default function BannersPage() {
             {/* Image preview */}
             <div className='relative h-36 bg-muted'>
               <Image
-                src={banner.imageUrl}
+                src={banner.imageUrl || ''}
                 alt={banner.title}
                 fill
                 className='object-cover'
