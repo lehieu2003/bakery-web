@@ -269,7 +269,7 @@ export default function HomeScreen() {
                 />
               </svg>
               <div>
-                <p className='text-4xl font-bold text-[#e8c49a]'>+ 4</p>
+                <p className='text-4xl font-bold text-[#e8c49a]'>+ 10</p>
                 <p className='text-xs tracking-[0.2em] uppercase mt-1 text-white/80'>
                   Năm kinh nghiệm
                 </p>

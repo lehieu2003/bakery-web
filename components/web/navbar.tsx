@@ -220,19 +220,9 @@ export default function WebNavbar() {
       <div className='bg-white border-b border-gray-100 hidden md:block'>
         <div className='mx-auto px-4 lg:px-8'>
           <nav
-            className='flex items-center overflow-x-auto scrollbar-hide'
+            className='flex items-center justify-center overflow-x-auto scrollbar-hide'
             aria-label='Category navigation'
           >
-            <Link
-              href='/blog'
-              className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
-                isActive('/blog')
-                  ? 'text-primary border-primary'
-                  : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
-              }`}
-            >
-              Blog
-            </Link>
             {navLinks.map((link) => (
               <div
                 key={link.href}
@@ -321,6 +311,16 @@ export default function WebNavbar() {
                 )}
               </div>
             ))}
+            <Link
+              href='/blog'
+              className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                isActive('/blog')
+                  ? 'text-primary border-primary'
+                  : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
+              }`}
+            >
+              Blog
+            </Link>
           </nav>
         </div>
       </div>
