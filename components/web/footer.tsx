@@ -6,11 +6,11 @@ import NewsletterForm from './newsletter-form';
 import { useCategories } from '@/hooks/use-products';
 
 const infoLinks = [
-  { label: 'Về chúng tôi', href: '#' },
-  { label: 'Chính sách giao hàng', href: '#' },
-  { label: 'Chính sách đổi trả', href: '#' },
-  { label: 'Điều khoản sử dụng', href: '#' },
-  { label: 'Chính sách bảo mật', href: '#' },
+  { label: 'Về chúng tôi', href: '/ve-chung-toi' },
+  { label: 'Chính sách giao hàng', href: '/chinh-sach-giao-hang' },
+  { label: 'Chính sách đổi trả', href: '/chinh-sach-doi-tra' },
+  { label: 'Điều khoản sử dụng', href: '/dieu-khoan-su-dung' },
+  { label: 'Chính sách bảo mật', href: '/chinh-sach-bao-mat' },
 ];
 
 const socialLinks = [
