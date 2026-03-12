@@ -25,6 +25,9 @@ export function QueryProvider({ children }: QueryProviderProps) {
             retry: 1,
             // Consider data stale after 1 minute
             staleTime: 60 * 1000,
+            // Keep cache in memory for 24 hours so navigating between pages
+            // does not garbage-collect data and force a re-fetch
+            gcTime: 24 * 60 * 60 * 1000,
           },
           mutations: {
             // Retry failed mutations 0 times

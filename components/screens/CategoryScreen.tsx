@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowDownUp, ArrowUpDown, ChevronLeft, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';
@@ -21,12 +21,13 @@ function findCategoryBySlug(categories: Category[], slug: string): Category | un
 }
 
 type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc';
-const SORT_LABELS: Record<SortOption, string> = {
-  popular: 'Most Popular',
-  newest: 'Newest First',
-  'price-asc': 'Price: Low to High',
-  'price-desc': 'Price: High to Low',
-};
+
+const SORT_OPTIONS: { value: SortOption; label: string; icon: React.ReactNode }[] = [
+  { value: 'popular', label: 'Phổ biến nhất', icon: <TrendingUp size={14} /> },
+  { value: 'newest', label: 'Mới nhất', icon: <ArrowDownUp size={14} /> },
+  { value: 'price-asc', label: 'Giá tăng dần', icon: <TrendingUp size={14} /> },
+  { value: 'price-desc', label: 'Giá giảm dần', icon: <TrendingDown size={14} /> },
+];
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
@@ -95,63 +96,80 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
 
       <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10 flex gap-10'>
         {/* Sidebar filters */}
-        <aside className='hidden lg:block w-56 flex-shrink-0'>
-          <div className='sticky top-24 space-y-8'>
-            {/* Sub-categories */}
-            {subCategories.length > 0 && (
+        <aside className='hidden lg:block w-60 flex-shrink-0'>
+          <div className='sticky top-24 rounded-2xl border border-border/60 bg-card overflow-hidden'>
+            <div className='px-5 py-4 border-b border-border/40 bg-secondary/30'>
+              <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
+                Bộ lọc
+              </p>
+            </div>
+
+            <div className='p-4 space-y-6'>
+              {/* Sub-categories */}
+              {subCategories.length > 0 && (
+                <div>
+                  <p className='text-[11px] font-bold text-foreground uppercase tracking-widest mb-2.5'>
+                    Danh mục con
+                  </p>
+                  <div className='flex flex-wrap gap-2'>
+                    <button
+                      onClick={() => setSubCategoryId('all')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                        subCategoryId === 'all'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                          : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                      }`}
+                    >
+                      Tất cả
+                    </button>
+                    {subCategories.map((sub: { id: string; name: string }) => (
+                      <button
+                        key={sub.id}
+                        onClick={() => setSubCategoryId(sub.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                          subCategoryId === sub.id
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                            : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                        }`}
+                      >
+                        {sub.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              {subCategories.length > 0 && (
+                <div className='border-t border-border/40' />
+              )}
+
+              {/* Sort */}
               <div>
-                <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
-                  Sub-categories
+                <p className='text-[11px] font-bold text-foreground uppercase tracking-widest mb-2.5'>
+                  Sắp xếp theo
                 </p>
                 <div className='space-y-1'>
-                  <button
-                    onClick={() => setSubCategoryId('all')}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      subCategoryId === 'all'
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                    }`}
-                  >
-                    All
-                  </button>
-                  {subCategories.map((sub: { id: string; name: string }) => (
+                  {SORT_OPTIONS.map(({ value, label, icon }) => (
                     <button
-                      key={sub.id}
-                      onClick={() => setSubCategoryId(sub.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        subCategoryId === sub.id
-                          ? 'bg-primary/10 text-primary font-medium'
+                      key={value}
+                      onClick={() => setSort(value)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                        sort === value
+                          ? 'bg-primary/10 text-primary font-semibold'
                           : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                       }`}
                     >
-                      {sub.name}
+                      <span className={`flex-shrink-0 ${sort === value ? 'text-primary' : 'text-muted-foreground'}`}>
+                        {icon}
+                      </span>
+                      {label}
+                      {sort === value && (
+                        <span className='ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0' />
+                      )}
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Sort */}
-            <div>
-              <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
-                Sort By
-              </p>
-              <div className='space-y-1'>
-                {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(
-                  ([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => setSort(val)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        sort === val
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ),
-                )}
               </div>
             </div>
           </div>
@@ -166,11 +184,11 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
                 onClick={() => setSubCategoryId('all')}
                 className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                   subCategoryId === 'all'
-                    ? 'bg-primary text-white border-primary'
+                    ? 'bg-primary text-primary-foreground border-primary'
                     : 'border-border text-muted-foreground bg-card'
                 }`}
               >
-                All
+                Tất cả
               </button>
               {subCategories.map((sub: { id: string; name: string }) => (
                 <button
@@ -178,7 +196,7 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
                   onClick={() => setSubCategoryId(sub.id)}
                   className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                     subCategoryId === sub.id
-                      ? 'bg-primary text-white border-primary'
+                      ? 'bg-primary text-primary-foreground border-primary'
                       : 'border-border text-muted-foreground bg-card'
                   }`}
                 >
@@ -190,21 +208,19 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
 
           {/* Mobile sort chips */}
           <div className='lg:hidden flex gap-2 overflow-x-auto pb-3 mb-5 scrollbar-hide'>
-            {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(
-              ([val, label]) => (
-                <button
-                  key={val}
-                  onClick={() => setSort(val)}
-                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    sort === val
-                      ? 'bg-primary text-white border-primary'
-                      : 'border-border text-muted-foreground bg-card'
-                  }`}
-                >
-                  {label}
-                </button>
-              ),
-            )}
+            {SORT_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setSort(value)}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  sort === value
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground bg-card'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           <div className='flex items-center justify-between mb-6'>
