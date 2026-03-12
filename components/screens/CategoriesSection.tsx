@@ -15,7 +15,7 @@ function CategoryCard({ category }: { category: Category }) {
   return (
     <div className='flex-shrink-0 w-56 md:w-64 rounded-2xl overflow-hidden border border-border/40 bg-card shadow-sm hover:shadow-md transition-shadow group'>
       {/* Product image */}
-      <Link href={`/products/${category.id}`} className='block'>
+      <Link href={`/categories/${category.slug}`} className='block'>
         <div className='relative h-48 md:h-56 bg-secondary overflow-hidden'>
           {category.imageUrl && (
             <Image
