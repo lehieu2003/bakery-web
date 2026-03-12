@@ -404,7 +404,7 @@ export default function CategoriesPage() {
   }
 
   // When searching, disable DnD (order is mixed up by filter)
-  const isDndActive = !search;
+  const isDndDisabled = !!search;
 
   return (
     <AdminShell title='Categories'>
@@ -416,7 +416,7 @@ export default function CategoriesPage() {
           </h1>
           <p className='text-xs text-muted-foreground mt-0.5 flex items-center gap-1'>
             {allFlat.length} danh mục
-            {isDndActive && (
+            {!isDndDisabled && (
               <>
                 <span className='text-muted-foreground/60'>&mdash;</span>
                 <GripVertical size={11} className='inline text-muted-foreground/60' />
@@ -486,82 +486,65 @@ export default function CategoriesPage() {
         )}
       </div>
 
-      {/* Table */}
-      <div className='bg-card rounded-xl border border-border shadow-sm overflow-hidden'>
-        <table className='w-full text-sm'>
-          <thead>
-            <tr className='border-b border-border bg-muted/30'>
-              <th className='px-3 py-3 w-8' />
-              <th className='text-left px-3 py-3 text-xs font-medium text-muted-foreground w-12'>
-                Ảnh
-              </th>
-              <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground'>
-                Tên
-              </th>
-              <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground hidden sm:table-cell'>
-                Slug
-              </th>
-              <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground hidden md:table-cell'>
-                Mô tả
-              </th>
-              <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground'>
-                SP
-              </th>
-              <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground'>
-                Thứ tự
-              </th>
-              <th className='px-4 py-3 w-28' />
-            </tr>
-          </thead>
-
-          {isDndActive ? (
-            <DragDropProvider
-              onDragEnd={({ canceled, operation }) => {
-                if (canceled) return;
-                const { source } = operation;
-                if (!isSortable(source)) return;
-                const { initialIndex, index } = source.sortable;
-                if (initialIndex === index) return;
-                moveRoot(initialIndex, index);
-              }}
-            >
-              <tbody className='divide-y divide-border'>
-                {filtered.map((cat, index) => (
-                  <SortableCategoryRow
-                    key={cat.id}
-                    cat={cat}
-                    index={index}
-                    isDraggable={cat.depth === 0}
-                    onEdit={openEdit}
-                    onDelete={(id) => setDeleteId(id)}
-                    onAddChild={openCreate}
-                  />
-                ))}
-              </tbody>
-            </DragDropProvider>
-          ) : (
+      {/* Table — DragDropProvider is always mounted to avoid useInsertionEffect issues */}
+      <DragDropProvider
+        onDragEnd={({ canceled, operation }) => {
+          if (canceled) return;
+          const { source } = operation;
+          if (!isSortable(source)) return;
+          const { initialIndex, index } = source.sortable;
+          if (initialIndex === index) return;
+          moveRoot(initialIndex, index);
+        }}
+      >
+        <div className='bg-card rounded-xl border border-border shadow-sm overflow-hidden'>
+          <table className='w-full text-sm'>
+            <thead>
+              <tr className='border-b border-border bg-muted/30'>
+                <th className='px-3 py-3 w-8' />
+                <th className='text-left px-3 py-3 text-xs font-medium text-muted-foreground w-12'>
+                  Ảnh
+                </th>
+                <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground'>
+                  Tên
+                </th>
+                <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground hidden sm:table-cell'>
+                  Slug
+                </th>
+                <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground hidden md:table-cell'>
+                  Mô tả
+                </th>
+                <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground'>
+                  SP
+                </th>
+                <th className='text-left px-4 py-3 text-xs font-medium text-muted-foreground'>
+                  Thứ tự
+                </th>
+                <th className='px-4 py-3 w-28' />
+              </tr>
+            </thead>
             <tbody className='divide-y divide-border'>
               {filtered.map((cat, index) => (
                 <SortableCategoryRow
                   key={cat.id}
                   cat={cat}
                   index={index}
-                  isDraggable={false}
+                  isDraggable={cat.depth === 0 && !isDndDisabled}
                   onEdit={openEdit}
                   onDelete={(id) => setDeleteId(id)}
                   onAddChild={openCreate}
                 />
               ))}
             </tbody>
-          )}
-        </table>
+          </table>
 
-        {filtered.length === 0 && (
-          <div className='text-center py-12'>
-            <p className='text-sm text-muted-foreground'>Không tìm thấy danh mục</p>
-          </div>
-        )}
-      </div>
+          {filtered.length === 0 && (
+            <div className='text-center py-12'>
+              <p className='text-sm text-muted-foreground'>Không tìm thấy danh mục</p>
+            </div>
+          )}
+        </div>
+      </DragDropProvider>
 
       {/* Create/Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
