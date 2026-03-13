@@ -55,6 +55,17 @@ export const productService = {
   },
 
   /**
+   * Get related products for a given product (by id or slug)
+   */
+  getRelatedProducts: async (idOrSlug: string) => {
+    const response = await http.get<Product[]>(
+      ENDPOINTS.PUBLIC.RELATED_PRODUCTS(idOrSlug),
+      { showErrorToast: false },
+    );
+    return response.data ?? [];
+  },
+
+  /**
    * Get all categories
    */
   getCategories: async () => {

@@ -129,6 +129,8 @@ export const ENDPOINTS = {
     PRODUCTS: `${API_BASE}/public/products`,
     PRODUCT_DETAIL: (idOrSlug: string) =>
       `${API_BASE}/public/products/${idOrSlug}`,
+    RELATED_PRODUCTS: (idOrSlug: string) =>
+      `${API_BASE}/public/products/${idOrSlug}/related`,
     BEST_SELLERS: `${API_BASE}/public/products/best-sellers`,
     CATEGORIES: `${API_BASE}/public/categories`,
     BANNERS: `${API_BASE}/public/banners`,
