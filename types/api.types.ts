@@ -19,6 +19,7 @@ export type MemberLevel = 'SILVER' | 'GOLD' | 'PLATINUM';
 export type DiscountType = 'PERCENTAGE' | 'FIXED';
 export type PaymentMethod = 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
 export type MenuType = 'CATEGORY' | 'PAGE' | 'LINK';
+export type NotificationStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 // ============================================================================
 // Base Models
@@ -230,6 +231,24 @@ export interface Page {
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  content: string;
+  linkUrl: string | null;
+  status: NotificationStatus;
+  publishedAt: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationListItem extends Notification {
+  readCount?: number;
+  isRead?: boolean;
+  readAt?: string | null;
 }
 
 export interface CartItem {
@@ -475,6 +494,16 @@ export interface CreatePageRequest {
 
 export type UpdatePageRequest = Partial<CreatePageRequest>;
 
+export interface CreateNotificationRequest {
+  title: string;
+  content: string;
+  linkUrl?: string;
+  status?: NotificationStatus;
+  publishedAt?: string;
+}
+
+export type UpdateNotificationRequest = Partial<CreateNotificationRequest>;
+
 // ============================================================================
 // Query Params Types
 // ============================================================================
@@ -500,6 +529,15 @@ export interface OrdersQueryParams extends PaginationParams {
 export interface CustomersQueryParams extends PaginationParams {
   search?: string;
   level?: MemberLevel;
+}
+
+export interface AdminNotificationsQueryParams extends PaginationParams {
+  search?: string;
+  status?: NotificationStatus;
+}
+
+export interface UserNotificationsQueryParams extends PaginationParams {
+  unreadOnly?: boolean;
 }
 
 // Enum

@@ -14,6 +14,7 @@ import {
   Crown,
   FileText,
   Menu,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
@@ -78,6 +79,11 @@ const navItems: NavItem[] = [
     label: 'Pages',
     href: '/admin/pages',
     icon: <FileText size={16} />,
+  },
+  {
+    label: 'Notifications',
+    href: '/admin/notifications',
+    icon: <Bell size={16} />,
   },
   {
     label: 'Menu',

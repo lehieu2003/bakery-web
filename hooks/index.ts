@@ -26,6 +26,13 @@ export {
 // UI hooks
 export { useIsMobile } from './use-mobile';
 export { useToast, toast } from './use-toast';
+export {
+  useUserNotifications,
+  useInfiniteUserNotifications,
+  useMarkNotificationAsRead,
+  useMarkAllNotificationsAsRead,
+  userNotificationKeys,
+} from './use-notifications';
 
 // Admin hooks - re-export from admin folder
 export * from './admin';

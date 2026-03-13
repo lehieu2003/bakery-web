@@ -16,6 +16,7 @@ export { menuService } from './menu.service';
 export { blogPostsService } from './blog-posts.service';
 export { blogCategoriesService } from './blog-categories.service';
 export { blogTagsService } from './blog-tags.service';
+export { notificationsService } from './notifications.service';
 
 // Default export as namespace
 import { productsService } from './products.service';
@@ -31,6 +32,7 @@ import { menuService } from './menu.service';
 import { blogPostsService } from './blog-posts.service';
 import { blogCategoriesService } from './blog-categories.service';
 import { blogTagsService } from './blog-tags.service';
+import { notificationsService } from './notifications.service';
 
 const adminServices = {
   products: productsService,
@@ -46,6 +48,7 @@ const adminServices = {
   blogPosts: blogPostsService,
   blogCategories: blogCategoriesService,
   blogTags: blogTagsService,
+  notifications: notificationsService,
 };
 
 export default adminServices;
