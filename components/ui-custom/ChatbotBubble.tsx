@@ -176,11 +176,14 @@ export default function ChatbotBubble() {
     setLoading(true);
 
     try {
-      const res = await http.post(ENDPOINTS.CHATBOT, {
-        headers: { 'Content-Type': 'application/json' },
-        message: text,
-        history: messages,
-      });
+      const res = await http.post<{ reply: string; suggestedProducts: SuggestedProduct[] }>(
+        ENDPOINTS.CHATBOT,
+        {
+          headers: { 'Content-Type': 'application/json' },
+          message: text,
+          history: messages,
+        },
+      );
 
       const reply =
         res?.data?.reply || 'Xin lỗi, tôi không thể trả lời lúc này.';
