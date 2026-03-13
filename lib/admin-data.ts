@@ -271,7 +271,7 @@ export const mockOrders: Order[] = [
     total: 340000,
     subtotal: 340000,
     discount: 0,
-    status: 'PREPARING',
+    status: 'PROCESSING',
     fulfillment: 'PICKUP',
     pickupAt: '2026-03-02 14:00',
     paymentMethod: 'Cash',
