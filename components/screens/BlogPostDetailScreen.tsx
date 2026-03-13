@@ -211,7 +211,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
                 </h3>
                 <div className='flex items-center gap-3'>
                   <div className='w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0'>
-                    {post.author.name.charAt(0)}
+                    {post.author.name?.charAt(0) ?? '?'}
                   </div>
                   <div>
                     <p className='text-sm font-medium text-foreground'>
