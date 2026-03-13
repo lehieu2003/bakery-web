@@ -24,7 +24,7 @@ export {
 } from './use-products';
 
 // UI hooks
-export { useMobile } from './use-mobile';
+export { useIsMobile } from './use-mobile';
 export { useToast, toast } from './use-toast';
 
 // Admin hooks - re-export from admin folder
