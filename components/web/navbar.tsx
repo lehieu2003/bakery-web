@@ -2,6 +2,7 @@
 
 import {
   ShoppingCart,
+  Bell,
   Search,
   Phone,
   MapPin,
@@ -11,14 +12,27 @@ import {
   ChevronDown,
   Loader2,
 } from 'lucide-react';
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  useSyncExternalStore,
+} from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useAuth } from '@/providers/auth-provider';
 import { useCategories, useProducts } from '@/hooks/use-products';
+import {
+  useInfiniteUserNotifications,
+  useMarkNotificationAsRead,
+  useUserNotifications,
+} from '@/hooks/use-notifications';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import type { Category } from '@/types/api.types';
+import type { Category, NotificationListItem } from '@/types/api.types';
 import Image from 'next/image';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface NavLink {
   label: string;
@@ -40,7 +54,6 @@ export default function WebNavbar() {
   const [openMobileCategory, setOpenMobileCategory] = useState<string | null>(
     null,
   );
-  const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -48,7 +61,40 @@ export default function WebNavbar() {
   const dropdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const notificationListRef = useRef<HTMLDivElement>(null);
+  const notificationLoadMoreRef = useRef<HTMLDivElement>(null);
+  const readingNotificationIdsRef = useRef<Set<string>>(new Set());
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const subscribe = useCallback(() => () => {}, []);
+  const mounted = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+
+  const {
+    data: notificationPages,
+    isLoading: notificationsLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteUserNotifications({
+    limit: 10,
+    enabled: mounted && !!user,
+  });
+
+  const { data: unreadMeta } = useUserNotifications(
+    { page: 1, limit: 1, unreadOnly: true },
+    { enabled: mounted && !!user },
+  );
+  const markAsReadMutation = useMarkNotificationAsRead();
+
+  const notifications = useMemo(
+    () => notificationPages?.pages.flatMap((p) => p.notifications) ?? [],
+    [notificationPages],
+  );
+  const unreadCount = unreadMeta?.pagination.total ?? 0;
 
   // Debounce search input
   useEffect(() => {
@@ -126,13 +172,150 @@ export default function WebNavbar() {
     }, 120);
   };
 
+  // Infinite scroll inside notifications popover
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!notificationOpen) return;
+    if (!notificationListRef.current || !notificationLoadMoreRef.current) return;
+
+    const root = notificationListRef.current;
+    const target = notificationLoadMoreRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (
+          entry?.isIntersecting &&
+          hasNextPage &&
+          !isFetchingNextPage
+        ) {
+          fetchNextPage();
+        }
+      },
+      { root, threshold: 0.1 },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [notificationOpen, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Mark unread notifications as read when visible in the scroll viewport
+  useEffect(() => {
+    if (!notificationOpen) return;
+    if (!notificationListRef.current || notifications.length === 0) return;
+
+    const root = notificationListRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const element = entry.target as HTMLDivElement;
+          const id = element.dataset.notificationId;
+          const read = element.dataset.read === 'true';
+
+          if (!id || read) return;
+          if (readingNotificationIdsRef.current.has(id)) return;
+
+          readingNotificationIdsRef.current.add(id);
+          markAsReadMutation.mutate(id, {
+            onSettled: () => {
+              readingNotificationIdsRef.current.delete(id);
+            },
+          });
+
+          observer.unobserve(element);
+        });
+      },
+      { root, threshold: 0.65 },
+    );
+
+    const unreadElements = root.querySelectorAll<HTMLDivElement>(
+      '[data-notification-id][data-read="false"]',
+    );
+    unreadElements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [notificationOpen, notifications, markAsReadMutation]);
+
+  const formatNotificationTime = (iso: string | null | undefined) => {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString('vi-VN');
+  };
+
+  const isExternalUrl = (url: string) =>
+    /^https?:\/\//i.test(url);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
+  };
+
+  const renderNotificationItem = (item: NotificationListItem) => {
+    const baseClass = `block w-full text-left px-3 py-2.5 border-b border-gray-100 transition-colors ${
+      item.isRead
+        ? 'bg-white hover:bg-gray-50'
+        : 'bg-primary/5 hover:bg-primary/10'
+    }`;
+    const content = (
+      <>
+        <div className='flex items-start justify-between gap-2'>
+          <p
+            className={`text-sm font-medium leading-snug ${
+              item.isRead ? 'text-gray-700' : 'text-gray-900'
+            }`}
+          >
+            {item.title}
+          </p>
+          {!item.isRead && (
+            <span className='mt-1 size-2 rounded-full bg-primary shrink-0' />
+          )}
+        </div>
+        <p className='text-xs text-gray-600 mt-1.5 line-clamp-2'>{item.content}</p>
+        <p className='text-[11px] text-gray-400 mt-1.5'>
+          {formatNotificationTime(item.publishedAt || item.createdAt)}
+        </p>
+      </>
+    );
+
+    if (!item.linkUrl) {
+      return (
+        <div
+          key={item.id}
+          data-notification-id={item.id}
+          data-read={item.isRead ? 'true' : 'false'}
+          className={baseClass}
+        >
+          {content}
+        </div>
+      );
+    }
+
+    if (isExternalUrl(item.linkUrl)) {
+      return (
+        <a
+          key={item.id}
+          href={item.linkUrl}
+          target='_blank'
+          rel='noreferrer'
+          data-notification-id={item.id}
+          data-read={item.isRead ? 'true' : 'false'}
+          className={baseClass}
+        >
+          {content}
+        </a>
+      );
+    }
+
+    return (
+      <Link
+        key={item.id}
+        href={item.linkUrl}
+        data-notification-id={item.id}
+        data-read={item.isRead ? 'true' : 'false'}
+        className={baseClass}
+        onClick={() => setNotificationOpen(false)}
+      >
+        {content}
+      </Link>
+    );
   };
 
   return (
@@ -281,6 +464,71 @@ export default function WebNavbar() {
 
           {/* Right actions */}
           <div className='flex items-center gap-3 flex-shrink-0'>
+            {/* Notifications */}
+            {mounted && user && (
+              <Popover open={notificationOpen} onOpenChange={setNotificationOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className='relative flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors'
+                    aria-label='Notifications'
+                  >
+                    <div className='relative'>
+                      <Bell size={24} />
+                      {unreadCount > 0 && (
+                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center px-1'>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align='end'
+                  sideOffset={10}
+                  className='w-[360px] p-0 border-gray-200'
+                >
+                  <div className='px-3 py-2.5 border-b border-gray-100'>
+                    <p className='text-sm font-semibold text-gray-800'>
+                      Thông báo
+                    </p>
+                    <p className='text-xs text-gray-500 mt-0.5'>
+                      {unreadCount > 0
+                        ? `${unreadCount} chưa đọc`
+                        : 'Bạn đã đọc hết thông báo'}
+                    </p>
+                  </div>
+
+                  <div
+                    ref={notificationListRef}
+                    className='max-h-[360px] overflow-y-auto overscroll-contain'
+                  >
+                    {notificationsLoading ? (
+                      <div className='flex items-center justify-center gap-2 py-8 text-sm text-gray-400'>
+                        <Loader2 size={16} className='animate-spin' />
+                        <span>Đang tải thông báo...</span>
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <p className='py-8 text-center text-sm text-gray-400'>
+                        Chưa có thông báo nào
+                      </p>
+                    ) : (
+                      <>
+                        {notifications.map((item) =>
+                          renderNotificationItem(item),
+                        )}
+                        <div ref={notificationLoadMoreRef} className='h-2' />
+                        {isFetchingNextPage && (
+                          <div className='py-3 flex items-center justify-center text-gray-400'>
+                            <Loader2 size={14} className='animate-spin' />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+
             {/* Cart */}
             <Link
               href='/cart'

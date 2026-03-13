@@ -120,6 +120,15 @@ export const ENDPOINTS = {
       UPDATE: (id: string) => `${ADMIN_BASE}/blog/tags/${id}`,
       DELETE: (id: string) => `${ADMIN_BASE}/blog/tags/${id}`,
     },
+
+    // Notifications
+    NOTIFICATIONS: {
+      LIST: `${ADMIN_BASE}/notifications`,
+      DETAIL: (id: string) => `${ADMIN_BASE}/notifications/${id}`,
+      CREATE: `${ADMIN_BASE}/notifications`,
+      UPDATE: (id: string) => `${ADMIN_BASE}/notifications/${id}`,
+      DELETE: (id: string) => `${ADMIN_BASE}/notifications/${id}`,
+    },
   },
 
   // ============================================================================
@@ -149,6 +158,11 @@ export const ENDPOINTS = {
   // Customer APIs
   // ============================================================================
   ORDERS: `${API_BASE}/orders`,
+  NOTIFICATIONS: {
+    LIST: `${API_BASE}/notifications`,
+    MARK_READ: (id: string) => `${API_BASE}/notifications/${id}/read`,
+    MARK_ALL_READ: `${API_BASE}/notifications/read-all`,
+  },
 
   // ============================================================================
   // Chatbot API

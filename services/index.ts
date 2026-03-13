@@ -8,6 +8,7 @@ export { authService } from './auth.service';
 
 // Public Services
 export { productService } from './product.service';
+export { notificationsService } from './notifications.service';
 
 // Admin Services
 export {
