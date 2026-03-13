@@ -34,7 +34,7 @@ function FeaturedPostCard({ post }: { post: BlogPost }) {
       {/* Cover Image */}
       <div className='relative aspect-[16/7] bg-secondary overflow-hidden'>
         <Image
-          src={post.coverUrl}
+          src={post.coverUrl ?? ''}
           alt={post.title}
           fill
           priority
@@ -96,7 +96,7 @@ function BlogPostCard({ post }: { post: BlogPost }) {
       {/* Thumbnail */}
       <div className='relative aspect-[16/9] bg-secondary overflow-hidden flex-shrink-0'>
         <Image
-          src={post.coverUrl}
+          src={post.coverUrl ?? ''}
           alt={post.title}
           fill
           loading='lazy'
