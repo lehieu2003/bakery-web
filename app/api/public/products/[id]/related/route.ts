@@ -60,8 +60,8 @@ export async function GET(
     const categoryIds = current.categories.map((c) => c.categoryId);
     const excludeId = current.id;
 
-    // 1. Fetch products that share at least one category
-    const sameCategoryProducts =
+    // Only return products that share at least one category
+    const results =
       categoryIds.length > 0
         ? await prisma.product.findMany({
             where: {
@@ -74,39 +74,6 @@ export async function GET(
             orderBy: { createdAt: 'desc' },
           })
         : [];
-
-    let results = sameCategoryProducts;
-
-    // 2. Fill remaining slots with featured products
-    if (results.length < LIMIT) {
-      const existingIds = results.map((p) => p.id);
-      const featured = await prisma.product.findMany({
-        where: {
-          isActive: true,
-          isFeatured: true,
-          id: { notIn: [excludeId, ...existingIds] },
-        },
-        select: productSelect,
-        take: LIMIT - results.length,
-        orderBy: { createdAt: 'desc' },
-      });
-      results = [...results, ...featured];
-    }
-
-    // 3. Fill remaining slots with newest products
-    if (results.length < LIMIT) {
-      const existingIds = results.map((p) => p.id);
-      const newest = await prisma.product.findMany({
-        where: {
-          isActive: true,
-          id: { notIn: [excludeId, ...existingIds] },
-        },
-        select: productSelect,
-        take: LIMIT - results.length,
-        orderBy: { createdAt: 'desc' },
-      });
-      results = [...results, ...newest];
-    }
 
     // Serialize Decimal fields to numbers
     const data = results.map((p) => ({
