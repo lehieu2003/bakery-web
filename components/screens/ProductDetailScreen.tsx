@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ChevronLeft, ShoppingBag, Star } from 'lucide-react';
+import { ChevronLeft, ShoppingBag, Star, ZoomIn, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useProductDetail } from '@/hooks/use-products';
@@ -55,6 +55,17 @@ export default function ProductDetailScreen({
   const [message, setMessage] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [added, setAdded] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
+
+  // Prevent background scroll when lightbox is open
+  useEffect(() => {
+    if (zoomOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [zoomOpen]);
 
   const variants = selectedProduct?.variants || [];
 
@@ -164,28 +175,76 @@ export default function ProductDetailScreen({
           {/* Left: Image Gallery */}
           <div className='space-y-3'>
             {/* Embla main carousel */}
-            <div
-              className='overflow-hidden rounded-2xl bg-secondary aspect-square'
-              ref={emblaRef}
-            >
-              <div className='flex h-full'>
-                {getProductImages(selectedProduct).map((src, i) => (
-                  <div
-                    key={i}
-                    className='relative flex-shrink-0 w-full h-full'
-                  >
-                    <Image
-                      src={src}
-                      alt={`${selectedProduct.name} - view ${i + 1}`}
-                      fill
-                      className='object-cover'
-                      priority={i === 0}
-                      loading={i === 0 ? 'eager' : 'lazy'}
-                    />
-                  </div>
-                ))}
+            <div className='relative rounded-2xl bg-secondary aspect-square overflow-hidden'>
+              <div
+                className='overflow-hidden h-full w-full'
+                ref={emblaRef}
+              >
+                <div className='flex h-full'>
+                  {getProductImages(selectedProduct).map((src, i) => (
+                    <div
+                      key={i}
+                      className='relative flex-shrink-0 w-full h-full'
+                    >
+                      <Image
+                        src={src}
+                        alt={`${selectedProduct.name} - view ${i + 1}`}
+                        fill
+                        className='object-cover'
+                        priority={i === 0}
+                        loading={i === 0 ? 'eager' : 'lazy'}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* Zoom trigger button */}
+              <button
+                type='button'
+                onClick={() => setZoomOpen(true)}
+                aria-label='Zoom image'
+                className='absolute bottom-3 right-3 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60'
+              >
+                <ZoomIn size={17} />
+              </button>
             </div>
+
+            {/* Fullscreen lightbox */}
+            {zoomOpen && (
+              <div
+                className='fixed inset-0 z-50 flex items-center justify-center bg-black/85 animate-[fadeIn_0.2s_ease]'
+                onClick={() => setZoomOpen(false)}
+                role='dialog'
+                aria-modal='true'
+                aria-label='Image zoom view'
+              >
+                {/* Close button */}
+                <button
+                  type='button'
+                  onClick={() => setZoomOpen(false)}
+                  aria-label='Close zoom view'
+                  className='absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60'
+                >
+                  <X size={20} />
+                </button>
+
+                {/* Image container — stop propagation so clicking image doesn't close */}
+                <div
+                  className='relative w-full h-full max-w-4xl max-h-[90vh] mx-6'
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Image
+                    src={getProductImages(selectedProduct)[activeImageIndex]}
+                    alt={`${selectedProduct.name} - zoomed`}
+                    fill
+                    className='object-contain'
+                    sizes='(max-width: 768px) 100vw, 896px'
+                    priority
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Counter + dots */}
             {getProductImages(selectedProduct).length > 1 && (
