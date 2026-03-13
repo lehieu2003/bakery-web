@@ -1,6 +1,7 @@
 import {
   PrismaClient,
   OrderStatus,
+  PaymentMethod,
   MemberLevel,
   DiscountType,
 } from '@prisma/client';
@@ -309,7 +310,15 @@ async function main() {
         slug: prod.slug,
         description: prod.description,
         price: prod.price,
-        categoryId: categories[prod.categoryName],
+        categories: {
+          create: [
+            {
+              category: {
+                connect: { id: categories[prod.categoryName] },
+              },
+            },
+          ],
+        },
         stock: prod.stock,
         isActive: prod.isActive,
         isFeatured: prod.isFeatured,
@@ -386,7 +395,7 @@ async function main() {
       discount: 20000,
       total: 880000,
       status: 'PENDING' as OrderStatus,
-      paymentMethod: 'BANK_TRANSFER',
+      paymentMethod: 'BANK_TRANSFER' as PaymentMethod,
       paymentStatus: 'PENDING',
       createdAt: new Date('2026-03-02T08:30:00'),
       items: [{ slug: 'rose-garden-birthday-cake', quantity: 1 }],
@@ -401,7 +410,7 @@ async function main() {
       discount: 0,
       total: 2400000,
       status: 'CONFIRMED' as OrderStatus,
-      paymentMethod: 'COD',
+      paymentMethod: 'COD' as PaymentMethod,
       paymentStatus: 'PENDING',
       createdAt: new Date('2026-03-02T09:15:00'),
       items: [{ slug: 'classic-white-wedding', quantity: 1 }],
@@ -415,7 +424,7 @@ async function main() {
       discount: 0,
       total: 490000,
       status: 'PROCESSING' as OrderStatus,
-      paymentMethod: 'COD',
+      paymentMethod: 'COD' as PaymentMethod,
       paymentStatus: 'PAID',
       createdAt: new Date('2026-03-01T20:00:00'),
       items: [
@@ -432,7 +441,7 @@ async function main() {
       discount: 0,
       total: 720000,
       status: 'READY' as OrderStatus,
-      paymentMethod: 'BANK_TRANSFER',
+      paymentMethod: 'BANK_TRANSFER' as PaymentMethod,
       paymentStatus: 'PAID',
       createdAt: new Date('2026-03-01T18:00:00'),
       items: [{ slug: 'chocolate-lava-dream', quantity: 1 }],
@@ -446,7 +455,7 @@ async function main() {
       discount: 0,
       total: 850000,
       status: 'COMPLETED' as OrderStatus,
-      paymentMethod: 'COD',
+      paymentMethod: 'COD' as PaymentMethod,
       paymentStatus: 'PAID',
       createdAt: new Date('2026-03-01T10:00:00'),
       items: [{ slug: 'rose-garden-birthday-cake', quantity: 1 }],
@@ -461,7 +470,7 @@ async function main() {
       discount: 0,
       total: 650000,
       status: 'CANCELLED' as OrderStatus,
-      paymentMethod: 'COD',
+      paymentMethod: 'COD' as PaymentMethod,
       paymentStatus: 'PENDING',
       createdAt: new Date('2026-02-28T16:00:00'),
       items: [{ slug: 'matcha-sakura-delight', quantity: 1 }],
