@@ -1,59 +1,15 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
-import { useCart } from '@/lib/cart-store';
-import { getProductImage } from '@/lib/utils';
 import BannerCarousel from '@/components/ui-custom/BannerCarousel';
-import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';
 import { useBanners } from '@/hooks/use-banners';
 import BestSellersSection from '@/components/screens/BestSellersSection';
 import type { Category } from '@/types/api.types';
 import CategoriesSection from './CategoriesSection';
 
-const PLACEHOLDER_BLUR =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
-
-function ProductCard({
-  product,
-  href,
-}: {
-  product: { id: string; name: string; price: number; image: string };
-  href: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className='group bg-card rounded-2xl border border-border/50 overflow-hidden hover:border-primary/40 transition-all hover:shadow-lg'
-    >
-      <div className='relative aspect-square bg-secondary overflow-hidden'>
-        <Image
-          src={product.image}
-          alt={product.name}
-          fill
-          loading='lazy'
-          sizes='(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw'
-          placeholder='blur'
-          blurDataURL={PLACEHOLDER_BLUR}
-          className='object-cover transition-transform group-hover:scale-105'
-        />
-      </div>
-      <div className='p-4'>
-        <p className='font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1'>
-          {product.name}
-        </p>
-        <p className='text-xs text-muted-foreground mt-1'>
-          From {product.price.toLocaleString('vi-VN')}đ
-        </p>
-      </div>
-    </Link>
-  );
-}
-
 export default function HomeScreen() {
-  const { user } = useCart();
-  const { data: productsData, isLoading: productsLoading } = useProducts();
+  const { data: productsData } = useProducts();
   const { data: categoriesData } = useCategories();
   const { data: banners, isLoading: bannersLoading } = useBanners();
 
