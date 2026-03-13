@@ -79,9 +79,9 @@ function RelatedProductCard({ product }: { product: Product }) {
           <button
             onClick={handleAddToCart}
             disabled={product.stock <= 0}
-            className='shrink-0 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 active:scale-95 transition-all disabled:opacity-40'
+            className='shrink-0 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded hover:opacity-90 active:scale-95 transition-all disabled:opacity-40'
           >
-            {product.stock <= 0 ? 'Hết hàng' : 'Thêm'}
+            {product.stock <= 0 ? 'Hết hàng' : 'Add to Cart'}
           </button>
         </div>
       </div>
@@ -124,7 +124,7 @@ export default function RelatedProducts({ productId }: RelatedProductsProps) {
         id='related-heading'
         className='font-serif text-2xl md:text-3xl font-bold text-primary mb-8 text-balance'
       >
-        San Pham Lien Quan
+        Sản Phẩm Liên Quan
       </h2>
 
       <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
