@@ -311,7 +311,15 @@ async function main() {
         slug: prod.slug,
         description: prod.description,
         price: prod.price,
-        categoryId: categories[prod.categoryName],
+        categories: {
+          create: [
+            {
+              category: {
+                connect: { id: categories[prod.categoryName] },
+              },
+            },
+          ],
+        },
         stock: prod.stock,
         isActive: prod.isActive,
         isFeatured: prod.isFeatured,
