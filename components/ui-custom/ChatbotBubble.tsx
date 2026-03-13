@@ -88,17 +88,13 @@ export default function ChatbotBubble() {
 
     try {
       const res = await http.post(ENDPOINTS.CHATBOT, {
-        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          history: messages,
-        }),
+        message: text,
+        history: messages,
       });
 
-      const data = await res.json();
       const reply =
-        data?.data?.reply || 'Xin lỗi, tôi không thể trả lời lúc này.';
+        res?.data?.reply || 'Xin lỗi, tôi không thể trả lời lúc này.';
 
       setMessages([...newMessages, { role: 'assistant', content: reply }]);
 
