@@ -361,7 +361,7 @@ export interface CreateProductRequest {
   trackStock?: boolean;
   weight?: number;
   categoryIds?: string[];
-  images?: string[];
+  images?: (string | { url: string; isPrimary?: boolean; altText?: string; displayOrder?: number })[];
   variants?: Array<{
     name: string;
     sku?: string;
