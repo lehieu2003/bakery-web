@@ -30,18 +30,18 @@ const productSelect = {
   },
 };
 
-// GET /api/public/products/[idOrSlug]/related
+// GET /api/public/products/[id]/related
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ idOrSlug: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { idOrSlug } = await params;
+    const { id } = await params;
 
-    // Find current product and its category IDs
+    // Find current product and its category IDs (id or slug)
     const current = await prisma.product.findFirst({
       where: {
-        OR: [{ id: idOrSlug }, { slug: idOrSlug }],
+        OR: [{ id }, { slug: id }],
         isActive: true,
       },
       select: {
@@ -61,18 +61,19 @@ export async function GET(
     const excludeId = current.id;
 
     // 1. Fetch products that share at least one category
-    const sameCategoryProducts = categoryIds.length > 0
-      ? await prisma.product.findMany({
-          where: {
-            isActive: true,
-            id: { not: excludeId },
-            categories: { some: { categoryId: { in: categoryIds } } },
-          },
-          select: productSelect,
-          take: LIMIT,
-          orderBy: { createdAt: 'desc' },
-        })
-      : [];
+    const sameCategoryProducts =
+      categoryIds.length > 0
+        ? await prisma.product.findMany({
+            where: {
+              isActive: true,
+              id: { not: excludeId },
+              categories: { some: { categoryId: { in: categoryIds } } },
+            },
+            select: productSelect,
+            take: LIMIT,
+            orderBy: { createdAt: 'desc' },
+          })
+        : [];
 
     let results = sameCategoryProducts;
 
