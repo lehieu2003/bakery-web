@@ -32,7 +32,11 @@ export const authService = {
 
     // Store token in localStorage
     if (response.data?.token) {
-      authToken.set(response.data.token);
+      console.log('Received user data:', response.data); // Debug log
+      authToken.set({
+        token: response.data.token,
+        role: response.data.user.role,
+      });
     }
 
     return response.data!.user;
@@ -106,7 +110,9 @@ export const authService = {
       typeof responseData === 'object' &&
       'token' in responseData
     ) {
-      authToken.set(responseData.token);
+      authToken.set({
+        token: (responseData as { token: string }).token,
+      });
       return responseData.user;
     }
 
