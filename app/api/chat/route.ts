@@ -124,7 +124,7 @@ Lý do phù hợp ngắn gọn
     }[] = [];
 
     if (mentionedSlugs.length > 0) {
-      suggestedProducts = await prisma.product.findMany({
+      const rawProducts = await prisma.product.findMany({
         where: {
           slug: { in: mentionedSlugs },
           isActive: true,
@@ -143,6 +143,12 @@ Lý do phù hợp ngắn gọn
           },
         },
       });
+
+      suggestedProducts = rawProducts.map((p) => ({
+        ...p,
+        price: p.price.toNumber(),
+        comparePrice: p.comparePrice ? p.comparePrice.toNumber() : null,
+      }));
     }
 
     return NextResponse.json({
