@@ -20,6 +20,7 @@ export const productKeys = {
   }) => [...productKeys.lists(), filters] as const,
   details: () => [...productKeys.all, 'detail'] as const,
   detail: (id: string) => [...productKeys.details(), id] as const,
+  related: (idOrSlug: string) => [...productKeys.all, 'related', idOrSlug] as const,
   categories: () => ['categories'] as const,
   bestSellers: (limit?: number) => [...productKeys.all, 'best-sellers', limit] as const,
 };
@@ -53,6 +54,18 @@ export function useProductDetail(idOrSlug: string) {
     queryFn: () => productService.getProductDetail(idOrSlug),
     enabled: !!idOrSlug,
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+/**
+ * Hook to get related products for a given product
+ */
+export function useRelatedProducts(idOrSlug: string) {
+  return useQuery({
+    queryKey: productKeys.related(idOrSlug),
+    queryFn: () => productService.getRelatedProducts(idOrSlug),
+    enabled: !!idOrSlug,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
