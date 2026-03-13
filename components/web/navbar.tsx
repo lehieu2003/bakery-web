@@ -456,6 +456,16 @@ export default function WebNavbar() {
             >
               Thành viên
             </Link>
+            <Link
+              href='/store'
+              className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                isActive('/store')
+                  ? 'text-primary border-primary'
+                  : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
+              }`}
+            >
+              Cửa hàng
+            </Link>
           </nav>
         </div>
       </div>
@@ -543,6 +553,17 @@ export default function WebNavbar() {
               }`}
             >
               <span className='uppercase tracking-wide'>Thành viên</span>
+            </Link>
+            <Link
+              href='/store'
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                isActive('/store')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
+              }`}
+            >
+              <span className='uppercase tracking-wide'>Cửa hàng</span>
             </Link>
             {!user && !isLoading && (
               <Link
