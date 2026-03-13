@@ -9,14 +9,16 @@ import {
   Menu,
   X,
   ChevronDown,
+  Loader2,
 } from 'lucide-react';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useAuth } from '@/providers/auth-provider';
-import { useCategories } from '@/hooks/use-products';
+import { useCategories, useProducts } from '@/hooks/use-products';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { Category } from '@/types/api.types';
+import Image from 'next/image';
 
 interface NavLink {
   label: string;
@@ -33,15 +35,68 @@ export default function WebNavbar() {
   const { isLoading } = useAuth();
   const { data: categoriesData } = useCategories();
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openMobileCategory, setOpenMobileCategory] = useState<string | null>(
     null,
   );
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 350);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
+        setSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Search results query — only active when user has typed something
+  const { data: searchData, isFetching: searchFetching } = useProducts(
+    { search: debouncedSearch, limit: 6 },
+    { enabled: debouncedSearch.length >= 1 },
+  );
+  const searchResults = searchData?.products ?? [];
+
+  const handleSearchSubmit = useCallback(
+    (e?: React.FormEvent) => {
+      e?.preventDefault();
+      if (!searchQuery.trim()) return;
+      setSearchFocused(false);
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    },
+    [searchQuery, router],
+  );
+
+  const handleProductClick = useCallback(() => {
+    setSearchFocused(false);
+    setSearchQuery('');
+    setDebouncedSearch('');
+  }, []);
 
   // Build nav links dynamically from root categories, preserving children
   const navLinks = useMemo((): NavLink[] => {
@@ -138,20 +193,90 @@ export default function WebNavbar() {
           </div>
 
           {/* Search bar */}
-          <div className='flex-1 relative'>
-            <input
-              type='text'
-              placeholder='Bạn tìm gì ở La Douceur?'
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className='w-full border border-gray-200 rounded-md px-4 py-2.5 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
-            />
-            <button
-              className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors'
-              aria-label='Search'
-            >
-              <Search size={18} />
-            </button>
+          <div className='flex-1 relative' ref={searchContainerRef}>
+            <form onSubmit={handleSearchSubmit}>
+              <input
+                type='text'
+                placeholder='Bạn tìm gì ở La Douceur?'
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                className='w-full border border-gray-200 rounded-md px-4 py-2.5 pr-10 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
+                autoComplete='off'
+              />
+              <button
+                type='submit'
+                className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors'
+                aria-label='Search'
+              >
+                {searchFetching ? (
+                  <Loader2 size={18} className='animate-spin' />
+                ) : (
+                  <Search size={18} />
+                )}
+              </button>
+            </form>
+
+            {/* Search dropdown */}
+            {searchFocused && debouncedSearch.length >= 1 && (
+              <div className='absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 overflow-hidden'>
+                {searchFetching && searchResults.length === 0 ? (
+                  <div className='flex items-center justify-center gap-2 py-6 text-sm text-gray-400'>
+                    <Loader2 size={16} className='animate-spin' />
+                    <span>Đang tìm kiếm...</span>
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className='py-6 text-center text-sm text-gray-400'>
+                    Không tìm thấy sản phẩm nào cho &quot;{debouncedSearch}&quot;
+                  </div>
+                ) : (
+                  <>
+                    <ul>
+                      {searchResults.map((product) => {
+                        const primaryImage = product.images?.find((img) => img.isPrimary) ?? product.images?.[0];
+                        return (
+                          <li key={product.id}>
+                            <Link
+                              href={`/products/${product.slug}`}
+                              onClick={handleProductClick}
+                              className='flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors'
+                            >
+                              <div className='w-10 h-10 rounded-md bg-gray-100 flex-shrink-0 overflow-hidden'>
+                                {primaryImage ? (
+                                  <Image
+                                    src={primaryImage.url}
+                                    alt={primaryImage.altText ?? product.name}
+                                    width={40}
+                                    height={40}
+                                    className='w-full h-full object-cover'
+                                  />
+                                ) : (
+                                  <div className='w-full h-full bg-gray-200' />
+                                )}
+                              </div>
+                              <div className='flex-1 min-w-0'>
+                                <p className='text-sm font-medium text-gray-800 truncate'>{product.name}</p>
+                                <p className='text-xs text-primary font-semibold mt-0.5'>
+                                  {product.price.toLocaleString('vi-VN')}đ
+                                </p>
+                              </div>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <div className='border-t border-gray-100 px-4 py-2.5'>
+                      <button
+                        onClick={handleSearchSubmit}
+                        className='w-full text-sm text-primary font-medium hover:underline text-center'
+                      >
+                        Xem tất cả kết quả cho &quot;{debouncedSearch}&quot;
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right actions */}
