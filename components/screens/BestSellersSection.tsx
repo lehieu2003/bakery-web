@@ -12,7 +12,11 @@ import type { Product } from '@/types/api.types';
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
 
-function BestSellerCard({ product }: { product: Product & { totalSold?: number } }) {
+function BestSellerCard({
+  product,
+}: {
+  product: Product & { totalSold?: number };
+}) {
   const { addToCart } = useCart();
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -53,7 +57,9 @@ function BestSellerCard({ product }: { product: Product & { totalSold?: number }
             {product.name}
           </p>
           {product.sku && (
-            <p className='text-xs text-muted-foreground mt-0.5'>{product.sku}</p>
+            <p className='text-xs text-muted-foreground mt-0.5'>
+              {product.sku}
+            </p>
           )}
         </Link>
 
@@ -63,9 +69,9 @@ function BestSellerCard({ product }: { product: Product & { totalSold?: number }
           </p>
           <button
             onClick={handleAddToCart}
-            className='shrink-0 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 active:scale-95 transition-all'
+            className='shrink-0 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded hover:opacity-90 active:scale-95 transition-all'
           >
-            Mua Ngay
+            Add to Cart
           </button>
         </div>
       </div>
@@ -106,7 +112,10 @@ export default function BestSellersSection() {
   if (isEmpty) return null;
 
   return (
-    <section className='py-14 px-4 lg:px-8' aria-labelledby='best-sellers-heading'>
+    <section
+      className='py-14 px-4 lg:px-8'
+      aria-labelledby='best-sellers-heading'
+    >
       {/* Heading */}
       <h2
         id='best-sellers-heading'
@@ -139,7 +148,11 @@ export default function BestSellersSection() {
                 <BestSellerSkeleton key={i} />
               ))
             : products?.map((product) => (
-                <div key={product.id} style={{ scrollSnapAlign: 'start' }} role='listitem'>
+                <div
+                  key={product.id}
+                  style={{ scrollSnapAlign: 'start' }}
+                  role='listitem'
+                >
                   <BestSellerCard product={product} />
                 </div>
               ))}
