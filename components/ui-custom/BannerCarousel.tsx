@@ -100,7 +100,7 @@ function BannerContent({ banner }: { banner: Banner }) {
   return (
     <div className='relative w-full h-full'>
       <Image
-        src={banner.imageUrl}
+        src={banner.imageUrl ?? ''}
         alt={banner.title}
         fill
         className='object-cover'
