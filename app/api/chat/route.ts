@@ -107,9 +107,53 @@ Lý do phù hợp ngắn gọn
       completion.choices?.[0]?.message?.content ||
       'Xin lỗi, tôi không hiểu yêu cầu của bạn.';
 
+    // Extract slugs mentioned in the reply (pattern: /products/[slug])
+    const slugMatches = [...reply.matchAll(/\/products\/([a-z0-9-]+)/g)];
+    const mentionedSlugs = [...new Set(slugMatches.map((m) => m[1]))];
+
+    // Fetch full product data for suggested products
+    let suggestedProducts: {
+      id: string;
+      name: string;
+      slug: string;
+      price: number;
+      comparePrice: number | null;
+      shortDescription: string | null;
+      stock: number;
+      images: { url: string; isPrimary: boolean; displayOrder: number }[];
+    }[] = [];
+
+    if (mentionedSlugs.length > 0) {
+      const rawProducts = await prisma.product.findMany({
+        where: {
+          slug: { in: mentionedSlugs },
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          price: true,
+          comparePrice: true,
+          shortDescription: true,
+          stock: true,
+          images: {
+            orderBy: { displayOrder: 'asc' },
+            select: { url: true, isPrimary: true, displayOrder: true },
+          },
+        },
+      });
+
+      suggestedProducts = rawProducts.map((p) => ({
+        ...p,
+        price: p.price.toNumber(),
+        comparePrice: p.comparePrice ? p.comparePrice.toNumber() : null,
+      }));
+    }
+
     return NextResponse.json({
       success: true,
-      data: { reply },
+      data: { reply, suggestedProducts },
     });
   } catch (error) {
     console.error('Chat API error:', error);
