@@ -271,7 +271,7 @@ export default function ProductsPage() {
                 >
                   {c.name}
                 </DropdownMenuItem>
-                {(c as any).children?.map((child: any) => (
+                {c.children?.map((child) => (
                   <DropdownMenuItem
                     key={child.id}
                     className={cn(

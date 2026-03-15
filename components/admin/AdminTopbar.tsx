@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Menu, Search, Plus, Bell, LogOut } from 'lucide-react';
+import { Menu, Plus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +20,6 @@ interface AdminTopbarProps {
 }
 
 export default function AdminTopbar({ onMenuClick, title }: AdminTopbarProps) {
-  const [searchValue, setSearchValue] = useState('');
   const { user, logout: clearAuthUser } = useAuth();
   const { mutate: logout } = useLogout();
   const router = useRouter();

@@ -5,7 +5,6 @@ import React, {
   useContext,
   useState,
   useCallback,
-  useEffect,
 } from 'react';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -68,18 +67,14 @@ interface CartState {
 const CartContext = createContext<CartState | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [checkoutInfo, setCheckoutInfoState] = useState<CheckoutInfo | null>(
     null,
   );
   const auth = useAuth();
 
-  // Sync user from AuthProvider to cart store
-  useEffect(() => {
-    if (auth.user) {
-      // Convert API user to cart store user format
-      setUser({
+  const user: User | null = auth.user
+    ? {
         name: auth.user.name || auth.user.email,
         level:
           (auth.user.memberLevel?.toLowerCase() as
@@ -88,11 +83,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             | 'platinum') || 'silver',
         points: auth.user.points || 0,
         savedThisMonth: 0,
-      });
-    } else {
-      setUser(null);
-    }
-  }, [auth.user]);
+      }
+    : null;
 
   const addToCart = useCallback((item: CartItem) => {
     setCart((prev) => {

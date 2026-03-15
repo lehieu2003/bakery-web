@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
+}
+
+function getErrorStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
 // GET /api/admin/menu - List all menu items
 export async function GET() {
   try {
@@ -19,16 +29,12 @@ export async function GET() {
       success: true,
       data: menuItems,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Admin menu error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }
@@ -39,17 +45,17 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
 
-    const body = await request.json();
-    const {
-      title,
-      url,
-      parentId,
-      categoryId,
-      pageId,
-      type,
-      displayOrder,
-      isActive,
-    } = body;
+    const body = (await request.json()) as Record<string, unknown>;
+    const title = typeof body.title === 'string' ? body.title : '';
+    const url = typeof body.url === 'string' ? body.url : null;
+    const parentId = typeof body.parentId === 'string' ? body.parentId : null;
+    const categoryId =
+      typeof body.categoryId === 'string' ? body.categoryId : null;
+    const pageId = typeof body.pageId === 'string' ? body.pageId : null;
+    const type = typeof body.type === 'string' ? body.type : 'LINK';
+    const displayOrder =
+      typeof body.displayOrder === 'number' ? body.displayOrder : 0;
+    const isActive = typeof body.isActive === 'boolean' ? body.isActive : true;
 
     if (!title) {
       return NextResponse.json(
@@ -61,13 +67,13 @@ export async function POST(request: NextRequest) {
     const menuItem = await prisma.menuItem.create({
       data: {
         title,
-        url: url || null,
-        parentId: parentId || null,
-        categoryId: categoryId || null,
-        pageId: pageId || null,
-        type: type || 'LINK',
-        displayOrder: displayOrder || 0,
-        isActive: isActive ?? true,
+        url,
+        parentId,
+        categoryId,
+        pageId,
+        type: type as 'LINK' | 'CATEGORY' | 'PAGE',
+        displayOrder,
+        isActive,
       },
       include: {
         category: { select: { id: true, name: true, slug: true } },
@@ -79,16 +85,12 @@ export async function POST(request: NextRequest) {
       success: true,
       data: menuItem,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create menu item error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }

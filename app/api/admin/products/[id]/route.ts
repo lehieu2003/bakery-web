@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
+import type { UpdateProductRequest } from '@/types/api.types';
 
 // GET /api/admin/products/[id] - Get single product (PUBLIC - no auth required)
 export async function GET(
@@ -56,17 +58,17 @@ export async function PUT(
   try {
     await requireAdmin();
     const { id } = await params;
-    const body = await request.json();
+    const body = (await request.json()) as Partial<UpdateProductRequest> &
+      Record<string, unknown>;
 
-    const {
-      images,
-      variants,
-      categories,
-      categoryIds,
-      category,
-      imageUrl,
-      ...updateData
-    } = body as Record<string, any>;
+    const { images, variants, categoryIds, ...rest } = body;
+    const updateData = Object.fromEntries(
+      Object.entries(rest).filter(
+        ([key, value]) =>
+          !['categories', 'category', 'imageUrl'].includes(key) &&
+          value !== undefined,
+      ),
+    );
 
     // Handle category connections if categoryIds provided
     if (Array.isArray(categoryIds)) {
@@ -84,16 +86,43 @@ export async function PUT(
     // Handle images array — replace all images
     if (Array.isArray(images)) {
       await prisma.productImage.deleteMany({ where: { productId: id } });
-      if (images.length > 0) {
-        await prisma.productImage.createMany({
-          data: images.map(
-            (img: { url: string; isPrimary?: boolean }, idx: number) => ({
-              productId: id,
-              url: img.url,
-              isPrimary: img.isPrimary ?? idx === 0,
+      const normalizedImages = images
+        .map((img, idx) => {
+          if (typeof img === 'string') {
+            return {
+              url: img,
+              isPrimary: idx === 0,
               displayOrder: idx,
-            }),
-          ),
+            };
+          }
+          if (img && typeof img === 'object' && 'url' in img) {
+            const imageObj = img as {
+              url?: string;
+              isPrimary?: boolean;
+              displayOrder?: number;
+            };
+            if (!imageObj.url) return null;
+            return {
+              url: imageObj.url,
+              isPrimary: imageObj.isPrimary ?? idx === 0,
+              displayOrder: imageObj.displayOrder ?? idx,
+            };
+          }
+          return null;
+        })
+        .filter(
+          (img): img is { url: string; isPrimary: boolean; displayOrder: number } =>
+            !!img,
+        );
+
+      if (normalizedImages.length > 0) {
+        await prisma.productImage.createMany({
+          data: normalizedImages.map((img) => ({
+            productId: id,
+            url: img.url,
+            isPrimary: img.isPrimary,
+            displayOrder: img.displayOrder,
+          })),
         });
       }
     }
@@ -142,7 +171,7 @@ export async function PUT(
 
     const product = await prisma.product.update({
       where: { id },
-      data: updateData,
+      data: updateData as Prisma.ProductUpdateInput,
       include: {
         categories: { include: { category: true } },
         images: { orderBy: { displayOrder: 'asc' } },

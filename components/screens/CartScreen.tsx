@@ -101,7 +101,7 @@ export default function CartScreen() {
                           )}
                           {item.message && (
                             <p className='text-sm text-muted-foreground italic mt-0.5'>
-                              "{item.message}"
+                              &quot;{item.message}&quot;
                             </p>
                           )}
                         </div>

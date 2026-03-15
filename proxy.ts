@@ -1,24 +1,21 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const protectedUserRoutes = ['/account', '/orders'];
-const authRoutes = ['/login', '/register', '/admin'];
+const protectedUserRoutes = ['/profile'];
+const authRoutes = ['/auth', '/admin'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const sessionToken = request.cookies.get('bakery_session')?.value;
   const userRole = request.cookies.get('bakery_role')?.value;
 
   const isAdminRoute = pathname.startsWith('/admin/') && pathname !== '/admin';
-
   const isProtectedUserRoute = protectedUserRoutes.some((route) =>
     pathname.startsWith(route),
   );
-
   const isAuthRoute = authRoutes.includes(pathname);
 
-  // Protect admin routes
   if (isAdminRoute) {
     if (!sessionToken) {
       const url = new URL('/admin', request.url);
@@ -31,14 +28,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Protect user routes
   if (isProtectedUserRoute && !sessionToken) {
-    const url = new URL('/login', request.url);
+    const url = new URL('/auth', request.url);
     url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
   }
 
-  // Prevent logged-in users from accessing auth pages
   if (isAuthRoute && sessionToken) {
     if (pathname === '/admin' && userRole === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
@@ -50,12 +45,6 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = {
-  matcher: [
-    '/admin/:path*',
-    '/account/:path*',
-    '/orders/:path*',
-    '/login',
-    '/register',
-  ],
+export const proxyConfig = {
+  matcher: ['/admin/:path*', '/profile/:path*', '/auth'],
 };

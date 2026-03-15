@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
+}
+
+function getErrorStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
 // GET /api/admin/pages/[id]
 export async function GET(
   _request: NextRequest,
@@ -24,16 +34,12 @@ export async function GET(
       success: true,
       data: page,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get page error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }
@@ -47,7 +53,7 @@ export async function PUT(
   try {
     await requireAdmin();
     const { id } = await params;
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
 
     const existing = await prisma.page.findUnique({ where: { id } });
     if (!existing) {
@@ -57,9 +63,10 @@ export async function PUT(
       );
     }
 
-    if (body.slug && body.slug !== existing.slug) {
+    const nextSlug = typeof body.slug === 'string' ? body.slug : existing.slug;
+    if (nextSlug && nextSlug !== existing.slug) {
       const slugExists = await prisma.page.findUnique({
-        where: { slug: body.slug },
+        where: { slug: nextSlug },
       });
       if (slugExists) {
         return NextResponse.json(
@@ -72,10 +79,16 @@ export async function PUT(
     const page = await prisma.page.update({
       where: { id },
       data: {
-        title: body.title,
-        slug: body.slug,
-        content: body.content,
-        isPublished: body.isPublished,
+        title:
+          typeof body.title === 'string' && body.title.trim()
+            ? body.title
+            : existing.title,
+        slug: nextSlug,
+        content: typeof body.content === 'string' ? body.content : existing.content,
+        isPublished:
+          typeof body.isPublished === 'boolean'
+            ? body.isPublished
+            : existing.isPublished,
       },
     });
 
@@ -83,16 +96,12 @@ export async function PUT(
       success: true,
       data: page,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update page error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }
@@ -121,16 +130,12 @@ export async function DELETE(
       success: true,
       data: { message: 'Page deleted successfully' },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete page error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }

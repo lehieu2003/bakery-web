@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { Upload, X, Loader2 } from 'lucide-react';
 
@@ -32,12 +32,8 @@ export function ImageUpload({
   const { upload, uploadMultiple, uploading, error, progress } =
     useImageUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(currentImage || null);
-
-  // Update preview when currentImage changes (for edit mode)
-  useEffect(() => {
-    setPreview(currentImage || null);
-  }, [currentImage]);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const preview = localPreview ?? currentImage ?? null;
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -68,7 +64,7 @@ export function ImageUpload({
       // Show preview
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPreview(e.target?.result as string);
+        setLocalPreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
 
@@ -81,6 +77,7 @@ export function ImageUpload({
         // Immediate mode: upload right away
         const result = await upload(file, folder);
         if (result) {
+          setLocalPreview(result.url);
           onUploadComplete(result.url, result.publicId);
         }
       }
@@ -93,7 +90,7 @@ export function ImageUpload({
   };
 
   const handleDelete = () => {
-    setPreview(null);
+    setLocalPreview(null);
     if (onDelete) {
       onDelete();
     }

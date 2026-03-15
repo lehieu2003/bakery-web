@@ -33,8 +33,11 @@ export default function SearchScreen() {
   // Sync URL param → input when navigating here
   useEffect(() => {
     const q = searchParams.get('q') ?? '';
-    setInputValue(q);
-    setQuery(q);
+    const timer = setTimeout(() => {
+      setInputValue(q);
+      setQuery(q);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [searchParams]);
 
   const { data, isLoading } = useProducts(

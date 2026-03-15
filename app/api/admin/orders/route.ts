@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import type { Prisma, OrderStatus } from '@prisma/client';
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
+}
+
+function getErrorStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
+const ORDER_STATUSES: OrderStatus[] = [
+  'PENDING',
+  'CONFIRMED',
+  'PROCESSING',
+  'READY',
+  'COMPLETED',
+  'CANCELLED',
+];
+
+function isOrderStatus(value: string): value is OrderStatus {
+  return ORDER_STATUSES.includes(value as OrderStatus);
+}
 
 // GET /api/admin/orders - List all orders
 export async function GET(request: NextRequest) {
@@ -15,8 +39,8 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (status) where.status = status;
+    const where: Prisma.OrderWhereInput = {};
+    if (status && isOrderStatus(status)) where.status = status;
     if (search) {
       where.OR = [
         { orderNumber: { contains: search, mode: 'insensitive' } },
@@ -68,16 +92,12 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Admin orders error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }

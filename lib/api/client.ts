@@ -149,7 +149,6 @@ async function request<T>(
     showErrorToast = true,
     showSuccessToast = false,
     successMessage,
-    skipAuthRedirect,
     ...fetchConfig
   } = config;
 

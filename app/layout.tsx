@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   title: 'La Douceur – Luxury Bakery',
   description: 'Handcrafted Cakes for Every Celebration',
   generator: 'v0.app',
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  ),
   icons: {
     icon: [
       {

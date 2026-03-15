@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import type { CreateProductRequest } from '@/types/api.types';
 
 // GET /api/admin/products - List all products (PUBLIC - no auth required)
 export async function GET(request: NextRequest) {
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
 
-    const body = await request.json();
+    const body = (await request.json()) as Partial<CreateProductRequest>;
     const {
       name,
       slug,
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
       variants,
       isActive,
       isFeatured,
-    } = body as Record<string, any>;
+    } = body;
 
     // Validate required fields
     if (!name || !slug || !price) {
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
     if (images && Array.isArray(images)) {
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
-        const url = typeof img === 'string' ? img : img.url;
+        const url = typeof img === 'string' ? img : img?.url;
         if (url && !imageCreateData.some((d) => d.url === url)) {
           imageCreateData.push({
             url,

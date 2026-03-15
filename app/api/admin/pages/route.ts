@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
+}
+
+function getErrorStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
 // GET /api/admin/pages - List all pages
 export async function GET() {
   try {
@@ -15,16 +25,12 @@ export async function GET() {
       success: true,
       data: pages,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Admin pages error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }
@@ -35,8 +41,12 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
 
-    const body = await request.json();
-    const { title, slug, content, isPublished } = body;
+    const body = (await request.json()) as Record<string, unknown>;
+    const title = typeof body.title === 'string' ? body.title : '';
+    const slug = typeof body.slug === 'string' ? body.slug : '';
+    const content = typeof body.content === 'string' ? body.content : '';
+    const isPublished =
+      typeof body.isPublished === 'boolean' ? body.isPublished : false;
 
     if (!title || !slug || !content) {
       return NextResponse.json(
@@ -66,16 +76,12 @@ export async function POST(request: NextRequest) {
       success: true,
       data: page,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create page error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }
