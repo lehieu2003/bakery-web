@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import {
   ArrowDownUp,
   ChevronLeft,
@@ -15,11 +14,15 @@ import {
   useProducts,
   useCategories,
 } from '@/hooks/use-products';
-import { getProductImage } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { Category } from '@/types/api.types';
+import ProductCard from '@/components/screens/ProductCard';
 
 /** Recursively search the category tree by slug */
-function findCategoryBySlug(categories: Category[], slug: string): Category | undefined {
+function findCategoryBySlug(
+  categories: Category[],
+  slug: string,
+): Category | undefined {
   for (const cat of categories) {
     if (cat.slug === slug) return cat;
     if (cat.children?.length) {
@@ -32,15 +35,20 @@ function findCategoryBySlug(categories: Category[], slug: string): Category | un
 
 type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc';
 
-const SORT_OPTIONS: { value: SortOption; label: string; icon: React.ReactNode }[] = [
+const SORT_OPTIONS: {
+  value: SortOption;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
   { value: 'popular', label: 'Phổ biến nhất', icon: <TrendingUp size={14} /> },
   { value: 'newest', label: 'Mới nhất', icon: <ArrowDownUp size={14} /> },
   { value: 'price-asc', label: 'Giá tăng dần', icon: <TrendingUp size={14} /> },
-  { value: 'price-desc', label: 'Giá giảm dần', icon: <TrendingDown size={14} /> },
+  {
+    value: 'price-desc',
+    label: 'Giá giảm dần',
+    icon: <TrendingDown size={14} />,
+  },
 ];
-
-const PLACEHOLDER_BLUR =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
 
 interface CategoryScreenProps {
   categorySlug: string;
@@ -49,7 +57,9 @@ interface CategoryScreenProps {
 export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
   const [sort, setSort] = useState<SortOption>('popular');
   const [subCategoryId, setSubCategoryId] = useState<string>('all');
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
+  const [selectedFilters, setSelectedFilters] = useState<
+    Record<string, string[]>
+  >({});
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [inStockOnly, setInStockOnly] = useState(false);
@@ -179,33 +189,37 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
             <p className='mb-2.5 text-[11px] font-bold uppercase tracking-widest text-foreground'>
               {group.name}
             </p>
-            <div className='flex flex-wrap gap-2'>
+            <div className='space-y-2'>
               {group.values.map((value) => {
                 const active = selectedValueSlugs.includes(value.slug);
                 return (
-                  <button
+                  <label
                     key={value.id}
-                    onClick={() => {
-                      setSelectedFilters((prev) => {
-                        const current = prev[group.slug] || [];
-                        const nextValues = active
-                          ? current.filter((slug) => slug !== value.slug)
-                          : [...current, value.slug];
-                        return {
-                          ...prev,
-                          [group.slug]: nextValues,
-                        };
-                      });
-                    }}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
-                      active
-                        ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                        : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                    }`}
+                    className='flex cursor-pointer items-center justify-between gap-3 rounded-md px-1 py-1 text-sm text-foreground transition-colors hover:bg-secondary/60'
                   >
-                    {value.label}
-                    <span className='ml-1 opacity-70'>({value.productCount})</span>
-                  </button>
+                    <div className='flex items-center gap-2.5'>
+                      <Checkbox
+                        checked={active}
+                        onCheckedChange={(checked) => {
+                          const isChecked = checked === true;
+                          setSelectedFilters((prev) => {
+                            const current = prev[group.slug] || [];
+                            const nextValues = isChecked
+                              ? [...current, value.slug]
+                              : current.filter((slug) => slug !== value.slug);
+                            return {
+                              ...prev,
+                              [group.slug]: nextValues,
+                            };
+                          });
+                        }}
+                      />
+                      <span className='text-sm'>{value.label}</span>
+                    </div>
+                    <span className='text-xs text-muted-foreground'>
+                      ({value.productCount})
+                    </span>
+                  </label>
                 );
               })}
             </div>
@@ -308,7 +322,9 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
                           : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                       }`}
                     >
-                      <span className={`flex-shrink-0 ${sort === value ? 'text-primary' : 'text-muted-foreground'}`}>
+                      <span
+                        className={`flex-shrink-0 ${sort === value ? 'text-primary' : 'text-muted-foreground'}`}
+                      >
                         {icon}
                       </span>
                       {label}
@@ -405,42 +421,7 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
                 </div>
               ))
             ) : sorted.length > 0 ? (
-              sorted.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/products/${p.id}`}
-                  className='bg-card rounded-2xl overflow-hidden border border-border/50 text-left hover:shadow-lg hover:border-border transition-all duration-300 group block'
-                >
-                  <div
-                    className='relative w-full overflow-hidden bg-secondary'
-                    style={{ paddingBottom: '100%' }}
-                  >
-                    <Image
-                      src={getProductImage(p)}
-                      alt={p.name}
-                      fill
-                      loading='lazy'
-                      sizes='(max-width: 768px) 50vw, 33vw'
-                      placeholder='blur'
-                      blurDataURL={PLACEHOLDER_BLUR}
-                      className='object-cover group-hover:scale-105 transition-transform duration-500'
-                    />
-                  </div>
-                  <div className='p-4'>
-                    <p className='font-sans text-sm font-semibold text-foreground leading-snug text-balance'>
-                      {p.name}
-                    </p>
-                    {p.description && (
-                      <p className='text-xs text-muted-foreground mt-1 line-clamp-1 leading-relaxed'>
-                        {p.description}
-                      </p>
-                    )}
-                    <p className='font-sans text-base font-bold text-accent mt-2.5'>
-                      {p.price.toLocaleString('vi-VN')}đ
-                    </p>
-                  </div>
-                </Link>
-              ))
+              sorted.map((p) => <ProductCard key={p.id} product={p} />)
             ) : (
               <div className='col-span-full text-center py-12 text-muted-foreground'>
                 No products available in this category
