@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import {
   ArrowDownUp,
   ChevronLeft,
@@ -16,8 +15,8 @@ import {
   useCategories,
 } from '@/hooks/use-products';
 import { Checkbox } from '@/components/ui/checkbox';
-import { getProductImage } from '@/lib/utils';
 import type { Category } from '@/types/api.types';
+import ProductCard from '@/components/screens/ProductCard';
 
 /** Recursively search the category tree by slug */
 function findCategoryBySlug(
@@ -50,9 +49,6 @@ const SORT_OPTIONS: {
     icon: <TrendingDown size={14} />,
   },
 ];
-
-const PLACEHOLDER_BLUR =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
 
 interface CategoryScreenProps {
   categorySlug: string;
@@ -425,42 +421,7 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
                 </div>
               ))
             ) : sorted.length > 0 ? (
-              sorted.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/products/${p.id}`}
-                  className='bg-card rounded-2xl overflow-hidden border border-border/50 text-left hover:shadow-lg hover:border-border transition-all duration-300 group block'
-                >
-                  <div
-                    className='relative w-full overflow-hidden bg-secondary'
-                    style={{ paddingBottom: '100%' }}
-                  >
-                    <Image
-                      src={getProductImage(p)}
-                      alt={p.name}
-                      fill
-                      loading='lazy'
-                      sizes='(max-width: 768px) 50vw, 33vw'
-                      placeholder='blur'
-                      blurDataURL={PLACEHOLDER_BLUR}
-                      className='object-cover group-hover:scale-105 transition-transform duration-500'
-                    />
-                  </div>
-                  <div className='p-4'>
-                    <p className='font-sans text-sm font-semibold text-foreground leading-snug text-balance'>
-                      {p.name}
-                    </p>
-                    {p.description && (
-                      <p className='text-xs text-muted-foreground mt-1 line-clamp-1 leading-relaxed'>
-                        {p.description}
-                      </p>
-                    )}
-                    <p className='font-sans text-base font-bold text-accent mt-2.5'>
-                      {p.price.toLocaleString('vi-VN')}đ
-                    </p>
-                  </div>
-                </Link>
-              ))
+              sorted.map((p) => <ProductCard key={p.id} product={p} />)
             ) : (
               <div className='col-span-full text-center py-12 text-muted-foreground'>
                 No products available in this category
