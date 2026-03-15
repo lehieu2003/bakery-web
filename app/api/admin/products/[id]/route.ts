@@ -3,6 +3,20 @@ import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import type { UpdateProductRequest } from '@/types/api.types';
+import { buildProductAttributeAssignmentRows } from '@/lib/product-attributes';
+
+const productInclude: Prisma.ProductInclude = {
+  categories: { include: { category: true } },
+  images: { orderBy: { displayOrder: 'asc' } },
+  variants: true,
+  attributeAssignments: {
+    include: {
+      attribute: true,
+      value: true,
+    },
+    orderBy: [{ attribute: { displayOrder: 'asc' } }, { createdAt: 'asc' }],
+  },
+};
 
 // GET /api/admin/products/[id] - Get single product (PUBLIC - no auth required)
 export async function GET(
@@ -15,11 +29,7 @@ export async function GET(
 
     const product = await prisma.product.findUnique({
       where: { id },
-      include: {
-        categories: { include: { category: true } },
-        images: { orderBy: { displayOrder: 'asc' } },
-        variants: true,
-      },
+      include: productInclude,
     });
 
     if (!product) {
@@ -61,7 +71,7 @@ export async function PUT(
     const body = (await request.json()) as Partial<UpdateProductRequest> &
       Record<string, unknown>;
 
-    const { images, variants, categoryIds, ...rest } = body;
+    const { images, variants, categoryIds, attributeAssignments, ...rest } = body;
     const updateData = Object.fromEntries(
       Object.entries(rest).filter(
         ([key, value]) =>
@@ -169,14 +179,27 @@ export async function PUT(
       }
     }
 
+    if (Array.isArray(attributeAssignments)) {
+      await prisma.productAttributeAssignment.deleteMany({
+        where: { productId: id },
+      });
+
+      const assignmentRows = await buildProductAttributeAssignmentRows(
+        attributeAssignments,
+        id,
+      );
+
+      if (assignmentRows.length > 0) {
+        await prisma.productAttributeAssignment.createMany({
+          data: assignmentRows,
+        });
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id },
       data: updateData as Prisma.ProductUpdateInput,
-      include: {
-        categories: { include: { category: true } },
-        images: { orderBy: { displayOrder: 'asc' } },
-        variants: true,
-      },
+      include: productInclude,
     });
 
     return NextResponse.json({

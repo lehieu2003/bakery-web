@@ -4,6 +4,7 @@
  */
 
 export { productsService } from './products.service';
+export { productAttributesService } from './product-attributes.service';
 export { categoriesService } from './categories.service';
 export { ordersService } from './orders.service';
 export { customersService } from './customers.service';
@@ -20,6 +21,7 @@ export { notificationsService } from './notifications.service';
 
 // Default export as namespace
 import { productsService } from './products.service';
+import { productAttributesService } from './product-attributes.service';
 import { categoriesService } from './categories.service';
 import { ordersService } from './orders.service';
 import { customersService } from './customers.service';
@@ -36,6 +38,7 @@ import { notificationsService } from './notifications.service';
 
 const adminServices = {
   products: productsService,
+  productAttributes: productAttributesService,
   categories: categoriesService,
   orders: ordersService,
   customers: customersService,

@@ -22,6 +22,13 @@ export async function GET(
         },
         images: { orderBy: { displayOrder: 'asc' } },
         variants: true,
+        attributeAssignments: {
+          include: {
+            attribute: true,
+            value: true,
+          },
+          orderBy: [{ attribute: { displayOrder: 'asc' } }, { createdAt: 'asc' }],
+        },
         reviews: {
           include: { user: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },

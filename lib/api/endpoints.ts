@@ -36,6 +36,14 @@ export const ENDPOINTS = {
       DELETE: (id: string) => `${ADMIN_BASE}/products/${id}`,
     },
 
+    PRODUCT_ATTRIBUTES: {
+      LIST: `${ADMIN_BASE}/product-attributes`,
+      DETAIL: (id: string) => `${ADMIN_BASE}/product-attributes/${id}`,
+      CREATE: `${ADMIN_BASE}/product-attributes`,
+      UPDATE: (id: string) => `${ADMIN_BASE}/product-attributes/${id}`,
+      DELETE: (id: string) => `${ADMIN_BASE}/product-attributes/${id}`,
+    },
+
     // Categories
     CATEGORIES: {
       LIST: `${ADMIN_BASE}/categories`,
@@ -136,6 +144,7 @@ export const ENDPOINTS = {
   // ============================================================================
   PUBLIC: {
     PRODUCTS: `${API_BASE}/public/products`,
+    PRODUCT_FILTERS: `${API_BASE}/public/products/filters`,
     PRODUCT_DETAIL: (idOrSlug: string) =>
       `${API_BASE}/public/products/${idOrSlug}`,
     RELATED_PRODUCTS: (idOrSlug: string) =>

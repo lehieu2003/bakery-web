@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   ShoppingBag,
+  Tags,
   ListTree,
   ShoppingCart,
   Image as ImageIcon,
@@ -36,6 +37,11 @@ const navItems: NavItem[] = [
     label: 'Products',
     href: '/admin/products',
     icon: <ShoppingBag size={16} />,
+  },
+  {
+    label: 'Product Filters',
+    href: '/admin/product-attributes',
+    icon: <Tags size={16} />,
   },
   {
     label: 'Categories',
