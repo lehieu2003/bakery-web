@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import AdminShell from '@/components/admin/AdminShell';
 import {
   Plus,
@@ -347,9 +348,11 @@ export default function BlogPostsAdminPage() {
                   <td className='px-5 py-3.5'>
                     <div className='flex items-center gap-3'>
                       {post.coverUrl ? (
-                        <img
+                        <Image
                           src={post.coverUrl}
-                          alt=''
+                          alt={post.title}
+                          width={40}
+                          height={40}
                           className='w-10 h-10 rounded-lg object-cover shrink-0'
                         />
                       ) : (

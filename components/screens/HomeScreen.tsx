@@ -2,49 +2,12 @@
 
 import Image from 'next/image';
 import BannerCarousel from '@/components/ui-custom/BannerCarousel';
-import { useProducts, useCategories } from '@/hooks/use-products';
 import { useBanners } from '@/hooks/use-banners';
 import BestSellersSection from '@/components/screens/BestSellersSection';
-import type { Category } from '@/types/api.types';
 import CategoriesSection from './CategoriesSection';
 
 export default function HomeScreen() {
-  const { data: productsData } = useProducts();
-  const { data: categoriesData } = useCategories();
   const { data: banners, isLoading: bannersLoading } = useBanners();
-
-  // Root categories from API (dynamic)
-  const categories = categoriesData || [];
-
-  // Collect all category IDs including children + grandchildren for filtering
-  const getCategoryIds = (cat: {
-    id: string;
-    children?: Category[];
-  }): string[] => {
-    const ids = [cat.id];
-    if (cat.children) {
-      for (const child of cat.children) {
-        ids.push(...getCategoryIds(child));
-      }
-    }
-    return ids;
-  };
-
-  // Group products by root category
-  const products = productsData?.products || [];
-  const productsByCategory = categories.map((cat) => {
-    const catIds = getCategoryIds(cat);
-    return {
-      category: cat,
-      products: products
-        .filter(
-          (p) =>
-            p.isActive &&
-            (p.categories || []).some((pc) => catIds.includes(pc.categoryId)),
-        )
-        .slice(0, 4),
-    };
-  });
 
   return (
     <div className='bg-background mx-4 lg:-mx-8'>

@@ -43,7 +43,8 @@ export default function TableOfContents({ content }: TableOfContentsProps) {
       return { id, text };
     });
 
-    setHeadings(extracted);
+    const timer = setTimeout(() => setHeadings(extracted), 0);
+    return () => clearTimeout(timer);
   }, [content]);
 
   // After headings are known, assign IDs to real DOM nodes

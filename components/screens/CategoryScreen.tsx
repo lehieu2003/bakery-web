@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowDownUp, ArrowUpDown, ChevronLeft, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowDownUp, ChevronLeft, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useProducts, useCategories } from '@/hooks/use-products';

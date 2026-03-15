@@ -165,7 +165,6 @@ export default function BannersPage() {
   const [formDisplayOrder, setFormDisplayOrder] = useState('1');
   const [formActive, setFormActive] = useState(true);
   const [formImage, setFormImage] = useState<string>('');
-  const [formImagePublicId, setFormImagePublicId] = useState<string>('');
 
   const queryClient = useQueryClient();
 
@@ -200,7 +199,6 @@ export default function BannersPage() {
     setFormDisplayOrder(String((sortedBanners.length || 0) + 1));
     setFormActive(true);
     setFormImage('');
-    setFormImagePublicId('');
     setDialogOpen(true);
   };
 
@@ -212,7 +210,6 @@ export default function BannersPage() {
     setFormDisplayOrder(String(b.displayOrder));
     setFormActive(b.isActive);
     setFormImage(b.imageUrl || '');
-    setFormImagePublicId('');
     setDialogOpen(true);
   };
 
@@ -432,13 +429,11 @@ export default function BannersPage() {
             <div>
               <Label className='text-xs font-medium'>Banner Image</Label>
               <ImageUpload
-                onUploadComplete={(url, publicId) => {
+                onUploadComplete={(url) => {
                   setFormImage(url);
-                  setFormImagePublicId(publicId);
                 }}
                 onDelete={() => {
                   setFormImage('');
-                  setFormImagePublicId('');
                 }}
                 folder='banners'
                 currentImage={formImage || undefined}

@@ -136,7 +136,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
   const updateMutation = useUpdateProduct();
   const { data: categoriesData, isLoading: categoriesLoading } =
     useCategories();
-  const { upload: uploadImage, uploading: singleUploading } = useImageUpload();
+  const { upload: uploadImage } = useImageUpload();
 
   // Load existing product when editing
   const {
@@ -523,7 +523,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                               >
                                 {c.name}
                               </SelectItem>
-                              {(c as any).children?.map((child: any) => (
+                              {c.children?.map((child) => (
                                 <SelectItem
                                   key={child.id}
                                   value={child.id}

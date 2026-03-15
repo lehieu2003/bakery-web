@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
 import { useLogin, useRegister, useRegisterVerify } from '@/hooks/use-auth';
 import type { LoginRequest, RegisterVerifyRequest } from '@/types/api.types';
@@ -31,7 +31,7 @@ export default function AuthScreen() {
     register: registerRegister,
     handleSubmit: handleRegisterSubmit,
     formState: { errors: registerErrors },
-    watch,
+    control: registerControl,
   } = useForm<RegisterVerifyRequest>();
 
   // Login state
@@ -41,7 +41,8 @@ export default function AuthScreen() {
   const [regShowPw, setRegShowPw] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const regPassword = watch('password') || '';
+  const regPassword =
+    useWatch({ control: registerControl, name: 'password' }) || '';
 
   const onLoginSubmit = (data: LoginRequest) => {
     loginMutation.mutate(data, {

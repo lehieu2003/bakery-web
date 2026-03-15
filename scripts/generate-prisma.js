@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+import { execSync } from 'node:child_process';
 
 console.log('Running prisma generate...');
 execSync('npx prisma generate', { stdio: 'inherit', cwd: '/vercel/share/v0-project' });

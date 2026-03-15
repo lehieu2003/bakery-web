@@ -4,6 +4,7 @@ import ChatbotBubble from '@/components/ui-custom/ChatbotBubble';
 import ZaloPhoneBubble from '@/components/ui-custom/ZaloPhoneBubble';
 import { prisma } from '@/lib/prisma';
 import { HydrationBoundary, QueryClient, dehydrate } from '@tanstack/react-query';
+import { Suspense } from 'react';
 import type { Category } from '@/types/api.types';
 
 async function getCategories(): Promise<Category[]> {
@@ -47,7 +48,9 @@ export default async function WebLayout({ children }: { children: React.ReactNod
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <WebNavbar />
+      <Suspense fallback={null}>
+        <WebNavbar />
+      </Suspense>
       <main className='min-h-screen bg-background max-w-7xl mx-auto w-full px-4 lg:px-8'>
         {children}
       </main>

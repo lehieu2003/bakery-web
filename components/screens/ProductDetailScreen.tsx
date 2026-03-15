@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { ChevronLeft, ShoppingBag, Star, ZoomIn, X } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useProductDetail } from '@/hooks/use-products';
 import { getProductImage, getProductImages } from '@/lib/utils';
@@ -68,7 +68,10 @@ export default function ProductDetailScreen({
     return () => { document.body.style.overflow = ''; };
   }, [zoomOpen]);
 
-  const variants = selectedProduct?.variants || [];
+  const variants = useMemo(
+    () => selectedProduct?.variants ?? [],
+    [selectedProduct?.variants],
+  );
 
   // Auto-select first variant when product loads
   useEffect(() => {

@@ -417,7 +417,7 @@ export default function BlogScreen() {
             <span className='text-xs text-muted-foreground'>Đang lọc:</span>
             {search && (
               <span className='inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary'>
-                "{search}"
+                &quot;{search}&quot;
               </span>
             )}
             {activeCategorySlug && (

@@ -7,7 +7,7 @@ import {
   ShoppingBag,
   ListTree,
   ShoppingCart,
-  Image,
+  Image as ImageIcon,
   Users,
   Settings,
   X,
@@ -50,7 +50,7 @@ const navItems: NavItem[] = [
   {
     label: 'Banners',
     href: '/admin/banners',
-    icon: <Image size={16} />,
+    icon: <ImageIcon size={16} />,
   },
   // Blog section
   {

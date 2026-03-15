@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
+}
+
+function getErrorStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
 // GET /api/admin/menu/[id]
 export async function GET(
   _request: NextRequest,
@@ -30,16 +40,12 @@ export async function GET(
       success: true,
       data: menuItem,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get menu item error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }
@@ -53,7 +59,7 @@ export async function PUT(
   try {
     await requireAdmin();
     const { id } = await params;
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
 
     const existing = await prisma.menuItem.findUnique({ where: { id } });
     if (!existing) {
@@ -66,14 +72,25 @@ export async function PUT(
     const menuItem = await prisma.menuItem.update({
       where: { id },
       data: {
-        title: body.title,
-        url: body.url,
-        parentId: body.parentId,
-        categoryId: body.categoryId,
-        pageId: body.pageId,
-        type: body.type,
-        displayOrder: body.displayOrder,
-        isActive: body.isActive,
+        title:
+          typeof body.title === 'string' && body.title.trim()
+            ? body.title
+            : existing.title,
+        url: typeof body.url === 'string' ? body.url : null,
+        parentId: typeof body.parentId === 'string' ? body.parentId : null,
+        categoryId:
+          typeof body.categoryId === 'string' ? body.categoryId : null,
+        pageId: typeof body.pageId === 'string' ? body.pageId : null,
+        type:
+          typeof body.type === 'string'
+            ? (body.type as 'LINK' | 'CATEGORY' | 'PAGE')
+            : existing.type,
+        displayOrder:
+          typeof body.displayOrder === 'number'
+            ? body.displayOrder
+            : existing.displayOrder,
+        isActive:
+          typeof body.isActive === 'boolean' ? body.isActive : existing.isActive,
       },
       include: {
         category: { select: { id: true, name: true, slug: true } },
@@ -85,16 +102,12 @@ export async function PUT(
       success: true,
       data: menuItem,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update menu item error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }
@@ -123,16 +136,12 @@ export async function DELETE(
       success: true,
       data: { message: 'Menu item deleted successfully' },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete menu item error:', error);
-    const status =
-      error.message === 'Unauthorized'
-        ? 401
-        : error.message === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const message = getErrorMessage(error);
+    const status = getErrorStatus(message);
     return NextResponse.json(
-      { success: false, error: error.message || 'Đã có lỗi xảy ra' },
+      { success: false, error: message },
       { status },
     );
   }
