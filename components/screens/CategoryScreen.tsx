@@ -15,11 +15,15 @@ import {
   useProducts,
   useCategories,
 } from '@/hooks/use-products';
+import { Checkbox } from '@/components/ui/checkbox';
 import { getProductImage } from '@/lib/utils';
 import type { Category } from '@/types/api.types';
 
 /** Recursively search the category tree by slug */
-function findCategoryBySlug(categories: Category[], slug: string): Category | undefined {
+function findCategoryBySlug(
+  categories: Category[],
+  slug: string,
+): Category | undefined {
   for (const cat of categories) {
     if (cat.slug === slug) return cat;
     if (cat.children?.length) {
@@ -32,11 +36,19 @@ function findCategoryBySlug(categories: Category[], slug: string): Category | un
 
 type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc';
 
-const SORT_OPTIONS: { value: SortOption; label: string; icon: React.ReactNode }[] = [
+const SORT_OPTIONS: {
+  value: SortOption;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
   { value: 'popular', label: 'Phổ biến nhất', icon: <TrendingUp size={14} /> },
   { value: 'newest', label: 'Mới nhất', icon: <ArrowDownUp size={14} /> },
   { value: 'price-asc', label: 'Giá tăng dần', icon: <TrendingUp size={14} /> },
-  { value: 'price-desc', label: 'Giá giảm dần', icon: <TrendingDown size={14} /> },
+  {
+    value: 'price-desc',
+    label: 'Giá giảm dần',
+    icon: <TrendingDown size={14} />,
+  },
 ];
 
 const PLACEHOLDER_BLUR =
@@ -49,7 +61,9 @@ interface CategoryScreenProps {
 export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
   const [sort, setSort] = useState<SortOption>('popular');
   const [subCategoryId, setSubCategoryId] = useState<string>('all');
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
+  const [selectedFilters, setSelectedFilters] = useState<
+    Record<string, string[]>
+  >({});
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [inStockOnly, setInStockOnly] = useState(false);
@@ -179,33 +193,37 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
             <p className='mb-2.5 text-[11px] font-bold uppercase tracking-widest text-foreground'>
               {group.name}
             </p>
-            <div className='flex flex-wrap gap-2'>
+            <div className='space-y-2'>
               {group.values.map((value) => {
                 const active = selectedValueSlugs.includes(value.slug);
                 return (
-                  <button
+                  <label
                     key={value.id}
-                    onClick={() => {
-                      setSelectedFilters((prev) => {
-                        const current = prev[group.slug] || [];
-                        const nextValues = active
-                          ? current.filter((slug) => slug !== value.slug)
-                          : [...current, value.slug];
-                        return {
-                          ...prev,
-                          [group.slug]: nextValues,
-                        };
-                      });
-                    }}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
-                      active
-                        ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                        : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                    }`}
+                    className='flex cursor-pointer items-center justify-between gap-3 rounded-md px-1 py-1 text-sm text-foreground transition-colors hover:bg-secondary/60'
                   >
-                    {value.label}
-                    <span className='ml-1 opacity-70'>({value.productCount})</span>
-                  </button>
+                    <div className='flex items-center gap-2.5'>
+                      <Checkbox
+                        checked={active}
+                        onCheckedChange={(checked) => {
+                          const isChecked = checked === true;
+                          setSelectedFilters((prev) => {
+                            const current = prev[group.slug] || [];
+                            const nextValues = isChecked
+                              ? [...current, value.slug]
+                              : current.filter((slug) => slug !== value.slug);
+                            return {
+                              ...prev,
+                              [group.slug]: nextValues,
+                            };
+                          });
+                        }}
+                      />
+                      <span className='text-sm'>{value.label}</span>
+                    </div>
+                    <span className='text-xs text-muted-foreground'>
+                      ({value.productCount})
+                    </span>
+                  </label>
                 );
               })}
             </div>
@@ -308,7 +326,9 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
                           : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                       }`}
                     >
-                      <span className={`flex-shrink-0 ${sort === value ? 'text-primary' : 'text-muted-foreground'}`}>
+                      <span
+                        className={`flex-shrink-0 ${sort === value ? 'text-primary' : 'text-muted-foreground'}`}
+                      >
                         {icon}
                       </span>
                       {label}
