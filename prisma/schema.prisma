@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -69,38 +68,46 @@ enum NotificationStatus {
   ARCHIVED
 }
 
+enum ProductAttributeType {
+  SELECT
+  MULTI_SELECT
+  TEXT
+  NUMBER
+  BOOLEAN
+}
+
 ////////////////////////////////////////////////////////////
 // USER & AUTH
 ////////////////////////////////////////////////////////////
 
 model User {
-  id              String      @id @default(cuid())
-  email           String      @unique
-  password        String
-  name            String?
-  phone           String?
+  id       String  @id @default(cuid())
+  email    String  @unique
+  password String
+  name     String?
+  phone    String?
 
-  role            UserRole    @default(CUSTOMER)
+  role UserRole @default(CUSTOMER)
 
-  memberLevel     MemberLevel @default(SILVER)
-  points          Int         @default(0)
+  memberLevel MemberLevel @default(SILVER)
+  points      Int         @default(0)
 
   emailVerifiedAt DateTime?
 
-  isActive        Boolean     @default(true)
+  isActive Boolean @default(true)
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  sessions  Session[]
-  orders    Order[]
-  addresses Address[]
-  reviews   Review[]
-  wishlist  Wishlist[]
-  blogPosts BlogPost[]
-  blogComments BlogComment[]
+  sessions             Session[]
+  orders               Order[]
+  addresses            Address[]
+  reviews              Review[]
+  wishlist             Wishlist[]
+  blogPosts            BlogPost[]
+  blogComments         BlogComment[]
   notificationsCreated Notification[]
-  notificationReads   NotificationRead[]
+  notificationReads    NotificationRead[]
 
   cart Cart?
 
@@ -108,10 +115,10 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId    String
-  token     String   @unique
+  userId String
+  token  String @unique
 
   expiresAt DateTime
 
@@ -124,20 +131,20 @@ model Session {
 }
 
 model OtpVerification {
-  id        String     @id @default(cuid())
+  id String @id @default(cuid())
 
-  email     String
-  purpose   OtpPurpose
+  email   String
+  purpose OtpPurpose
 
-  otpHash   String
+  otpHash String
 
   expiresAt DateTime
 
-  attempts  Int        @default(0)
+  attempts Int @default(0)
 
-  usedAt    DateTime?
+  usedAt DateTime?
 
-  createdAt DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   @@index([email])
 }
@@ -159,7 +166,7 @@ model Address {
   ward     String
   street   String
 
-  isDefault Boolean  @default(false)
+  isDefault Boolean @default(false)
 
   createdAt DateTime @default(now())
 
@@ -229,13 +236,96 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  images     ProductImage[]
-  variants   ProductVariant[]
-  categories ProductCategory[]
-  reviews    Review[]
-  wishlist   Wishlist[]
-  orderItems OrderItem[]
-  cartItems  CartItem[]
+  images               ProductImage[]
+  variants             ProductVariant[]
+  categories           ProductCategory[]
+  reviews              Review[]
+  wishlist             Wishlist[]
+  orderItems           OrderItem[]
+  cartItems            CartItem[]
+  attributeAssignments ProductAttributeAssignment[]
+
+  @@index([isActive, price])
+  @@index([stock, trackStock])
+}
+
+model ProductAttribute {
+  id String @id @default(cuid())
+
+  name String
+  slug String @unique
+
+  code String               @unique
+  type ProductAttributeType @default(SELECT)
+
+  description String?
+
+  isRequired    Boolean @default(false)
+  isFilterable  Boolean @default(true)
+  isVariantAxis Boolean @default(false)
+  isActive      Boolean @default(true)
+  displayOrder  Int     @default(0)
+
+  values      ProductAttributeValue[]
+  assignments ProductAttributeAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, isFilterable, displayOrder])
+  @@index([type])
+}
+
+model ProductAttributeValue {
+  id String @id @default(cuid())
+
+  attributeId String
+
+  value        String
+  slug         String
+  label        String
+  colorHex     String?
+  imageUrl     String?
+  displayOrder Int     @default(0)
+  isActive     Boolean @default(true)
+
+  attribute   ProductAttribute             @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  assignments ProductAttributeAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([attributeId, slug])
+  @@unique([attributeId, value])
+  @@index([attributeId, isActive, displayOrder])
+}
+
+model ProductAttributeAssignment {
+  id          String  @id @default(cuid())
+  productId   String
+  attributeId String
+  valueId     String?
+  valueKey    String
+
+  textValue    String?
+  numberValue  Decimal? @db.Decimal(10, 2)
+  booleanValue Boolean?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute ProductAttribute       @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  value     ProductAttributeValue? @relation(fields: [valueId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeId, valueKey])
+  @@index([productId])
+  @@index([attributeId])
+  @@index([valueId])
+  @@index([attributeId, valueId])
+  @@index([attributeId, textValue])
+  @@index([attributeId, numberValue])
+  @@index([attributeId, booleanValue])
 }
 
 ////////////////////////////////////////////////////////////
@@ -613,7 +703,7 @@ model BlogPost {
   id String @id @default(cuid())
 
   title   String
-  slug    String @unique
+  slug    String  @unique
   excerpt String?
 
   content  String
@@ -657,8 +747,8 @@ model BlogPostTag {
 model BlogComment {
   id String @id @default(cuid())
 
-  postId   String
-  userId   String?
+  postId String
+  userId String?
 
   // Guest comment (không cần đăng nhập)
   guestName  String?
@@ -693,4 +783,3 @@ model Setting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-        

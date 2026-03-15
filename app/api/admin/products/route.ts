@@ -1,7 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import type { CreateProductRequest } from '@/types/api.types';
+import { buildProductAttributeAssignmentRows } from '@/lib/product-attributes';
+
+const productInclude: Prisma.ProductInclude = {
+  categories: {
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+    },
+  },
+  images: { orderBy: { displayOrder: 'asc' } },
+  variants: true,
+  attributeAssignments: {
+    include: {
+      attribute: true,
+      value: true,
+    },
+    orderBy: [{ attribute: { displayOrder: 'asc' } }, { createdAt: 'asc' }],
+  },
+};
 
 // GET /api/admin/products - List all products (PUBLIC - no auth required)
 export async function GET(request: NextRequest) {
@@ -35,15 +54,7 @@ export async function GET(request: NextRequest) {
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        include: {
-          categories: {
-            include: {
-              category: { select: { id: true, name: true, slug: true } },
-            },
-          },
-          images: { orderBy: { displayOrder: 'asc' } },
-          variants: true,
-        },
+        include: productInclude,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -102,6 +113,7 @@ export async function POST(request: NextRequest) {
       weight,
       images,
       variants,
+      attributeAssignments,
       isActive,
       isFeatured,
     } = body;
@@ -200,16 +212,30 @@ export async function POST(request: NextRequest) {
             }
           : {}),
       },
-      include: {
-        categories: { include: { category: true } },
-        images: { orderBy: { displayOrder: 'asc' } },
-        variants: true,
-      },
+      include: productInclude,
+    });
+
+    if (Array.isArray(attributeAssignments)) {
+      const assignmentRows = await buildProductAttributeAssignmentRows(
+        attributeAssignments,
+        product.id,
+      );
+
+      if (assignmentRows.length > 0) {
+        await prisma.productAttributeAssignment.createMany({
+          data: assignmentRows,
+        });
+      }
+    }
+
+    const productWithAttributes = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: productInclude,
     });
 
     return NextResponse.json({
       success: true,
-      data: { product },
+      data: { product: productWithAttributes },
     });
   } catch (error) {
     console.error('Admin create product error:', error);

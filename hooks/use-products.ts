@@ -7,6 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { productService } from '@/services/product.service';
+import type { ProductsQueryParams } from '@/types/api.types';
 
 // Query keys
 export const productKeys = {
@@ -23,24 +24,33 @@ export const productKeys = {
   related: (idOrSlug: string) => [...productKeys.all, 'related', idOrSlug] as const,
   categories: () => ['categories'] as const,
   bestSellers: (limit?: number) => [...productKeys.all, 'best-sellers', limit] as const,
+  filters: (params?: { categoryId?: string }) =>
+    [...productKeys.all, 'filters', params] as const,
 };
 
 /**
  * Hook to get products with optional filters
  */
 export function useProducts(
-  params?: {
-    categoryId?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-  },
+  params?: ProductsQueryParams,
   options?: { enabled?: boolean },
 ) {
   return useQuery({
     queryKey: productKeys.list(params),
     queryFn: () => productService.getProducts(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useProductFilters(
+  params?: { categoryId?: string },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: productKeys.filters(params),
+    queryFn: () => productService.getProductFilters(params),
+    staleTime: 5 * 60 * 1000,
     enabled: options?.enabled ?? true,
   });
 }

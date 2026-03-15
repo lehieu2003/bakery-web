@@ -1,10 +1,20 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowDownUp, ChevronLeft, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  ArrowDownUp,
+  ChevronLeft,
+  SlidersHorizontal,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useProducts, useCategories } from '@/hooks/use-products';
+import {
+  useProductFilters,
+  useProducts,
+  useCategories,
+} from '@/hooks/use-products';
 import { getProductImage } from '@/lib/utils';
 import type { Category } from '@/types/api.types';
 
@@ -39,6 +49,10 @@ interface CategoryScreenProps {
 export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
   const [sort, setSort] = useState<SortOption>('popular');
   const [subCategoryId, setSubCategoryId] = useState<string>('all');
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [inStockOnly, setInStockOnly] = useState(false);
 
   // Fetch categories and find the matching one by slug (searches all levels)
   const { data: categoriesData } = useCategories();
@@ -51,9 +65,26 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
 
   // Fetch products filtered by category — wait until categories are loaded
   // so we always query with the correct categoryId (never undefined).
+  const attributeFilters = Object.entries(selectedFilters)
+    .filter(([, valueSlugs]) => valueSlugs.length > 0)
+    .map(([attributeSlug, valueSlugs]) => ({
+      attributeSlug,
+      valueSlugs,
+    }));
+
   const { data: productsData, isLoading } = useProducts(
-    { categoryId: categoryData?.id },
+    {
+      categoryId: categoryData?.id,
+      minPrice: priceMin ? Number(priceMin) : undefined,
+      maxPrice: priceMax ? Number(priceMax) : undefined,
+      inStock: inStockOnly || undefined,
+      attributeFilters,
+    },
     { enabled: !!categoriesData },
+  );
+  const { data: filterData } = useProductFilters(
+    { categoryId: categoryData?.id },
+    { enabled: !!categoryData?.id },
   );
 
   const products = (productsData?.products || []).filter((p) => {
@@ -70,6 +101,119 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
 
   const title = categoryData?.name || categorySlug;
   const subtitle = categoryData?.description || '';
+  const filterGroups = filterData?.filters || [];
+  const hasActiveFilters =
+    inStockOnly ||
+    !!priceMin ||
+    !!priceMax ||
+    Object.values(selectedFilters).some((values) => values.length > 0);
+
+  const renderFilterPanel = () => (
+    <div className='space-y-6'>
+      <div>
+        <div className='mb-2 flex items-center justify-between'>
+          <p className='text-[11px] font-bold uppercase tracking-widest text-foreground'>
+            Bộ lọc nhanh
+          </p>
+          {hasActiveFilters && (
+            <button
+              onClick={() => {
+                setSelectedFilters({});
+                setPriceMin('');
+                setPriceMax('');
+                setInStockOnly(false);
+              }}
+              className='text-[11px] font-medium text-primary'
+            >
+              Xoá lọc
+            </button>
+          )}
+        </div>
+
+        <div className='grid grid-cols-2 gap-2'>
+          <input
+            type='number'
+            inputMode='numeric'
+            value={priceMin}
+            onChange={(event) => setPriceMin(event.target.value)}
+            placeholder={
+              filterData?.priceRange?.min
+                ? String(Number(filterData.priceRange.min))
+                : 'Từ giá'
+            }
+            className='h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary'
+          />
+          <input
+            type='number'
+            inputMode='numeric'
+            value={priceMax}
+            onChange={(event) => setPriceMax(event.target.value)}
+            placeholder={
+              filterData?.priceRange?.max
+                ? String(Number(filterData.priceRange.max))
+                : 'Đến giá'
+            }
+            className='h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary'
+          />
+        </div>
+
+        <button
+          onClick={() => setInStockOnly((value) => !value)}
+          className={`mt-3 flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition-colors ${
+            inStockOnly
+              ? 'border-primary bg-primary/10 text-primary'
+              : 'border-border text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Chỉ hiện còn hàng
+          <span className='text-[11px] font-semibold'>
+            {inStockOnly ? 'ON' : 'OFF'}
+          </span>
+        </button>
+      </div>
+
+      {filterGroups.map((group) => {
+        const selectedValueSlugs = selectedFilters[group.slug] || [];
+        return (
+          <div key={group.id}>
+            <p className='mb-2.5 text-[11px] font-bold uppercase tracking-widest text-foreground'>
+              {group.name}
+            </p>
+            <div className='flex flex-wrap gap-2'>
+              {group.values.map((value) => {
+                const active = selectedValueSlugs.includes(value.slug);
+                return (
+                  <button
+                    key={value.id}
+                    onClick={() => {
+                      setSelectedFilters((prev) => {
+                        const current = prev[group.slug] || [];
+                        const nextValues = active
+                          ? current.filter((slug) => slug !== value.slug)
+                          : [...current, value.slug];
+                        return {
+                          ...prev,
+                          [group.slug]: nextValues,
+                        };
+                      });
+                    }}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                      active
+                        ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                        : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                    }`}
+                  >
+                    {value.label}
+                    <span className='ml-1 opacity-70'>({value.productCount})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className='bg-background'>
@@ -105,6 +249,10 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
             </div>
 
             <div className='p-4 space-y-6'>
+              {renderFilterPanel()}
+
+              <div className='border-t border-border/40' />
+
               {/* Sub-categories */}
               {subCategories.length > 0 && (
                 <div>
@@ -205,6 +353,16 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
               ))}
             </div>
           )}
+
+          <div className='mb-5 rounded-2xl border border-border/60 bg-card p-4 lg:hidden'>
+            <div className='mb-3 flex items-center gap-2'>
+              <SlidersHorizontal size={15} className='text-muted-foreground' />
+              <p className='text-xs font-semibold uppercase tracking-widest text-muted-foreground'>
+                Bộ lọc
+              </p>
+            </div>
+            {renderFilterPanel()}
+          </div>
 
           {/* Mobile sort chips */}
           <div className='lg:hidden flex gap-2 overflow-x-auto pb-3 mb-5 scrollbar-hide'>

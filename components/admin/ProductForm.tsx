@@ -35,6 +35,7 @@ import {
   useProduct,
 } from '@/hooks/admin/use-products';
 import { useCategories } from '@/hooks/admin/use-categories';
+import { useProductAttributes } from '@/hooks/admin/use-product-attributes';
 import { useToast } from '@/hooks/use-toast';
 
 // Validation schema
@@ -59,72 +60,6 @@ const productSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-interface ChipInputProps {
-  label: string;
-  values: string[];
-  onChange: (values: string[]) => void;
-  placeholder?: string;
-}
-
-function ChipInput({ label, values, onChange, placeholder }: ChipInputProps) {
-  const [input, setInput] = useState('');
-
-  const add = () => {
-    const v = input.trim();
-    if (v && !values.includes(v)) {
-      onChange([...values, v]);
-      setInput('');
-    }
-  };
-
-  return (
-    <div>
-      <Label className='text-xs font-medium'>{label}</Label>
-      <div className='flex flex-wrap gap-1.5 mt-1.5 mb-2'>
-        {values.map((v) => (
-          <span
-            key={v}
-            className='inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20'
-          >
-            {v}
-            <button
-              type='button'
-              onClick={() => onChange(values.filter((x) => x !== v))}
-              className='hover:text-destructive'
-            >
-              <X size={10} />
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className='flex gap-2'>
-        <Input
-          className='h-8 text-xs'
-          placeholder={placeholder || `Add ${label.toLowerCase()}...`}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              add();
-            }
-          }}
-        />
-        <Button
-          type='button'
-          variant='outline'
-          size='sm'
-          className='h-8 text-xs gap-1'
-          onClick={add}
-        >
-          <Plus size={11} />
-          Add
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export default function ProductForm({ productId }: { productId?: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -136,6 +71,8 @@ export default function ProductForm({ productId }: { productId?: string }) {
   const updateMutation = useUpdateProduct();
   const { data: categoriesData, isLoading: categoriesLoading } =
     useCategories();
+  const { data: attributesData, isLoading: attributesLoading } =
+    useProductAttributes();
   const { upload: uploadImage } = useImageUpload();
 
   // Load existing product when editing
@@ -165,20 +102,9 @@ export default function ProductForm({ productId }: { productId?: string }) {
   });
 
   const [productType, setProductType] = useState<ProductType>(initialType);
-
-  // Cake options
-  const [sizes, setSizes] = useState<string[]>(['S', 'M', 'L']);
-  const [flavors, setFlavors] = useState<string[]>(['Vanilla', 'Chocolate']);
-  const [allowMessage, setAllowMessage] = useState(true);
-  const [maxChars, setMaxChars] = useState('30');
-  const [requirePickup, setRequirePickup] = useState(true);
-  const [minAdvance, setMinAdvance] = useState('4');
-
-  // Ingredient options
-  const [brand, setBrand] = useState('');
-  const [weights, setWeights] = useState<string[]>(['250g', '500g']);
-  const [packagings, setPackagings] = useState<string[]>(['Bag']);
-  const [origin, setOrigin] = useState('');
+  const [selectedAttributeValues, setSelectedAttributeValues] = useState<
+    Record<string, string[]>
+  >({});
 
   // Images — array of { url, file? } where file means pending upload
   interface ImageItem {
@@ -235,6 +161,16 @@ export default function ProductForm({ productId }: { productId?: string }) {
           })),
         );
       }
+
+      const nextAssignments: Record<string, string[]> = {};
+      for (const assignment of existingProduct.attributeAssignments || []) {
+        if (!assignment.attributeId || !assignment.valueId) continue;
+        nextAssignments[assignment.attributeId] = [
+          ...(nextAssignments[assignment.attributeId] || []),
+          assignment.valueId,
+        ];
+      }
+      setSelectedAttributeValues(nextAssignments);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingProduct]);
@@ -255,6 +191,11 @@ export default function ProductForm({ productId }: { productId?: string }) {
 
   // Get categories from API (filter active ones)
   const categories = (categoriesData || []).filter((c) => c.isActive);
+  const assignableAttributes = (attributesData || []).filter(
+    (attribute) =>
+      attribute.isActive &&
+      ['SELECT', 'MULTI_SELECT'].includes(attribute.type),
+  );
 
   // Loading state
   if (isEdit && productLoading) {
@@ -353,6 +294,12 @@ export default function ProductForm({ productId }: { productId?: string }) {
             price: v.price,
             stock: v.stock,
           })),
+        attributeAssignments: assignableAttributes
+          .map((attribute) => ({
+            attributeId: attribute.id,
+            valueIds: selectedAttributeValues[attribute.id] || [],
+          }))
+          .filter((assignment) => assignment.valueIds.length > 0),
       };
 
       if (isEdit && productId) {
@@ -870,121 +817,73 @@ export default function ProductForm({ productId }: { productId?: string }) {
           {/* D) Options */}
           <div className='bg-card rounded-xl border border-border p-5 shadow-sm space-y-4'>
             <h2 className='font-serif text-sm font-semibold text-foreground pb-2 border-b border-border'>
-              Options {productType === 'CAKE' ? '(Cake)' : '(Ingredient)'}
+              Catalog Filters
             </h2>
-
-            {productType === 'CAKE' ? (
-              <>
-                <ChipInput
-                  label='Sizes'
-                  values={sizes}
-                  onChange={setSizes}
-                  placeholder='e.g. S, M, L or 6-inch'
-                />
-                <ChipInput
-                  label='Flavors'
-                  values={flavors}
-                  onChange={setFlavors}
-                  placeholder='e.g. Vanilla, Chocolate'
-                />
-
-                <div className='flex items-center justify-between py-2 border-t border-border'>
-                  <div>
-                    <p className='text-xs font-medium text-foreground'>
-                      Allow Custom Message
-                    </p>
-                    <p className='text-[10px] text-muted-foreground mt-0.5'>
-                      Customer can add a personalized cake message
-                    </p>
-                  </div>
-                  <Switch
-                    checked={allowMessage}
-                    onCheckedChange={setAllowMessage}
-                  />
-                </div>
-
-                {allowMessage && (
-                  <div>
-                    <Label className='text-xs font-medium'>
-                      Max Characters
-                    </Label>
-                    <Input
-                      type='number'
-                      className='h-8 text-xs mt-1.5 max-w-24'
-                      value={maxChars}
-                      onChange={(e) => setMaxChars(e.target.value)}
-                    />
-                  </div>
-                )}
-
-                <div className='flex items-center justify-between py-2 border-t border-border'>
-                  <div>
-                    <p className='text-xs font-medium text-foreground'>
-                      Require Pickup Time
-                    </p>
-                    <p className='text-[10px] text-muted-foreground mt-0.5'>
-                      Customer must select a pickup date/time
-                    </p>
-                  </div>
-                  <Switch
-                    checked={requirePickup}
-                    onCheckedChange={setRequirePickup}
-                  />
-                </div>
-
-                {requirePickup && (
-                  <div>
-                    <Label className='text-xs font-medium'>
-                      Min Advance Hours
-                    </Label>
-                    <Input
-                      type='number'
-                      className='h-8 text-xs mt-1.5 max-w-24'
-                      value={minAdvance}
-                      onChange={(e) => setMinAdvance(e.target.value)}
-                    />
-                  </div>
-                )}
-              </>
+            {attributesLoading ? (
+              <p className='text-xs text-muted-foreground'>Loading product filters...</p>
+            ) : assignableAttributes.length === 0 ? (
+              <p className='text-xs text-muted-foreground'>
+                No filter attributes available yet. Create them in Product Filters
+                before assigning them to products.
+              </p>
             ) : (
-              <>
-                <div>
-                  <Label htmlFor='brand' className='text-xs font-medium'>
-                    Brand
-                  </Label>
-                  <Input
-                    id='brand'
-                    className='h-8 text-xs mt-1.5'
-                    placeholder='e.g. Callebaut'
-                    value={brand}
-                    onChange={(e) => setBrand(e.target.value)}
-                  />
-                </div>
-                <ChipInput
-                  label='Weight Options'
-                  values={weights}
-                  onChange={setWeights}
-                  placeholder='e.g. 250g, 500g, 1kg'
-                />
-                <ChipInput
-                  label='Packaging'
-                  values={packagings}
-                  onChange={setPackagings}
-                  placeholder='e.g. Bag, Box, Bottle'
-                />
-                <div>
-                  <Label htmlFor='origin' className='text-xs font-medium'>
-                    Origin
-                  </Label>
-                  <Input
-                    id='origin'
-                    className='h-8 text-xs mt-1.5'
-                    placeholder='e.g. Belgium'
-                    value={origin}
-                    onChange={(e) => setOrigin(e.target.value)}
-                  />
-                </div>
-              </>
+              <div className='space-y-4'>
+                {assignableAttributes.map((attribute) => {
+                  const selectedValues = selectedAttributeValues[attribute.id] || [];
+
+                  return (
+                    <div key={attribute.id}>
+                      <div className='mb-2'>
+                        <p className='text-xs font-medium text-foreground'>
+                          {attribute.name}
+                        </p>
+                        {attribute.description && (
+                          <p className='mt-0.5 text-[10px] text-muted-foreground'>
+                            {attribute.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className='flex flex-wrap gap-2'>
+                        {(attribute.values || []).map((value) => {
+                          const isSelected = selectedValues.includes(value.id);
+                          return (
+                            <button
+                              key={value.id}
+                              type='button'
+                              onClick={() => {
+                                setSelectedAttributeValues((prev) => {
+                                  const current = prev[attribute.id] || [];
+                                  const nextValues =
+                                    attribute.type === 'SELECT'
+                                      ? isSelected
+                                        ? []
+                                        : [value.id]
+                                      : isSelected
+                                        ? current.filter((item) => item !== value.id)
+                                        : [...current, value.id];
+
+                                  return {
+                                    ...prev,
+                                    [attribute.id]: nextValues,
+                                  };
+                                });
+                              }}
+                              className={cn(
+                                'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                                isSelected
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                              )}
+                            >
+                              {value.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 

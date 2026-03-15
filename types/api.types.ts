@@ -20,6 +20,12 @@ export type DiscountType = 'PERCENTAGE' | 'FIXED';
 export type PaymentMethod = 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
 export type MenuType = 'CATEGORY' | 'PAGE' | 'LINK';
 export type NotificationStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type ProductAttributeType =
+  | 'SELECT'
+  | 'MULTI_SELECT'
+  | 'TEXT'
+  | 'NUMBER'
+  | 'BOOLEAN';
 
 // ============================================================================
 // Base Models
@@ -102,10 +108,65 @@ export interface Product {
   images: ProductImage[];
   categories?: ProductCategory[];
   variants?: ProductVariant[];
+  attributeAssignments?: ProductAttributeAssignment[];
   isActive: boolean;
   isFeatured: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductAttribute {
+  id: string;
+  name: string;
+  slug: string;
+  code: string;
+  type: ProductAttributeType;
+  description: string | null;
+  isRequired: boolean;
+  isFilterable: boolean;
+  isVariantAxis: boolean;
+  isActive: boolean;
+  displayOrder: number;
+  values?: ProductAttributeValue[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductAttributeValue {
+  id: string;
+  attributeId: string;
+  value: string;
+  slug: string;
+  label: string;
+  colorHex: string | null;
+  imageUrl: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductAttributeAssignment {
+  id: string;
+  productId: string;
+  attributeId: string;
+  valueId: string | null;
+  valueKey: string;
+  textValue: string | null;
+  numberValue: number | null;
+  booleanValue: boolean | null;
+  attribute?: ProductAttribute;
+  value?: ProductAttributeValue | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductFilterValueOption extends ProductAttributeValue {
+  productCount: number;
+}
+
+export interface ProductFilterGroup extends ProductAttribute {
+  values: ProductFilterValueOption[];
 }
 
 export interface OrderItem {
@@ -387,11 +448,47 @@ export interface CreateProductRequest {
     price: number;
     stock?: number;
   }>;
+  attributeAssignments?: ProductAttributeAssignmentInput[];
   isActive?: boolean;
   isFeatured?: boolean;
 }
 
 export type UpdateProductRequest = Partial<CreateProductRequest>;
+
+export interface ProductAttributeValueInput {
+  label: string;
+  value?: string;
+  slug?: string;
+  colorHex?: string;
+  imageUrl?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export interface CreateProductAttributeRequest {
+  name: string;
+  slug: string;
+  code: string;
+  type: ProductAttributeType;
+  description?: string;
+  isRequired?: boolean;
+  isFilterable?: boolean;
+  isVariantAxis?: boolean;
+  isActive?: boolean;
+  displayOrder?: number;
+  values?: ProductAttributeValueInput[];
+}
+
+export type UpdateProductAttributeRequest =
+  Partial<CreateProductAttributeRequest>;
+
+export interface ProductAttributeAssignmentInput {
+  attributeId: string;
+  valueIds?: string[];
+  textValue?: string;
+  numberValue?: number;
+  booleanValue?: boolean;
+}
 
 export interface CreateCategoryRequest {
   name: string;
@@ -515,9 +612,17 @@ export interface PaginationParams {
 
 export interface ProductsQueryParams extends PaginationParams {
   category?: string;
+  categoryId?: string;
   search?: string;
   featured?: boolean;
   active?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
+  inStock?: boolean;
+  attributeFilters?: Array<{
+    attributeSlug: string;
+    valueSlugs: string[];
+  }>;
 }
 
 export interface OrdersQueryParams extends PaginationParams {
