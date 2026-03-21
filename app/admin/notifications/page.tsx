@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ImageUpload } from '@/components/image-upload';
 import {
   Select,
   SelectContent,
@@ -88,6 +89,7 @@ export default function NotificationsAdminPage() {
 
   const [formTitle, setFormTitle] = useState('');
   const [formContent, setFormContent] = useState('');
+  const [formImageUrl, setFormImageUrl] = useState('');
   const [formLinkUrl, setFormLinkUrl] = useState('');
   const [formStatus, setFormStatus] = useState<NotificationStatus>('DRAFT');
   const [formPublishedAt, setFormPublishedAt] = useState('');
@@ -110,6 +112,7 @@ export default function NotificationsAdminPage() {
     setEditNotification(null);
     setFormTitle('');
     setFormContent('');
+    setFormImageUrl('');
     setFormLinkUrl('');
     setFormStatus('DRAFT');
     setFormPublishedAt('');
@@ -120,6 +123,7 @@ export default function NotificationsAdminPage() {
     setEditNotification(item);
     setFormTitle(item.title);
     setFormContent(item.content);
+    setFormImageUrl(item.imageUrl || '');
     setFormLinkUrl(item.linkUrl || '');
     setFormStatus(item.status);
     setFormPublishedAt(toDatetimeLocal(item.publishedAt));
@@ -132,6 +136,7 @@ export default function NotificationsAdminPage() {
     const payload = {
       title: formTitle.trim(),
       content: formContent.trim(),
+      imageUrl: formImageUrl.trim() || undefined,
       linkUrl: formLinkUrl.trim() || undefined,
       status: formStatus,
       publishedAt: formPublishedAt
@@ -412,6 +417,19 @@ export default function NotificationsAdminPage() {
                 onChange={(e) => setFormContent(e.target.value)}
                 placeholder='Notification content'
               />
+            </div>
+
+            <div>
+              <Label className='text-xs font-medium'>Picture (optional)</Label>
+              <div className='mt-1.5'>
+                <ImageUpload
+                  folder='notifications'
+                  currentImage={formImageUrl || undefined}
+                  onUploadComplete={(url) => setFormImageUrl(url)}
+                  onDelete={() => setFormImageUrl('')}
+                  className='[&>button]:h-32 [&_.relative]:h-32'
+                />
+              </div>
             </div>
 
             <div>

@@ -32,7 +32,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Category, NotificationListItem } from '@/types/api.types';
 import Image from 'next/image';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { categoryHrefFromTrail } from '@/lib/category-path';
 
 interface NavLink {
@@ -182,18 +186,15 @@ export default function WebNavbar() {
   // Infinite scroll inside notifications popover
   useEffect(() => {
     if (!notificationOpen) return;
-    if (!notificationListRef.current || !notificationLoadMoreRef.current) return;
+    if (!notificationListRef.current || !notificationLoadMoreRef.current)
+      return;
 
     const root = notificationListRef.current;
     const target = notificationLoadMoreRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (
-          entry?.isIntersecting &&
-          hasNextPage &&
-          !isFetchingNextPage
-        ) {
+        if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
@@ -247,8 +248,7 @@ export default function WebNavbar() {
     return new Date(iso).toLocaleString('vi-VN');
   };
 
-  const isExternalUrl = (url: string) =>
-    /^https?:\/\//i.test(url);
+  const isExternalUrl = (url: string) => /^https?:\/\//i.test(url);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -262,24 +262,40 @@ export default function WebNavbar() {
         : 'bg-primary/5 hover:bg-primary/10'
     }`;
     const content = (
-      <>
-        <div className='flex items-start justify-between gap-2'>
-          <p
-            className={`text-sm font-medium leading-snug ${
-              item.isRead ? 'text-gray-700' : 'text-gray-900'
-            }`}
-          >
-            {item.title}
+      <div className='flex items-start gap-3'>
+        <div className='flex-col'>
+          <div className='flex items-start justify-between gap-2'>
+            <p
+              className={`text-sm font-medium leading-snug ${
+                item.isRead ? 'text-gray-700' : 'text-gray-900'
+              }`}
+            >
+              {item.title}
+            </p>
+            {!item.isRead && (
+              <span className='mt-1 size-2 rounded-full bg-primary shrink-0' />
+            )}
+          </div>
+          <p className='text-xs text-gray-600 mt-1.5 line-clamp-2'>
+            {item.content}
           </p>
-          {!item.isRead && (
-            <span className='mt-1 size-2 rounded-full bg-primary shrink-0' />
-          )}
+
+          <p className='text-[11px] text-gray-400 mt-1.5'>
+            {formatNotificationTime(item.publishedAt || item.createdAt)}
+          </p>
         </div>
-        <p className='text-xs text-gray-600 mt-1.5 line-clamp-2'>{item.content}</p>
-        <p className='text-[11px] text-gray-400 mt-1.5'>
-          {formatNotificationTime(item.publishedAt || item.createdAt)}
-        </p>
-      </>
+        {item.imageUrl && (
+          <div className='mt-2 h-20 w-full max-w-[180px] overflow-hidden rounded-md border border-gray-100 bg-gray-50'>
+            <Image
+              src={item.imageUrl}
+              alt={item.title}
+              width={180}
+              height={80}
+              className='h-full w-full object-cover'
+            />
+          </div>
+        )}
+      </div>
     );
 
     if (!item.linkUrl) {
@@ -417,13 +433,16 @@ export default function WebNavbar() {
                   </div>
                 ) : searchResults.length === 0 ? (
                   <div className='py-6 text-center text-sm text-gray-400'>
-                    Không tìm thấy sản phẩm nào cho &quot;{debouncedSearch}&quot;
+                    Không tìm thấy sản phẩm nào cho &quot;{debouncedSearch}
+                    &quot;
                   </div>
                 ) : (
                   <>
                     <ul>
                       {searchResults.map((product) => {
-                        const primaryImage = product.images?.find((img) => img.isPrimary) ?? product.images?.[0];
+                        const primaryImage =
+                          product.images?.find((img) => img.isPrimary) ??
+                          product.images?.[0];
                         return (
                           <li key={product.id}>
                             <Link
@@ -445,7 +464,9 @@ export default function WebNavbar() {
                                 )}
                               </div>
                               <div className='flex-1 min-w-0'>
-                                <p className='text-sm font-medium text-gray-800 truncate'>{product.name}</p>
+                                <p className='text-sm font-medium text-gray-800 truncate'>
+                                  {product.name}
+                                </p>
                                 <p className='text-xs text-primary font-semibold mt-0.5'>
                                   {product.price.toLocaleString('vi-VN')}đ
                                 </p>
@@ -473,7 +494,10 @@ export default function WebNavbar() {
           <div className='flex items-center gap-3 flex-shrink-0'>
             {/* Notifications */}
             {mounted && user && (
-              <Popover open={notificationOpen} onOpenChange={setNotificationOpen}>
+              <Popover
+                open={notificationOpen}
+                onOpenChange={setNotificationOpen}
+              >
                 <PopoverTrigger asChild>
                   <button
                     className='relative flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors'

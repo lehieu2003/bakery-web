@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const admin = await requireAdmin();
     const body = await request.json();
 
-    const { title, content, linkUrl, status, publishedAt } = body;
+    const { title, content, imageUrl, linkUrl, status, publishedAt } = body;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
       data: {
         title,
         content,
+        imageUrl: imageUrl || null,
         linkUrl: linkUrl || null,
         status: finalStatus,
         publishedAt:

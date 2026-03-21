@@ -118,6 +118,7 @@ export async function PUT(
       data: {
         ...(body.title !== undefined && { title: body.title }),
         ...(body.content !== undefined && { content: body.content }),
+        ...(body.imageUrl !== undefined && { imageUrl: body.imageUrl || null }),
         ...(body.linkUrl !== undefined && { linkUrl: body.linkUrl || null }),
         ...(body.status !== undefined && { status: nextStatus }),
         ...(resolvedPublishedAt !== undefined && {

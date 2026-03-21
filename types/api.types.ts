@@ -298,6 +298,7 @@ export interface Notification {
   id: string;
   title: string;
   content: string;
+  imageUrl: string | null;
   linkUrl: string | null;
   status: NotificationStatus;
   publishedAt: string | null;
@@ -594,6 +595,7 @@ export type UpdatePageRequest = Partial<CreatePageRequest>;
 export interface CreateNotificationRequest {
   title: string;
   content: string;
+  imageUrl?: string;
   linkUrl?: string;
   status?: NotificationStatus;
   publishedAt?: string;

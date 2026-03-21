@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
             id: item.id,
             title: item.title,
             content: item.content,
+            imageUrl: item.imageUrl,
             linkUrl: item.linkUrl,
             status: item.status,
             publishedAt: item.publishedAt,

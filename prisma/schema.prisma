@@ -639,6 +639,7 @@ model Notification {
 
   title   String
   content String
+  imageUrl String?
   linkUrl String?
 
   status      NotificationStatus @default(DRAFT)
