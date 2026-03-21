@@ -13,7 +13,7 @@ function normalizeValues(values: ProductAttributeValueInput[] | undefined) {
       return {
         label,
         value: value.value?.trim() || label,
-        slug: value.slug?.trim() || slugifyProductAttribute(label),
+        slug: slugifyProductAttribute(value.slug?.trim() || label),
         colorHex: value.colorHex?.trim() || null,
         imageUrl: value.imageUrl?.trim() || null,
         displayOrder: value.displayOrder ?? index,
@@ -84,7 +84,10 @@ export async function PUT(
       );
     }
 
-    const nextSlug = body.slug?.trim();
+    const nextSlug =
+      body.slug !== undefined
+        ? slugifyProductAttribute(body.slug?.trim() || body.name?.trim() || '')
+        : undefined;
     if (nextSlug && nextSlug !== existing.slug) {
       const slugExists = await prisma.productAttribute.findFirst({
         where: { slug: nextSlug, id: { not: id } },

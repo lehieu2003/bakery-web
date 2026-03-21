@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { slugify } from '@/lib/slug';
 
 // GET /api/admin/blog/posts
 export async function GET(request: NextRequest) {
@@ -78,7 +79,6 @@ export async function POST(request: NextRequest) {
 
     const {
       title,
-      slug,
       excerpt,
       content,
       coverUrl,
@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       metaTitle,
       metaDescription,
     } = body;
+    const slug = slugify(body.slug || title || '');
 
     if (!title || !slug || !content) {
       return NextResponse.json(

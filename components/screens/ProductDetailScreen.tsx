@@ -4,13 +4,14 @@ import Image from 'next/image';
 import { ChevronLeft, ShoppingBag, Star, ZoomIn, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCart } from '@/lib/cart-store';
-import { useProductDetail } from '@/hooks/use-products';
+import { useCategories, useProductDetail } from '@/hooks/use-products';
 import { getProductImage, getProductImages } from '@/lib/utils';
 import Link from 'next/link';
 import { ProductVariant } from '@/types/api.types';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import RelatedProducts from '@/components/screens/RelatedProducts';
+import { categoryHrefFromTrail, findCategoryTrailById } from '@/lib/category-path';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
@@ -28,6 +29,7 @@ export default function ProductDetailScreen({
     isLoading,
     error,
   } = useProductDetail(productId);
+  const { data: categoriesData } = useCategories();
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null,
   );
@@ -130,9 +132,11 @@ export default function ProductDetailScreen({
   const isCake = (selectedProduct.categories || []).length > 0; // Simplified check
 
   const firstCategory = selectedProduct.categories?.[0]?.category;
-  const categorySlug = firstCategory?.slug;
   const categoryName = firstCategory?.name;
-  const categoryHref = categorySlug ? `/categories/${categorySlug}` : '/';
+  const categoryTrail = firstCategory?.id
+    ? findCategoryTrailById(categoriesData || [], firstCategory.id)
+    : undefined;
+  const categoryHref = categoryTrail ? categoryHrefFromTrail(categoryTrail) : '/';
 
   const discountLabel =
     user?.level === 'platinum' ? '15%' : user?.level === 'gold' ? '10%' : '5%';

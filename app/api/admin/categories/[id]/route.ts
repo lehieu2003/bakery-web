@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { slugify } from '@/lib/slug';
 
 // GET: Get category by ID
 export async function GET(
@@ -60,6 +61,10 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
+    const normalizedSlug =
+      body.slug !== undefined
+        ? slugify(body.slug || body.name || '')
+        : undefined;
 
     const existing = await prisma.category.findUnique({ where: { id } });
     if (!existing) {
@@ -70,9 +75,9 @@ export async function PUT(
     }
 
     // Check slug uniqueness if changed
-    if (body.slug && body.slug !== existing.slug) {
+    if (normalizedSlug && normalizedSlug !== existing.slug) {
       const slugExists = await prisma.category.findUnique({
-        where: { slug: body.slug },
+        where: { slug: normalizedSlug },
       });
       if (slugExists) {
         return NextResponse.json(
@@ -133,7 +138,7 @@ export async function PUT(
       where: { id },
       data: {
         name: body.name,
-        slug: body.slug,
+        slug: normalizedSlug,
         description: body.description,
         imageUrl: body.imageUrl,
         parentId:

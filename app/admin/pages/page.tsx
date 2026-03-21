@@ -41,6 +41,7 @@ import {
   useDeletePage,
 } from '@/hooks/admin/use-pages';
 import type { Page } from '@/types/api.types';
+import { slugify } from '@/lib/slug';
 
 export default function PagesAdminPage() {
   const [search, setSearch] = useState('');
@@ -74,16 +75,6 @@ export default function PagesAdminPage() {
     return true;
   });
 
-  const generateSlug = (title: string) =>
-    title
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd')
-      .replace(/Đ/g, 'D')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-
   const openCreate = () => {
     setEditPage(null);
     setFormTitle('');
@@ -104,7 +95,7 @@ export default function PagesAdminPage() {
 
   const handleSave = async () => {
     if (!formTitle.trim()) return;
-    const slug = formSlug || generateSlug(formTitle);
+    const slug = slugify(formSlug || formTitle);
 
     try {
       if (editPage) {
@@ -312,7 +303,7 @@ export default function PagesAdminPage() {
                 value={formTitle}
                 onChange={(e) => {
                   setFormTitle(e.target.value);
-                  if (!editPage) setFormSlug(generateSlug(e.target.value));
+                  if (!editPage) setFormSlug(slugify(e.target.value));
                 }}
                 placeholder='Page title'
               />
@@ -323,7 +314,7 @@ export default function PagesAdminPage() {
               <Input
                 className='h-8 text-xs mt-1.5 font-mono'
                 value={formSlug}
-                onChange={(e) => setFormSlug(e.target.value)}
+                onChange={(e) => setFormSlug(slugify(e.target.value))}
                 placeholder='page-slug'
               />
             </div>

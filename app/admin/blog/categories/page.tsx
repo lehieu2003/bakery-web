@@ -30,6 +30,7 @@ import {
   useDeleteBlogCategory,
 } from '@/hooks/admin/use-blog-categories';
 import type { BlogCategory } from '@/types/api.types';
+import { slugify } from '@/lib/slug';
 
 export default function BlogCategoriesAdminPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -47,16 +48,6 @@ export default function BlogCategoriesAdminPage() {
   const updateMutation = useUpdateBlogCategory();
   const deleteMutation = useDeleteBlogCategory();
   const categories: BlogCategory[] = data?.categories || [];
-
-  const generateSlug = (name: string) =>
-    name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/\[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd')
-      .replace(/Đ/g, 'D')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
 
   const openCreate = () => {
     setEditCategory(null);
@@ -81,10 +72,10 @@ export default function BlogCategoriesAdminPage() {
   };
 
   const handleSave = async () => {
-    if (!formName.trim() || !formSlug.trim()) return;
+    if (!formName.trim()) return;
     const payload = {
       name: formName,
-      slug: formSlug,
+      slug: slugify(formSlug || formName),
       description: formDesc || undefined,
       imageUrl: formImageUrl || undefined,
       displayOrder: formOrder,
@@ -195,7 +186,7 @@ export default function BlogCategoriesAdminPage() {
                 value={formName}
                 onChange={(e) => {
                   setFormName(e.target.value);
-                  if (!editCategory) setFormSlug(generateSlug(e.target.value));
+                  if (!editCategory) setFormSlug(slugify(e.target.value));
                 }}
                 placeholder='Tên danh mục'
               />
@@ -205,7 +196,7 @@ export default function BlogCategoriesAdminPage() {
               <Input
                 className='h-8 text-xs mt-1.5 font-mono'
                 value={formSlug}
-                onChange={(e) => setFormSlug(e.target.value)}
+                onChange={(e) => setFormSlug(slugify(e.target.value))}
                 placeholder='danh-muc-blog'
               />
             </div>

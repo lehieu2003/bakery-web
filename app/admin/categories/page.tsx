@@ -54,6 +54,7 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable, isSortable } from '@dnd-kit/react/sortable';
 import { toast } from 'sonner';
 import type { Category } from '@/types/api.types';
+import { slugify } from '@/lib/slug';
 
 /** Flatten tree into a list with depth info */
 function flattenTree(
@@ -300,7 +301,7 @@ export default function CategoriesPage() {
 
   const handleSave = async () => {
     if (!formName.trim()) return;
-    const slug = formSlug || formName.toLowerCase().replace(/\s+/g, '-');
+    const slug = slugify(formSlug || formName);
     try {
       if (editCat) {
         await updateMutation.mutateAsync({
@@ -597,7 +598,7 @@ export default function CategoriesPage() {
                 onChange={(e) => {
                   setFormName(e.target.value);
                   if (!editCat) {
-                    setFormSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'));
+                    setFormSlug(slugify(e.target.value));
                   }
                 }}
               />
@@ -607,7 +608,7 @@ export default function CategoriesPage() {
               <Input
                 className='h-9 text-xs mt-1.5 font-mono'
                 value={formSlug}
-                onChange={(e) => setFormSlug(e.target.value)}
+                onChange={(e) => setFormSlug(slugify(e.target.value))}
               />
             </div>
             <div>

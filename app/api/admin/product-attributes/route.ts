@@ -13,7 +13,7 @@ function normalizeValues(values: ProductAttributeValueInput[] | undefined) {
       return {
         label,
         value: value.value?.trim() || label,
-        slug: value.slug?.trim() || slugifyProductAttribute(label),
+        slug: slugifyProductAttribute(value.slug?.trim() || label),
         colorHex: value.colorHex?.trim() || null,
         imageUrl: value.imageUrl?.trim() || null,
         displayOrder: value.displayOrder ?? index,
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as CreateProductAttributeRequest;
     const name = body.name?.trim();
-    const slug = body.slug?.trim();
+    const slug = slugifyProductAttribute(body.slug?.trim() || body.name?.trim() || '');
     const code = body.code?.trim();
 
     if (!name || !slug || !code || !body.type) {

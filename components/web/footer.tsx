@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { MapPin, Phone, Mail, Instagram, Facebook, Youtube } from 'lucide-react';
 import NewsletterForm from './newsletter-form';
 import { useCategories } from '@/hooks/use-products';
+import { categoryHrefFromTrail } from '@/lib/category-path';
 
 const infoLinks = [
   { label: 'Về chúng tôi', href: '/ve-chung-toi' },
@@ -25,7 +26,7 @@ export default function WebFooter() {
   // Flatten to at most 6 root categories for the "Khám phá" column
   const exploreLinks = (categoriesData || []).slice(0, 6).map((cat) => ({
     label: cat.name,
-    href: `/categories/${cat.slug}`,
+    href: categoryHrefFromTrail([cat]),
   }));
 
   // Fallback static links while loading

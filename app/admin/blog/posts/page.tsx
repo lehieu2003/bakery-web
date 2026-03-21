@@ -59,6 +59,7 @@ import type {
   BlogCategory,
   BlogTag,
 } from '@/types/api.types';
+import { slugify } from '@/lib/slug';
 
 const statusConfig: Record<
   BlogPostStatus,
@@ -123,16 +124,6 @@ export default function BlogPostsAdminPage() {
   const categories: BlogCategory[] = catData?.categories || [];
   const tags: BlogTag[] = tagData?.tags || [];
 
-  const generateSlug = (title: string) =>
-    title
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd')
-      .replace(/Đ/g, 'D')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-
   const openCreate = () => {
     setEditPost(null);
     setFormTitle('');
@@ -165,7 +156,7 @@ export default function BlogPostsAdminPage() {
 
   const handleSave = async () => {
     if (!formTitle.trim() || !formContent.trim()) return;
-    const slug = formSlug || generateSlug(formTitle);
+    const slug = slugify(formSlug || formTitle);
 
     const payload = {
       title: formTitle,
@@ -496,7 +487,7 @@ export default function BlogPostsAdminPage() {
                 value={formTitle}
                 onChange={(e) => {
                   setFormTitle(e.target.value);
-                  if (!editPost) setFormSlug(generateSlug(e.target.value));
+                  if (!editPost) setFormSlug(slugify(e.target.value));
                 }}
                 placeholder='Tiêu đề bài viết'
               />
@@ -508,7 +499,7 @@ export default function BlogPostsAdminPage() {
               <Input
                 className='h-8 text-xs mt-1.5 font-mono'
                 value={formSlug}
-                onChange={(e) => setFormSlug(e.target.value)}
+                onChange={(e) => setFormSlug(slugify(e.target.value))}
                 placeholder='bai-viet-slug'
               />
             </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
+import { slugify } from '@/lib/slug';
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
@@ -63,7 +64,10 @@ export async function PUT(
       );
     }
 
-    const nextSlug = typeof body.slug === 'string' ? body.slug : existing.slug;
+    const nextSlug =
+      typeof body.slug === 'string'
+        ? slugify(body.slug || (typeof body.title === 'string' ? body.title : ''))
+        : existing.slug;
     if (nextSlug && nextSlug !== existing.slug) {
       const slugExists = await prisma.page.findUnique({
         where: { slug: nextSlug },

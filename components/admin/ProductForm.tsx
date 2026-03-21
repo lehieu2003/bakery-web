@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/form';
 import { ProductType } from '@/lib/admin-data';
 import { cn } from '@/lib/utils';
+import { slugify } from '@/lib/slug';
 import {
   useCreateProduct,
   useUpdateProduct,
@@ -181,11 +182,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
 
   useEffect(() => {
     if (slugEdited || !nameValue) return;
-    const s = nameValue
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
+    const s = slugify(nameValue);
     form.setValue('slug', s);
   }, [nameValue, slugEdited, form]);
 
@@ -277,7 +274,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
 
       const productData = {
         name: values.name.trim(),
-        slug: values.slug.trim(),
+        slug: slugify(values.slug.trim()),
         description: values.fullDesc?.trim() || undefined,
         price: values.price,
         stock: 100, // Default stock
@@ -424,7 +421,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                       {...field}
                       onChange={(e) => {
                         setSlugEdited(true);
-                        field.onChange(e);
+                        field.onChange(slugify(e.target.value));
                       }}
                     />
                   </FormControl>

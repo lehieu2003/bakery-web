@@ -1,5 +1,6 @@
 import type { Prisma, ProductAttribute, ProductAttributeType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { slugify } from '@/lib/slug';
 
 export interface ParsedAttributeFilter {
   attributeSlug: string;
@@ -15,14 +16,7 @@ export interface IncomingProductAttributeAssignment {
 }
 
 export function slugifyProductAttribute(input: string) {
-  return input
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
+  return slugify(input);
 }
 
 export function parseAttributeFilters(values: string[]): ParsedAttributeFilter[] {

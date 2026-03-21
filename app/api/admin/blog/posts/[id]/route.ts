@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { slugify } from '@/lib/slug';
 
 // GET /api/admin/blog/posts/[id]
 export async function GET(
@@ -47,6 +48,8 @@ export async function PUT(
     await requireAdmin();
     const { id } = await params;
     const body = await request.json();
+    const normalizedSlug =
+      body.slug !== undefined ? slugify(body.slug || body.title || '') : undefined;
 
     const existing = await prisma.blogPost.findUnique({ where: { id } });
     if (!existing) {
@@ -57,9 +60,9 @@ export async function PUT(
     }
 
     // Check slug uniqueness if changed
-    if (body.slug && body.slug !== existing.slug) {
+    if (normalizedSlug && normalizedSlug !== existing.slug) {
       const slugExists = await prisma.blogPost.findUnique({
-        where: { slug: body.slug },
+        where: { slug: normalizedSlug },
       });
       if (slugExists) {
         return NextResponse.json(
@@ -70,6 +73,9 @@ export async function PUT(
     }
 
     const { tagIds, ...updateData } = body;
+    if (normalizedSlug !== undefined) {
+      updateData.slug = normalizedSlug;
+    }
 
     // Handle tags if provided
     if (Array.isArray(tagIds)) {

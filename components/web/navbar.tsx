@@ -33,6 +33,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { Category, NotificationListItem } from '@/types/api.types';
 import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { categoryHrefFromTrail } from '@/lib/category-path';
 
 interface NavLink {
   label: string;
@@ -147,18 +148,24 @@ export default function WebNavbar() {
   // Build nav links dynamically from root categories, preserving children
   const navLinks = useMemo((): NavLink[] => {
     if (!categoriesData) return [];
-    return categoriesData.map((cat: Category) => ({
-      label: cat.name,
-      href: `/categories/${cat.slug}`,
-      children: (cat.children || []).map((child) => ({
-        label: child.name,
-        href: `/categories/${child.slug}`,
-        children: (child.children || []).map((grand) => ({
-          label: grand.name,
-          href: `/categories/${grand.slug}`,
-        })),
-      })),
-    }));
+    return categoriesData.map((cat: Category) => {
+      const rootTrail = [cat];
+      return {
+        label: cat.name,
+        href: categoryHrefFromTrail(rootTrail),
+        children: (cat.children || []).map((child) => {
+          const childTrail = [...rootTrail, child];
+          return {
+            label: child.name,
+            href: categoryHrefFromTrail(childTrail),
+            children: (child.children || []).map((grand) => ({
+              label: grand.name,
+              href: categoryHrefFromTrail([...childTrail, grand]),
+            })),
+          };
+        }),
+      };
+    });
   }, [categoriesData]);
 
   const handleMouseEnter = (href: string) => {

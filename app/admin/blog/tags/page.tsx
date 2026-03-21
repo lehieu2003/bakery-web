@@ -30,6 +30,7 @@ import {
   useDeleteBlogTag,
 } from '@/hooks/admin/use-blog-tags';
 import type { BlogTag } from '@/types/api.types';
+import { slugify } from '@/lib/slug';
 
 export default function BlogTagsAdminPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -43,16 +44,6 @@ export default function BlogTagsAdminPage() {
   const updateMutation = useUpdateBlogTag();
   const deleteMutation = useDeleteBlogTag();
   const tags: BlogTag[] = data?.tags || [];
-
-  const generateSlug = (name: string) =>
-    name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/\[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd')
-      .replace(/Đ/g, 'D')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
 
   const openCreate = () => {
     setEditTag(null);
@@ -69,10 +60,10 @@ export default function BlogTagsAdminPage() {
   };
 
   const handleSave = async () => {
-    if (!formName.trim() || !formSlug.trim()) return;
+    if (!formName.trim()) return;
     const payload = {
       name: formName,
-      slug: formSlug,
+      slug: slugify(formSlug || formName),
     };
     try {
       if (editTag) {
@@ -173,7 +164,7 @@ export default function BlogTagsAdminPage() {
                 value={formName}
                 onChange={(e) => {
                   setFormName(e.target.value);
-                  if (!editTag) setFormSlug(generateSlug(e.target.value));
+                  if (!editTag) setFormSlug(slugify(e.target.value));
                 }}
                 placeholder='Tên tag'
               />
@@ -183,7 +174,7 @@ export default function BlogTagsAdminPage() {
               <Input
                 className='h-8 text-xs mt-1.5 font-mono'
                 value={formSlug}
-                onChange={(e) => setFormSlug(e.target.value)}
+                onChange={(e) => setFormSlug(slugify(e.target.value))}
                 placeholder='tag-blog'
               />
             </div>

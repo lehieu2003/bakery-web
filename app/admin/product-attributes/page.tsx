@@ -48,6 +48,7 @@ import type {
   ProductAttribute,
   ProductAttributeType,
 } from '@/types/api.types';
+import { slugify as normalizeSlug } from '@/lib/slug';
 
 const OPTION_TYPES: ProductAttributeType[] = ['SELECT', 'MULTI_SELECT'];
 const ALL_TYPES: ProductAttributeType[] = [
@@ -57,17 +58,6 @@ const ALL_TYPES: ProductAttributeType[] = [
   'NUMBER',
   'BOOLEAN',
 ];
-
-function slugify(input: string) {
-  return input
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
 
 export default function ProductAttributesPage() {
   const [search, setSearch] = useState('');
@@ -146,7 +136,7 @@ export default function ProductAttributesPage() {
   async function handleSave() {
     const payload = {
       name: name.trim(),
-      slug: slug.trim(),
+      slug: normalizeSlug(slug.trim()),
       code: code.trim(),
       type,
       description: description.trim() || undefined,
@@ -163,7 +153,7 @@ export default function ProductAttributesPage() {
             .map((label, index) => ({
               label,
               value: label,
-              slug: slugify(label),
+              slug: normalizeSlug(label),
               displayOrder: index,
               isActive: true,
             }))
@@ -352,8 +342,8 @@ export default function ProductAttributesPage() {
                   const next = event.target.value;
                   setName(next);
                   if (!editing) {
-                    setSlug(slugify(next));
-                    setCode(slugify(next).replace(/-/g, '_'));
+                    setSlug(normalizeSlug(next));
+                    setCode(normalizeSlug(next).replace(/-/g, '_'));
                   }
                 }}
                 placeholder='Decoration'
@@ -382,7 +372,7 @@ export default function ProductAttributesPage() {
               <Label className='text-xs font-medium'>Slug</Label>
               <Input
                 value={slug}
-                onChange={(event) => setSlug(event.target.value)}
+                onChange={(event) => setSlug(normalizeSlug(event.target.value))}
                 placeholder='decoration'
                 className='h-9 font-mono text-sm'
               />

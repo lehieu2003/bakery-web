@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { slugify } from '@/lib/slug';
 
 // GET /api/admin/categories (PUBLIC - no auth required)
 export async function GET() {
@@ -57,19 +58,24 @@ export async function POST(request: NextRequest) {
     await requireAdmin();
     const body = await request.json();
 
-    const {
-      name,
-      slug,
-      description,
-      imageUrl,
-      parentId,
-      displayOrder,
-      isActive,
-    } = body;
+    const { name, description, imageUrl, parentId, displayOrder, isActive } =
+      body;
+    const slug = slugify(body.slug || name || '');
 
     if (!name || !slug) {
       return NextResponse.json(
         { success: false, error: 'Thiếu thông tin bắt buộc' },
+        { status: 400 },
+      );
+    }
+
+    const slugExists = await prisma.category.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (slugExists) {
+      return NextResponse.json(
+        { success: false, error: 'Slug already exists' },
         { status: 400 },
       );
     }

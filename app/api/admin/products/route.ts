@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import type { CreateProductRequest } from '@/types/api.types';
 import { buildProductAttributeAssignmentRows } from '@/lib/product-attributes';
+import { slugify } from '@/lib/slug';
 
 const productInclude: Prisma.ProductInclude = {
   categories: {
@@ -99,7 +100,6 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as Partial<CreateProductRequest>;
     const {
       name,
-      slug,
       description,
       shortDescription,
       price,
@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
       isActive,
       isFeatured,
     } = body;
+    const slug = slugify(body.slug || name || '');
 
     // Validate required fields
     if (!name || !slug || !price) {

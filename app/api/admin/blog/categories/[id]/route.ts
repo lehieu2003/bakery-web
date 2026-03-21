@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { slugify } from '@/lib/slug';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -36,11 +37,13 @@ export async function PUT(request: NextRequest, { params }: Params) {
     await requireAdmin();
     const { id } = await params;
     const body = await request.json();
-    const { name, slug, description, imageUrl, displayOrder, isActive } = body;
+    const { name, description, imageUrl, displayOrder, isActive } = body;
+    const nextSlug =
+      body.slug !== undefined ? slugify(body.slug || body.name || '') : undefined;
 
-    if (slug) {
+    if (nextSlug) {
       const existing = await prisma.blogCategory.findFirst({
-        where: { slug, id: { not: id } },
+        where: { slug: nextSlug, id: { not: id } },
       });
       if (existing) {
         return NextResponse.json(
@@ -54,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       where: { id },
       data: {
         ...(name !== undefined && { name }),
-        ...(slug !== undefined && { slug }),
+        ...(nextSlug !== undefined && { slug: nextSlug }),
         ...(description !== undefined && { description }),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(displayOrder !== undefined && { displayOrder }),

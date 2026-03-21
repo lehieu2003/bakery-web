@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
+import { slugify } from '@/lib/slug';
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
@@ -43,7 +44,9 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as Record<string, unknown>;
     const title = typeof body.title === 'string' ? body.title : '';
-    const slug = typeof body.slug === 'string' ? body.slug : '';
+    const slug = slugify(
+      typeof body.slug === 'string' && body.slug.trim() ? body.slug : title,
+    );
     const content = typeof body.content === 'string' ? body.content : '';
     const isPublished =
       typeof body.isPublished === 'boolean' ? body.isPublished : false;

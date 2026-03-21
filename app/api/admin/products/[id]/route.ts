@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import type { UpdateProductRequest } from '@/types/api.types';
 import { buildProductAttributeAssignmentRows } from '@/lib/product-attributes';
+import { slugify } from '@/lib/slug';
 
 const productInclude: Prisma.ProductInclude = {
   categories: { include: { category: true } },
@@ -70,6 +71,24 @@ export async function PUT(
     const { id } = await params;
     const body = (await request.json()) as Partial<UpdateProductRequest> &
       Record<string, unknown>;
+    const normalizedSlug =
+      typeof body.slug === 'string'
+        ? slugify(body.slug || (typeof body.name === 'string' ? body.name : ''))
+        : undefined;
+
+    if (normalizedSlug) {
+      const slugExists = await prisma.product.findFirst({
+        where: { slug: normalizedSlug, id: { not: id } },
+        select: { id: true },
+      });
+      if (slugExists) {
+        return NextResponse.json(
+          { success: false, error: 'Slug đã tồn tại' },
+          { status: 400 },
+        );
+      }
+      body.slug = normalizedSlug;
+    }
 
     const { images, variants, categoryIds, attributeAssignments, ...rest } = body;
     const updateData = Object.fromEntries(

@@ -14,24 +14,12 @@ import {
   useProducts,
   useCategories,
 } from '@/hooks/use-products';
+import {
+  categoryHrefFromTrail,
+  findCategoryTrailBySlugPath,
+} from '@/lib/category-path';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Category } from '@/types/api.types';
 import ProductCard from '@/components/screens/ProductCard';
-
-/** Recursively search the category tree by slug */
-function findCategoryBySlug(
-  categories: Category[],
-  slug: string,
-): Category | undefined {
-  for (const cat of categories) {
-    if (cat.slug === slug) return cat;
-    if (cat.children?.length) {
-      const found = findCategoryBySlug(cat.children, slug);
-      if (found) return found;
-    }
-  }
-  return undefined;
-}
 
 type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc';
 
@@ -51,10 +39,10 @@ const SORT_OPTIONS: {
 ];
 
 interface CategoryScreenProps {
-  categorySlug: string;
+  slugPath: string[];
 }
 
-export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
+export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
   const [sort, setSort] = useState<SortOption>('popular');
   const [subCategoryId, setSubCategoryId] = useState<string>('all');
   const [selectedFilters, setSelectedFilters] = useState<
@@ -64,11 +52,12 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
   const [priceMax, setPriceMax] = useState('');
   const [inStockOnly, setInStockOnly] = useState(false);
 
-  // Fetch categories and find the matching one by slug (searches all levels)
+  // Fetch categories and resolve category from slug path.
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
-
-  const categoryData = findCategoryBySlug(categories, categorySlug);
+  const categoryTrail = findCategoryTrailBySlugPath(categories, slugPath) || [];
+  const categoryData = categoryTrail[categoryTrail.length - 1];
+  const parentCategory = categoryTrail[categoryTrail.length - 2];
 
   // Sub-categories from tree
   const subCategories = categoryData?.children || [];
@@ -109,7 +98,15 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
     return 0;
   });
 
-  const title = categoryData?.name || categorySlug;
+  const rawLastSlug = slugPath[slugPath.length - 1] || '';
+  const decodedLastSlug = (() => {
+    try {
+      return decodeURIComponent(rawLastSlug);
+    } catch {
+      return rawLastSlug;
+    }
+  })();
+  const title = categoryData?.name || decodedLastSlug;
   const subtitle = categoryData?.description || '';
   const filterGroups = filterData?.filters || [];
   const hasActiveFilters =
@@ -235,11 +232,11 @@ export default function CategoryScreen({ categorySlug }: CategoryScreenProps) {
       <div className='border-b border-border/60 bg-card'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
           <Link
-            href='/'
+            href={parentCategory ? categoryHrefFromTrail(categoryTrail.slice(0, -1)) : '/'}
             className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-5'
           >
             <ChevronLeft size={16} />
-            Back to Home
+            {parentCategory ? `Back to ${parentCategory.name}` : 'Back to Home'}
           </Link>
           <h1 className='font-serif text-4xl font-semibold text-foreground mb-2'>
             {title}
