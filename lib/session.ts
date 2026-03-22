@@ -1,9 +1,20 @@
 import { prisma } from './prisma';
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
+import type { NextRequest } from 'next/server';
 
 const SESSION_COOKIE_NAME = 'bakery_session';
 const SESSION_EXPIRY_DAYS = 30;
+const USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  memberLevel: true,
+  points: true,
+  emailVerifiedAt: true,
+  isActive: true,
+} as const;
 
 /**
  * Generate a secure random token
@@ -78,21 +89,16 @@ export async function getSession() {
     return null;
   }
 
+  return getSessionByToken(token);
+}
+
+async function getSessionByToken(token: string) {
+  if (!token) return null;
+
   const session = await prisma.session.findUnique({
     where: { token },
     include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          memberLevel: true,
-          points: true,
-          emailVerifiedAt: true,
-          isActive: true,
-        },
-      },
+      user: { select: USER_SELECT },
     },
   });
 
@@ -120,6 +126,28 @@ export async function getSession() {
 export async function getCurrentUser() {
   const session = await getSession();
   return session?.user || null;
+}
+
+/**
+ * Get current user from Authorization Bearer token first, then fallback to cookie session.
+ * Useful for non-browser clients (e.g. mobile apps) that cannot rely on httpOnly cookies.
+ */
+export async function getCurrentUserFromRequest(request: NextRequest) {
+  const authHeader =
+    request.headers.get('authorization') ??
+    request.headers.get('Authorization');
+  const bearerToken = authHeader?.startsWith('Bearer ')
+    ? authHeader.slice(7).trim()
+    : '';
+
+  if (bearerToken) {
+    const session = await getSessionByToken(bearerToken);
+    if (session?.user) {
+      return session.user;
+    }
+  }
+
+  return getCurrentUser();
 }
 
 /**
