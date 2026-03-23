@@ -9,6 +9,7 @@ export { authService } from './auth.service';
 // Public Services
 export { productService } from './product.service';
 export { notificationsService } from './notifications.service';
+export { wishlistService } from './wishlist.service';
 
 // Admin Services
 export {

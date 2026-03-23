@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Heart } from 'lucide-react';
 import { getProductImages } from '@/lib/utils';
 import { useCart } from '@/lib/cart-store';
+import { useToggleWishlist } from '@/hooks/use-wishlist';
+import { useAuth } from '@/providers/auth-provider';
+import { usePathname, useRouter } from 'next/navigation';
 import type { Product } from '@/types/api.types';
 
 const PLACEHOLDER_BLUR =
@@ -26,11 +30,19 @@ function getPrimaryIndex(product: Product, imageUrls: string[]) {
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { isFavorite, toggleFavorite, isToggling } = useToggleWishlist(
+    product.id,
+  );
 
   const imageUrls = useMemo(() => getProductImages(product), [product]);
-  const safeImageUrls =
-    imageUrls.length > 0 ? imageUrls : ['/images/placeholder.jpg'];
+  const safeImageUrls = useMemo(
+    () => (imageUrls.length > 0 ? imageUrls : ['/images/placeholder.jpg']),
+    [imageUrls],
+  );
   const primaryIndex = useMemo(
     () => getPrimaryIndex(product, safeImageUrls),
     [product, safeImageUrls],
@@ -87,6 +99,21 @@ export default function ProductCard({ product }: { product: Product }) {
     });
   };
 
+  const handleToggleFavorite = async (
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!isAuthenticated) {
+      const redirectPath = pathname || `/products/${product.id}`;
+      router.push(`/auth?redirect=${encodeURIComponent(redirectPath)}`);
+      return;
+    }
+
+    await toggleFavorite();
+  };
+
   return (
     <article
       className='group overflow-hidden rounded-2xl border border-border/50 bg-card transition-all duration-300 hover:border-border hover:shadow-lg'
@@ -117,6 +144,21 @@ export default function ProductCard({ product }: { product: Product }) {
             {product.stock <= 0 ? 'Hết hàng' : 'Add to Cart'}
           </button>
         </div>
+
+        <button
+          type='button'
+          onClick={handleToggleFavorite}
+          disabled={isToggling}
+          aria-label={
+            isFavorite ? 'Remove from favorite list' : 'Add to favorite list'
+          }
+          className='absolute right-3 top-3 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-sm backdrop-blur transition hover:bg-white disabled:opacity-60'
+        >
+          <Heart
+            size={16}
+            className={isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground'}
+          />
+        </button>
       </div>
 
       <Link href={`/products/${product.id}`} className='block p-4'>

@@ -33,6 +33,13 @@ export {
   useMarkAllNotificationsAsRead,
   userNotificationKeys,
 } from './use-notifications';
+export {
+  useWishlist,
+  useAddToWishlist,
+  useRemoveFromWishlist,
+  useToggleWishlist,
+  wishlistKeys,
+} from './use-wishlist';
 
 // Admin hooks - re-export from admin folder
 export * from './admin';

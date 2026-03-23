@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ChevronLeft, ShoppingBag, Star, ZoomIn, X } from 'lucide-react';
+import { ChevronLeft, Heart, ShoppingBag, Star, ZoomIn, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useCategories, useProductDetail } from '@/hooks/use-products';
@@ -12,6 +12,9 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import RelatedProducts from '@/components/screens/RelatedProducts';
 import { categoryHrefFromTrail, findCategoryTrailById } from '@/lib/category-path';
+import { useToggleWishlist } from '@/hooks/use-wishlist';
+import { useAuth } from '@/providers/auth-provider';
+import { usePathname, useRouter } from 'next/navigation';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
@@ -24,11 +27,17 @@ export default function ProductDetailScreen({
   productId,
 }: ProductDetailScreenProps) {
   const { user, addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const {
     data: selectedProduct,
     isLoading,
     error,
   } = useProductDetail(productId);
+  const { isFavorite, toggleFavorite, isToggling } = useToggleWishlist(
+    selectedProduct?.id,
+  );
   const { data: categoriesData } = useCategories();
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null,
@@ -161,6 +170,18 @@ export default function ProductDetailScreen({
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);
+  }
+
+  async function handleToggleFavorite() {
+    if (!selectedProduct) return;
+
+    if (!isAuthenticated) {
+      const redirectPath = pathname || `/products/${selectedProduct.id}`;
+      router.push(`/auth?redirect=${encodeURIComponent(redirectPath)}`);
+      return;
+    }
+
+    await toggleFavorite();
   }
 
   return (
@@ -478,18 +499,39 @@ export default function ProductDetailScreen({
               </div>
             )}
 
-            {/* Add to cart */}
-            <button
-              onClick={handleAddToCart}
-              className={`w-full py-4 rounded-full font-medium text-sm shadow-md flex items-center justify-center gap-2.5 transition-all ${
-                added
-                  ? 'bg-accent text-white'
-                  : 'bg-primary text-white hover:bg-primary/90'
-              }`}
-            >
-              <ShoppingBag size={17} />
-              {added ? 'Added to Cart!' : 'Add to Cart'}
-            </button>
+            <div className='flex items-center gap-3'>
+              {/* Add to cart */}
+              <button
+                onClick={handleAddToCart}
+                className={`flex-1 py-4 rounded-full font-medium text-sm shadow-md flex items-center justify-center gap-2.5 transition-all ${
+                  added
+                    ? 'bg-accent text-white'
+                    : 'bg-primary text-white hover:bg-primary/90'
+                }`}
+              >
+                <ShoppingBag size={17} />
+                {added ? 'Added to Cart!' : 'Add to Cart'}
+              </button>
+
+              <button
+                type='button'
+                onClick={handleToggleFavorite}
+                disabled={isToggling}
+                aria-label={
+                  isFavorite
+                    ? 'Remove from favorite list'
+                    : 'Add to favorite list'
+                }
+                className='h-12 w-12 rounded-full border border-border bg-card text-foreground flex items-center justify-center transition-colors hover:border-primary/40 disabled:opacity-60'
+              >
+                <Heart
+                  size={18}
+                  className={
+                    isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground'
+                  }
+                />
+              </button>
+            </div>
 
             {!user && (
               <p className='text-xs text-muted-foreground text-center mt-3'>

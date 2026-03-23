@@ -172,6 +172,11 @@ export const ENDPOINTS = {
     MARK_READ: (id: string) => `${API_BASE}/notifications/${id}/read`,
     MARK_ALL_READ: `${API_BASE}/notifications/read-all`,
   },
+  WISHLIST: {
+    LIST: `${API_BASE}/wishlist`,
+    ADD: `${API_BASE}/wishlist`,
+    REMOVE: `${API_BASE}/wishlist`,
+  },
 
   // ============================================================================
   // Chatbot API

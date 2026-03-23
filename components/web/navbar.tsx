@@ -3,6 +3,7 @@
 import {
   ShoppingCart,
   Bell,
+  Heart,
   Search,
   Phone,
   MapPin,
@@ -28,6 +29,7 @@ import {
   useMarkNotificationAsRead,
   useUserNotifications,
 } from '@/hooks/use-notifications';
+import { useWishlist } from '@/hooks/use-wishlist';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Category, NotificationListItem } from '@/types/api.types';
@@ -71,6 +73,7 @@ export default function WebNavbar() {
   const readingNotificationIdsRef = useRef<Set<string>>(new Set());
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
   const subscribe = useCallback(() => () => {}, []);
   const mounted = useSyncExternalStore(
     subscribe,
@@ -100,6 +103,10 @@ export default function WebNavbar() {
     [notificationPages],
   );
   const unreadCount = unreadMeta?.pagination.total ?? 0;
+  const { data: wishlist = [], isLoading: wishlistLoading } = useWishlist({
+    enabled: mounted && !!user,
+  });
+  const wishlistCount = wishlist.length;
 
   // Debounce search input
   useEffect(() => {
@@ -561,6 +568,105 @@ export default function WebNavbar() {
             )}
 
             {/* Cart */}
+            {mounted && user && (
+              <Popover open={wishlistOpen} onOpenChange={setWishlistOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className='relative flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors'
+                    aria-label='Favorite products'
+                  >
+                    <div className='relative'>
+                      <Heart size={24} />
+                      {wishlistCount > 0 && (
+                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center px-1'>
+                          {wishlistCount > 99 ? '99+' : wishlistCount}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align='end'
+                  sideOffset={10}
+                  className='w-[360px] p-0 border-gray-200'
+                >
+                  <div className='px-3 py-2.5 border-b border-gray-100'>
+                    <p className='text-sm font-semibold text-gray-800'>
+                      Sản phẩm yêu thích
+                    </p>
+                    <p className='text-xs text-gray-500 mt-0.5'>
+                      {wishlistCount > 0
+                        ? `${wishlistCount} sản phẩm`
+                        : 'Chưa có sản phẩm yêu thích'}
+                    </p>
+                  </div>
+
+                  <div className='max-h-[360px] overflow-y-auto overscroll-contain'>
+                    {wishlistLoading ? (
+                      <div className='flex items-center justify-center gap-2 py-8 text-sm text-gray-400'>
+                        <Loader2 size={16} className='animate-spin' />
+                        <span>Đang tải danh sách...</span>
+                      </div>
+                    ) : wishlistCount === 0 ? (
+                      <p className='py-8 text-center text-sm text-gray-400'>
+                        Bạn chưa thêm sản phẩm nào vào yêu thích
+                      </p>
+                    ) : (
+                      <ul>
+                        {wishlist.map((item) => {
+                          const product = item.product;
+                          const primaryImage =
+                            product?.images?.find((img) => img.isPrimary) ??
+                            product?.images?.[0];
+                          const productHref = product
+                            ? `/products/${product.slug || product.id}`
+                            : '#';
+
+                          return (
+                            <li key={item.id}>
+                              {product ? (
+                                <Link
+                                  href={productHref}
+                                  onClick={() => setWishlistOpen(false)}
+                                  className='flex items-center gap-3 px-3 py-2.5 border-b border-gray-100 hover:bg-gray-50 transition-colors'
+                                >
+                                  <div className='w-12 h-12 rounded-md bg-gray-100 flex-shrink-0 overflow-hidden'>
+                                    {primaryImage ? (
+                                      <Image
+                                        src={primaryImage.url}
+                                        alt={primaryImage.altText ?? product.name}
+                                        width={48}
+                                        height={48}
+                                        className='w-full h-full object-cover'
+                                      />
+                                    ) : (
+                                      <div className='w-full h-full bg-gray-200' />
+                                    )}
+                                  </div>
+                                  <div className='min-w-0 flex-1'>
+                                    <p className='text-sm font-medium text-gray-800 truncate'>
+                                      {product.name}
+                                    </p>
+                                    <p className='text-xs text-primary font-semibold mt-0.5'>
+                                      {product.price.toLocaleString('vi-VN')}đ
+                                    </p>
+                                  </div>
+                                </Link>
+                              ) : (
+                                <div className='px-3 py-2.5 border-b border-gray-100 text-sm text-gray-500'>
+                                  Sản phẩm không còn khả dụng
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+
             <Link
               href='/cart'
               className='relative flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors'
