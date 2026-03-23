@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUserFromRequest } from '@/lib/session';
 import { createMoMoPayment } from '@/lib/payment/momo';
 import { createZaloPayPayment } from '@/lib/payment/zalopay';
 import { PaymentMethod } from '@prisma/client';
@@ -26,9 +26,9 @@ function generateOrderNumber(): string {
 }
 
 // GET: Get user's orders
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json(
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get authenticated user (optional - guest checkout allowed)
-    const user = await getCurrentUser();
+    const user = await getCurrentUserFromRequest(request);
 
     // Calculate totals using server-side prices
     const orderItems = items.map(
