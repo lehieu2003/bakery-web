@@ -4,12 +4,14 @@ import {
   ArrowDownUp,
   ChevronLeft,
   ChevronRight,
+  Search,
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   useProductFilters,
   useProducts,
@@ -19,6 +21,11 @@ import {
   categoryHrefFromTrail,
   findCategoryTrailBySlugPath,
 } from '@/lib/category-path';
+import {
+  areFilterStateRecordsEqual,
+  buildListingUrlSearchParams,
+  parseListingUrlState,
+} from '@/lib/search-filter-state';
 import { Checkbox } from '@/components/ui/checkbox';
 import ProductCard from '@/components/screens/ProductCard';
 
@@ -46,15 +53,26 @@ interface CategoryScreenProps {
 const PAGE_SIZE = 12;
 
 export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const initialUrlState = useMemo(
+    () => parseListingUrlState(new URLSearchParams(searchParams.toString())),
+    [searchParams],
+  );
+
+  const [keyword, setKeyword] = useState(initialUrlState.search);
   const [sort, setSort] = useState<SortOption>('popular');
-  const [subCategoryId, setSubCategoryId] = useState<string>('all');
-  const [page, setPage] = useState(1);
+  const [subCategoryId, setSubCategoryId] = useState<string>(
+    initialUrlState.subCategoryId,
+  );
+  const [page, setPage] = useState(initialUrlState.page);
   const [selectedFilters, setSelectedFilters] = useState<
     Record<string, string[]>
-  >({});
-  const [priceMin, setPriceMin] = useState('');
-  const [priceMax, setPriceMax] = useState('');
-  const [inStockOnly, setInStockOnly] = useState(false);
+  >(initialUrlState.selectedFilters);
+  const [priceMin, setPriceMin] = useState(initialUrlState.minPrice);
+  const [priceMax, setPriceMax] = useState(initialUrlState.maxPrice);
+  const [inStockOnly, setInStockOnly] = useState(initialUrlState.inStockOnly);
 
   // Fetch categories and resolve category from slug path.
   const { data: categoriesData } = useCategories();
@@ -84,6 +102,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
   const { data: productsData, isLoading } = useProducts(
     {
       categoryId: effectiveCategoryId,
+      search: keyword || undefined,
       page,
       limit: PAGE_SIZE,
       minPrice: priceMin ? Number(priceMin) : undefined,
@@ -118,10 +137,64 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
   const subtitle = categoryData?.description || '';
   const filterGroups = filterData?.filters || [];
   const hasActiveFilters =
+    !!keyword ||
     inStockOnly ||
     !!priceMin ||
     !!priceMax ||
     Object.values(selectedFilters).some((values) => values.length > 0);
+
+  useEffect(() => {
+    const next = parseListingUrlState(new URLSearchParams(searchParams.toString()));
+    const timer = setTimeout(() => {
+      setKeyword((current) => (current === next.search ? current : next.search));
+      setPage((current) => (current === next.page ? current : next.page));
+      setPriceMin((current) =>
+        current === next.minPrice ? current : next.minPrice,
+      );
+      setPriceMax((current) =>
+        current === next.maxPrice ? current : next.maxPrice,
+      );
+      setInStockOnly((current) =>
+        current === next.inStockOnly ? current : next.inStockOnly,
+      );
+      setSubCategoryId((current) =>
+        current === next.subCategoryId ? current : next.subCategoryId,
+      );
+      setSelectedFilters((current) =>
+        areFilterStateRecordsEqual(current, next.selectedFilters)
+          ? current
+          : next.selectedFilters,
+      );
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = buildListingUrlSearchParams(
+      {
+        search: keyword,
+        page,
+        minPrice: priceMin,
+        maxPrice: priceMax,
+        inStockOnly,
+        subCategoryId,
+        selectedFilters,
+      },
+      { includeSubCategory: true },
+    );
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [
+    inStockOnly,
+    keyword,
+    page,
+    pathname,
+    priceMax,
+    priceMin,
+    router,
+    selectedFilters,
+    subCategoryId,
+  ]);
 
   const handleSelectSubCategory = (nextId: string) => {
     setSubCategoryId(nextId);
@@ -138,6 +211,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
           {hasActiveFilters && (
             <button
               onClick={() => {
+                setKeyword('');
                 setSelectedFilters({});
                 setPriceMin('');
                 setPriceMax('');
@@ -301,6 +375,28 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
             </div>
 
             <div className='p-4 space-y-6'>
+              <div>
+                <p className='mb-2 text-[11px] font-bold uppercase tracking-widest text-foreground'>
+                  Từ khóa
+                </p>
+                <div className='relative'>
+                  <Search
+                    size={16}
+                    className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
+                  />
+                  <input
+                    type='text'
+                    value={keyword}
+                    onChange={(event) => {
+                      setKeyword(event.target.value);
+                      setPage(1);
+                    }}
+                    placeholder='Tìm trong danh mục này'
+                    className='h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary'
+                  />
+                </div>
+              </div>
+
               {renderFilterPanel()}
 
               <div className='border-t border-border/40' />
@@ -379,6 +475,28 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
 
         {/* Product grid */}
         <div className='flex-1 min-w-0'>
+          <div className='mb-5 rounded-2xl border border-border/60 bg-card p-4 lg:hidden'>
+            <label className='mb-2 block text-xs font-semibold uppercase tracking-widest text-muted-foreground'>
+              Từ khóa
+            </label>
+            <div className='relative'>
+              <Search
+                size={16}
+                className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
+              />
+              <input
+                type='text'
+                value={keyword}
+                onChange={(event) => {
+                  setKeyword(event.target.value);
+                  setPage(1);
+                }}
+                placeholder='Tìm trong danh mục này'
+                className='h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary'
+              />
+            </div>
+          </div>
+
           {/* Mobile sub-category chips */}
           {subCategories.length > 0 && (
             <div className='lg:hidden flex gap-2 overflow-x-auto pb-3 mb-3 scrollbar-hide'>

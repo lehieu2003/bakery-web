@@ -9,6 +9,7 @@ test('buildProductQueryParams returns empty string for undefined params', () => 
 test('buildProductQueryParams builds category pagination and attribute filters', () => {
   const query = buildProductQueryParams({
     categoryId: 'cat-1',
+    search: 'croissant',
     page: 2,
     limit: 12,
     minPrice: 10000,
@@ -24,6 +25,7 @@ test('buildProductQueryParams builds category pagination and attribute filters',
   const params = new URLSearchParams(query.slice(1));
 
   assert.equal(params.get('categoryId'), 'cat-1');
+  assert.equal(params.get('search'), 'croissant');
   assert.equal(params.get('page'), '2');
   assert.equal(params.get('limit'), '12');
   assert.equal(params.get('minPrice'), '10000');
@@ -33,4 +35,15 @@ test('buildProductQueryParams builds category pagination and attribute filters',
     'size:small,large',
     'flavor:vanilla',
   ]);
+});
+
+test('buildProductQueryParams excludes empty attribute values', () => {
+  const query = buildProductQueryParams({
+    attributeFilters: [
+      { attributeSlug: 'size', valueSlugs: [] },
+      { attributeSlug: 'flavor', valueSlugs: ['strawberry'] },
+    ],
+  });
+  const params = new URLSearchParams(query.slice(1));
+  assert.deepEqual(params.getAll('attribute'), ['flavor:strawberry']);
 });

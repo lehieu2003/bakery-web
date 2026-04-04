@@ -5,8 +5,14 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, ChevronLeft, TrendingDown, TrendingUp, ArrowDownUp } from 'lucide-react';
-import { useProducts } from '@/hooks/use-products';
+import { useProductFilters, useProducts } from '@/hooks/use-products';
+import {
+  areFilterStateRecordsEqual,
+  buildListingUrlSearchParams,
+  parseListingUrlState,
+} from '@/lib/search-filter-state';
 import { getProductImage } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type SortOption = 'popular' | 'price-asc' | 'price-desc' | 'newest';
 
@@ -23,27 +29,69 @@ const PLACEHOLDER_BLUR =
 export default function SearchScreen() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initialQuery = searchParams.get('q') ?? '';
+  const initialState = parseListingUrlState(
+    new URLSearchParams(searchParams.toString()),
+  );
 
-  const [inputValue, setInputValue] = useState(initialQuery);
-  const [query, setQuery] = useState(initialQuery);
+  const [inputValue, setInputValue] = useState(initialState.search);
+  const [query, setQuery] = useState(initialState.search);
   const [sort, setSort] = useState<SortOption>('popular');
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>(
+    initialState.selectedFilters,
+  );
+  const [priceMin, setPriceMin] = useState(initialState.minPrice);
+  const [priceMax, setPriceMax] = useState(initialState.maxPrice);
+  const [inStockOnly, setInStockOnly] = useState(initialState.inStockOnly);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync URL param → input when navigating here
   useEffect(() => {
-    const q = searchParams.get('q') ?? '';
+    const next = parseListingUrlState(new URLSearchParams(searchParams.toString()));
     const timer = setTimeout(() => {
-      setInputValue(q);
-      setQuery(q);
+      setQuery(next.search);
+      setPriceMin(next.minPrice);
+      setPriceMax(next.maxPrice);
+      setInStockOnly(next.inStockOnly);
+      setSelectedFilters((current) =>
+        areFilterStateRecordsEqual(current, next.selectedFilters)
+          ? current
+          : next.selectedFilters,
+      );
+      setInputValue((current) => {
+        const isUserTypingAhead =
+          next.search === query && current.trim() !== query;
+        return isUserTypingAhead ? current : next.search;
+      });
     }, 0);
     return () => clearTimeout(timer);
-  }, [searchParams]);
+  }, [query, searchParams]);
+
+  const attributeFilters = Object.entries(selectedFilters)
+    .filter(([, valueSlugs]) => valueSlugs.length > 0)
+    .map(([attributeSlug, valueSlugs]) => ({
+      attributeSlug,
+      valueSlugs,
+    }));
 
   const { data, isLoading } = useProducts(
-    { search: query, limit: 48 },
-    { enabled: query.length >= 1 },
+    {
+      search: query || undefined,
+      limit: 48,
+      minPrice: priceMin ? Number(priceMin) : undefined,
+      maxPrice: priceMax ? Number(priceMax) : undefined,
+      inStock: inStockOnly || undefined,
+      attributeFilters,
+    },
+    {
+      enabled:
+        query.length >= 1 ||
+        !!priceMin ||
+        !!priceMax ||
+        inStockOnly ||
+        attributeFilters.length > 0,
+    },
   );
+  const { data: filterData } = useProductFilters();
   const rawProducts = data?.products ?? [];
 
   const products = rawProducts.filter((p) => p.isActive);
@@ -52,6 +100,12 @@ export default function SearchScreen() {
     if (sort === 'price-desc') return b.price - a.price;
     return 0;
   });
+  const filterGroups = filterData?.filters || [];
+  const hasActiveFilters =
+    !!priceMin ||
+    !!priceMax ||
+    inStockOnly ||
+    Object.values(selectedFilters).some((value) => value.length > 0);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
@@ -59,11 +113,6 @@ export default function SearchScreen() {
     debounceRef.current = setTimeout(() => {
       const trimmed = e.target.value.trim();
       setQuery(trimmed);
-      // Keep URL in sync without hard navigation
-      router.replace(
-        trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : '/search',
-        { scroll: false },
-      );
     }, 350);
   };
 
@@ -71,8 +120,138 @@ export default function SearchScreen() {
     e.preventDefault();
     const trimmed = inputValue.trim();
     setQuery(trimmed);
-    if (trimmed) router.replace(`/search?q=${encodeURIComponent(trimmed)}`);
   };
+
+  useEffect(() => {
+    const params = buildListingUrlSearchParams({
+      search: query,
+      page: 1,
+      minPrice: priceMin,
+      maxPrice: priceMax,
+      inStockOnly,
+      selectedFilters,
+      subCategoryId: 'all',
+    });
+    const url = params.toString();
+    router.replace(url ? `/search?${url}` : '/search', { scroll: false });
+  }, [inStockOnly, priceMax, priceMin, query, router, selectedFilters]);
+
+  const renderFilterPanel = () => (
+    <div className='space-y-6'>
+      <div>
+        <div className='mb-2 flex items-center justify-between'>
+          <p className='text-[11px] font-bold uppercase tracking-widest text-foreground'>
+            Bộ lọc nhanh
+          </p>
+          {hasActiveFilters && (
+            <button
+              onClick={() => {
+                setSelectedFilters({});
+                setPriceMin('');
+                setPriceMax('');
+                setInStockOnly(false);
+              }}
+              className='text-[11px] font-medium text-primary'
+            >
+              Xoá lọc
+            </button>
+          )}
+        </div>
+
+        <div className='grid grid-cols-2 gap-2'>
+          <input
+            type='number'
+            inputMode='numeric'
+            value={priceMin}
+            onChange={(event) => {
+              setPriceMin(event.target.value);
+            }}
+            placeholder={
+              filterData?.priceRange?.min
+                ? String(Number(filterData.priceRange.min))
+                : 'Từ giá'
+            }
+            className='h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary'
+          />
+          <input
+            type='number'
+            inputMode='numeric'
+            value={priceMax}
+            onChange={(event) => {
+              setPriceMax(event.target.value);
+            }}
+            placeholder={
+              filterData?.priceRange?.max
+                ? String(Number(filterData.priceRange.max))
+                : 'Đến giá'
+            }
+            className='h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary'
+          />
+        </div>
+
+        <button
+          onClick={() => {
+            setInStockOnly((value) => !value);
+          }}
+          className={`mt-3 flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition-colors ${
+            inStockOnly
+              ? 'border-primary bg-primary/10 text-primary'
+              : 'border-border text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Chỉ hiện còn hàng
+          <span className='text-[11px] font-semibold'>
+            {inStockOnly ? 'ON' : 'OFF'}
+          </span>
+        </button>
+      </div>
+
+      {filterGroups.map((group) => {
+        const selectedValueSlugs = selectedFilters[group.slug] || [];
+        return (
+          <div key={group.id}>
+            <p className='mb-2.5 text-[11px] font-bold uppercase tracking-widest text-foreground'>
+              {group.name}
+            </p>
+            <div className='space-y-2'>
+              {group.values.map((value) => {
+                const active = selectedValueSlugs.includes(value.slug);
+                return (
+                  <label
+                    key={value.id}
+                    className='flex cursor-pointer items-center justify-between gap-3 rounded-md px-1 py-1 text-sm text-foreground transition-colors hover:bg-secondary/60'
+                  >
+                    <div className='flex items-center gap-2.5'>
+                      <Checkbox
+                        checked={active}
+                        onCheckedChange={(checked) => {
+                          const isChecked = checked === true;
+                          setSelectedFilters((prev) => {
+                            const current = prev[group.slug] || [];
+                            const nextValues = isChecked
+                              ? [...current, value.slug]
+                              : current.filter((slug) => slug !== value.slug);
+                            return {
+                              ...prev,
+                              [group.slug]: nextValues,
+                            };
+                          });
+                        }}
+                      />
+                      <span className='text-sm'>{value.label}</span>
+                    </div>
+                    <span className='text-xs text-muted-foreground'>
+                      ({value.productCount})
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className='bg-background min-h-screen'>
@@ -125,6 +304,8 @@ export default function SearchScreen() {
               </p>
             </div>
             <div className='p-4'>
+              {renderFilterPanel()}
+              <div className='my-5 border-t border-border/40' />
               <div className='space-y-1'>
                 {SORT_OPTIONS.map(({ value, label, icon }) => (
                   <button
@@ -152,6 +333,16 @@ export default function SearchScreen() {
 
         {/* Results grid */}
         <div className='flex-1 min-w-0'>
+          <div className='mb-5 rounded-2xl border border-border/60 bg-card p-4 lg:hidden'>
+            <div className='mb-3 flex items-center gap-2'>
+              <Search size={15} className='text-muted-foreground' />
+              <p className='text-xs font-semibold uppercase tracking-widest text-muted-foreground'>
+                Bộ lọc
+              </p>
+            </div>
+            {renderFilterPanel()}
+          </div>
+
           {/* Mobile sort chips */}
           <div className='lg:hidden flex gap-2 overflow-x-auto pb-3 mb-5 scrollbar-hide'>
             {SORT_OPTIONS.map(({ value, label }) => (
@@ -169,7 +360,7 @@ export default function SearchScreen() {
             ))}
           </div>
 
-          {query.length === 0 ? (
+          {query.length === 0 && !hasActiveFilters ? (
             <div className='py-20 text-center text-muted-foreground'>
               <Search size={40} className='mx-auto mb-4 opacity-30' />
               <p className='text-base'>Nhập từ khóa để tìm sản phẩm</p>

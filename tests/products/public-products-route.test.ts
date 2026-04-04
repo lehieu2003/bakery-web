@@ -66,3 +66,33 @@ test('public products route includes descendant category ids and keeps paginatio
   }).some.categoryId.in;
   assert.deepEqual(categoryFilter, ['c1', 'c2', 'c3']);
 });
+
+test('public products route composes keyword, price, stock and attribute filters', async () => {
+  let capturedWhere: Record<string, unknown> | null = null;
+
+  const result = await handleGetPublicProductsRequest(
+    'http://localhost/api/public/products?categoryId=c1&search=tart&minPrice=10&maxPrice=50&inStock=true&attribute=flavor:chocolate,vanilla',
+    {
+      parseAttributeFilters: () => [
+        { attributeSlug: 'flavor', valueSlugs: ['chocolate', 'vanilla'] },
+      ],
+      buildProductAttributeWhere: () => [{ attributeAssignments: { some: { valueKey: 'flavor:chocolate' } } }],
+      findChildCategories: async () => [],
+      findProducts: async ({ where }) => {
+        capturedWhere = where;
+        return [];
+      },
+      countProducts: async () => 0,
+    },
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+
+  assert.deepEqual(capturedWhere?.price, { gte: 10, lte: 50 });
+  const andConditions = (capturedWhere?.AND as Record<string, unknown>[]) ?? [];
+  assert.ok(andConditions.length >= 3);
+  assert.deepEqual(andConditions[2], {
+    attributeAssignments: { some: { valueKey: 'flavor:chocolate' } },
+  });
+});
