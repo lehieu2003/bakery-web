@@ -51,9 +51,11 @@ test('related route serializes numeric fields and createdAt', async () => {
 
   assert.equal(result.status, 200);
   assert.equal(result.body.success, true);
-  assert.equal(result.body.data.length, 1);
-  assert.equal(result.body.data[0].price, 125000);
-  assert.equal(result.body.data[0].comparePrice, 140000);
-  assert.equal(result.body.data[0].createdAt, createdAt.toISOString());
+  const data = (result.body as {
+    data: Array<{ price: number; comparePrice: number | null; createdAt: string }>;
+  }).data;
+  assert.equal(data.length, 1);
+  assert.equal(data[0].price, 125000);
+  assert.equal(data[0].comparePrice, 140000);
+  assert.equal(data[0].createdAt, createdAt.toISOString());
 });
-

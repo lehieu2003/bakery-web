@@ -8,17 +8,22 @@ function normalizePositiveInt(value: string | null, fallback: number, max?: numb
   return parsed;
 }
 
+type BestSellerProductLike = {
+  id: string;
+  [key: string]: unknown;
+};
+
 type BestSellersDeps = {
   groupTopSold: (limit: number) => Promise<
     Array<{ productId: string; _sum: { quantity: number | null } }>
   >;
-  findFallbackProducts: (limit: number) => Promise<unknown[]>;
-  findRankedProducts: (productIds: string[]) => Promise<unknown[]>;
+  findFallbackProducts: (limit: number) => Promise<BestSellerProductLike[]>;
+  findRankedProducts: (productIds: string[]) => Promise<BestSellerProductLike[]>;
 };
 
 const defaultDeps: BestSellersDeps = {
-  groupTopSold: (limit) =>
-    prisma.orderItem.groupBy({
+  groupTopSold: async (limit) => {
+    const rows = await prisma.orderItem.groupBy({
       by: ['productId'],
       _sum: { quantity: true },
       where: {
@@ -28,7 +33,13 @@ const defaultDeps: BestSellersDeps = {
       },
       orderBy: { _sum: { quantity: 'desc' } },
       take: limit,
-    }),
+    });
+
+    return rows.map((row) => ({
+      productId: row.productId,
+      _sum: { quantity: row._sum.quantity ?? 0 },
+    }));
+  },
   findFallbackProducts: (limit) =>
     prisma.product.findMany({
       where: { isActive: true },
@@ -83,8 +94,8 @@ export async function handleGetBestSellersRequest(
   const products = await deps.findRankedProducts(productIds);
   const sorted = products
     .map((p) => ({
-      ...(p as Record<string, unknown>),
-      totalSold: soldMap.get((p as { id: string }).id) ?? 0,
+      ...p,
+      totalSold: soldMap.get(p.id) ?? 0,
     }))
     .sort((a, b) => b.totalSold - a.totalSold);
 
