@@ -2,16 +2,25 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 import { useRelatedProducts } from '@/hooks/use-products';
 import { getProductImage } from '@/lib/utils';
 import { useCart } from '@/lib/cart-store';
 import type { Product } from '@/types/api.types';
+import { trackMerchImpression } from '@/lib/merch-impressions';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
 
-function RelatedProductCard({ product }: { product: Product }) {
+function RelatedProductCard({
+  product,
+  contextProductId,
+}: {
+  product: Product;
+  contextProductId: string;
+}) {
   const { addToCart } = useCart();
+  const cardRef = useRef<HTMLAnchorElement | null>(null);
 
   const discount =
     product.comparePrice && product.comparePrice > product.price
@@ -31,8 +40,28 @@ function RelatedProductCard({ product }: { product: Product }) {
     });
   };
 
+  useEffect(() => {
+    if (!cardRef.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        void trackMerchImpression({
+          productId: product.id,
+          slot: 'related',
+          surface: 'product-detail',
+          contextProductId,
+        });
+        observer.disconnect();
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [contextProductId, product.id]);
+
   return (
     <Link
+      ref={cardRef}
       href={`/products/${product.id}`}
       className='group flex flex-col rounded-2xl overflow-hidden border border-border/40 bg-card shadow-sm hover:shadow-md transition-shadow'
     >
@@ -133,7 +162,11 @@ export default function RelatedProducts({ productId }: RelatedProductsProps) {
               <RelatedProductSkeleton key={i} />
             ))
           : products?.map((product) => (
-              <RelatedProductCard key={product.id} product={product} />
+              <RelatedProductCard
+                key={product.id}
+                product={product}
+                contextProductId={productId}
+              />
             ))}
       </div>
     </section>

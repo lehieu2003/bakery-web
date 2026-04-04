@@ -1,5 +1,5 @@
 # generated: 2026-04-04 13:43:39+07:00
-# last_updated: 2026-04-04 19:59:45+07:00
+# last_updated: 2026-04-04 20:27:37+07:00
 # project: bakery-web
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,11 +35,11 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-04 13:43:39+07:00
-last_updated: 2026-04-04 19:59:45+07:00
+last_updated: 2026-04-04 20:27:37+07:00
 project: bakery-web
 project_key: NOKEY
 tracking_system: file-system
-story_location: "{project-root}/_bmad-output/implementation-artifacts"
+story_location: '{project-root}/_bmad-output/implementation-artifacts'
 
 development_status:
   epic-1: in-progress
@@ -49,9 +49,9 @@ development_status:
   1-4-profile-management-and-membership-snapshot: done
   epic-1-retrospective: optional
   epic-2: in-progress
-  2-1-category-browsing-and-product-listing: done
-  2-2-search-and-filter-experience: review
-  2-3-product-detail-and-merchandising-blocks: backlog
+  2-1-category-browsing-and-product-'listing': done
+  2-2-search-and-filter-experience: done
+  2-3-product-detail-and-merchandising-blocks: review
   2-4-cms-and-blog-content-consumption: backlog
   epic-2-retrospective: optional
   epic-3: backlog
@@ -88,11 +88,3 @@ development_status:
   8-3-rbac-boundary-enforcement-at-api-surface: backlog
   8-4-api-contract-consistency-and-version-safety: backlog
   epic-8-retrospective: optional
-
-
-
-
-
-
-
-

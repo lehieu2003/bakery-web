@@ -11,6 +11,7 @@ import { ProductVariant } from '@/types/api.types';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import RelatedProducts from '@/components/screens/RelatedProducts';
+import BestSellersSection from '@/components/screens/BestSellersSection';
 import { categoryHrefFromTrail, findCategoryTrailById } from '@/lib/category-path';
 import { useToggleWishlist } from '@/hooks/use-wishlist';
 import { useAuth } from '@/providers/auth-provider';
@@ -550,6 +551,7 @@ export default function ProductDetailScreen({
 
       {/* Related Products */}
       <RelatedProducts productId={productId} />
+      <BestSellersSection surface='product-detail' />
     </div>
   );
 }

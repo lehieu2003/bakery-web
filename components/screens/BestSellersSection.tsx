@@ -2,22 +2,26 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useBestSellers } from '@/hooks/use-products';
 import { getProductImage } from '@/lib/utils';
 import { useCart } from '@/lib/cart-store';
 import type { Product } from '@/types/api.types';
+import { trackMerchImpression } from '@/lib/merch-impressions';
 
 const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
 
 function BestSellerCard({
   product,
+  surface,
 }: {
   product: Product & { totalSold?: number };
+  surface: 'product-detail' | 'home';
 }) {
   const { addToCart } = useCart();
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -32,8 +36,29 @@ function BestSellerCard({
     });
   };
 
+  useEffect(() => {
+    if (!cardRef.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        void trackMerchImpression({
+          productId: product.id,
+          slot: 'best-seller',
+          surface,
+        });
+        observer.disconnect();
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [product.id, surface]);
+
   return (
-    <div className='flex-shrink-0 w-56 md:w-64 rounded-2xl overflow-hidden border border-border/40 bg-card shadow-sm hover:shadow-md transition-shadow group'>
+    <div
+      ref={cardRef}
+      className='flex-shrink-0 w-56 md:w-64 rounded-2xl overflow-hidden border border-border/40 bg-card shadow-sm hover:shadow-md transition-shadow group'
+    >
       {/* Product image */}
       <Link href={`/products/${product.id}`} className='block'>
         <div className='relative h-48 md:h-56 bg-secondary overflow-hidden'>
@@ -95,7 +120,11 @@ function BestSellerSkeleton() {
   );
 }
 
-export default function BestSellersSection() {
+export default function BestSellersSection({
+  surface = 'home',
+}: {
+  surface?: 'product-detail' | 'home';
+}) {
   const { data: products, isLoading } = useBestSellers(12);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -153,7 +182,7 @@ export default function BestSellersSection() {
                   style={{ scrollSnapAlign: 'start' }}
                   role='listitem'
                 >
-                  <BestSellerCard product={product} />
+                  <BestSellerCard product={product} surface={surface} />
                 </div>
               ))}
         </div>
