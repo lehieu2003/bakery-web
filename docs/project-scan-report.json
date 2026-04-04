@@ -1,0 +1,101 @@
+{
+  "completed_steps": [
+    {
+      "summary": "Classified project as monolith web application (single part)",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_1"
+    },
+    {
+      "summary": "Identified existing docs in root (README.md, plan.md)",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_2"
+    },
+    {
+      "summary": "Captured primary technology stack and architecture pattern",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_3"
+    },
+    {
+      "summary": "Completed conditional scans for API routes, data models, and UI components",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_4"
+    },
+    {
+      "summary": "Generated source tree analysis document",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_5"
+    },
+    {
+      "summary": "Generated architecture document",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_8"
+    },
+    {
+      "summary": "Generated supporting docs (overview, component, dev/deploy, contracts, models)",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_9"
+    },
+    {
+      "summary": "Generated master index document",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_10"
+    },
+    {
+      "summary": "Validated generated docs and finalized output set",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_11"
+    },
+    {
+      "summary": "Workflow complete",
+      "timestamp": "2026-04-04T12:30:19+07:00",
+      "status": "completed",
+      "step": "step_12"
+    }
+  ],
+  "project_root": "D:\\bakery-shop\\bakery-web",
+  "scan_level": "quick",
+  "workflow_version": "1.2.0",
+  "project_types": [
+    {
+      "part_id": "main",
+      "display_name": "Web Application",
+      "project_type_id": "web"
+    }
+  ],
+  "resume_instructions": "Workflow completed. Re-run bmad-document-project to refresh docs after major code changes.",
+  "findings": {
+    "technology_stack": "Next.js 16 + React 19 + TypeScript 5 + Prisma + PostgreSQL + Tailwind 4",
+    "project_classification": "Monolith web application with App Router, API routes, and Prisma-backed data layer",
+    "docs_generated": 9
+  },
+  "project_knowledge": "D:\\bakery-shop\\bakery-web\\docs",
+  "timestamps": {
+    "last_updated": "2026-04-04T12:30:19+07:00",
+    "completed": "2026-04-04T12:30:19+07:00",
+    "started": "2026-04-04T12:30:19+07:00"
+  },
+  "current_step": "completed",
+  "outputs_generated": [
+    "project-scan-report.json",
+    "project-overview.md",
+    "source-tree-analysis.md",
+    "architecture.md",
+    "component-inventory.md",
+    "development-guide.md",
+    "deployment-guide.md",
+    "contribution-guide.md",
+    "api-contracts.md",
+    "data-models.md",
+    "index.md"
+  ],
+  "mode": "initial_scan"
+}

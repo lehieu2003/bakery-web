@@ -1,0 +1,369 @@
+diff --git a/app/api/auth/reset-password/route.ts b/app/api/auth/reset-password/route.ts
+index 8917f31..82d71dc 100644
+--- a/app/api/auth/reset-password/route.ts
++++ b/app/api/auth/reset-password/route.ts
+@@ -8,38 +8,41 @@ import {
+   RATE_LIMITS,
+ } from '@/lib/rate-limit';
+ import { prisma } from '@/lib/prisma';
++import { buildResetPasswordRequestSuccessData } from '@/lib/auth/reset-password-utils';
+ 
+ export async function POST(request: Request) {
+   try {
+     const body = await request.json();
+     const { email } = body;
+ 
+-    // Validate email
+     if (!email) {
+-      return NextResponse.json({ error: 'Email là bắt buộc' }, { status: 400 });
++      return NextResponse.json(
++        { success: false, error: 'Email là bắt buộc' },
++        { status: 400 },
++      );
+     }
+ 
+     const validation = validateEmail(email);
+     if (!validation.valid) {
+-      return NextResponse.json({ error: validation.message }, { status: 400 });
++      return NextResponse.json(
++        { success: false, error: validation.message },
++        { status: 400 },
++      );
+     }
+ 
+     const normalizedEmail = validation.normalized!;
+ 
+-    // Check if user exists
+     const existingUser = await prisma.user.findUnique({
+       where: { email: normalizedEmail },
+     });
+ 
+     if (!existingUser) {
+-      // Don't reveal if email exists or not for security
+       return NextResponse.json({
+-        message: 'Nếu email tồn tại, OTP đã được gửi',
+-        email: normalizedEmail,
++        success: true,
++        data: buildResetPasswordRequestSuccessData(normalizedEmail),
+       });
+     }
+ 
+-    // Rate limiting - per email
+     const emailRateLimitResult = await checkRateLimit(
+       normalizedEmail,
+       'email',
+@@ -48,51 +51,54 @@ export async function POST(request: Request) {
+     if (!emailRateLimitResult.allowed) {
+       return NextResponse.json(
+         {
++          success: false,
+           error: emailRateLimitResult.message,
+-          retryAfter: emailRateLimitResult.retryAfter,
++          data: { retryAfter: emailRateLimitResult.retryAfter },
+         },
+         { status: 429 },
+       );
+     }
+ 
+-    // Cooldown check
+     const cooldownResult = await checkCooldown(normalizedEmail);
+     if (!cooldownResult.allowed) {
+       return NextResponse.json(
+         {
++          success: false,
+           error: cooldownResult.message,
+-          retryAfter: cooldownResult.retryAfter,
++          data: { retryAfter: cooldownResult.retryAfter },
+         },
+         { status: 429 },
+       );
+     }
+ 
+-    // Generate OTP
+     const otp = generateOtp();
+ 
+-    // Store OTP in database
+     await createOtpVerification(normalizedEmail, 'RESET_PASSWORD', otp);
+ 
+-    // Send OTP via email
+     try {
+       await emailService.sendOtp(normalizedEmail, otp);
+     } catch (error) {
+       console.error('Failed to send OTP email:', error);
+       return NextResponse.json(
+-        { error: 'Không thể gửi email. Vui lòng thử lại sau' },
++        {
++          success: false,
++          error: 'Không thể gửi email. Vui lòng thử lại sau',
++        },
+         { status: 500 },
+       );
+     }
+ 
+     return NextResponse.json({
+-      message: 'OTP đã được gửi đến email của bạn',
+-      email: normalizedEmail,
+-      expiresIn: 300, // 5 minutes
++      success: true,
++      data: buildResetPasswordRequestSuccessData(normalizedEmail),
+     });
+   } catch (error) {
+     console.error('Reset password error:', error);
+     return NextResponse.json(
+-      { error: 'Đã xảy ra lỗi. Vui lòng thử lại sau' },
++      {
++        success: false,
++        error: 'Đã xảy ra lỗi. Vui lòng thử lại sau',
++      },
+       { status: 500 },
+     );
+   }
+diff --git a/app/api/auth/reset-password/verify/route.ts b/app/api/auth/reset-password/verify/route.ts
+index dd43524..d10c6db 100644
+--- a/app/api/auth/reset-password/verify/route.ts
++++ b/app/api/auth/reset-password/verify/route.ts
+@@ -3,77 +3,81 @@ import { verifyOtp } from '@/lib/otp';
+ import { validateEmail } from '@/lib/rate-limit';
+ import { prisma } from '@/lib/prisma';
+ import { hashPassword } from '@/lib/password';
++import {
++  applyPasswordReset,
++  buildResetPasswordVerifySuccessData,
++  sanitizeResetPasswordVerifyError,
++} from '@/lib/auth/reset-password-utils';
+ 
+ export async function POST(request: Request) {
+   try {
+     const body = await request.json();
+     const { email, otp, newPassword } = body;
+ 
+-    // Validate required fields
+     if (!email || !otp || !newPassword) {
+       return NextResponse.json(
+-        { error: 'Email, OTP và mật khẩu mới là bắt buộc' },
++        { success: false, error: 'Email, OTP và mật khẩu mới là bắt buộc' },
+         { status: 400 },
+       );
+     }
+ 
+-    // Validate email
+     const validation = validateEmail(email);
+     if (!validation.valid) {
+-      return NextResponse.json({ error: validation.message }, { status: 400 });
++      return NextResponse.json(
++        { success: false, error: validation.message },
++        { status: 400 },
++      );
+     }
+ 
+     const normalizedEmail = validation.normalized!;
+ 
+-    // Validate password
+     if (newPassword.length < 6) {
+       return NextResponse.json(
+-        { error: 'Mật khẩu phải có ít nhất 6 ký tự' },
++        { success: false, error: 'Mật khẩu phải có ít nhất 6 ký tự' },
+         { status: 400 },
+       );
+     }
+ 
+-    // Verify OTP
+     const otpResult = await verifyOtp(normalizedEmail, 'RESET_PASSWORD', otp);
+     if (!otpResult.success) {
+-      return NextResponse.json({ error: otpResult.message }, { status: 400 });
++      return NextResponse.json(
++        {
++          success: false,
++          error: sanitizeResetPasswordVerifyError(otpResult.message),
++        },
++        { status: 400 },
++      );
+     }
+ 
+-    // Check if user exists
+     const user = await prisma.user.findUnique({
+       where: { email: normalizedEmail },
+     });
+ 
+     if (!user) {
+       return NextResponse.json(
+-        { error: 'Người dùng không tồn tại' },
+-        { status: 404 },
++        {
++          success: false,
++          error: sanitizeResetPasswordVerifyError('Người dùng không tồn tại'),
++        },
++        { status: 400 },
+       );
+     }
+ 
+-    // Hash new password
+     const passwordHash = await hashPassword(newPassword);
+ 
+-    // Update password
+-    await prisma.user.update({
+-      where: { id: user.id },
+-      data: {
+-        password: passwordHash,
+-      },
+-    });
+-
+-    // Invalidate all existing sessions for security
+-    await prisma.session.deleteMany({
+-      where: { userId: user.id },
+-    });
++    await applyPasswordReset(prisma, user.id, passwordHash);
+ 
+     return NextResponse.json({
+-      message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại',
++      success: true,
++      data: buildResetPasswordVerifySuccessData(),
+     });
+   } catch (error) {
+     console.error('Reset password verify error:', error);
+     return NextResponse.json(
+-      { error: 'Đã xảy ra lỗi. Vui lòng thử lại sau' },
++      {
++        success: false,
++        error: 'Đã xảy ra lỗi. Vui lòng thử lại sau',
++      },
+       { status: 500 },
+     );
+   }
+diff --git a/lib/auth/reset-password-utils.ts b/lib/auth/reset-password-utils.ts
+new file mode 100644
+index 0000000..e69401d
+--- /dev/null
++++ b/lib/auth/reset-password-utils.ts
+@@ -0,0 +1,56 @@
++export const RESET_PASSWORD_EXPIRES_IN_SECONDS = 300;
++
++const RESET_PASSWORD_GENERIC_MESSAGE = 'Nếu email tồn tại, OTP đã được gửi';
++const RESET_PASSWORD_VERIFY_SUCCESS_MESSAGE =
++  'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại';
++const RESET_PASSWORD_VERIFY_INVALID_REQUEST_MESSAGE =
++  'Yêu cầu đặt lại mật khẩu không hợp lệ';
++
++type ResetPasswordPrismaClient = {
++  user: {
++    update: (args: {
++      where: { id: string };
++      data: { password: string };
++    }) => Promise<unknown>;
++  };
++  session: {
++    deleteMany: (args: { where: { userId: string } }) => Promise<unknown>;
++  };
++};
++
++export function buildResetPasswordRequestSuccessData(email: string) {
++  return {
++    message: RESET_PASSWORD_GENERIC_MESSAGE,
++    email: email.trim().toLowerCase(),
++    expiresIn: RESET_PASSWORD_EXPIRES_IN_SECONDS,
++  };
++}
++
++export function buildResetPasswordVerifySuccessData() {
++  return {
++    message: RESET_PASSWORD_VERIFY_SUCCESS_MESSAGE,
++  };
++}
++
++export function sanitizeResetPasswordVerifyError(error: string) {
++  if (error === 'Người dùng không tồn tại') {
++    return RESET_PASSWORD_VERIFY_INVALID_REQUEST_MESSAGE;
++  }
++
++  return error;
++}
++
++export async function applyPasswordReset(
++  prismaClient: ResetPasswordPrismaClient,
++  userId: string,
++  passwordHash: string,
++) {
++  await prismaClient.user.update({
++    where: { id: userId },
++    data: { password: passwordHash },
++  });
++
++  await prismaClient.session.deleteMany({
++    where: { userId },
++  });
++}
+diff --git a/tests/auth/reset-password-utils.test.ts b/tests/auth/reset-password-utils.test.ts
+new file mode 100644
+index 0000000..1c1238b
+--- /dev/null
++++ b/tests/auth/reset-password-utils.test.ts
+@@ -0,0 +1,69 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {
++  RESET_PASSWORD_EXPIRES_IN_SECONDS,
++  applyPasswordReset,
++  buildResetPasswordRequestSuccessData,
++  buildResetPasswordVerifySuccessData,
++  sanitizeResetPasswordVerifyError,
++} from '@/lib/auth/reset-password-utils';
++
++test('buildResetPasswordRequestSuccessData returns stable generic payload', () => {
++  const payload = buildResetPasswordRequestSuccessData('User@Example.com');
++
++  assert.equal(payload.message, 'Nếu email tồn tại, OTP đã được gửi');
++  assert.equal(payload.email, 'user@example.com');
++  assert.equal(payload.expiresIn, RESET_PASSWORD_EXPIRES_IN_SECONDS);
++});
++
++test('buildResetPasswordVerifySuccessData returns reset success message', () => {
++  const payload = buildResetPasswordVerifySuccessData();
++  assert.equal(payload.message, 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại');
++});
++
++test('sanitizeResetPasswordVerifyError hides account existence details', () => {
++  assert.equal(
++    sanitizeResetPasswordVerifyError('Người dùng không tồn tại'),
++    'Yêu cầu đặt lại mật khẩu không hợp lệ',
++  );
++  assert.equal(
++    sanitizeResetPasswordVerifyError('OTP không đúng'),
++    'OTP không đúng',
++  );
++});
++
++test('applyPasswordReset updates password and revokes all active sessions', async () => {
++  const calls: Array<{ method: string; payload: unknown }> = [];
++
++  const prismaClient = {
++    user: {
++      async update(args: unknown) {
++        calls.push({ method: 'user.update', payload: args });
++        return null;
++      },
++    },
++    session: {
++      async deleteMany(args: unknown) {
++        calls.push({ method: 'session.deleteMany', payload: args });
++        return null;
++      },
++    },
++  };
++
++  await applyPasswordReset(prismaClient, 'user-1', 'hashed-password');
++
++  assert.deepEqual(calls[0], {
++    method: 'user.update',
++    payload: {
++      where: { id: 'user-1' },
++      data: { password: 'hashed-password' },
++    },
++  });
++
++  assert.deepEqual(calls[1], {
++    method: 'session.deleteMany',
++    payload: {
++      where: { userId: 'user-1' },
++    },
++  });
++});

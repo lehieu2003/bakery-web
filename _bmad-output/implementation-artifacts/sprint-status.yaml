@@ -1,0 +1,90 @@
+# generated: 2026-04-04 13:43:39+07:00
+# last_updated: 2026-04-04 14:17:26+07:00
+# project: bakery-web
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {project-root}/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-04 13:43:39+07:00
+last_updated: 2026-04-04 15:13:19+07:00
+project: bakery-web
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  epic-1: in-progress
+  1-1-register-account-with-email-verification: done
+  1-2-secure-sign-in-and-sign-out-session-flow: done
+  1-3-otp-password-recovery: done
+  1-4-profile-management-and-membership-snapshot: backlog
+  epic-1-retrospective: optional
+  epic-2: backlog
+  2-1-category-browsing-and-product-listing: backlog
+  2-2-search-and-filter-experience: backlog
+  2-3-product-detail-and-merchandising-blocks: backlog
+  2-4-cms-and-blog-content-consumption: backlog
+  epic-2-retrospective: optional
+  epic-3: backlog
+  3-1-cart-management: backlog
+  3-2-checkout-submission-and-payment-method-selection: backlog
+  3-3-payment-callback-finalization-with-idempotency: backlog
+  3-4-confirmation-order-history-and-status-tracking: backlog
+  epic-3-retrospective: optional
+  epic-4: backlog
+  4-1-membership-benefit-visibility-in-purchase-flow: backlog
+  4-2-incentive-application-and-validation-rules: backlog
+  4-3-quick-reorder-from-prior-purchases: backlog
+  4-4-personalized-suggestions-for-returning-users: backlog
+  epic-4-retrospective: optional
+  epic-5: backlog
+  5-1-event-driven-notification-delivery: backlog
+  5-2-notification-inbox-and-read-state-management: backlog
+  epic-5-retrospective: optional
+  epic-6: backlog
+  6-1-product-and-variant-crud: backlog
+  6-2-category-hierarchy-and-attribute-metadata-management: backlog
+  6-3-banner-static-page-and-menu-administration: backlog
+  6-4-blog-post-administration: backlog
+  epic-6-retrospective: optional
+  epic-7: backlog
+  7-1-order-lifecycle-operations: backlog
+  7-2-customer-operational-view: backlog
+  7-3-membership-and-store-settings-administration: backlog
+  7-4-dashboard-metrics-and-kpi-views: backlog
+  epic-7-retrospective: optional
+  epic-8: backlog
+  8-1-payment-and-order-discrepancy-investigation-workspace: backlog
+  8-2-audit-trail-for-critical-admin-actions: backlog
+  8-3-rbac-boundary-enforcement-at-api-surface: backlog
+  8-4-api-contract-consistency-and-version-safety: backlog
+  epic-8-retrospective: optional
