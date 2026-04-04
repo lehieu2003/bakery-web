@@ -32,7 +32,6 @@ export const authService = {
 
     // Store token in localStorage
     if (response.data?.token) {
-      console.log('Received user data:', response.data); // Debug log
       authToken.set({
         token: response.data.token,
         role: response.data.user.role,

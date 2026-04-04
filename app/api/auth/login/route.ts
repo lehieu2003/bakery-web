@@ -3,6 +3,7 @@ import { validateEmail, getClientIp } from '@/lib/rate-limit';
 import { verifyPassword } from '@/lib/password';
 import { createSession, setSessionCookie } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { canAuthenticateWithPassword } from '@/lib/auth/login-policy';
 
 /**
  * Login with email + password (no OTP required)
@@ -47,36 +48,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has set password
-    if (!user.password) {
+    // Keep login failures generic to avoid exposing account state details.
+    if (!canAuthenticateWithPassword(user)) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Tài khoản chưa được kích hoạt. Vui lòng đăng ký lại',
+          error: 'Email hoặc mật khẩu không đúng',
         },
-        { status: 400 },
-      );
-    }
-
-    // Check if email is verified
-    if (!user.emailVerifiedAt) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Email chưa được xác thực',
-        },
-        { status: 403 },
-      );
-    }
-
-    // Check if user is active
-    if (!user.isActive) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Tài khoản đã bị khóa',
-        },
-        { status: 403 },
+        { status: 401 },
       );
     }
 
@@ -127,3 +106,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

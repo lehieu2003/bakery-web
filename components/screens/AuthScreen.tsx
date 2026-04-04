@@ -3,8 +3,18 @@
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
-import { useLogin, useRegister, useRegisterVerify } from '@/hooks/use-auth';
-import type { LoginRequest, RegisterVerifyRequest } from '@/types/api.types';
+import {
+  useLogin,
+  useRegister,
+  useRegisterVerify,
+  useResetPassword,
+  useResetPasswordVerify,
+} from '@/hooks/use-auth';
+import type {
+  LoginRequest,
+  RegisterVerifyRequest,
+  ResetPasswordVerifyRequest,
+} from '@/types/api.types';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/providers/auth-provider';
@@ -18,6 +28,8 @@ export default function AuthScreen() {
   const loginMutation = useLogin();
   const registerMutation = useRegister();
   const registerVerifyMutation = useRegisterVerify();
+  const resetPasswordMutation = useResetPassword();
+  const resetPasswordVerifyMutation = useResetPasswordVerify();
 
   // Login form
   const {
@@ -25,6 +37,14 @@ export default function AuthScreen() {
     handleSubmit: handleLoginSubmit,
     formState: { errors: loginErrors },
   } = useForm<LoginRequest>();
+
+  // Forgot password form
+  const {
+    register: forgotRegister,
+    handleSubmit: handleForgotSubmit,
+    formState: { errors: forgotErrors },
+    reset: resetForgotForm,
+  } = useForm<ResetPasswordVerifyRequest>();
 
   // Register form
   const {
@@ -36,6 +56,9 @@ export default function AuthScreen() {
 
   // Login state
   const [loginShowPw, setLoginShowPw] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotOtpSent, setForgotOtpSent] = useState(false);
+  const [forgotShowPw, setForgotShowPw] = useState(false);
 
   // Register state
   const [regShowPw, setRegShowPw] = useState(false);
@@ -85,6 +108,28 @@ export default function AuthScreen() {
         } else {
           router.push('/');
         }
+      },
+    });
+  };
+
+  const onForgotSendOtp = (email: string) => {
+    resetPasswordMutation.mutate(
+      { email },
+      {
+        onSuccess: () => {
+          setForgotOtpSent(true);
+        },
+      },
+    );
+  };
+
+  const onForgotVerify = (data: ResetPasswordVerifyRequest) => {
+    resetPasswordVerifyMutation.mutate(data, {
+      onSuccess: () => {
+        setForgotMode(false);
+        setForgotOtpSent(false);
+        setForgotShowPw(false);
+        resetForgotForm();
       },
     });
   };
@@ -152,106 +197,270 @@ export default function AuthScreen() {
                   </p>
                 </div>
 
-                <form
-                  onSubmit={handleLoginSubmit(onLoginSubmit)}
-                  noValidate
-                  className='space-y-5'
-                >
-                  {/* Email */}
-                  <div className='space-y-1.5'>
-                    <label
-                      htmlFor='login-email'
-                      className='text-sm font-medium text-foreground'
-                    >
-                      Email
-                    </label>
-                    <input
-                      id='login-email'
-                      type='email'
-                      {...loginRegister('email', {
-                        required: 'Email is required',
-                        pattern: {
-                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: 'Invalid email address',
-                        },
-                      })}
-                      placeholder='hello@example.com'
-                      className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.email ? 'border-destructive' : 'border-input'}`}
-                      autoComplete='email'
-                    />
-                    {loginErrors.email && (
-                      <p className='text-xs text-destructive'>
-                        {loginErrors.email.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div className='space-y-1.5'>
-                    <div className='flex items-center justify-between'>
+                {!forgotMode ? (
+                  <form
+                    onSubmit={handleLoginSubmit(onLoginSubmit)}
+                    noValidate
+                    className='space-y-5'
+                  >
+                    {/* Email */}
+                    <div className='space-y-1.5'>
                       <label
-                        htmlFor='login-password'
+                        htmlFor='login-email'
                         className='text-sm font-medium text-foreground'
                       >
-                        Password
+                        Email
                       </label>
-                      <button
-                        type='button'
-                        className='text-xs text-primary hover:underline'
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                    <div className='relative'>
                       <input
-                        id='login-password'
-                        type={loginShowPw ? 'text' : 'password'}
-                        {...loginRegister('password', {
-                          required: 'Password is required',
-                          minLength: {
-                            value: 6,
-                            message: 'Password must be at least 6 characters',
+                        id='login-email'
+                        type='email'
+                        {...loginRegister('email', {
+                          required: 'Email is required',
+                          pattern: {
+                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                            message: 'Invalid email address',
                           },
                         })}
-                        placeholder='Enter your password'
-                        className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.password ? 'border-destructive' : 'border-input'}`}
-                        autoComplete='current-password'
+                        placeholder='hello@example.com'
+                        className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.email ? 'border-destructive' : 'border-input'}`}
+                        autoComplete='email'
                       />
+                      {loginErrors.email && (
+                        <p className='text-xs text-destructive'>
+                          {loginErrors.email.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Password */}
+                    <div className='space-y-1.5'>
+                      <div className='flex items-center justify-between'>
+                        <label
+                          htmlFor='login-password'
+                          className='text-sm font-medium text-foreground'
+                        >
+                          Password
+                        </label>
+                        <button
+                          type='button'
+                          onClick={() => setForgotMode(true)}
+                          className='text-xs text-primary hover:underline'
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                      <div className='relative'>
+                        <input
+                          id='login-password'
+                          type={loginShowPw ? 'text' : 'password'}
+                          {...loginRegister('password', {
+                            required: 'Password is required',
+                            minLength: {
+                              value: 6,
+                              message: 'Password must be at least 6 characters',
+                            },
+                          })}
+                          placeholder='Enter your password'
+                          className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.password ? 'border-destructive' : 'border-input'}`}
+                          autoComplete='current-password'
+                        />
+                        <button
+                          type='button'
+                          onClick={() => setLoginShowPw(!loginShowPw)}
+                          className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
+                          aria-label={
+                            loginShowPw ? 'Hide password' : 'Show password'
+                          }
+                        >
+                          {loginShowPw ? (
+                            <EyeOff size={16} />
+                          ) : (
+                            <Eye size={16} />
+                          )}
+                        </button>
+                      </div>
+                      {loginErrors.password && (
+                        <p className='text-xs text-destructive'>
+                          {loginErrors.password.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {loginMutation.isError && (
+                      <div className='bg-destructive/10 border border-destructive/50 rounded-xl p-3'>
+                        <p className='text-xs text-destructive font-medium'>
+                          {loginMutation.error?.message ||
+                            'Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.'}
+                        </p>
+                      </div>
+                    )}
+
+                    <button
+                      type='submit'
+                      disabled={loginMutation.isPending}
+                      className='w-full h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+                    >
+                      {loginMutation.isPending ? 'Signing In...' : 'Sign In'}
+                    </button>
+                  </form>
+                ) : (
+                  <form
+                    onSubmit={
+                      forgotOtpSent
+                        ? handleForgotSubmit(onForgotVerify)
+                        : handleForgotSubmit((data) => onForgotSendOtp(data.email))
+                    }
+                    noValidate
+                    className='space-y-4'
+                  >
+                    <div className='space-y-1.5'>
+                      <label
+                        htmlFor='forgot-email'
+                        className='text-sm font-medium text-foreground'
+                      >
+                        Email
+                      </label>
+                      <input
+                        id='forgot-email'
+                        type='email'
+                        {...forgotRegister('email', {
+                          required: 'Email is required',
+                          pattern: {
+                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                            message: 'Invalid email address',
+                          },
+                        })}
+                        placeholder='hello@example.com'
+                        className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.email ? 'border-destructive' : 'border-input'}`}
+                        autoComplete='email'
+                      />
+                      {forgotErrors.email && (
+                        <p className='text-xs text-destructive'>
+                          {forgotErrors.email.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {forgotOtpSent && (
+                      <>
+                        <div className='space-y-1.5'>
+                          <label
+                            htmlFor='forgot-otp'
+                            className='text-sm font-medium text-foreground'
+                          >
+                            OTP Code
+                          </label>
+                          <input
+                            id='forgot-otp'
+                            type='text'
+                            {...forgotRegister('otp', {
+                              required: 'OTP is required',
+                              pattern: {
+                                value: /^[0-9]{6}$/,
+                                message: 'OTP must be 6 digits',
+                              },
+                            })}
+                            placeholder='Enter 6-digit OTP'
+                            className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.otp ? 'border-destructive' : 'border-input'}`}
+                            maxLength={6}
+                          />
+                          {forgotErrors.otp && (
+                            <p className='text-xs text-destructive'>
+                              {forgotErrors.otp.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className='space-y-1.5'>
+                          <label
+                            htmlFor='forgot-password'
+                            className='text-sm font-medium text-foreground'
+                          >
+                            New Password
+                          </label>
+                          <div className='relative'>
+                            <input
+                              id='forgot-password'
+                              type={forgotShowPw ? 'text' : 'password'}
+                              {...forgotRegister('newPassword', {
+                                required: 'New password is required',
+                                minLength: {
+                                  value: 6,
+                                  message:
+                                    'New password must be at least 6 characters',
+                                },
+                              })}
+                              placeholder='Enter your new password'
+                              className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.newPassword ? 'border-destructive' : 'border-input'}`}
+                              autoComplete='new-password'
+                            />
+                            <button
+                              type='button'
+                              onClick={() => setForgotShowPw(!forgotShowPw)}
+                              className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
+                              aria-label={
+                                forgotShowPw ? 'Hide password' : 'Show password'
+                              }
+                            >
+                              {forgotShowPw ? (
+                                <EyeOff size={16} />
+                              ) : (
+                                <Eye size={16} />
+                              )}
+                            </button>
+                          </div>
+                          {forgotErrors.newPassword && (
+                            <p className='text-xs text-destructive'>
+                              {forgotErrors.newPassword.message}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {(resetPasswordMutation.isError ||
+                      resetPasswordVerifyMutation.isError) && (
+                      <div className='bg-destructive/10 border border-destructive/50 rounded-xl p-3'>
+                        <p className='text-xs text-destructive font-medium'>
+                          {resetPasswordMutation.error?.message ||
+                            resetPasswordVerifyMutation.error?.message ||
+                            'Khôi phục mật khẩu thất bại. Vui lòng thử lại.'}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className='flex gap-2'>
                       <button
                         type='button'
-                        onClick={() => setLoginShowPw(!loginShowPw)}
-                        className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
-                        aria-label={
-                          loginShowPw ? 'Hide password' : 'Show password'
-                        }
+                        onClick={() => {
+                          setForgotMode(false);
+                          setForgotOtpSent(false);
+                          setForgotShowPw(false);
+                          resetForgotForm();
+                        }}
+                        className='flex-1 h-11 rounded-full border border-input text-foreground text-sm font-semibold tracking-wide hover:bg-muted transition-all'
                       >
-                        {loginShowPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                        Back to Sign In
+                      </button>
+                      <button
+                        type='submit'
+                        disabled={
+                          resetPasswordMutation.isPending ||
+                          resetPasswordVerifyMutation.isPending
+                        }
+                        className='flex-1 h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+                      >
+                        {forgotOtpSent
+                          ? resetPasswordVerifyMutation.isPending
+                            ? 'Resetting...'
+                            : 'Reset Password'
+                          : resetPasswordMutation.isPending
+                            ? 'Sending...'
+                            : 'Send OTP Code'}
                       </button>
                     </div>
-                    {loginErrors.password && (
-                      <p className='text-xs text-destructive'>
-                        {loginErrors.password.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {loginMutation.isError && (
-                    <div className='bg-destructive/10 border border-destructive/50 rounded-xl p-3'>
-                      <p className='text-xs text-destructive font-medium'>
-                        {loginMutation.error?.message ||
-                          'Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.'}
-                      </p>
-                    </div>
-                  )}
-
-                  <button
-                    type='submit'
-                    disabled={loginMutation.isPending}
-                    className='w-full h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed'
-                  >
-                    {loginMutation.isPending ? 'Signing In...' : 'Sign In'}
-                  </button>
-                </form>
+                  </form>
+                )}
 
                 {/* Divider */}
                 <div className='flex items-center gap-3 my-6'>

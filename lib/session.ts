@@ -2,6 +2,7 @@ import { prisma } from './prisma';
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
+import { canUseAuthenticatedSession, isSessionExpired } from './auth/session-utils';
 
 const SESSION_COOKIE_NAME = 'bakery_session';
 const SESSION_EXPIRY_DAYS = 30;
@@ -107,13 +108,12 @@ async function getSessionByToken(token: string) {
   }
 
   // Check if session has expired
-  if (session.expiresAt < new Date()) {
+  if (isSessionExpired(session.expiresAt)) {
     await prisma.session.delete({ where: { id: session.id } });
     return null;
   }
 
-  // Check if user is active
-  if (!session.user.isActive) {
+  if (!canUseAuthenticatedSession(session.user)) {
     return null;
   }
 
@@ -207,3 +207,4 @@ export async function cleanupExpiredSessions() {
     },
   });
 }
+

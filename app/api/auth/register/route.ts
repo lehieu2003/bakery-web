@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { generateOtp, createOtpVerification } from '@/lib/otp';
 import { emailService } from '@/lib/email';
+import { hashPassword } from '@/lib/password';
 import {
   checkRateLimit,
   checkCooldown,
@@ -8,20 +10,29 @@ import {
   RATE_LIMITS,
 } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
+import { getRegistrationState } from '@/lib/auth/registration-utils';
 
 export async function POST(request: Request) {
+  const requestId = randomUUID();
+
   try {
     const body = await request.json();
     const { email } = body;
 
     // Validate email
     if (!email) {
-      return NextResponse.json({ error: 'Email là bắt buộc' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Email là bắt buộc' },
+        { status: 400 },
+      );
     }
 
     const validation = validateEmail(email);
     if (!validation.valid) {
-      return NextResponse.json({ error: validation.message }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: validation.message },
+        { status: 400 },
+      );
     }
 
     const normalizedEmail = validation.normalized!;
@@ -31,11 +42,20 @@ export async function POST(request: Request) {
       where: { email: normalizedEmail },
     });
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'Email đã được đăng ký' },
-        { status: 400 },
-      );
+    const registrationState = getRegistrationState(existingUser);
+    if (registrationState === 'VERIFIED') {
+      console.warn('[auth.register] ignore register for verified account', {
+        requestId,
+        email: normalizedEmail,
+      });
+      // Do not reveal account existence details.
+      return NextResponse.json({
+        success: true,
+        data: {
+          message: 'Nếu email hợp lệ, OTP đã được gửi',
+          email: normalizedEmail,
+        },
+      });
     }
 
     // Rate limiting - per email
@@ -47,8 +67,9 @@ export async function POST(request: Request) {
     if (!emailRateLimitResult.allowed) {
       return NextResponse.json(
         {
+          success: false,
           error: emailRateLimitResult.message,
-          retryAfter: emailRateLimitResult.retryAfter,
+          data: { retryAfter: emailRateLimitResult.retryAfter },
         },
         { status: 429 },
       );
@@ -59,11 +80,26 @@ export async function POST(request: Request) {
     if (!cooldownResult.allowed) {
       return NextResponse.json(
         {
+          success: false,
           error: cooldownResult.message,
-          retryAfter: cooldownResult.retryAfter,
+          data: { retryAfter: cooldownResult.retryAfter },
         },
         { status: 429 },
       );
+    }
+
+    // Create pending account for first registration attempt.
+    if (registrationState === 'NEW') {
+      const tempPassword = await hashPassword(randomUUID());
+      await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          password: tempPassword,
+          role: 'CUSTOMER',
+          isActive: false,
+          emailVerifiedAt: null,
+        },
+      });
     }
 
     // Generate OTP
@@ -76,22 +112,39 @@ export async function POST(request: Request) {
     try {
       await emailService.sendOtp(normalizedEmail, otp);
     } catch (error) {
-      console.error('Failed to send OTP email:', error);
+      console.error('[auth.register] failed to send otp', {
+        requestId,
+        email: normalizedEmail,
+        error,
+      });
       return NextResponse.json(
-        { error: 'Không thể gửi email. Vui lòng thử lại sau' },
+        { success: false, error: 'Không thể gửi email. Vui lòng thử lại sau' },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({
-      message: 'OTP đã được gửi đến email của bạn',
+    console.info('[auth.register] otp issued', {
+      requestId,
       email: normalizedEmail,
-      expiresIn: 300, // 5 minutes
+      registrationState,
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        message: 'OTP đã được gửi đến email của bạn',
+        email: normalizedEmail,
+        expiresIn: 300,
+        pending: true,
+      },
     });
   } catch (error) {
-    console.error('Register error:', error);
+    console.error('[auth.register] unhandled error', {
+      requestId,
+      error,
+    });
     return NextResponse.json(
-      { error: 'Đã xảy ra lỗi. Vui lòng thử lại sau' },
+      { success: false, error: 'Đã xảy ra lỗi. Vui lòng thử lại sau' },
       { status: 500 },
     );
   }

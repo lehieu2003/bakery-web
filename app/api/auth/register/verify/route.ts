@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { verifyOtp } from '@/lib/otp';
 import { validateEmail } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
@@ -7,6 +8,8 @@ import { createSession } from '@/lib/session';
 import { emailService } from '@/lib/email';
 
 export async function POST(request: Request) {
+  const requestId = randomUUID();
+
   try {
     const body = await request.json();
     const { email, otp, password, name } = body;
@@ -14,7 +17,7 @@ export async function POST(request: Request) {
     // Validate required fields
     if (!email || !otp || !password) {
       return NextResponse.json(
-        { error: 'Email, OTP và mật khẩu là bắt buộc' },
+        { success: false, error: 'Email, OTP và mật khẩu là bắt buộc' },
         { status: 400 },
       );
     }
@@ -22,48 +25,58 @@ export async function POST(request: Request) {
     // Validate email
     const validation = validateEmail(email);
     if (!validation.valid) {
-      return NextResponse.json({ error: validation.message }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: validation.message },
+        { status: 400 },
+      );
     }
 
     const normalizedEmail = validation.normalized!;
 
     // Validate password
-    if (password.length < 6) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { error: 'Mật khẩu phải có ít nhất 6 ký tự' },
+        { success: false, error: 'Mật khẩu phải có ít nhất 8 ký tự' },
         { status: 400 },
       );
     }
 
-    // Verify OTP
-    const otpResult = await verifyOtp(normalizedEmail, 'REGISTER', otp);
-    if (!otpResult.success) {
-      return NextResponse.json({ error: otpResult.message }, { status: 400 });
-    }
-
-    // Check if user already exists (double check)
+    // Pending account must exist from register step.
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
-    if (existingUser) {
+    if (!existingUser) {
       return NextResponse.json(
-        { error: 'Email đã được đăng ký' },
+        { success: false, error: 'OTP không hợp lệ hoặc đã hết hạn' },
         { status: 400 },
       );
     }
 
-    // Hash password
-    const passwordHash = await hashPassword(password);
+    if (existingUser.emailVerifiedAt) {
+      return NextResponse.json(
+        { success: false, error: 'Email đã được xác thực trước đó' },
+        { status: 400 },
+      );
+    }
 
-    // Create user
-    const user = await prisma.user.create({
+    // Verify OTP after we know this is a pending account to avoid consuming OTP for non-existing users.
+    const otpResult = await verifyOtp(normalizedEmail, 'REGISTER', otp);
+    if (!otpResult.success) {
+      return NextResponse.json(
+        { success: false, error: otpResult.message },
+        { status: 400 },
+      );
+    }
+
+    const passwordHash = await hashPassword(password);
+    const user = await prisma.user.update({
+      where: { id: existingUser.id },
       data: {
-        email: normalizedEmail,
         password: passwordHash,
         name: name || null,
         emailVerifiedAt: new Date(),
-        role: 'CUSTOMER',
+        isActive: true,
       },
       select: {
         id: true,
@@ -83,9 +96,18 @@ export async function POST(request: Request) {
     try {
       await emailService.sendWelcome(normalizedEmail, name || 'Khách hàng');
     } catch (error) {
-      console.error('Failed to send welcome email:', error);
-      // Don't fail the registration if email fails
+      console.error('[auth.verify-email] failed to send welcome email', {
+        requestId,
+        email: normalizedEmail,
+        error,
+      });
     }
+
+    console.info('[auth.verify-email] account verified', {
+      requestId,
+      email: normalizedEmail,
+      userId: user.id,
+    });
 
     // Set session cookie (for server-side validation)
     const response = NextResponse.json({
@@ -114,9 +136,12 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    console.error('Register verify error:', error);
+    console.error('[auth.verify-email] unhandled error', {
+      requestId,
+      error,
+    });
     return NextResponse.json(
-      { error: 'Đã xảy ra lỗi. Vui lòng thử lại sau' },
+      { success: false, error: 'Đã xảy ra lỗi. Vui lòng thử lại sau' },
       { status: 500 },
     );
   }

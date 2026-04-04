@@ -15,7 +15,7 @@ export const ENDPOINTS = {
     LOGOUT: `${API_BASE}/auth/logout`,
     ME: `${API_BASE}/auth/me`,
     REGISTER: `${API_BASE}/auth/register`,
-    REGISTER_VERIFY: `${API_BASE}/auth/register/verify`,
+    REGISTER_VERIFY: `${API_BASE}/auth/verify-email`,
     RESET_PASSWORD: `${API_BASE}/auth/reset-password`,
     RESET_PASSWORD_VERIFY: `${API_BASE}/auth/reset-password/verify`,
   },

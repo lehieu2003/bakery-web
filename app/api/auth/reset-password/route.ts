@@ -8,91 +8,138 @@ import {
   RATE_LIMITS,
 } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
+import { buildResetPasswordRequestSuccessData } from '@/lib/auth/reset-password-utils';
+
+type ResetPasswordRequestBody = {
+  email?: string;
+};
+
+type ResetPasswordRequestDeps = {
+  validateEmail: typeof validateEmail;
+  checkRateLimit: typeof checkRateLimit;
+  checkCooldown: typeof checkCooldown;
+  findUserByEmail: (email: string) => Promise<{ id: string } | null>;
+  generateOtp: typeof generateOtp;
+  createOtpVerification: typeof createOtpVerification;
+  sendOtp: (email: string, otp: string) => Promise<unknown>;
+};
+
+const defaultDeps: ResetPasswordRequestDeps = {
+  validateEmail,
+  checkRateLimit,
+  checkCooldown,
+  findUserByEmail: async (email) =>
+    prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    }),
+  generateOtp,
+  createOtpVerification,
+  sendOtp: (email, otp) => emailService.sendOtp(email, otp),
+};
+
+export async function handleResetPasswordRequest(
+  body: ResetPasswordRequestBody,
+  deps: ResetPasswordRequestDeps = defaultDeps,
+) {
+  const { email } = body;
+
+  if (!email) {
+    return {
+      status: 400,
+      body: { success: false, error: 'Email là bắt buộc' },
+    };
+  }
+
+  const validation = deps.validateEmail(email);
+  if (!validation.valid) {
+    return {
+      status: 400,
+      body: { success: false, error: validation.message },
+    };
+  }
+
+  const normalizedEmail = validation.normalized!;
+
+  const emailRateLimitResult = await deps.checkRateLimit(
+    normalizedEmail,
+    'email',
+    RATE_LIMITS.OTP_SEND_PER_EMAIL,
+  );
+  if (!emailRateLimitResult.allowed) {
+    return {
+      status: 429,
+      body: {
+        success: false,
+        error: emailRateLimitResult.message,
+        data: { retryAfter: emailRateLimitResult.retryAfter },
+      },
+    };
+  }
+
+  const cooldownResult = await deps.checkCooldown(normalizedEmail);
+  if (!cooldownResult.allowed) {
+    return {
+      status: 429,
+      body: {
+        success: false,
+        error: cooldownResult.message,
+        data: { retryAfter: cooldownResult.retryAfter },
+      },
+    };
+  }
+
+  // Always write OTP request state to make throttling effective
+  // for both existing and non-existing emails.
+  const otp = deps.generateOtp();
+  await deps.createOtpVerification(normalizedEmail, 'RESET_PASSWORD', otp);
+
+  const existingUser = await deps.findUserByEmail(normalizedEmail);
+
+  if (!existingUser) {
+    return {
+      status: 200,
+      body: {
+        success: true,
+        data: buildResetPasswordRequestSuccessData(normalizedEmail),
+      },
+    };
+  }
+
+  try {
+    await deps.sendOtp(normalizedEmail, otp);
+  } catch (error) {
+    console.error('Failed to send OTP email:', error);
+    return {
+      status: 500,
+      body: {
+        success: false,
+        error: 'Không thể gửi email. Vui lòng thử lại sau',
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      data: buildResetPasswordRequestSuccessData(normalizedEmail),
+    },
+  };
+}
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email } = body;
-
-    // Validate email
-    if (!email) {
-      return NextResponse.json({ error: 'Email là bắt buộc' }, { status: 400 });
-    }
-
-    const validation = validateEmail(email);
-    if (!validation.valid) {
-      return NextResponse.json({ error: validation.message }, { status: 400 });
-    }
-
-    const normalizedEmail = validation.normalized!;
-
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-
-    if (!existingUser) {
-      // Don't reveal if email exists or not for security
-      return NextResponse.json({
-        message: 'Nếu email tồn tại, OTP đã được gửi',
-        email: normalizedEmail,
-      });
-    }
-
-    // Rate limiting - per email
-    const emailRateLimitResult = await checkRateLimit(
-      normalizedEmail,
-      'email',
-      RATE_LIMITS.OTP_SEND_PER_EMAIL,
-    );
-    if (!emailRateLimitResult.allowed) {
-      return NextResponse.json(
-        {
-          error: emailRateLimitResult.message,
-          retryAfter: emailRateLimitResult.retryAfter,
-        },
-        { status: 429 },
-      );
-    }
-
-    // Cooldown check
-    const cooldownResult = await checkCooldown(normalizedEmail);
-    if (!cooldownResult.allowed) {
-      return NextResponse.json(
-        {
-          error: cooldownResult.message,
-          retryAfter: cooldownResult.retryAfter,
-        },
-        { status: 429 },
-      );
-    }
-
-    // Generate OTP
-    const otp = generateOtp();
-
-    // Store OTP in database
-    await createOtpVerification(normalizedEmail, 'RESET_PASSWORD', otp);
-
-    // Send OTP via email
-    try {
-      await emailService.sendOtp(normalizedEmail, otp);
-    } catch (error) {
-      console.error('Failed to send OTP email:', error);
-      return NextResponse.json(
-        { error: 'Không thể gửi email. Vui lòng thử lại sau' },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({
-      message: 'OTP đã được gửi đến email của bạn',
-      email: normalizedEmail,
-      expiresIn: 300, // 5 minutes
-    });
+    const body = (await request.json()) as ResetPasswordRequestBody;
+    const result = await handleResetPasswordRequest(body);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Reset password error:', error);
     return NextResponse.json(
-      { error: 'Đã xảy ra lỗi. Vui lòng thử lại sau' },
+      {
+        success: false,
+        error: 'Đã xảy ra lỗi. Vui lòng thử lại sau',
+      },
       { status: 500 },
     );
   }
