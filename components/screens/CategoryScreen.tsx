@@ -3,6 +3,7 @@
 import {
   ArrowDownUp,
   ChevronLeft,
+  ChevronRight,
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
@@ -42,9 +43,12 @@ interface CategoryScreenProps {
   slugPath: string[];
 }
 
+const PAGE_SIZE = 12;
+
 export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
   const [sort, setSort] = useState<SortOption>('popular');
   const [subCategoryId, setSubCategoryId] = useState<string>('all');
+  const [page, setPage] = useState(1);
   const [selectedFilters, setSelectedFilters] = useState<
     Record<string, string[]>
   >({});
@@ -58,6 +62,9 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
   const categoryTrail = findCategoryTrailBySlugPath(categories, slugPath) || [];
   const categoryData = categoryTrail[categoryTrail.length - 1];
   const parentCategory = categoryTrail[categoryTrail.length - 2];
+  const isCategoryResolved = !!categoryData;
+  const shouldShowInvalidCategory =
+    !!categoriesData && !isCategoryResolved && slugPath.length > 0;
 
   // Sub-categories from tree
   const subCategories = categoryData?.children || [];
@@ -71,27 +78,28 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
       valueSlugs,
     }));
 
+  const effectiveCategoryId =
+    subCategoryId !== 'all' ? subCategoryId : categoryData?.id;
+
   const { data: productsData, isLoading } = useProducts(
     {
-      categoryId: categoryData?.id,
+      categoryId: effectiveCategoryId,
+      page,
+      limit: PAGE_SIZE,
       minPrice: priceMin ? Number(priceMin) : undefined,
       maxPrice: priceMax ? Number(priceMax) : undefined,
       inStock: inStockOnly || undefined,
       attributeFilters,
     },
-    { enabled: !!categoriesData },
+    { enabled: !!effectiveCategoryId },
   );
   const { data: filterData } = useProductFilters(
-    { categoryId: categoryData?.id },
-    { enabled: !!categoryData?.id },
+    { categoryId: effectiveCategoryId },
+    { enabled: !!effectiveCategoryId },
   );
 
-  const products = (productsData?.products || []).filter((p) => {
-    if (!p.isActive) return false;
-    if (subCategoryId !== 'all')
-      return (p.categories || []).some((pc) => pc.categoryId === subCategoryId);
-    return true;
-  });
+  const products = productsData?.products || [];
+  const pagination = productsData?.pagination;
   const sorted = [...products].sort((a, b) => {
     if (sort === 'price-asc') return a.price - b.price;
     if (sort === 'price-desc') return b.price - a.price;
@@ -115,6 +123,11 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
     !!priceMax ||
     Object.values(selectedFilters).some((values) => values.length > 0);
 
+  const handleSelectSubCategory = (nextId: string) => {
+    setSubCategoryId(nextId);
+    setPage(1);
+  };
+
   const renderFilterPanel = () => (
     <div className='space-y-6'>
       <div>
@@ -129,6 +142,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                 setPriceMin('');
                 setPriceMax('');
                 setInStockOnly(false);
+                setPage(1);
               }}
               className='text-[11px] font-medium text-primary'
             >
@@ -142,7 +156,10 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
             type='number'
             inputMode='numeric'
             value={priceMin}
-            onChange={(event) => setPriceMin(event.target.value)}
+            onChange={(event) => {
+              setPriceMin(event.target.value);
+              setPage(1);
+            }}
             placeholder={
               filterData?.priceRange?.min
                 ? String(Number(filterData.priceRange.min))
@@ -154,7 +171,10 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
             type='number'
             inputMode='numeric'
             value={priceMax}
-            onChange={(event) => setPriceMax(event.target.value)}
+            onChange={(event) => {
+              setPriceMax(event.target.value);
+              setPage(1);
+            }}
             placeholder={
               filterData?.priceRange?.max
                 ? String(Number(filterData.priceRange.max))
@@ -165,7 +185,10 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
         </div>
 
         <button
-          onClick={() => setInStockOnly((value) => !value)}
+          onClick={() => {
+            setInStockOnly((value) => !value);
+            setPage(1);
+          }}
           className={`mt-3 flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition-colors ${
             inStockOnly
               ? 'border-primary bg-primary/10 text-primary'
@@ -209,6 +232,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                               [group.slug]: nextValues,
                             };
                           });
+                          setPage(1);
                         }}
                       />
                       <span className='text-sm'>{value.label}</span>
@@ -250,6 +274,23 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
       </div>
 
       <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10 flex gap-10'>
+        {shouldShowInvalidCategory ? (
+          <div className='w-full rounded-2xl border border-border/50 bg-card p-8 text-center'>
+            <h2 className='font-serif text-2xl font-semibold text-foreground mb-2'>
+              Category Not Found
+            </h2>
+            <p className='text-sm text-muted-foreground mb-5'>
+              The requested category does not exist or is no longer available.
+            </p>
+            <Link
+              href='/'
+              className='inline-flex items-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary/90'
+            >
+              Back to Home
+            </Link>
+          </div>
+        ) : (
+          <>
         {/* Sidebar filters */}
         <aside className='hidden lg:block w-60 flex-shrink-0'>
           <div className='sticky top-24 rounded-2xl border border-border/60 bg-card overflow-hidden'>
@@ -272,7 +313,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                   </p>
                   <div className='flex flex-wrap gap-2'>
                     <button
-                      onClick={() => setSubCategoryId('all')}
+                      onClick={() => handleSelectSubCategory('all')}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                         subCategoryId === 'all'
                           ? 'bg-primary text-primary-foreground border-primary shadow-sm'
@@ -284,7 +325,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                     {subCategories.map((sub: { id: string; name: string }) => (
                       <button
                         key={sub.id}
-                        onClick={() => setSubCategoryId(sub.id)}
+                        onClick={() => handleSelectSubCategory(sub.id)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                           subCategoryId === sub.id
                             ? 'bg-primary text-primary-foreground border-primary shadow-sm'
@@ -342,7 +383,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
           {subCategories.length > 0 && (
             <div className='lg:hidden flex gap-2 overflow-x-auto pb-3 mb-3 scrollbar-hide'>
               <button
-                onClick={() => setSubCategoryId('all')}
+                onClick={() => handleSelectSubCategory('all')}
                 className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                   subCategoryId === 'all'
                     ? 'bg-primary text-primary-foreground border-primary'
@@ -354,7 +395,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
               {subCategories.map((sub: { id: string; name: string }) => (
                 <button
                   key={sub.id}
-                  onClick={() => setSubCategoryId(sub.id)}
+                  onClick={() => handleSelectSubCategory(sub.id)}
                   className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                     subCategoryId === sub.id
                       ? 'bg-primary text-primary-foreground border-primary'
@@ -396,7 +437,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
 
           <div className='flex items-center justify-between mb-6'>
             <p className='text-sm text-muted-foreground'>
-              {sorted.length} products
+              {pagination?.total ?? sorted.length} products
             </p>
           </div>
 
@@ -425,7 +466,35 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
               </div>
             )}
           </div>
+
+          {pagination && pagination.totalPages > 1 && (
+            <div className='mt-8 flex items-center justify-center gap-2'>
+              <button
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={pagination.page <= 1}
+                className='inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                <ChevronLeft size={14} />
+                Prev
+              </button>
+              <span className='px-3 text-sm text-muted-foreground'>
+                Page {pagination.page} / {pagination.totalPages}
+              </span>
+              <button
+                onClick={() =>
+                  setPage((prev) => Math.min(pagination.totalPages, prev + 1))
+                }
+                disabled={pagination.page >= pagination.totalPages}
+                className='inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                Next
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

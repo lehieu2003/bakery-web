@@ -14,6 +14,7 @@ import type {
   RegisterVerifyRequest,
   ResetPasswordRequest,
   ResetPasswordVerifyRequest,
+  UpdateProfileRequest,
 } from '@/types/api.types';
 
 // Query keys
@@ -31,6 +32,20 @@ export function useUser() {
     queryFn: () => authService.me(),
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+/**
+ * Hook for updating current user profile
+ */
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdateProfileRequest) => authService.updateProfile(data),
+    onSuccess: (user) => {
+      queryClient.setQueryData(authKeys.user(), user);
+    },
   });
 }
 

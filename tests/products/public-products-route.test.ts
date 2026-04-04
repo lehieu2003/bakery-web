@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { handleGetPublicProductsRequest } from '@/app/api/public/products/route';
+
+test('public products route normalizes invalid pagination values', async () => {
+  let captured: { skip: number; take: number } | null = null;
+
+  const result = await handleGetPublicProductsRequest(
+    'http://localhost/api/public/products?page=-5&limit=999',
+    {
+      parseAttributeFilters: () => [],
+      buildProductAttributeWhere: () => [],
+      findChildCategories: async () => [],
+      findProducts: async ({ skip, take }) => {
+        captured = { skip, take };
+        return [];
+      },
+      countProducts: async () => 0,
+    },
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(result.body.data.pagination.page, 1);
+  assert.equal(result.body.data.pagination.limit, 60);
+  assert.equal(result.body.data.pagination.totalPages, 0);
+  assert.deepEqual(captured, { skip: 0, take: 60 });
+});
+
+test('public products route includes descendant category ids and keeps pagination envelope', async () => {
+  let capturedWhere: Record<string, unknown> | null = null;
+  let capturedSkip = -1;
+  let capturedTake = -1;
+
+  const result = await handleGetPublicProductsRequest(
+    'http://localhost/api/public/products?categoryId=c1&page=2&limit=5',
+    {
+      parseAttributeFilters: () => [],
+      buildProductAttributeWhere: () => [],
+      findChildCategories: async (parentId: string) => {
+        if (parentId === 'c1') return [{ id: 'c2' }];
+        if (parentId === 'c2') return [{ id: 'c3' }];
+        return [];
+      },
+      findProducts: async ({ where, skip, take }) => {
+        capturedWhere = where;
+        capturedSkip = skip;
+        capturedTake = take;
+        return [{ id: 'p1' }, { id: 'p2' }] as unknown[];
+      },
+      countProducts: async () => 13,
+    },
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(result.body.data.pagination.page, 2);
+  assert.equal(result.body.data.pagination.limit, 5);
+  assert.equal(result.body.data.pagination.total, 13);
+  assert.equal(result.body.data.pagination.totalPages, 3);
+  assert.equal(capturedSkip, 5);
+  assert.equal(capturedTake, 5);
+
+  const categoryFilter = (capturedWhere?.categories as {
+    some: { categoryId: { in: string[] } };
+  }).some.categoryId.in;
+  assert.deepEqual(categoryFilter, ['c1', 'c2', 'c3']);
+});

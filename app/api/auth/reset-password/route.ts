@@ -42,6 +42,17 @@ export async function handleResetPasswordRequest(
   body: ResetPasswordRequestBody,
   deps: ResetPasswordRequestDeps = defaultDeps,
 ) {
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    Array.isArray(body)
+  ) {
+    return {
+      status: 400,
+      body: { success: false, error: 'Payload không hợp lệ' },
+    };
+  }
+
   const { email } = body;
 
   if (!email) {

@@ -1,5 +1,5 @@
 # generated: 2026-04-04 13:43:39+07:00
-# last_updated: 2026-04-04 14:17:26+07:00
+# last_updated: 2026-04-04 17:32:39+07:00
 # project: bakery-web
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-04 13:43:39+07:00
-last_updated: 2026-04-04 15:13:19+07:00
+last_updated: 2026-04-04 17:32:39+07:00
 project: bakery-web
 project_key: NOKEY
 tracking_system: file-system
@@ -46,10 +46,10 @@ development_status:
   1-1-register-account-with-email-verification: done
   1-2-secure-sign-in-and-sign-out-session-flow: done
   1-3-otp-password-recovery: done
-  1-4-profile-management-and-membership-snapshot: backlog
+  1-4-profile-management-and-membership-snapshot: done
   epic-1-retrospective: optional
-  epic-2: backlog
-  2-1-category-browsing-and-product-listing: backlog
+  epic-2: in-progress
+  2-1-category-browsing-and-product-listing: done
   2-2-search-and-filter-experience: backlog
   2-3-product-detail-and-merchandising-blocks: backlog
   2-4-cms-and-blog-content-consumption: backlog
@@ -88,3 +88,11 @@ development_status:
   8-3-rbac-boundary-enforcement-at-api-surface: backlog
   8-4-api-contract-consistency-and-version-safety: backlog
   epic-8-retrospective: optional
+
+
+
+
+
+
+
+

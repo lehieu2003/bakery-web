@@ -13,6 +13,7 @@ import type {
   RegisterVerifyRequest,
   ResetPasswordRequest,
   ResetPasswordVerifyRequest,
+  UpdateProfileRequest,
 } from '@/types/api.types';
 
 export const authService = {
@@ -68,6 +69,19 @@ export const authService = {
       showErrorToast: false, // Don't show error toast for unauthenticated users
       skipAuthRedirect: true, // Don't redirect when checking auth status
     });
+    return response.data!.user;
+  },
+
+  /**
+   * Update current user profile
+   */
+  updateProfile: async (data: UpdateProfileRequest) => {
+    const response = await http.patch<{ user: User }>(ENDPOINTS.AUTH.ME, data, {
+      showSuccessToast: true,
+      successMessage: 'Cập nhật hồ sơ thành công!',
+      skipAuthRedirect: true,
+    });
+
     return response.data!.user;
   },
 

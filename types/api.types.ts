@@ -428,6 +428,11 @@ export interface ResetPasswordVerifyRequest {
   newPassword: string;
 }
 
+export interface UpdateProfileRequest {
+  name?: string;
+  phone?: string;
+}
+
 export interface CreateProductRequest {
   name: string;
   slug: string;

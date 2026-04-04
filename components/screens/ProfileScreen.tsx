@@ -1,11 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { LogOut, ChevronRight } from 'lucide-react';
-import { useCart, MemberLevel } from '@/lib/cart-store';
+import type { MemberLevel } from '@/lib/cart-store';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useOrders } from '@/hooks/use-orders';
-import { useLogout } from '@/hooks/use-auth';
+import { useLogout, useUpdateProfile } from '@/hooks/use-auth';
 import { useAuth } from '@/providers/auth-provider';
 
 const LEVEL_BENEFITS: Record<
@@ -47,12 +48,17 @@ const MOCK_POINT_HISTORY = [
 ];
 
 export default function ProfileScreen() {
-  const { user } = useCart(); // Get formatted user from cart store
   const router = useRouter();
   const { data: ordersData, isLoading: ordersLoading } = useOrders();
   const orders = ordersData || [];
   const { mutate: logout } = useLogout();
-  const { logout: clearAuthUser } = useAuth();
+  const { mutate: updateProfile, isPending: isUpdatingProfile } =
+    useUpdateProfile();
+  const { user: authUser, logout: clearAuthUser, setUser } = useAuth();
+  const [draftProfile, setDraftProfile] = useState<{
+    name: string;
+    phone: string;
+  } | null>(null);
 
   // Logout handler
   const handleLogout = () => {
@@ -62,7 +68,7 @@ export default function ProfileScreen() {
     logout();
   };
 
-  if (!user) {
+  if (!authUser) {
     return (
       <div className='bg-background'>
         <div className='border-b border-border/60 bg-card'>
@@ -181,7 +187,28 @@ export default function ProfileScreen() {
       barColor: 'bg-rose-400',
     },
   };
-  const lc = levelConfig[user.level];
+  const userLevel = (authUser.memberLevel?.toLowerCase() as MemberLevel) || 'silver';
+  const displayName = authUser.name || authUser.email;
+  const userPoints = authUser.points || 0;
+  const lc = levelConfig[userLevel];
+  const isEditingProfile = draftProfile !== null;
+  const profileName = draftProfile?.name ?? (authUser.name ?? '');
+  const profilePhone = draftProfile?.phone ?? (authUser.phone ?? '');
+
+  const handleSaveProfile = () => {
+    updateProfile(
+      {
+        name: profileName,
+        phone: profilePhone,
+      },
+      {
+        onSuccess: (updatedUser) => {
+          setUser(updatedUser);
+          setDraftProfile(null);
+        },
+      },
+    );
+  };
 
   return (
     <div className='bg-background'>
@@ -193,24 +220,24 @@ export default function ProfileScreen() {
               className={`w-20 h-20 rounded-full border-2 ${lc.border} bg-white/80 flex items-center justify-center flex-shrink-0`}
             >
               <span className={`font-serif text-3xl font-bold ${lc.text}`}>
-                {user.name.charAt(0)}
+                {displayName.charAt(0).toUpperCase()}
               </span>
             </div>
             <div>
               <p className={`font-serif text-2xl font-semibold ${lc.text}`}>
-                {user.name}
+                {displayName}
               </p>
               <span
                 className={`text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/60 ${lc.text} inline-block mt-1`}
               >
-                {user.level} member
+                {userLevel} member
               </span>
             </div>
           </div>
           <div className='flex items-center gap-6'>
             <div className='text-right'>
               <p className={`font-serif text-3xl font-bold ${lc.text}`}>
-                {user.points.toLocaleString()}
+                {userPoints.toLocaleString()}
               </p>
               <p className={`text-sm ${lc.text} opacity-70`}>loyalty points</p>
             </div>
@@ -235,7 +262,7 @@ export default function ProfileScreen() {
               />
             </div>
             <p className={`text-xs ${lc.text} opacity-70`}>
-              {user.level !== 'platinum'
+              {userLevel !== 'platinum'
                 ? '60 points to Platinum'
                 : 'You have reached our highest tier. Thank you for your loyalty.'}
             </p>
@@ -247,16 +274,114 @@ export default function ProfileScreen() {
         {/* Left col: Membership benefits */}
         <div className='lg:col-span-1 space-y-6'>
           <div className='bg-card rounded-2xl border border-border/50 p-6'>
+            <div className='flex items-center justify-between mb-4'>
+              <h2 className='font-serif text-lg font-semibold text-foreground'>
+                Profile Settings
+              </h2>
+              {!isEditingProfile ? (
+                <button
+                  onClick={() =>
+                    setDraftProfile({
+                      name: authUser.name ?? '',
+                      phone: authUser.phone ?? '',
+                    })
+                  }
+                  className='text-sm font-medium text-primary hover:opacity-80'
+                >
+                  Edit
+                </button>
+              ) : null}
+            </div>
+
+            <div className='space-y-3'>
+              <label className='block'>
+                <span className='text-xs text-muted-foreground'>Name</span>
+                <input
+                  value={profileName}
+                  onChange={(e) =>
+                    setDraftProfile((prev) => ({
+                      name: e.target.value,
+                      phone: prev?.phone ?? authUser.phone ?? '',
+                    }))
+                  }
+                  disabled={!isEditingProfile || isUpdatingProfile}
+                  className='mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60'
+                  placeholder='Your name'
+                />
+              </label>
+
+              <label className='block'>
+                <span className='text-xs text-muted-foreground'>Phone</span>
+                <input
+                  value={profilePhone}
+                  onChange={(e) =>
+                    setDraftProfile((prev) => ({
+                      name: prev?.name ?? authUser.name ?? '',
+                      phone: e.target.value,
+                    }))
+                  }
+                  disabled={!isEditingProfile || isUpdatingProfile}
+                  className='mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60'
+                  placeholder='Your phone number'
+                />
+              </label>
+
+              <label className='block'>
+                <span className='text-xs text-muted-foreground'>
+                  Membership Tier
+                </span>
+                <input
+                  value={authUser.memberLevel ?? 'SILVER'}
+                  readOnly
+                  className='mt-1 w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground'
+                />
+              </label>
+
+              <label className='block'>
+                <span className='text-xs text-muted-foreground'>
+                  Loyalty Points
+                </span>
+                <input
+                  value={String(userPoints)}
+                  readOnly
+                  className='mt-1 w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground'
+                />
+              </label>
+            </div>
+
+            {isEditingProfile ? (
+              <div className='mt-4 flex gap-2'>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={isUpdatingProfile}
+                  className='rounded-full bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60'
+                >
+                  {isUpdatingProfile ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => {
+                    setDraftProfile(null);
+                  }}
+                  disabled={isUpdatingProfile}
+                  className='rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary disabled:opacity-60'
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className='bg-card rounded-2xl border border-border/50 p-6'>
             <h2 className='font-serif text-lg font-semibold text-foreground mb-5'>
               Membership Benefits
             </h2>
             <div className='space-y-3'>
               {(['silver', 'gold', 'platinum'] as MemberLevel[]).map(
                 (level) => {
-                  const isCurrent = user.level === level;
+                  const isCurrent = userLevel === level;
                   const isUnlocked =
                     ['silver', 'gold', 'platinum'].indexOf(level) <=
-                    ['silver', 'gold', 'platinum'].indexOf(user.level);
+                    ['silver', 'gold', 'platinum'].indexOf(userLevel);
                   return (
                     <div
                       key={level}

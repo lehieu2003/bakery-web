@@ -12,7 +12,7 @@ import type {
   ProductsQueryParams,
 } from '@/types/api.types';
 
-function buildProductQueryParams(params?: ProductsQueryParams) {
+export function buildProductQueryParams(params?: ProductsQueryParams) {
   if (!params) return '';
 
   const searchParams = new URLSearchParams();

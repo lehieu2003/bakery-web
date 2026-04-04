@@ -40,6 +40,17 @@ export async function handleResetPasswordVerifyRequest(
   body: ResetPasswordVerifyRequestBody,
   deps: ResetPasswordVerifyDeps = defaultDeps,
 ) {
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    Array.isArray(body)
+  ) {
+    return {
+      status: 400,
+      body: { success: false, error: 'Payload không hợp lệ' },
+    };
+  }
+
   const { email, otp, newPassword } = body;
 
   if (!email || !otp || !newPassword) {

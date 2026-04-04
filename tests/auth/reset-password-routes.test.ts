@@ -10,6 +10,14 @@ test('reset-password request returns 400 when email is missing', async () => {
   assert.equal(result.body.success, false);
 });
 
+test('reset-password request returns 400 for non-object payload', async () => {
+  const result = await handleResetPasswordRequest('invalid' as never);
+
+  assert.equal(result.status, 400);
+  assert.equal(result.body.success, false);
+  assert.equal(result.body.error, 'Payload không hợp lệ');
+});
+
 test('reset-password request returns generic success for unknown email and does not send OTP email', async () => {
   let sendOtpCalled = false;
   let createOtpCalled = false;
@@ -80,6 +88,14 @@ test('reset-password verify returns sanitized error on OTP failure', async () =>
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
   assert.equal(result.body.error, 'Yêu cầu đặt lại mật khẩu không hợp lệ');
+});
+
+test('reset-password verify returns 400 for non-object payload', async () => {
+  const result = await handleResetPasswordVerifyRequest('invalid' as never);
+
+  assert.equal(result.status, 400);
+  assert.equal(result.body.success, false);
+  assert.equal(result.body.error, 'Payload không hợp lệ');
 });
 
 test('reset-password verify returns sanitized error when user is missing after OTP verification', async () => {
