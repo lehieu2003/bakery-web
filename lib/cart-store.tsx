@@ -64,6 +64,7 @@ export interface CheckoutInfo {
   customerPhone: string;
   customerEmail?: string;
   customerAddress?: string;
+  deliveryMethod?: 'pickup' | 'delivery';
 }
 
 interface CartState {

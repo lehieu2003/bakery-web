@@ -61,7 +61,8 @@ test('public products route includes descendant category ids and keeps paginatio
   assert.equal(capturedSkip, 5);
   assert.equal(capturedTake, 5);
 
-  const categoryFilter = (capturedWhere?.categories as {
+  const where = (capturedWhere ?? {}) as Record<string, unknown>;
+  const categoryFilter = (where['categories'] as {
     some: { categoryId: { in: string[] } };
   }).some.categoryId.in;
   assert.deepEqual(categoryFilter, ['c1', 'c2', 'c3']);
@@ -89,10 +90,12 @@ test('public products route composes keyword, price, stock and attribute filters
   assert.equal(result.status, 200);
   assert.equal(result.body.success, true);
 
-  assert.deepEqual(capturedWhere?.price, { gte: 10, lte: 50 });
-  const andConditions = (capturedWhere?.AND as Record<string, unknown>[]) ?? [];
+  const where = (capturedWhere ?? {}) as Record<string, unknown>;
+  assert.deepEqual(where['price'], { gte: 10, lte: 50 });
+  const andConditions = (where['AND'] as Record<string, unknown>[]) ?? [];
   assert.ok(andConditions.length >= 3);
   assert.deepEqual(andConditions[2], {
     attributeAssignments: { some: { valueKey: 'flavor:chocolate' } },
   });
 });
+

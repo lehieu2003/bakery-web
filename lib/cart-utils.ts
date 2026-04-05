@@ -28,6 +28,7 @@ export interface PersistedCheckoutInfo {
   customerPhone: string;
   customerEmail?: string;
   customerAddress?: string;
+  deliveryMethod?: 'pickup' | 'delivery';
 }
 
 export interface PersistedCartState {
@@ -95,26 +96,32 @@ export function normalizeCheckoutInfo(
 
   const customerEmail = normalizeText(value.customerEmail);
   const customerAddress = normalizeText(value.customerAddress);
+  const deliveryMethod =
+    value.deliveryMethod === 'pickup' || value.deliveryMethod === 'delivery'
+      ? value.deliveryMethod
+      : undefined;
 
   return {
     customerName,
     customerPhone,
     customerEmail: customerEmail || undefined,
     customerAddress: customerAddress || undefined,
+    deliveryMethod,
   };
 }
 
 export function normalizeCartItem(input: unknown): PersistedCartItem | null {
   if (!input || typeof input !== 'object') return null;
   const value = input as Partial<PersistedCartItem>;
+  const rawPrice = (value as { price?: unknown }).price;
   const productId = normalizeLooseText(value.productId);
   const name = normalizeLooseText(value.name);
   const image = normalizeLooseText(value.image) || '/images/placeholder.jpg';
   const price =
-    typeof value.price === 'number' && Number.isFinite(value.price)
-      ? value.price
-      : typeof value.price === 'string' && value.price.trim() !== ''
-        ? Number(value.price)
+    typeof rawPrice === 'number' && Number.isFinite(rawPrice)
+      ? rawPrice
+      : typeof rawPrice === 'string' && rawPrice.trim() !== ''
+        ? Number(rawPrice)
         : NaN;
   const type = value.type === 'cake' || value.type === 'ingredient'
     ? value.type

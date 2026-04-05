@@ -1,12 +1,13 @@
 'use client';
 
 import { ChevronLeft, Banknote, Wallet, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { orderService } from '@/services/order.service';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { canSubmitOrderRequest } from '@/lib/checkout-utils';
 
 const DISCOUNT_RATE: Record<string, number> = {
   silver: 0.05,
@@ -35,14 +36,23 @@ const PAYMENT_METHODS = [
     desc: 'Pay with ZaloPay e-wallet',
     logo: '/images/zalopay-logo.png',
   },
+  {
+    id: 'BANK_TRANSFER' as const,
+    label: 'Bank Transfer',
+    icon: Wallet,
+    desc: 'Transfer to bakery account and confirm payment after checkout',
+  },
 ];
 
 export default function CheckoutPaymentScreen() {
   const { user, cart, checkoutInfo, clearCart } = useCart();
   const router = useRouter();
-  const [payMethod, setPayMethod] = useState<'COD' | 'MOMO' | 'ZALOPAY'>('COD');
+  const [payMethod, setPayMethod] = useState<
+    'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER'
+  >('COD');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const isSubmittingRef = useRef(false);
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const discountRate = user ? DISCOUNT_RATE[user.level] : 0;
@@ -50,11 +60,21 @@ export default function CheckoutPaymentScreen() {
   const total = subtotal - discount;
 
   async function handlePlaceOrder() {
+    if (
+      !canSubmitOrderRequest({
+        isSubmitting,
+        hasInFlightRequest: isSubmittingRef.current,
+      })
+    ) {
+      return;
+    }
+
     if (!checkoutInfo) {
       router.push('/checkout/info');
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setError('');
 
@@ -91,6 +111,7 @@ export default function CheckoutPaymentScreen() {
     } catch {
       setError('Failed to place order. Please try again.');
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   }

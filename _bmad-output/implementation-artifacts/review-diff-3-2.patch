@@ -1,0 +1,2447 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index f187747..c0dd838 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -1,5 +1,5 @@
+ # generated: 2026-04-04 13:43:39+07:00
+-# last_updated: 2026-04-04 21:12:21+07:00
++# last_updated: 2026-04-05 10:53:58+07:00
+ # project: bakery-web
+ # project_key: NOKEY
+ # tracking_system: file-system
+@@ -35,7 +35,7 @@
+ # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+ 
+ generated: 2026-04-04 13:43:39+07:00
+-last_updated: 2026-04-05 09:59:56+07:00
++last_updated: 2026-04-05 10:53:58+07:00
+ project: bakery-web
+ project_key: NOKEY
+ tracking_system: file-system
+@@ -56,7 +56,7 @@ development_status:
+   epic-2-retrospective: optional
+   epic-3: in-progress
+   3-1-cart-management: done
+-  3-2-checkout-submission-and-payment-method-selection: backlog
++  3-2-checkout-submission-and-payment-method-selection: review
+   3-3-payment-callback-finalization-with-idempotency: backlog
+   3-4-confirmation-order-history-and-status-tracking: backlog
+   epic-3-retrospective: optional
+@@ -88,3 +88,6 @@ development_status:
+   8-3-rbac-boundary-enforcement-at-api-surface: backlog
+   8-4-api-contract-consistency-and-version-safety: backlog
+   epic-8-retrospective: optional
++
++
++
+diff --git a/app/api/orders/route.ts b/app/api/orders/route.ts
+index 197a350..2152e9e 100644
+--- a/app/api/orders/route.ts
++++ b/app/api/orders/route.ts
+@@ -17,6 +17,67 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
+   'MOMO',
+   'ZALOPAY',
+ ];
++const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
++
++type CreateOrderPayload = {
++  customerName?: string;
++  customerPhone?: string;
++  customerEmail?: string;
++  paymentMethod?: PaymentMethod;
++  items?: Array<{
++    productId?: string;
++    name?: string;
++    price?: number;
++    quantity?: number;
++  }>;
++};
++
++type CreateOrderRouteDeps = {
++  getCurrentUser: (request?: NextRequest) => Promise<{
++    id: string;
++    email?: string | null;
++    memberLevel?: string | null;
++  } | null>;
++  findProducts: (productIds: string[]) => Promise<
++    Array<{ id: string; name: string; price: number; stock: number }>
++  >;
++  createOrderWithItems: (args: {
++    orderNumber: string;
++    userId: string | null;
++    customerName: string;
++    customerPhone: string;
++    customerEmail: string | null;
++    subtotal: number;
++    discount: number;
++    total: number;
++    paymentMethod: PaymentMethod;
++    orderItems: Array<{
++      productId: string;
++      name: string;
++      price: number;
++      quantity: number;
++      subtotal: number;
++    }>;
++  }) => Promise<{
++    id: string;
++    orderNumber: string;
++    orderItems: Array<{
++      productId: string;
++      name: string;
++      price: number;
++      quantity: number;
++      subtotal: number;
++    }>;
++  }>;
++  createPaymentRecord: (args: {
++    orderId: string;
++    provider: 'MOMO' | 'ZALOPAY';
++    amount: number;
++  }) => Promise<void>;
++  createMoMoPayment: typeof createMoMoPayment;
++  createZaloPayPayment: typeof createZaloPayPayment;
++  getAppUrl: () => string;
++};
+ 
+ function generateOrderNumber(): string {
+   const now = new Date();
+@@ -25,6 +86,274 @@ function generateOrderNumber(): string {
+   return `BK${dateStr}${rand}`;
+ }
+ 
++const createOrderDeps: CreateOrderRouteDeps = {
++  getCurrentUser: (request) =>
++    request ? getCurrentUserFromRequest(request) : Promise.resolve(null),
++  findProducts: (productIds) =>
++    prisma.product.findMany({
++      where: { id: { in: productIds }, isActive: true },
++      select: { id: true, name: true, price: true, stock: true },
++    }),
++  createOrderWithItems: (args) =>
++    prisma.$transaction(async (tx) => {
++      for (const item of args.orderItems) {
++        await tx.product.update({
++          where: { id: item.productId },
++          data: { stock: { decrement: item.quantity } },
++        });
++      }
++
++      return tx.order.create({
++        data: {
++          orderNumber: args.orderNumber,
++          userId: args.userId,
++          customerName: args.customerName,
++          customerPhone: args.customerPhone,
++          customerEmail: args.customerEmail,
++          subtotal: args.subtotal,
++          deliveryFee: 0,
++          discount: args.discount,
++          total: args.total,
++          paymentMethod: args.paymentMethod,
++          status: 'PENDING',
++          orderItems: {
++            create: args.orderItems,
++          },
++        },
++        include: {
++          orderItems: true,
++        },
++      });
++    }),
++  createPaymentRecord: async ({ orderId, provider, amount }) => {
++    await prisma.payment.create({
++      data: {
++        orderId,
++        provider,
++        amount,
++        status: 'PENDING',
++      },
++    });
++  },
++  createMoMoPayment,
++  createZaloPayPayment,
++  getAppUrl: () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
++};
++
++export async function handleCreateOrderRequest(
++  body: unknown,
++  deps: CreateOrderRouteDeps = createOrderDeps,
++  request?: NextRequest,
++) {
++  if (!body || typeof body !== 'object') {
++    return {
++      status: 400,
++      body: { success: false, error: 'Missing required fields' },
++    };
++  }
++
++  const payload = body as CreateOrderPayload;
++  const { customerName, customerPhone, customerEmail, paymentMethod, items } =
++    payload;
++
++  if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
++    return {
++      status: 400,
++      body: { success: false, error: 'Missing required fields' },
++    };
++  }
++
++  const cleanPhone = customerPhone.replace(/[\s.-]/g, '');
++  if (!VN_PHONE_REGEX.test(cleanPhone)) {
++    return {
++      status: 400,
++      body: { success: false, error: 'Invalid phone number' },
++    };
++  }
++
++  if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
++    return {
++      status: 400,
++      body: { success: false, error: 'Invalid payment method' },
++    };
++  }
++
++  for (const item of items) {
++    if (!item.productId || !item.name || !item.price || !item.quantity) {
++      return {
++        status: 400,
++        body: { success: false, error: 'Invalid item data' },
++      };
++    }
++    if (item.quantity < 1 || item.quantity > 100) {
++      return {
++        status: 400,
++        body: { success: false, error: 'Invalid item quantity' },
++      };
++    }
++  }
++
++  const products = await deps.findProducts(items.map((i) => i.productId!));
++  const productMap = new Map(products.map((p) => [p.id, p]));
++
++  for (const item of items) {
++    const product = productMap.get(item.productId!);
++    if (!product) {
++      return {
++        status: 400,
++        body: {
++          success: false,
++          error: `Product "${item.name}" is not available`,
++        },
++      };
++    }
++
++    if (product.stock < item.quantity!) {
++      return {
++        status: 400,
++        body: {
++          success: false,
++          error: `"${product.name}" is out of stock (available: ${product.stock})`,
++        },
++      };
++    }
++  }
++
++  const user = await deps.getCurrentUser(request);
++  const orderItems = items.map((item) => {
++    const product = productMap.get(item.productId!)!;
++    const price = Number(product.price);
++    return {
++      productId: item.productId!,
++      name: product.name,
++      price,
++      quantity: item.quantity!,
++      subtotal: price * item.quantity!,
++    };
++  });
++
++  const subtotal = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
++  const discountRate = user ? DISCOUNT_RATE[user.memberLevel || ''] || 0 : 0;
++  const discount = Math.round(subtotal * discountRate);
++  const total = subtotal - discount;
++
++  if (total <= 0) {
++    return {
++      status: 400,
++      body: { success: false, error: 'Invalid order total' },
++    };
++  }
++
++  const totalInt = Math.round(total);
++  const orderNumber = generateOrderNumber();
++  const order = await deps.createOrderWithItems({
++    orderNumber,
++    userId: user?.id || null,
++    customerName,
++    customerPhone,
++    customerEmail: customerEmail || user?.email || null,
++    subtotal,
++    discount,
++    total,
++    paymentMethod,
++    orderItems,
++  });
++
++  const appUrl = deps.getAppUrl();
++  const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
++
++  if (paymentMethod === 'MOMO') {
++    await deps.createPaymentRecord({
++      orderId: order.id,
++      provider: 'MOMO',
++      amount: totalInt,
++    });
++
++    const result = await deps.createMoMoPayment({
++      orderId: order.id,
++      orderNumber,
++      amount: totalInt,
++      orderInfo: `Thanh toán đơn hàng #${orderNumber}`,
++      redirectUrl: successUrl,
++      ipnUrl: `${appUrl}/api/payment/momo/callback`,
++    });
++
++    if ('error' in result) {
++      return {
++        status: 200,
++        body: {
++          success: true,
++          data: {
++            order: { ...order, orderNumber },
++            paymentUrl: null,
++            paymentError: result.error,
++          },
++        },
++      };
++    }
++
++    return {
++      status: 200,
++      body: {
++        success: true,
++        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
++      },
++    };
++  }
++
++  if (paymentMethod === 'ZALOPAY') {
++    await deps.createPaymentRecord({
++      orderId: order.id,
++      provider: 'ZALOPAY',
++      amount: totalInt,
++    });
++
++    const result = await deps.createZaloPayPayment({
++      orderId: order.id,
++      orderNumber,
++      amount: totalInt,
++      description: `Thanh toán đơn hàng #${orderNumber}`,
++      redirectUrl: successUrl,
++      callbackUrl: `${appUrl}/api/payment/zalopay/callback`,
++      items: orderItems.map((i) => ({
++        name: i.name,
++        quantity: i.quantity,
++        price: i.price,
++      })),
++    });
++
++    if ('error' in result) {
++      return {
++        status: 200,
++        body: {
++          success: true,
++          data: {
++            order: { ...order, orderNumber },
++            paymentUrl: null,
++            paymentError: result.error,
++          },
++        },
++      };
++    }
++
++    return {
++      status: 200,
++      body: {
++        success: true,
++        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
++      },
++    };
++  }
++
++  return {
++    status: 200,
++    body: {
++      success: true,
++      data: { order: { ...order, orderNumber }, paymentUrl: null },
++    },
++  };
++}
++
+ // GET: Get user's orders
+ export async function GET(request: NextRequest) {
+   try {
+@@ -82,241 +411,8 @@ export async function GET(request: NextRequest) {
+ export async function POST(request: NextRequest) {
+   try {
+     const body = await request.json();
+-    const { customerName, customerPhone, customerEmail, paymentMethod, items } =
+-      body;
+-
+-    // Validate required fields
+-    if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
+-      return NextResponse.json(
+-        { success: false, error: 'Missing required fields' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    // Validate Vietnamese phone number
+-    const cleanPhone = customerPhone.replace(/[\s.-]/g, '');
+-    const vnPhoneRegex = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+-    if (!vnPhoneRegex.test(cleanPhone)) {
+-      return NextResponse.json(
+-        { success: false, error: 'Invalid phone number' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
+-      return NextResponse.json(
+-        { success: false, error: 'Invalid payment method' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    // Validate items structure
+-    for (const item of items) {
+-      if (!item.productId || !item.name || !item.price || !item.quantity) {
+-        return NextResponse.json(
+-          { success: false, error: 'Invalid item data' },
+-          { status: 400 },
+-        );
+-      }
+-      if (item.quantity < 1 || item.quantity > 100) {
+-        return NextResponse.json(
+-          { success: false, error: 'Invalid item quantity' },
+-          { status: 400 },
+-        );
+-      }
+-    }
+-
+-    // Verify products exist and are active, get server-side prices
+-    const productIds = items.map((i: { productId: string }) => i.productId);
+-    const products = await prisma.product.findMany({
+-      where: { id: { in: productIds }, isActive: true },
+-      select: { id: true, name: true, price: true, stock: true },
+-    });
+-
+-    const productMap = new Map(products.map((p) => [p.id, p]));
+-    for (const item of items) {
+-      const product = productMap.get(item.productId);
+-      if (!product) {
+-        return NextResponse.json(
+-          {
+-            success: false,
+-            error: `Product "${item.name}" is not available`,
+-          },
+-          { status: 400 },
+-        );
+-      }
+-      if (product.stock < item.quantity) {
+-        return NextResponse.json(
+-          {
+-            success: false,
+-            error: `"${product.name}" is out of stock (available: ${product.stock})`,
+-          },
+-          { status: 400 },
+-        );
+-      }
+-    }
+-
+-    // Get authenticated user (optional - guest checkout allowed)
+-    const user = await getCurrentUserFromRequest(request);
+-
+-    // Calculate totals using server-side prices
+-    const orderItems = items.map(
+-      (item: { productId: string; name: string; quantity: number }) => {
+-        const product = productMap.get(item.productId)!;
+-        const price = Number(product.price);
+-        return {
+-          productId: item.productId,
+-          name: product.name,
+-          price,
+-          quantity: item.quantity,
+-          subtotal: price * item.quantity,
+-        };
+-      },
+-    );
+-
+-    const subtotal = orderItems.reduce(
+-      (sum: number, i: { subtotal: number }) => sum + i.subtotal,
+-      0,
+-    );
+-    const discountRate = user ? DISCOUNT_RATE[user.memberLevel] || 0 : 0;
+-    const discount = Math.round(subtotal * discountRate);
+-    const total = subtotal - discount;
+-
+-    if (total <= 0) {
+-      return NextResponse.json(
+-        { success: false, error: 'Invalid order total' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    // MoMo/ZaloPay require integer amounts (VND has no decimals)
+-    const totalInt = Math.round(total);
+-
+-    const orderNumber = generateOrderNumber();
+-
+-    // Create order in database
+-    const order = await prisma.$transaction(async (tx) => {
+-      // Decrease stock
+-      for (const item of orderItems) {
+-        await tx.product.update({
+-          where: { id: item.productId },
+-          data: { stock: { decrement: item.quantity } },
+-        });
+-      }
+-
+-      return tx.order.create({
+-        data: {
+-          orderNumber,
+-          userId: user?.id || null,
+-          customerName,
+-          customerPhone,
+-          customerEmail: customerEmail || user?.email || null,
+-          subtotal,
+-          deliveryFee: 0,
+-          discount,
+-          total,
+-          paymentMethod: paymentMethod as PaymentMethod,
+-          status: 'PENDING',
+-          orderItems: {
+-            create: orderItems,
+-          },
+-        },
+-        include: {
+-          orderItems: true,
+-        },
+-      });
+-    });
+-
+-    // Handle payment gateway for e-wallet methods
+-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+-    const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
+-
+-    if (paymentMethod === 'MOMO') {
+-      // Create payment record
+-      await prisma.payment.create({
+-        data: {
+-          orderId: order.id,
+-          provider: 'MOMO',
+-          amount: totalInt,
+-          status: 'PENDING',
+-        },
+-      });
+-
+-      const result = await createMoMoPayment({
+-        orderId: order.id,
+-        orderNumber,
+-        amount: totalInt,
+-        orderInfo: `Thanh toán đơn hàng #${orderNumber}`,
+-        redirectUrl: successUrl,
+-        ipnUrl: `${appUrl}/api/payment/momo/callback`,
+-      });
+-
+-      if ('error' in result) {
+-        return NextResponse.json({
+-          success: true,
+-          data: {
+-            order: { ...order, orderNumber },
+-            paymentUrl: null,
+-            paymentError: result.error,
+-          },
+-        });
+-      }
+-
+-      return NextResponse.json({
+-        success: true,
+-        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
+-      });
+-    }
+-
+-    if (paymentMethod === 'ZALOPAY') {
+-      // Create payment record
+-      await prisma.payment.create({
+-        data: {
+-          orderId: order.id,
+-          provider: 'ZALOPAY',
+-          amount: totalInt,
+-          status: 'PENDING',
+-        },
+-      });
+-
+-      const result = await createZaloPayPayment({
+-        orderId: order.id,
+-        orderNumber,
+-        amount: totalInt,
+-        description: `Thanh toán đơn hàng #${orderNumber}`,
+-        redirectUrl: successUrl,
+-        callbackUrl: `${appUrl}/api/payment/zalopay/callback`,
+-        items: orderItems.map(
+-          (i: { name: string; quantity: number; price: number }) => ({
+-            name: i.name,
+-            quantity: i.quantity,
+-            price: i.price,
+-          }),
+-        ),
+-      });
+-
+-      if ('error' in result) {
+-        return NextResponse.json({
+-          success: true,
+-          data: {
+-            order: { ...order, orderNumber },
+-            paymentUrl: null,
+-            paymentError: result.error,
+-          },
+-        });
+-      }
+-
+-      return NextResponse.json({
+-        success: true,
+-        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
+-      });
+-    }
+-
+-    // COD or BANK_TRANSFER — no payment URL needed
+-    return NextResponse.json({
+-      success: true,
+-      data: { order: { ...order, orderNumber }, paymentUrl: null },
+-    });
++    const result = await handleCreateOrderRequest(body, createOrderDeps, request);
++    return NextResponse.json(result.body, { status: result.status });
+   } catch (error) {
+     console.error('Create order error:', error);
+     return NextResponse.json(
+diff --git a/components/screens/CheckoutInfoScreen.tsx b/components/screens/CheckoutInfoScreen.tsx
+index 48410ca..acdd938 100644
+--- a/components/screens/CheckoutInfoScreen.tsx
++++ b/components/screens/CheckoutInfoScreen.tsx
+@@ -75,8 +75,14 @@ export default function CheckoutInfoScreen() {
+     checkoutInfo?.customerName || user?.name || '',
+   );
+   const [phone, setPhone] = useState(checkoutInfo?.customerPhone || '');
++  const [email, setEmail] = useState(checkoutInfo?.customerEmail || '');
++  const [address, setAddress] = useState(checkoutInfo?.customerAddress || '');
+   const [phoneError, setPhoneError] = useState('');
+-  const [method, setMethod] = useState<'pickup' | 'delivery'>('pickup');
++  const [emailError, setEmailError] = useState('');
++  const [addressError, setAddressError] = useState('');
++  const [method, setMethod] = useState<'pickup' | 'delivery'>(
++    checkoutInfo?.deliveryMethod || 'pickup',
++  );
+ 
+   // Vietnamese phone: 0xx or +84xx, 9-11 digits
+   const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+@@ -95,6 +101,38 @@ export default function CheckoutInfoScreen() {
+     return true;
+   }
+ 
++  function validateEmail(value: string): boolean {
++    const trimmed = value.trim();
++    if (!trimmed) {
++      setEmailError('');
++      return true;
++    }
++
++    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
++    if (!emailRegex.test(trimmed)) {
++      setEmailError('Please enter a valid email address');
++      return false;
++    }
++
++    setEmailError('');
++    return true;
++  }
++
++  function validateAddress(value: string, collectionMethod: 'pickup' | 'delivery'): boolean {
++    if (collectionMethod === 'pickup') {
++      setAddressError('');
++      return true;
++    }
++
++    if (!value.trim()) {
++      setAddressError('Delivery address is required');
++      return false;
++    }
++
++    setAddressError('');
++    return true;
++  }
++
+   const cakeItems = cart.filter((i) => i.type === 'cake');
+   const pickupDates = [
+     ...new Set(cakeItems.map((i) => i.pickupDate).filter(Boolean)),
+@@ -157,6 +195,30 @@ export default function CheckoutInfoScreen() {
+             )}
+           </div>
+ 
++          <div>
++            <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
++              Email (Optional)
++            </label>
++            <input
++              type='email'
++              value={email}
++              onChange={(e) => {
++                setEmail(e.target.value);
++                if (emailError) validateEmail(e.target.value);
++              }}
++              onBlur={() => validateEmail(email)}
++              placeholder='you@example.com'
++              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors ${
++                emailError
++                  ? 'border-destructive focus:border-destructive'
++                  : 'border-border focus:border-primary'
++              }`}
++            />
++            {emailError && (
++              <p className='text-xs text-destructive mt-1.5'>{emailError}</p>
++            )}
++          </div>
++
+           <div>
+             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
+               Collection Method
+@@ -165,7 +227,12 @@ export default function CheckoutInfoScreen() {
+               {(['pickup', 'delivery'] as const).map((m) => (
+                 <button
+                   key={m}
+-                  onClick={() => setMethod(m)}
++                  onClick={() => {
++                    setMethod(m);
++                    if (addressError) {
++                      validateAddress(address, m);
++                    }
++                  }}
+                   className={`py-3.5 rounded-2xl border text-sm font-medium transition-colors ${
+                     method === m
+                       ? 'bg-primary/10 border-primary text-primary'
+@@ -178,6 +245,34 @@ export default function CheckoutInfoScreen() {
+             </div>
+           </div>
+ 
++          <div>
++            <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
++              Delivery Address {method === 'delivery' ? '' : '(Optional)'}
++            </label>
++            <textarea
++              value={address}
++              onChange={(e) => {
++                setAddress(e.target.value);
++                if (addressError) validateAddress(e.target.value, method);
++              }}
++              onBlur={() => validateAddress(address, method)}
++              placeholder={
++                method === 'delivery'
++                  ? 'Street, ward, district, city'
++                  : 'Address is optional for pickup'
++              }
++              rows={3}
++              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors resize-none ${
++                addressError
++                  ? 'border-destructive focus:border-destructive'
++                  : 'border-border focus:border-primary'
++              }`}
++            />
++            {addressError && (
++              <p className='text-xs text-destructive mt-1.5'>{addressError}</p>
++            )}
++          </div>
++
+           {cakeItems.length > 0 && pickupDates.length > 0 && (
+             <div className='bg-primary/8 border border-primary/20 rounded-2xl p-5'>
+               <p className='text-xs font-semibold text-primary uppercase tracking-widest mb-3'>
+@@ -211,13 +306,22 @@ export default function CheckoutInfoScreen() {
+           <button
+             onClick={() => {
+               if (!validatePhone(phone)) return;
++              if (!validateEmail(email)) return;
++              if (!validateAddress(address, method)) return;
+               setCheckoutInfo({
+-                customerName: name,
++                customerName: name.trim(),
+                 customerPhone: phone.replace(/[\s.-]/g, ''),
++                customerEmail: email.trim() || undefined,
++                customerAddress: address.trim() || undefined,
++                deliveryMethod: method,
+               });
+               router.push('/checkout/payment');
+             }}
+-            disabled={!name || !phone}
++            disabled={
++              !name.trim() ||
++              !phone.trim() ||
++              (method === 'delivery' && !address.trim())
++            }
+             className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+           >
+             Continue to Payment
+diff --git a/components/screens/CheckoutPaymentScreen.tsx b/components/screens/CheckoutPaymentScreen.tsx
+index fc2f4e1..2e302bd 100644
+--- a/components/screens/CheckoutPaymentScreen.tsx
++++ b/components/screens/CheckoutPaymentScreen.tsx
+@@ -1,12 +1,13 @@
+ 'use client';
+ 
+ import { ChevronLeft, Banknote, Wallet, Loader2 } from 'lucide-react';
+-import { useState } from 'react';
++import { useRef, useState } from 'react';
+ import { useCart } from '@/lib/cart-store';
+ import { orderService } from '@/services/order.service';
+ import Link from 'next/link';
+ import { useRouter } from 'next/navigation';
+ import Image from 'next/image';
++import { canSubmitOrderRequest } from '@/lib/checkout-utils';
+ 
+ const DISCOUNT_RATE: Record<string, number> = {
+   silver: 0.05,
+@@ -35,14 +36,23 @@ const PAYMENT_METHODS = [
+     desc: 'Pay with ZaloPay e-wallet',
+     logo: '/images/zalopay-logo.png',
+   },
++  {
++    id: 'BANK_TRANSFER' as const,
++    label: 'Bank Transfer',
++    icon: Wallet,
++    desc: 'Transfer to bakery account and confirm payment after checkout',
++  },
+ ];
+ 
+ export default function CheckoutPaymentScreen() {
+   const { user, cart, checkoutInfo, clearCart } = useCart();
+   const router = useRouter();
+-  const [payMethod, setPayMethod] = useState<'COD' | 'MOMO' | 'ZALOPAY'>('COD');
++  const [payMethod, setPayMethod] = useState<
++    'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER'
++  >('COD');
+   const [isSubmitting, setIsSubmitting] = useState(false);
+   const [error, setError] = useState('');
++  const isSubmittingRef = useRef(false);
+ 
+   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+   const discountRate = user ? DISCOUNT_RATE[user.level] : 0;
+@@ -50,11 +60,21 @@ export default function CheckoutPaymentScreen() {
+   const total = subtotal - discount;
+ 
+   async function handlePlaceOrder() {
++    if (
++      !canSubmitOrderRequest({
++        isSubmitting,
++        hasInFlightRequest: isSubmittingRef.current,
++      })
++    ) {
++      return;
++    }
++
+     if (!checkoutInfo) {
+       router.push('/checkout/info');
+       return;
+     }
+ 
++    isSubmittingRef.current = true;
+     setIsSubmitting(true);
+     setError('');
+ 
+@@ -91,6 +111,7 @@ export default function CheckoutPaymentScreen() {
+     } catch {
+       setError('Failed to place order. Please try again.');
+     } finally {
++      isSubmittingRef.current = false;
+       setIsSubmitting(false);
+     }
+   }
+diff --git a/lib/cart-store.tsx b/lib/cart-store.tsx
+index 29da09d..23c4144 100644
+--- a/lib/cart-store.tsx
++++ b/lib/cart-store.tsx
+@@ -64,6 +64,7 @@ export interface CheckoutInfo {
+   customerPhone: string;
+   customerEmail?: string;
+   customerAddress?: string;
++  deliveryMethod?: 'pickup' | 'delivery';
+ }
+ 
+ interface CartState {
+diff --git a/lib/cart-utils.ts b/lib/cart-utils.ts
+index e47fc9e..0c46fe0 100644
+--- a/lib/cart-utils.ts
++++ b/lib/cart-utils.ts
+@@ -28,6 +28,7 @@ export interface PersistedCheckoutInfo {
+   customerPhone: string;
+   customerEmail?: string;
+   customerAddress?: string;
++  deliveryMethod?: 'pickup' | 'delivery';
+ }
+ 
+ export interface PersistedCartState {
+@@ -95,12 +96,17 @@ export function normalizeCheckoutInfo(
+ 
+   const customerEmail = normalizeText(value.customerEmail);
+   const customerAddress = normalizeText(value.customerAddress);
++  const deliveryMethod =
++    value.deliveryMethod === 'pickup' || value.deliveryMethod === 'delivery'
++      ? value.deliveryMethod
++      : undefined;
+ 
+   return {
+     customerName,
+     customerPhone,
+     customerEmail: customerEmail || undefined,
+     customerAddress: customerAddress || undefined,
++    deliveryMethod,
+   };
+ }
+ 
+diff --git a/_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md b/_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md
+new file mode 100644
+index 0000000..5be1743
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md
+@@ -0,0 +1,162 @@
++# Story 3.2: Checkout Submission and Payment Method Selection
++
++Status: review
++
++<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
++
++## Story
++
++As a customer,
++I want to provide delivery information and choose payment method,
++so that I can place an order successfully.
++
++## Acceptance Criteria
++
++1. Given my cart has valid items, when I submit checkout form and payment option, then the system creates a pending order with validated customer and delivery data.
++2. Given my cart has valid items, when I choose a supported payment method at checkout, then order creation and payment initiation return a contract-consistent response envelope for all methods (COD/MOMO/ZALOPAY/BANK_TRANSFER support at API boundary).
++3. Given checkout request validation fails (missing fields, invalid phone, invalid item quantity, unavailable or insufficient-stock product), when order creation is attempted, then the API returns deterministic validation errors without partial or corrupt order state.
++4. Given purchase flow quality constraints, when checkout submission is executed, then write-path behavior remains aligned with FR13/FR14 and NFR checkout constraints (low failure rate target, no regression-prone contract drift).
++5. Given a user taps submit repeatedly during checkout, when order placement is in-flight, then duplicate client submissions are blocked and the UX exposes one deterministic result path (redirect, inline error, or success) without creating race-prone behavior.
++
++## Tasks / Subtasks
++
++- [x] Harden checkout info capture and payload readiness across info -> payment screens (AC: 1, 4)
++- [x] Ensure checkout info includes all required delivery/customer fields consumed by order creation (`customerName`, `customerPhone`, optional email/address with explicit UX treatment).
++- [x] Prevent progression to payment screen with incomplete or invalid checkout info; preserve existing phone-validation behavior and error feedback.
++- [x] Keep cart-derived totals and item mapping deterministic from Story 3.1 cart source of truth (`lib/cart-store.tsx`).
++
++- [x] Align payment method selection and API contract handling in UI/service layers (AC: 2, 4)
++- [x] Keep supported method set synchronized between UI (`CheckoutPaymentScreen`) and API (`app/api/orders/route.ts`): COD, MOMO, ZALOPAY, BANK_TRANSFER.
++- [x] If BANK_TRANSFER remains unsupported in UI for this story scope, explicitly document as deferred in `_bmad-output/implementation-artifacts/deferred-work.md` and keep API contract unchanged.
++- [x] Preserve response envelope handling in client (`{ success, data?, error? }`) and result mapping (`paymentUrl`, `paymentError`, `order`).
++- [x] Preserve one in-flight submit guard (`isSubmitting`) so rapid repeat clicks do not trigger parallel order requests.
++
++- [x] Strengthen order creation validation and transactional safety in orders route (AC: 1, 3, 4)
++- [x] Keep server-side validation authoritative for required fields, VN phone format, item quantity bounds (1..100), and product availability checks.
++- [x] Ensure stock decrement + order creation remains transactional and no partial write survives failed paths.
++- [x] Keep order initial status `PENDING` and maintain payment provider branch behavior without callback-finalization logic leak (reserved for Story 3.3).
++
++- [x] Add regression tests for checkout submission and payment selection behavior (AC: 1, 2, 3, 4)
++- [x] Add route-level tests for `POST /api/orders` covering success paths and validation failures.
++- [x] Add tests for payment-method branching behavior and response shape consistency.
++- [x] Add route-level regression test for BANK_TRANSFER branch (`paymentUrl: null` + successful order envelope), even if UI keeps this method hidden.
++- [x] Add/adjust service-level tests for `orderService.createOrder` payload/response compatibility.
++- [x] Add UI behavior test coverage (or component-level assertion) for in-flight submit lock to prevent duplicate POST calls.
++
++## Dev Notes
++
++- Epic context:
++- Story 3.2 builds directly on Story 3.1 cart integrity and establishes the order-creation foundation for payment callback finalization in Story 3.3.
++
++- Architecture guardrails:
++- Keep layering intact: UI (`app/(web)/checkout/*`, `components/screens/*`) -> service (`services/order.service.ts`) -> route (`app/api/orders/route.ts`) -> domain/infrastructure (`lib/*`, Prisma).
++- Preserve API response envelope and naming conventions.
++- Keep payment/order integrity constraints explicit, but do not implement callback idempotency/finalization here (Story 3.3 scope).
++
++- Cross-story dependency notes:
++- Depends on Story 3.1 deterministic cart payload behavior.
++- Produces stable pending-order/payment-init outputs consumed by Stories 3.3 and 3.4.
++
++- Previous story intelligence (3.1):
++- Cart identity and persistence were hardened; reuse that source of truth and avoid adding parallel cart containers.
++- Recent fix added resilient cart-item normalization and mobile add-to-cart CTA visibility; checkout must consume cart lines without assuming optional fields are always present.
++
++- Current branch intelligence:
++- Checkout screens exist and already call `orderService.createOrder`.
++- Orders API route already validates fields and performs transactional order creation + stock decrement.
++- Test coverage exists for auth/products/content/cart; order-route test coverage is currently missing and should be introduced in this story.
++
++### Project Structure Notes
++
++- Primary touch points:
++- `app/(web)/checkout/info/page.tsx`
++- `app/(web)/checkout/payment/page.tsx`
++- `components/screens/CheckoutInfoScreen.tsx`
++- `components/screens/CheckoutPaymentScreen.tsx`
++- `services/order.service.ts`
++- `app/api/orders/route.ts`
++- `types/api.types.ts` (if contract typing adjustments are needed)
++- `tests/orders/**` (new test folder expected for this story)
++
++### Testing Requirements
++
++- Route-level validation coverage for `POST /api/orders`:
++- Missing required fields -> 400
++- Invalid VN phone -> 400
++- Invalid payment method -> 400
++- Invalid quantity (<1 or >100) -> 400
++- Product unavailable/out-of-stock -> 400
++- Valid COD checkout -> success envelope with `paymentUrl: null`
++
++- Payment method behavior coverage:
++- MOMO/ZALOPAY branch returns `paymentUrl` on gateway success and `paymentError` on provider failure without throwing unhandled errors.
++- Contract shape remains stable for all payment branches.
++
++- Frontend/service compatibility:
++- Checkout screens provide payload shape accepted by `CreateOrderPayload`.
++- Error and submitting states remain deterministic in `CheckoutPaymentScreen`.
++
++### References
++
++- [Source: _bmad-output/planning-artifacts/epics.md#Story-32-Checkout-Submission-and-Payment-Method-Selection]
++- [Source: _bmad-output/planning-artifacts/epics.md#Epic-3-Cart-Checkout--Order-Lifecycle]
++- [Source: _bmad-output/planning-artifacts/prd.md#Functional-Requirements]
++- [Source: _bmad-output/planning-artifacts/prd.md#Non-Functional-Requirements]
++- [Source: _bmad-output/planning-artifacts/architecture.md#Structure-Patterns]
++- [Source: _bmad-output/planning-artifacts/architecture.md#Architectural-Boundaries]
++- [Source: _bmad-output/planning-artifacts/architecture.md#Requirements-to-Structure-Mapping]
++- [Source: _bmad-output/project-context.md#Backend-Frontend-Sync-Rules]
++- [Source: _bmad-output/implementation-artifacts/3-1-cart-management.md]
++
++## Story Context Status
++
++- Story file created with comprehensive implementation guardrails.
++- Ultimate context engine analysis completed - comprehensive developer guide created.
++
++## Dev Agent Record
++
++### Agent Model Used
++
++GPT-5 Codex
++
++### Debug Log References
++
++- Auto-selected first backlog story from sprint status: `3-2-checkout-submission-and-payment-method-selection`.
++- Loaded epics, PRD, architecture, project-context, and previous story (3.1) for dependency-aware context assembly.
++- Mapped current implementation touchpoints in checkout screens, order service, and orders API route.
++- Refactored `app/api/orders/route.ts` to expose `handleCreateOrderRequest` with dependency injection for route-level testability while preserving production behavior.
++- Extended checkout information capture to include optional email/address and persisted delivery method in `cart-store`/`cart-utils`.
++- Added in-flight request guard in payment submission path using `canSubmitOrderRequest` helper + ref lock to prevent duplicate order POST races.
++- Added Story 3.2 regression tests and executed full suite (`npx tsx --test tests/**/*.test.ts`) and lint (`npm run lint`).
++
++### Completion Notes List
++
++- Prepared story context for implementing checkout submission and payment method selection with contract stability.
++- Added explicit guardrails to avoid scope bleed into callback finalization (Story 3.3).
++- Added concrete testing expectations for missing order-route regression coverage.
++- Implemented checkout info hardening with deterministic validation and progression rules (name/phone required, email format validation, delivery address required when method is delivery).
++- Synchronized UI/API payment method support by adding `BANK_TRANSFER` option in checkout payment screen and preserving API response envelope behavior.
++- Preserved transactional order creation behavior and validation guardrails in the orders route while enabling isolated route tests through injected dependencies.
++- Added regression tests:
++  - `tests/orders/orders-route.test.ts` (validation, branch behavior, response shape, BANK_TRANSFER contract)
++  - `tests/orders/order-service.test.ts` (service payload/endpoint compatibility)
++  - `tests/orders/checkout-utils.test.ts` (duplicate-submit guard utility)
++- Verified no regressions: all tests pass (`86/86`); lint passes with one pre-existing warning in `app/api/public/products/filters/route.ts`.
++
++### File List
++
++- \_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md
++- \_bmad-output/implementation-artifacts/sprint-status.yaml
++- app/api/orders/route.ts
++- components/screens/CheckoutInfoScreen.tsx
++- components/screens/CheckoutPaymentScreen.tsx
++- lib/cart-store.tsx
++- lib/cart-utils.ts
++- lib/checkout-utils.ts
++- tests/orders/orders-route.test.ts
++- tests/orders/order-service.test.ts
++- tests/orders/checkout-utils.test.ts
++
++## Change Log
++
++- 2026-04-05: Implemented Story 3.2 checkout submission/payment selection, added order-route/service/submit-lock regression tests, and validated with full test + lint run.
+diff --git a/_bmad-output/implementation-artifacts/review-diff-3-2.patch b/_bmad-output/implementation-artifacts/review-diff-3-2.patch
+new file mode 100644
+index 0000000..fd8bdf3
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/review-diff-3-2.patch
+@@ -0,0 +1,1075 @@
++diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
++index f187747..c0dd838 100644
++--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
+++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
++@@ -1,5 +1,5 @@
++ # generated: 2026-04-04 13:43:39+07:00
++-# last_updated: 2026-04-04 21:12:21+07:00
+++# last_updated: 2026-04-05 10:53:58+07:00
++ # project: bakery-web
++ # project_key: NOKEY
++ # tracking_system: file-system
++@@ -35,7 +35,7 @@
++ # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
++ 
++ generated: 2026-04-04 13:43:39+07:00
++-last_updated: 2026-04-05 09:59:56+07:00
+++last_updated: 2026-04-05 10:53:58+07:00
++ project: bakery-web
++ project_key: NOKEY
++ tracking_system: file-system
++@@ -56,7 +56,7 @@ development_status:
++   epic-2-retrospective: optional
++   epic-3: in-progress
++   3-1-cart-management: done
++-  3-2-checkout-submission-and-payment-method-selection: backlog
+++  3-2-checkout-submission-and-payment-method-selection: review
++   3-3-payment-callback-finalization-with-idempotency: backlog
++   3-4-confirmation-order-history-and-status-tracking: backlog
++   epic-3-retrospective: optional
++@@ -88,3 +88,6 @@ development_status:
++   8-3-rbac-boundary-enforcement-at-api-surface: backlog
++   8-4-api-contract-consistency-and-version-safety: backlog
++   epic-8-retrospective: optional
+++
+++
+++
++diff --git a/app/api/orders/route.ts b/app/api/orders/route.ts
++index 197a350..2152e9e 100644
++--- a/app/api/orders/route.ts
+++++ b/app/api/orders/route.ts
++@@ -17,6 +17,67 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
++   'MOMO',
++   'ZALOPAY',
++ ];
+++const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+++
+++type CreateOrderPayload = {
+++  customerName?: string;
+++  customerPhone?: string;
+++  customerEmail?: string;
+++  paymentMethod?: PaymentMethod;
+++  items?: Array<{
+++    productId?: string;
+++    name?: string;
+++    price?: number;
+++    quantity?: number;
+++  }>;
+++};
+++
+++type CreateOrderRouteDeps = {
+++  getCurrentUser: (request?: NextRequest) => Promise<{
+++    id: string;
+++    email?: string | null;
+++    memberLevel?: string | null;
+++  } | null>;
+++  findProducts: (productIds: string[]) => Promise<
+++    Array<{ id: string; name: string; price: number; stock: number }>
+++  >;
+++  createOrderWithItems: (args: {
+++    orderNumber: string;
+++    userId: string | null;
+++    customerName: string;
+++    customerPhone: string;
+++    customerEmail: string | null;
+++    subtotal: number;
+++    discount: number;
+++    total: number;
+++    paymentMethod: PaymentMethod;
+++    orderItems: Array<{
+++      productId: string;
+++      name: string;
+++      price: number;
+++      quantity: number;
+++      subtotal: number;
+++    }>;
+++  }) => Promise<{
+++    id: string;
+++    orderNumber: string;
+++    orderItems: Array<{
+++      productId: string;
+++      name: string;
+++      price: number;
+++      quantity: number;
+++      subtotal: number;
+++    }>;
+++  }>;
+++  createPaymentRecord: (args: {
+++    orderId: string;
+++    provider: 'MOMO' | 'ZALOPAY';
+++    amount: number;
+++  }) => Promise<void>;
+++  createMoMoPayment: typeof createMoMoPayment;
+++  createZaloPayPayment: typeof createZaloPayPayment;
+++  getAppUrl: () => string;
+++};
++ 
++ function generateOrderNumber(): string {
++   const now = new Date();
++@@ -25,6 +86,274 @@ function generateOrderNumber(): string {
++   return `BK${dateStr}${rand}`;
++ }
++ 
+++const createOrderDeps: CreateOrderRouteDeps = {
+++  getCurrentUser: (request) =>
+++    request ? getCurrentUserFromRequest(request) : Promise.resolve(null),
+++  findProducts: (productIds) =>
+++    prisma.product.findMany({
+++      where: { id: { in: productIds }, isActive: true },
+++      select: { id: true, name: true, price: true, stock: true },
+++    }),
+++  createOrderWithItems: (args) =>
+++    prisma.$transaction(async (tx) => {
+++      for (const item of args.orderItems) {
+++        await tx.product.update({
+++          where: { id: item.productId },
+++          data: { stock: { decrement: item.quantity } },
+++        });
+++      }
+++
+++      return tx.order.create({
+++        data: {
+++          orderNumber: args.orderNumber,
+++          userId: args.userId,
+++          customerName: args.customerName,
+++          customerPhone: args.customerPhone,
+++          customerEmail: args.customerEmail,
+++          subtotal: args.subtotal,
+++          deliveryFee: 0,
+++          discount: args.discount,
+++          total: args.total,
+++          paymentMethod: args.paymentMethod,
+++          status: 'PENDING',
+++          orderItems: {
+++            create: args.orderItems,
+++          },
+++        },
+++        include: {
+++          orderItems: true,
+++        },
+++      });
+++    }),
+++  createPaymentRecord: async ({ orderId, provider, amount }) => {
+++    await prisma.payment.create({
+++      data: {
+++        orderId,
+++        provider,
+++        amount,
+++        status: 'PENDING',
+++      },
+++    });
+++  },
+++  createMoMoPayment,
+++  createZaloPayPayment,
+++  getAppUrl: () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+++};
+++
+++export async function handleCreateOrderRequest(
+++  body: unknown,
+++  deps: CreateOrderRouteDeps = createOrderDeps,
+++  request?: NextRequest,
+++) {
+++  if (!body || typeof body !== 'object') {
+++    return {
+++      status: 400,
+++      body: { success: false, error: 'Missing required fields' },
+++    };
+++  }
+++
+++  const payload = body as CreateOrderPayload;
+++  const { customerName, customerPhone, customerEmail, paymentMethod, items } =
+++    payload;
+++
+++  if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
+++    return {
+++      status: 400,
+++      body: { success: false, error: 'Missing required fields' },
+++    };
+++  }
+++
+++  const cleanPhone = customerPhone.replace(/[\s.-]/g, '');
+++  if (!VN_PHONE_REGEX.test(cleanPhone)) {
+++    return {
+++      status: 400,
+++      body: { success: false, error: 'Invalid phone number' },
+++    };
+++  }
+++
+++  if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
+++    return {
+++      status: 400,
+++      body: { success: false, error: 'Invalid payment method' },
+++    };
+++  }
+++
+++  for (const item of items) {
+++    if (!item.productId || !item.name || !item.price || !item.quantity) {
+++      return {
+++        status: 400,
+++        body: { success: false, error: 'Invalid item data' },
+++      };
+++    }
+++    if (item.quantity < 1 || item.quantity > 100) {
+++      return {
+++        status: 400,
+++        body: { success: false, error: 'Invalid item quantity' },
+++      };
+++    }
+++  }
+++
+++  const products = await deps.findProducts(items.map((i) => i.productId!));
+++  const productMap = new Map(products.map((p) => [p.id, p]));
+++
+++  for (const item of items) {
+++    const product = productMap.get(item.productId!);
+++    if (!product) {
+++      return {
+++        status: 400,
+++        body: {
+++          success: false,
+++          error: `Product "${item.name}" is not available`,
+++        },
+++      };
+++    }
+++
+++    if (product.stock < item.quantity!) {
+++      return {
+++        status: 400,
+++        body: {
+++          success: false,
+++          error: `"${product.name}" is out of stock (available: ${product.stock})`,
+++        },
+++      };
+++    }
+++  }
+++
+++  const user = await deps.getCurrentUser(request);
+++  const orderItems = items.map((item) => {
+++    const product = productMap.get(item.productId!)!;
+++    const price = Number(product.price);
+++    return {
+++      productId: item.productId!,
+++      name: product.name,
+++      price,
+++      quantity: item.quantity!,
+++      subtotal: price * item.quantity!,
+++    };
+++  });
+++
+++  const subtotal = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
+++  const discountRate = user ? DISCOUNT_RATE[user.memberLevel || ''] || 0 : 0;
+++  const discount = Math.round(subtotal * discountRate);
+++  const total = subtotal - discount;
+++
+++  if (total <= 0) {
+++    return {
+++      status: 400,
+++      body: { success: false, error: 'Invalid order total' },
+++    };
+++  }
+++
+++  const totalInt = Math.round(total);
+++  const orderNumber = generateOrderNumber();
+++  const order = await deps.createOrderWithItems({
+++    orderNumber,
+++    userId: user?.id || null,
+++    customerName,
+++    customerPhone,
+++    customerEmail: customerEmail || user?.email || null,
+++    subtotal,
+++    discount,
+++    total,
+++    paymentMethod,
+++    orderItems,
+++  });
+++
+++  const appUrl = deps.getAppUrl();
+++  const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
+++
+++  if (paymentMethod === 'MOMO') {
+++    await deps.createPaymentRecord({
+++      orderId: order.id,
+++      provider: 'MOMO',
+++      amount: totalInt,
+++    });
+++
+++    const result = await deps.createMoMoPayment({
+++      orderId: order.id,
+++      orderNumber,
+++      amount: totalInt,
+++      orderInfo: `Thanh toán đơn hàng #${orderNumber}`,
+++      redirectUrl: successUrl,
+++      ipnUrl: `${appUrl}/api/payment/momo/callback`,
+++    });
+++
+++    if ('error' in result) {
+++      return {
+++        status: 200,
+++        body: {
+++          success: true,
+++          data: {
+++            order: { ...order, orderNumber },
+++            paymentUrl: null,
+++            paymentError: result.error,
+++          },
+++        },
+++      };
+++    }
+++
+++    return {
+++      status: 200,
+++      body: {
+++        success: true,
+++        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
+++      },
+++    };
+++  }
+++
+++  if (paymentMethod === 'ZALOPAY') {
+++    await deps.createPaymentRecord({
+++      orderId: order.id,
+++      provider: 'ZALOPAY',
+++      amount: totalInt,
+++    });
+++
+++    const result = await deps.createZaloPayPayment({
+++      orderId: order.id,
+++      orderNumber,
+++      amount: totalInt,
+++      description: `Thanh toán đơn hàng #${orderNumber}`,
+++      redirectUrl: successUrl,
+++      callbackUrl: `${appUrl}/api/payment/zalopay/callback`,
+++      items: orderItems.map((i) => ({
+++        name: i.name,
+++        quantity: i.quantity,
+++        price: i.price,
+++      })),
+++    });
+++
+++    if ('error' in result) {
+++      return {
+++        status: 200,
+++        body: {
+++          success: true,
+++          data: {
+++            order: { ...order, orderNumber },
+++            paymentUrl: null,
+++            paymentError: result.error,
+++          },
+++        },
+++      };
+++    }
+++
+++    return {
+++      status: 200,
+++      body: {
+++        success: true,
+++        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
+++      },
+++    };
+++  }
+++
+++  return {
+++    status: 200,
+++    body: {
+++      success: true,
+++      data: { order: { ...order, orderNumber }, paymentUrl: null },
+++    },
+++  };
+++}
+++
++ // GET: Get user's orders
++ export async function GET(request: NextRequest) {
++   try {
++@@ -82,241 +411,8 @@ export async function GET(request: NextRequest) {
++ export async function POST(request: NextRequest) {
++   try {
++     const body = await request.json();
++-    const { customerName, customerPhone, customerEmail, paymentMethod, items } =
++-      body;
++-
++-    // Validate required fields
++-    if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
++-      return NextResponse.json(
++-        { success: false, error: 'Missing required fields' },
++-        { status: 400 },
++-      );
++-    }
++-
++-    // Validate Vietnamese phone number
++-    const cleanPhone = customerPhone.replace(/[\s.-]/g, '');
++-    const vnPhoneRegex = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
++-    if (!vnPhoneRegex.test(cleanPhone)) {
++-      return NextResponse.json(
++-        { success: false, error: 'Invalid phone number' },
++-        { status: 400 },
++-      );
++-    }
++-
++-    if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
++-      return NextResponse.json(
++-        { success: false, error: 'Invalid payment method' },
++-        { status: 400 },
++-      );
++-    }
++-
++-    // Validate items structure
++-    for (const item of items) {
++-      if (!item.productId || !item.name || !item.price || !item.quantity) {
++-        return NextResponse.json(
++-          { success: false, error: 'Invalid item data' },
++-          { status: 400 },
++-        );
++-      }
++-      if (item.quantity < 1 || item.quantity > 100) {
++-        return NextResponse.json(
++-          { success: false, error: 'Invalid item quantity' },
++-          { status: 400 },
++-        );
++-      }
++-    }
++-
++-    // Verify products exist and are active, get server-side prices
++-    const productIds = items.map((i: { productId: string }) => i.productId);
++-    const products = await prisma.product.findMany({
++-      where: { id: { in: productIds }, isActive: true },
++-      select: { id: true, name: true, price: true, stock: true },
++-    });
++-
++-    const productMap = new Map(products.map((p) => [p.id, p]));
++-    for (const item of items) {
++-      const product = productMap.get(item.productId);
++-      if (!product) {
++-        return NextResponse.json(
++-          {
++-            success: false,
++-            error: `Product "${item.name}" is not available`,
++-          },
++-          { status: 400 },
++-        );
++-      }
++-      if (product.stock < item.quantity) {
++-        return NextResponse.json(
++-          {
++-            success: false,
++-            error: `"${product.name}" is out of stock (available: ${product.stock})`,
++-          },
++-          { status: 400 },
++-        );
++-      }
++-    }
++-
++-    // Get authenticated user (optional - guest checkout allowed)
++-    const user = await getCurrentUserFromRequest(request);
++-
++-    // Calculate totals using server-side prices
++-    const orderItems = items.map(
++-      (item: { productId: string; name: string; quantity: number }) => {
++-        const product = productMap.get(item.productId)!;
++-        const price = Number(product.price);
++-        return {
++-          productId: item.productId,
++-          name: product.name,
++-          price,
++-          quantity: item.quantity,
++-          subtotal: price * item.quantity,
++-        };
++-      },
++-    );
++-
++-    const subtotal = orderItems.reduce(
++-      (sum: number, i: { subtotal: number }) => sum + i.subtotal,
++-      0,
++-    );
++-    const discountRate = user ? DISCOUNT_RATE[user.memberLevel] || 0 : 0;
++-    const discount = Math.round(subtotal * discountRate);
++-    const total = subtotal - discount;
++-
++-    if (total <= 0) {
++-      return NextResponse.json(
++-        { success: false, error: 'Invalid order total' },
++-        { status: 400 },
++-      );
++-    }
++-
++-    // MoMo/ZaloPay require integer amounts (VND has no decimals)
++-    const totalInt = Math.round(total);
++-
++-    const orderNumber = generateOrderNumber();
++-
++-    // Create order in database
++-    const order = await prisma.$transaction(async (tx) => {
++-      // Decrease stock
++-      for (const item of orderItems) {
++-        await tx.product.update({
++-          where: { id: item.productId },
++-          data: { stock: { decrement: item.quantity } },
++-        });
++-      }
++-
++-      return tx.order.create({
++-        data: {
++-          orderNumber,
++-          userId: user?.id || null,
++-          customerName,
++-          customerPhone,
++-          customerEmail: customerEmail || user?.email || null,
++-          subtotal,
++-          deliveryFee: 0,
++-          discount,
++-          total,
++-          paymentMethod: paymentMethod as PaymentMethod,
++-          status: 'PENDING',
++-          orderItems: {
++-            create: orderItems,
++-          },
++-        },
++-        include: {
++-          orderItems: true,
++-        },
++-      });
++-    });
++-
++-    // Handle payment gateway for e-wallet methods
++-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
++-    const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
++-
++-    if (paymentMethod === 'MOMO') {
++-      // Create payment record
++-      await prisma.payment.create({
++-        data: {
++-          orderId: order.id,
++-          provider: 'MOMO',
++-          amount: totalInt,
++-          status: 'PENDING',
++-        },
++-      });
++-
++-      const result = await createMoMoPayment({
++-        orderId: order.id,
++-        orderNumber,
++-        amount: totalInt,
++-        orderInfo: `Thanh toán đơn hàng #${orderNumber}`,
++-        redirectUrl: successUrl,
++-        ipnUrl: `${appUrl}/api/payment/momo/callback`,
++-      });
++-
++-      if ('error' in result) {
++-        return NextResponse.json({
++-          success: true,
++-          data: {
++-            order: { ...order, orderNumber },
++-            paymentUrl: null,
++-            paymentError: result.error,
++-          },
++-        });
++-      }
++-
++-      return NextResponse.json({
++-        success: true,
++-        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
++-      });
++-    }
++-
++-    if (paymentMethod === 'ZALOPAY') {
++-      // Create payment record
++-      await prisma.payment.create({
++-        data: {
++-          orderId: order.id,
++-          provider: 'ZALOPAY',
++-          amount: totalInt,
++-          status: 'PENDING',
++-        },
++-      });
++-
++-      const result = await createZaloPayPayment({
++-        orderId: order.id,
++-        orderNumber,
++-        amount: totalInt,
++-        description: `Thanh toán đơn hàng #${orderNumber}`,
++-        redirectUrl: successUrl,
++-        callbackUrl: `${appUrl}/api/payment/zalopay/callback`,
++-        items: orderItems.map(
++-          (i: { name: string; quantity: number; price: number }) => ({
++-            name: i.name,
++-            quantity: i.quantity,
++-            price: i.price,
++-          }),
++-        ),
++-      });
++-
++-      if ('error' in result) {
++-        return NextResponse.json({
++-          success: true,
++-          data: {
++-            order: { ...order, orderNumber },
++-            paymentUrl: null,
++-            paymentError: result.error,
++-          },
++-        });
++-      }
++-
++-      return NextResponse.json({
++-        success: true,
++-        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
++-      });
++-    }
++-
++-    // COD or BANK_TRANSFER — no payment URL needed
++-    return NextResponse.json({
++-      success: true,
++-      data: { order: { ...order, orderNumber }, paymentUrl: null },
++-    });
+++    const result = await handleCreateOrderRequest(body, createOrderDeps, request);
+++    return NextResponse.json(result.body, { status: result.status });
++   } catch (error) {
++     console.error('Create order error:', error);
++     return NextResponse.json(
++diff --git a/components/screens/CheckoutInfoScreen.tsx b/components/screens/CheckoutInfoScreen.tsx
++index 48410ca..acdd938 100644
++--- a/components/screens/CheckoutInfoScreen.tsx
+++++ b/components/screens/CheckoutInfoScreen.tsx
++@@ -75,8 +75,14 @@ export default function CheckoutInfoScreen() {
++     checkoutInfo?.customerName || user?.name || '',
++   );
++   const [phone, setPhone] = useState(checkoutInfo?.customerPhone || '');
+++  const [email, setEmail] = useState(checkoutInfo?.customerEmail || '');
+++  const [address, setAddress] = useState(checkoutInfo?.customerAddress || '');
++   const [phoneError, setPhoneError] = useState('');
++-  const [method, setMethod] = useState<'pickup' | 'delivery'>('pickup');
+++  const [emailError, setEmailError] = useState('');
+++  const [addressError, setAddressError] = useState('');
+++  const [method, setMethod] = useState<'pickup' | 'delivery'>(
+++    checkoutInfo?.deliveryMethod || 'pickup',
+++  );
++ 
++   // Vietnamese phone: 0xx or +84xx, 9-11 digits
++   const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
++@@ -95,6 +101,38 @@ export default function CheckoutInfoScreen() {
++     return true;
++   }
++ 
+++  function validateEmail(value: string): boolean {
+++    const trimmed = value.trim();
+++    if (!trimmed) {
+++      setEmailError('');
+++      return true;
+++    }
+++
+++    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+++    if (!emailRegex.test(trimmed)) {
+++      setEmailError('Please enter a valid email address');
+++      return false;
+++    }
+++
+++    setEmailError('');
+++    return true;
+++  }
+++
+++  function validateAddress(value: string, collectionMethod: 'pickup' | 'delivery'): boolean {
+++    if (collectionMethod === 'pickup') {
+++      setAddressError('');
+++      return true;
+++    }
+++
+++    if (!value.trim()) {
+++      setAddressError('Delivery address is required');
+++      return false;
+++    }
+++
+++    setAddressError('');
+++    return true;
+++  }
+++
++   const cakeItems = cart.filter((i) => i.type === 'cake');
++   const pickupDates = [
++     ...new Set(cakeItems.map((i) => i.pickupDate).filter(Boolean)),
++@@ -157,6 +195,30 @@ export default function CheckoutInfoScreen() {
++             )}
++           </div>
++ 
+++          <div>
+++            <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
+++              Email (Optional)
+++            </label>
+++            <input
+++              type='email'
+++              value={email}
+++              onChange={(e) => {
+++                setEmail(e.target.value);
+++                if (emailError) validateEmail(e.target.value);
+++              }}
+++              onBlur={() => validateEmail(email)}
+++              placeholder='you@example.com'
+++              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors ${
+++                emailError
+++                  ? 'border-destructive focus:border-destructive'
+++                  : 'border-border focus:border-primary'
+++              }`}
+++            />
+++            {emailError && (
+++              <p className='text-xs text-destructive mt-1.5'>{emailError}</p>
+++            )}
+++          </div>
+++
++           <div>
++             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
++               Collection Method
++@@ -165,7 +227,12 @@ export default function CheckoutInfoScreen() {
++               {(['pickup', 'delivery'] as const).map((m) => (
++                 <button
++                   key={m}
++-                  onClick={() => setMethod(m)}
+++                  onClick={() => {
+++                    setMethod(m);
+++                    if (addressError) {
+++                      validateAddress(address, m);
+++                    }
+++                  }}
++                   className={`py-3.5 rounded-2xl border text-sm font-medium transition-colors ${
++                     method === m
++                       ? 'bg-primary/10 border-primary text-primary'
++@@ -178,6 +245,34 @@ export default function CheckoutInfoScreen() {
++             </div>
++           </div>
++ 
+++          <div>
+++            <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
+++              Delivery Address {method === 'delivery' ? '' : '(Optional)'}
+++            </label>
+++            <textarea
+++              value={address}
+++              onChange={(e) => {
+++                setAddress(e.target.value);
+++                if (addressError) validateAddress(e.target.value, method);
+++              }}
+++              onBlur={() => validateAddress(address, method)}
+++              placeholder={
+++                method === 'delivery'
+++                  ? 'Street, ward, district, city'
+++                  : 'Address is optional for pickup'
+++              }
+++              rows={3}
+++              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors resize-none ${
+++                addressError
+++                  ? 'border-destructive focus:border-destructive'
+++                  : 'border-border focus:border-primary'
+++              }`}
+++            />
+++            {addressError && (
+++              <p className='text-xs text-destructive mt-1.5'>{addressError}</p>
+++            )}
+++          </div>
+++
++           {cakeItems.length > 0 && pickupDates.length > 0 && (
++             <div className='bg-primary/8 border border-primary/20 rounded-2xl p-5'>
++               <p className='text-xs font-semibold text-primary uppercase tracking-widest mb-3'>
++@@ -211,13 +306,22 @@ export default function CheckoutInfoScreen() {
++           <button
++             onClick={() => {
++               if (!validatePhone(phone)) return;
+++              if (!validateEmail(email)) return;
+++              if (!validateAddress(address, method)) return;
++               setCheckoutInfo({
++-                customerName: name,
+++                customerName: name.trim(),
++                 customerPhone: phone.replace(/[\s.-]/g, ''),
+++                customerEmail: email.trim() || undefined,
+++                customerAddress: address.trim() || undefined,
+++                deliveryMethod: method,
++               });
++               router.push('/checkout/payment');
++             }}
++-            disabled={!name || !phone}
+++            disabled={
+++              !name.trim() ||
+++              !phone.trim() ||
+++              (method === 'delivery' && !address.trim())
+++            }
++             className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
++           >
++             Continue to Payment
++diff --git a/components/screens/CheckoutPaymentScreen.tsx b/components/screens/CheckoutPaymentScreen.tsx
++index fc2f4e1..2e302bd 100644
++--- a/components/screens/CheckoutPaymentScreen.tsx
+++++ b/components/screens/CheckoutPaymentScreen.tsx
++@@ -1,12 +1,13 @@
++ 'use client';
++ 
++ import { ChevronLeft, Banknote, Wallet, Loader2 } from 'lucide-react';
++-import { useState } from 'react';
+++import { useRef, useState } from 'react';
++ import { useCart } from '@/lib/cart-store';
++ import { orderService } from '@/services/order.service';
++ import Link from 'next/link';
++ import { useRouter } from 'next/navigation';
++ import Image from 'next/image';
+++import { canSubmitOrderRequest } from '@/lib/checkout-utils';
++ 
++ const DISCOUNT_RATE: Record<string, number> = {
++   silver: 0.05,
++@@ -35,14 +36,23 @@ const PAYMENT_METHODS = [
++     desc: 'Pay with ZaloPay e-wallet',
++     logo: '/images/zalopay-logo.png',
++   },
+++  {
+++    id: 'BANK_TRANSFER' as const,
+++    label: 'Bank Transfer',
+++    icon: Wallet,
+++    desc: 'Transfer to bakery account and confirm payment after checkout',
+++  },
++ ];
++ 
++ export default function CheckoutPaymentScreen() {
++   const { user, cart, checkoutInfo, clearCart } = useCart();
++   const router = useRouter();
++-  const [payMethod, setPayMethod] = useState<'COD' | 'MOMO' | 'ZALOPAY'>('COD');
+++  const [payMethod, setPayMethod] = useState<
+++    'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER'
+++  >('COD');
++   const [isSubmitting, setIsSubmitting] = useState(false);
++   const [error, setError] = useState('');
+++  const isSubmittingRef = useRef(false);
++ 
++   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
++   const discountRate = user ? DISCOUNT_RATE[user.level] : 0;
++@@ -50,11 +60,21 @@ export default function CheckoutPaymentScreen() {
++   const total = subtotal - discount;
++ 
++   async function handlePlaceOrder() {
+++    if (
+++      !canSubmitOrderRequest({
+++        isSubmitting,
+++        hasInFlightRequest: isSubmittingRef.current,
+++      })
+++    ) {
+++      return;
+++    }
+++
++     if (!checkoutInfo) {
++       router.push('/checkout/info');
++       return;
++     }
++ 
+++    isSubmittingRef.current = true;
++     setIsSubmitting(true);
++     setError('');
++ 
++@@ -91,6 +111,7 @@ export default function CheckoutPaymentScreen() {
++     } catch {
++       setError('Failed to place order. Please try again.');
++     } finally {
+++      isSubmittingRef.current = false;
++       setIsSubmitting(false);
++     }
++   }
++diff --git a/lib/cart-store.tsx b/lib/cart-store.tsx
++index 29da09d..23c4144 100644
++--- a/lib/cart-store.tsx
+++++ b/lib/cart-store.tsx
++@@ -64,6 +64,7 @@ export interface CheckoutInfo {
++   customerPhone: string;
++   customerEmail?: string;
++   customerAddress?: string;
+++  deliveryMethod?: 'pickup' | 'delivery';
++ }
++ 
++ interface CartState {
++diff --git a/lib/cart-utils.ts b/lib/cart-utils.ts
++index e47fc9e..0c46fe0 100644
++--- a/lib/cart-utils.ts
+++++ b/lib/cart-utils.ts
++@@ -28,6 +28,7 @@ export interface PersistedCheckoutInfo {
++   customerPhone: string;
++   customerEmail?: string;
++   customerAddress?: string;
+++  deliveryMethod?: 'pickup' | 'delivery';
++ }
++ 
++ export interface PersistedCartState {
++@@ -95,12 +96,17 @@ export function normalizeCheckoutInfo(
++ 
++   const customerEmail = normalizeText(value.customerEmail);
++   const customerAddress = normalizeText(value.customerAddress);
+++  const deliveryMethod =
+++    value.deliveryMethod === 'pickup' || value.deliveryMethod === 'delivery'
+++      ? value.deliveryMethod
+++      : undefined;
++ 
++   return {
++     customerName,
++     customerPhone,
++     customerEmail: customerEmail || undefined,
++     customerAddress: customerAddress || undefined,
+++    deliveryMethod,
++   };
++ }
++ 
++diff --git a/_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md b/_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md
++new file mode 100644
++index 0000000..5be1743
++--- /dev/null
+++++ b/_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md
++@@ -0,0 +1,162 @@
+++# Story 3.2: Checkout Submission and Payment Method Selection
+++
+++Status: review
+++
+++<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+++
+++## Story
+++
+++As a customer,
+++I want to provide delivery information and choose payment method,
+++so that I can place an order successfully.
+++
+++## Acceptance Criteria
+++
+++1. Given my cart has valid items, when I submit checkout form and payment option, then the system creates a pending order with validated customer and delivery data.
+++2. Given my cart has valid items, when I choose a supported payment method at checkout, then order creation and payment initiation return a contract-consistent response envelope for all methods (COD/MOMO/ZALOPAY/BANK_TRANSFER support at API boundary).
+++3. Given checkout request validation fails (missing fields, invalid phone, invalid item quantity, unavailable or insufficient-stock product), when order creation is attempted, then the API returns deterministic validation errors without partial or corrupt order state.
+++4. Given purchase flow quality constraints, when checkout submission is executed, then write-path behavior remains aligned with FR13/FR14 and NFR checkout constraints (low failure rate target, no regression-prone contract drift).
+++5. Given a user taps submit repeatedly during checkout, when order placement is in-flight, then duplicate client submissions are blocked and the UX exposes one deterministic result path (redirect, inline error, or success) without creating race-prone behavior.
+++
+++## Tasks / Subtasks
+++
+++- [x] Harden checkout info capture and payload readiness across info -> payment screens (AC: 1, 4)
+++- [x] Ensure checkout info includes all required delivery/customer fields consumed by order creation (`customerName`, `customerPhone`, optional email/address with explicit UX treatment).
+++- [x] Prevent progression to payment screen with incomplete or invalid checkout info; preserve existing phone-validation behavior and error feedback.
+++- [x] Keep cart-derived totals and item mapping deterministic from Story 3.1 cart source of truth (`lib/cart-store.tsx`).
+++
+++- [x] Align payment method selection and API contract handling in UI/service layers (AC: 2, 4)
+++- [x] Keep supported method set synchronized between UI (`CheckoutPaymentScreen`) and API (`app/api/orders/route.ts`): COD, MOMO, ZALOPAY, BANK_TRANSFER.
+++- [x] If BANK_TRANSFER remains unsupported in UI for this story scope, explicitly document as deferred in `_bmad-output/implementation-artifacts/deferred-work.md` and keep API contract unchanged.
+++- [x] Preserve response envelope handling in client (`{ success, data?, error? }`) and result mapping (`paymentUrl`, `paymentError`, `order`).
+++- [x] Preserve one in-flight submit guard (`isSubmitting`) so rapid repeat clicks do not trigger parallel order requests.
+++
+++- [x] Strengthen order creation validation and transactional safety in orders route (AC: 1, 3, 4)
+++- [x] Keep server-side validation authoritative for required fields, VN phone format, item quantity bounds (1..100), and product availability checks.
+++- [x] Ensure stock decrement + order creation remains transactional and no partial write survives failed paths.
+++- [x] Keep order initial status `PENDING` and maintain payment provider branch behavior without callback-finalization logic leak (reserved for Story 3.3).
+++
+++- [x] Add regression tests for checkout submission and payment selection behavior (AC: 1, 2, 3, 4)
+++- [x] Add route-level tests for `POST /api/orders` covering success paths and validation failures.
+++- [x] Add tests for payment-method branching behavior and response shape consistency.
+++- [x] Add route-level regression test for BANK_TRANSFER branch (`paymentUrl: null` + successful order envelope), even if UI keeps this method hidden.
+++- [x] Add/adjust service-level tests for `orderService.createOrder` payload/response compatibility.
+++- [x] Add UI behavior test coverage (or component-level assertion) for in-flight submit lock to prevent duplicate POST calls.
+++
+++## Dev Notes
+++
+++- Epic context:
+++- Story 3.2 builds directly on Story 3.1 cart integrity and establishes the order-creation foundation for payment callback finalization in Story 3.3.
+++
+++- Architecture guardrails:
+++- Keep layering intact: UI (`app/(web)/checkout/*`, `components/screens/*`) -> service (`services/order.service.ts`) -> route (`app/api/orders/route.ts`) -> domain/infrastructure (`lib/*`, Prisma).
+++- Preserve API response envelope and naming conventions.
+++- Keep payment/order integrity constraints explicit, but do not implement callback idempotency/finalization here (Story 3.3 scope).
+++
+++- Cross-story dependency notes:
+++- Depends on Story 3.1 deterministic cart payload behavior.
+++- Produces stable pending-order/payment-init outputs consumed by Stories 3.3 and 3.4.
+++
+++- Previous story intelligence (3.1):
+++- Cart identity and persistence were hardened; reuse that source of truth and avoid adding parallel cart containers.
+++- Recent fix added resilient cart-item normalization and mobile add-to-cart CTA visibility; checkout must consume cart lines without assuming optional fields are always present.
+++
+++- Current branch intelligence:
+++- Checkout screens exist and already call `orderService.createOrder`.
+++- Orders API route already validates fields and performs transactional order creation + stock decrement.
+++- Test coverage exists for auth/products/content/cart; order-route test coverage is currently missing and should be introduced in this story.
+++
+++### Project Structure Notes
+++
+++- Primary touch points:
+++- `app/(web)/checkout/info/page.tsx`
+++- `app/(web)/checkout/payment/page.tsx`
+++- `components/screens/CheckoutInfoScreen.tsx`
+++- `components/screens/CheckoutPaymentScreen.tsx`
+++- `services/order.service.ts`
+++- `app/api/orders/route.ts`
+++- `types/api.types.ts` (if contract typing adjustments are needed)
+++- `tests/orders/**` (new test folder expected for this story)
+++
+++### Testing Requirements
+++
+++- Route-level validation coverage for `POST /api/orders`:
+++- Missing required fields -> 400
+++- Invalid VN phone -> 400
+++- Invalid payment method -> 400
+++- Invalid quantity (<1 or >100) -> 400
+++- Product unavailable/out-of-stock -> 400
+++- Valid COD checkout -> success envelope with `paymentUrl: null`
+++
+++- Payment method behavior coverage:
+++- MOMO/ZALOPAY branch returns `paymentUrl` on gateway success and `paymentError` on provider failure without throwing unhandled errors.
+++- Contract shape remains stable for all payment branches.
+++
+++- Frontend/service compatibility:
+++- Checkout screens provide payload shape accepted by `CreateOrderPayload`.
+++- Error and submitting states remain deterministic in `CheckoutPaymentScreen`.
+++
+++### References
+++
+++- [Source: _bmad-output/planning-artifacts/epics.md#Story-32-Checkout-Submission-and-Payment-Method-Selection]
+++- [Source: _bmad-output/planning-artifacts/epics.md#Epic-3-Cart-Checkout--Order-Lifecycle]
+++- [Source: _bmad-output/planning-artifacts/prd.md#Functional-Requirements]
+++- [Source: _bmad-output/planning-artifacts/prd.md#Non-Functional-Requirements]
+++- [Source: _bmad-output/planning-artifacts/architecture.md#Structure-Patterns]
+++- [Source: _bmad-output/planning-artifacts/architecture.md#Architectural-Boundaries]
+++- [Source: _bmad-output/planning-artifacts/architecture.md#Requirements-to-Structure-Mapping]
+++- [Source: _bmad-output/project-context.md#Backend-Frontend-Sync-Rules]
+++- [Source: _bmad-output/implementation-artifacts/3-1-cart-management.md]
+++
+++## Story Context Status
+++
+++- Story file created with comprehensive implementation guardrails.
+++- Ultimate context engine analysis completed - comprehensive developer guide created.
+++
+++## Dev Agent Record
+++
+++### Agent Model Used
+++
+++GPT-5 Codex
+++
+++### Debug Log References
+++
+++- Auto-selected first backlog story from sprint status: `3-2-checkout-submission-and-payment-method-selection`.
+++- Loaded epics, PRD, architecture, project-context, and previous story (3.1) for dependency-aware context assembly.
+++- Mapped current implementation touchpoints in checkout screens, order service, and orders API route.
+++- Refactored `app/api/orders/route.ts` to expose `handleCreateOrderRequest` with dependency injection for route-level testability while preserving production behavior.
+++- Extended checkout information capture to include optional email/address and persisted delivery method in `cart-store`/`cart-utils`.
+++- Added in-flight request guard in payment submission path using `canSubmitOrderRequest` helper + ref lock to prevent duplicate order POST races.
+++- Added Story 3.2 regression tests and executed full suite (`npx tsx --test tests/**/*.test.ts`) and lint (`npm run lint`).
+++
+++### Completion Notes List
+++
+++- Prepared story context for implementing checkout submission and payment method selection with contract stability.
+++- Added explicit guardrails to avoid scope bleed into callback finalization (Story 3.3).
+++- Added concrete testing expectations for missing order-route regression coverage.
+++- Implemented checkout info hardening with deterministic validation and progression rules (name/phone required, email format validation, delivery address required when method is delivery).
+++- Synchronized UI/API payment method support by adding `BANK_TRANSFER` option in checkout payment screen and preserving API response envelope behavior.
+++- Preserved transactional order creation behavior and validation guardrails in the orders route while enabling isolated route tests through injected dependencies.
+++- Added regression tests:
+++  - `tests/orders/orders-route.test.ts` (validation, branch behavior, response shape, BANK_TRANSFER contract)
+++  - `tests/orders/order-service.test.ts` (service payload/endpoint compatibility)
+++  - `tests/orders/checkout-utils.test.ts` (duplicate-submit guard utility)
+++- Verified no regressions: all tests pass (`86/86`); lint passes with one pre-existing warning in `app/api/public/products/filters/route.ts`.
+++
+++### File List
+++
+++- \_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md
+++- \_bmad-output/implementation-artifacts/sprint-status.yaml
+++- app/api/orders/route.ts
+++- components/screens/CheckoutInfoScreen.tsx
+++- components/screens/CheckoutPaymentScreen.tsx
+++- lib/cart-store.tsx
+++- lib/cart-utils.ts
+++- lib/checkout-utils.ts
+++- tests/orders/orders-route.test.ts
+++- tests/orders/order-service.test.ts
+++- tests/orders/checkout-utils.test.ts
+++
+++## Change Log
+++
+++- 2026-04-05: Implemented Story 3.2 checkout submission/payment selection, added order-route/service/submit-lock regression tests, and validated with full test + lint run.
+diff --git a/_bmad-output/implementation-artifacts/story-validation-report-3-2-checkout-submission-and-payment-method-selection-2026-04-05.md b/_bmad-output/implementation-artifacts/story-validation-report-3-2-checkout-submission-and-payment-method-selection-2026-04-05.md
+new file mode 100644
+index 0000000..2ac1449
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/story-validation-report-3-2-checkout-submission-and-payment-method-selection-2026-04-05.md
+@@ -0,0 +1,53 @@
++# Story Validation Report: 3-2-checkout-submission-and-payment-method-selection
++
++Date: 2026-04-05  
++Story File: `_bmad-output/implementation-artifacts/3-2-checkout-submission-and-payment-method-selection.md`  
++Validator: GPT-5 Codex
++
++## Gate Decision
++
++PASS
++
++Story 3.2 is ready for development after targeted readiness fixes were applied during validation.
++
++## Validation Scope
++
++- Story completeness against Epic 3.2 intent and acceptance criteria
++- Architecture and project-context compliance for checkout/order write path
++- Anti-regression, anti-duplication, and API-contract consistency guardrails
++- Testability for order route/payment method branches and UI submit behavior
++
++## Findings (Ordered by Severity)
++
++1. High: Duplicate-submit protection was not explicit in acceptance criteria.
++- Risk: rapid repeated clicks could trigger parallel `POST /api/orders` calls and unstable UX behavior.
++- Resolution applied: Added AC5 requiring deterministic in-flight submit handling and no race-prone client behavior.
++
++2. High: Deferred BANK_TRANSFER handling was underspecified.
++- Risk: developer could silently keep UI/API mismatch without tracking, violating backend-frontend sync workflow.
++- Resolution applied: Added explicit task to record deferment in `_bmad-output/implementation-artifacts/deferred-work.md` when UI does not expose BANK_TRANSFER.
++
++3. Medium: Branch-specific regression coverage for BANK_TRANSFER was missing.
++- Risk: API branch could regress even if COD/MOMO/ZALOPAY tests pass.
++- Resolution applied: Added route-level BANK_TRANSFER success-envelope test requirement (`paymentUrl: null`).
++
++4. Medium: In-flight submit lock had no explicit test expectation.
++- Risk: `isSubmitting` guard could regress without detection.
++- Resolution applied: Added UI/component-level test requirement for duplicate-submit lock behavior.
++
++## Compliance Check
++
++- Epic alignment: PASS (matches Story 3.2 goals and preserves handoff to Stories 3.3/3.4).
++- Architecture constraints: PASS (layer boundaries and response-envelope conventions preserved).
++- Project-context sync rule: PASS (explicit defer tracking and route-level contract verification included).
++- Scope control: PASS (callback idempotency/finalization remains deferred to Story 3.3).
++
++## Updated Story Sections
++
++- `Acceptance Criteria` (added explicit duplicate-submit behavior requirement)
++- `Tasks / Subtasks` (deferred-work tracking, in-flight submit guard, BANK_TRANSFER branch test)
++- `Testing Requirements` (aligned to updated route/UI guardrails via task-level additions)
++
++## Recommendation
++
++Proceed to `dev-story` for implementation of Story 3.2.
+diff --git a/lib/checkout-utils.ts b/lib/checkout-utils.ts
+new file mode 100644
+index 0000000..3b95d8b
+--- /dev/null
++++ b/lib/checkout-utils.ts
+@@ -0,0 +1,7 @@
++export function canSubmitOrderRequest(options: {
++  isSubmitting: boolean;
++  hasInFlightRequest: boolean;
++}): boolean {
++  return !options.isSubmitting && !options.hasInFlightRequest;
++}
++
+diff --git a/tests/orders/checkout-utils.test.ts b/tests/orders/checkout-utils.test.ts
+new file mode 100644
+index 0000000..adbc2fa
+--- /dev/null
++++ b/tests/orders/checkout-utils.test.ts
+@@ -0,0 +1,24 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { canSubmitOrderRequest } from '@/lib/checkout-utils';
++
++test('canSubmitOrderRequest allows submission when not submitting and no in-flight request', () => {
++  assert.equal(
++    canSubmitOrderRequest({ isSubmitting: false, hasInFlightRequest: false }),
++    true,
++  );
++});
++
++test('canSubmitOrderRequest blocks submission when submitting flag is true', () => {
++  assert.equal(
++    canSubmitOrderRequest({ isSubmitting: true, hasInFlightRequest: false }),
++    false,
++  );
++});
++
++test('canSubmitOrderRequest blocks submission when in-flight request exists', () => {
++  assert.equal(
++    canSubmitOrderRequest({ isSubmitting: false, hasInFlightRequest: true }),
++    false,
++  );
++});
+diff --git a/tests/orders/order-service.test.ts b/tests/orders/order-service.test.ts
+new file mode 100644
+index 0000000..829ee18
+--- /dev/null
++++ b/tests/orders/order-service.test.ts
+@@ -0,0 +1,49 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { orderService, type CreateOrderPayload } from '@/services/order.service';
++import { http } from '@/lib/api/client';
++import { ENDPOINTS } from '@/lib/api/endpoints';
++
++const createPayload: CreateOrderPayload = {
++  customerName: 'Lan',
++  customerPhone: '0909123456',
++  customerEmail: 'lan@example.com',
++  customerAddress: '123 Bakery St',
++  paymentMethod: 'COD',
++  items: [
++    {
++      productId: 'p1',
++      name: 'Cake',
++      price: 100000,
++      quantity: 1,
++    },
++  ],
++};
++
++test('orderService.createOrder posts to orders endpoint and returns data payload', async () => {
++  const originalPost = http.post;
++  let capturedUrl = '';
++  let capturedPayload: unknown = null;
++
++  (http as { post: typeof http.post }).post = async (url, payload) => {
++    capturedUrl = url;
++    capturedPayload = payload;
++    return {
++      success: true,
++      data: {
++        order: { id: 'o1', orderNumber: 'BK123' },
++        paymentUrl: null,
++      } as never,
++    };
++  };
++
++  try {
++    const result = await orderService.createOrder(createPayload);
++    assert.equal(capturedUrl, ENDPOINTS.ORDERS);
++    assert.deepEqual(capturedPayload, createPayload);
++    assert.equal(result.paymentUrl, null);
++    assert.equal(result.order.orderNumber, 'BK123');
++  } finally {
++    (http as { post: typeof http.post }).post = originalPost;
++  }
++});
+diff --git a/tests/orders/orders-route.test.ts b/tests/orders/orders-route.test.ts
+new file mode 100644
+index 0000000..d62d30f
+--- /dev/null
++++ b/tests/orders/orders-route.test.ts
+@@ -0,0 +1,128 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { handleCreateOrderRequest } from '@/app/api/orders/route';
++
++type Mutable<T> = {
++  -readonly [K in keyof T]: T[K];
++};
++
++function createDeps() {
++  const order = {
++    id: 'o1',
++    orderNumber: 'BK260405ABCD',
++    orderItems: [],
++  };
++
++  return {
++    getCurrentUser: async () => null,
++    findProducts: async () => [
++      { id: 'p1', name: 'Cake A', price: 100000, stock: 10 },
++    ],
++    createOrderWithItems: async () => order,
++    createPaymentRecord: async () => undefined,
++    createMoMoPayment: async () => ({ payUrl: 'https://pay.example/momo' }),
++    createZaloPayPayment: async () => ({ payUrl: 'https://pay.example/zalo' }),
++    getAppUrl: () => 'http://localhost:3000',
++  };
++}
++
++function buildPayload(method: 'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER') {
++  return {
++    customerName: 'Lan',
++    customerPhone: '0909123456',
++    customerEmail: 'lan@example.com',
++    paymentMethod: method,
++    items: [
++      {
++        productId: 'p1',
++        name: 'Cake A',
++        price: 100000,
++        quantity: 2,
++      },
++    ],
++  };
++}
++
++test('POST /api/orders rejects missing required fields', async () => {
++  const result = await handleCreateOrderRequest({}, createDeps());
++  assert.equal(result.status, 400);
++  assert.equal(result.body.success, false);
++  assert.equal(result.body.error, 'Missing required fields');
++});
++
++test('POST /api/orders rejects invalid Vietnamese phone number', async () => {
++  const result = await handleCreateOrderRequest(
++    { ...buildPayload('COD'), customerPhone: 'abc' },
++    createDeps(),
++  );
++  assert.equal(result.status, 400);
++  assert.equal(result.body.error, 'Invalid phone number');
++});
++
++test('POST /api/orders rejects invalid payment method', async () => {
++  const payload = buildPayload('COD') as Mutable<ReturnType<typeof buildPayload>>;
++  payload.paymentMethod = 'INVALID' as never;
++
++  const result = await handleCreateOrderRequest(payload, createDeps());
++  assert.equal(result.status, 400);
++  assert.equal(result.body.error, 'Invalid payment method');
++});
++
++test('POST /api/orders rejects invalid item quantity bounds', async () => {
++  const payload = buildPayload('COD');
++  payload.items[0].quantity = 101;
++  const result = await handleCreateOrderRequest(payload, createDeps());
++
++  assert.equal(result.status, 400);
++  assert.equal(result.body.error, 'Invalid item quantity');
++});
++
++test('POST /api/orders rejects unavailable product', async () => {
++  const deps = createDeps();
++  deps.findProducts = async () => [];
++  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
++
++  assert.equal(result.status, 400);
++  assert.equal(result.body.error, 'Product "Cake A" is not available');
++});
++
++test('POST /api/orders returns success envelope with paymentUrl=null for COD', async () => {
++  const result = await handleCreateOrderRequest(buildPayload('COD'), createDeps());
++
++  assert.equal(result.status, 200);
++  assert.equal(result.body.success, true);
++  assert.equal(result.body.data?.paymentUrl, null);
++  assert.equal(result.body.data?.paymentError, undefined);
++});
++
++test('POST /api/orders returns success envelope with paymentUrl=null for BANK_TRANSFER', async () => {
++  const result = await handleCreateOrderRequest(
++    buildPayload('BANK_TRANSFER'),
++    createDeps(),
++  );
++
++  assert.equal(result.status, 200);
++  assert.equal(result.body.success, true);
++  assert.equal(result.body.data?.paymentUrl, null);
++});
++
++test('POST /api/orders returns paymentUrl for MOMO on gateway success', async () => {
++  const result = await handleCreateOrderRequest(buildPayload('MOMO'), createDeps());
++
++  assert.equal(result.status, 200);
++  assert.equal(result.body.success, true);
++  assert.equal(result.body.data?.paymentUrl, 'https://pay.example/momo');
++});
++
++test('POST /api/orders returns paymentError for ZALOPAY gateway failures', async () => {
++  const deps = createDeps();
++  deps.createZaloPayPayment = async () => ({ error: 'gateway unavailable' });
++
++  const result = await handleCreateOrderRequest(buildPayload('ZALOPAY'), deps);
++
++  assert.equal(result.status, 200);
++  assert.equal(result.body.success, true);
++  assert.equal(result.body.data?.paymentUrl, null);
++  assert.equal(result.body.data?.paymentError, 'gateway unavailable');
++});
++

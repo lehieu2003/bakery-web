@@ -75,8 +75,14 @@ export default function CheckoutInfoScreen() {
     checkoutInfo?.customerName || user?.name || '',
   );
   const [phone, setPhone] = useState(checkoutInfo?.customerPhone || '');
+  const [email, setEmail] = useState(checkoutInfo?.customerEmail || '');
+  const [address, setAddress] = useState(checkoutInfo?.customerAddress || '');
   const [phoneError, setPhoneError] = useState('');
-  const [method, setMethod] = useState<'pickup' | 'delivery'>('pickup');
+  const [emailError, setEmailError] = useState('');
+  const [addressError, setAddressError] = useState('');
+  const [method, setMethod] = useState<'pickup' | 'delivery'>(
+    checkoutInfo?.deliveryMethod || 'pickup',
+  );
 
   // Vietnamese phone: 0xx or +84xx, 9-11 digits
   const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
@@ -92,6 +98,38 @@ export default function CheckoutInfoScreen() {
       return false;
     }
     setPhoneError('');
+    return true;
+  }
+
+  function validateEmail(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setEmailError('');
+      return true;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      setEmailError('Please enter a valid email address');
+      return false;
+    }
+
+    setEmailError('');
+    return true;
+  }
+
+  function validateAddress(value: string, collectionMethod: 'pickup' | 'delivery'): boolean {
+    if (collectionMethod === 'pickup') {
+      setAddressError('');
+      return true;
+    }
+
+    if (!value.trim()) {
+      setAddressError('Delivery address is required');
+      return false;
+    }
+
+    setAddressError('');
     return true;
   }
 
@@ -159,13 +197,42 @@ export default function CheckoutInfoScreen() {
 
           <div>
             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
+              Email (Optional)
+            </label>
+            <input
+              type='email'
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (emailError) validateEmail(e.target.value);
+              }}
+              onBlur={() => validateEmail(email)}
+              placeholder='you@example.com'
+              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors ${
+                emailError
+                  ? 'border-destructive focus:border-destructive'
+                  : 'border-border focus:border-primary'
+              }`}
+            />
+            {emailError && (
+              <p className='text-xs text-destructive mt-1.5'>{emailError}</p>
+            )}
+          </div>
+
+          <div>
+            <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
               Collection Method
             </label>
             <div className='grid grid-cols-2 gap-3'>
               {(['pickup', 'delivery'] as const).map((m) => (
                 <button
                   key={m}
-                  onClick={() => setMethod(m)}
+                  onClick={() => {
+                    setMethod(m);
+                    if (addressError) {
+                      validateAddress(address, m);
+                    }
+                  }}
                   className={`py-3.5 rounded-2xl border text-sm font-medium transition-colors ${
                     method === m
                       ? 'bg-primary/10 border-primary text-primary'
@@ -176,6 +243,34 @@ export default function CheckoutInfoScreen() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
+              Delivery Address {method === 'delivery' ? '' : '(Optional)'}
+            </label>
+            <textarea
+              value={address}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                if (addressError) validateAddress(e.target.value, method);
+              }}
+              onBlur={() => validateAddress(address, method)}
+              placeholder={
+                method === 'delivery'
+                  ? 'Street, ward, district, city'
+                  : 'Address is optional for pickup'
+              }
+              rows={3}
+              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors resize-none ${
+                addressError
+                  ? 'border-destructive focus:border-destructive'
+                  : 'border-border focus:border-primary'
+              }`}
+            />
+            {addressError && (
+              <p className='text-xs text-destructive mt-1.5'>{addressError}</p>
+            )}
           </div>
 
           {cakeItems.length > 0 && pickupDates.length > 0 && (
@@ -211,13 +306,22 @@ export default function CheckoutInfoScreen() {
           <button
             onClick={() => {
               if (!validatePhone(phone)) return;
+              if (!validateEmail(email)) return;
+              if (!validateAddress(address, method)) return;
               setCheckoutInfo({
-                customerName: name,
+                customerName: name.trim(),
                 customerPhone: phone.replace(/[\s.-]/g, ''),
+                customerEmail: email.trim() || undefined,
+                customerAddress: address.trim() || undefined,
+                deliveryMethod: method,
               });
               router.push('/checkout/payment');
             }}
-            disabled={!name || !phone}
+            disabled={
+              !name.trim() ||
+              !phone.trim() ||
+              (method === 'delivery' && !address.trim())
+            }
             className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
           >
             Continue to Payment

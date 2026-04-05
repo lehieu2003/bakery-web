@@ -42,7 +42,10 @@ test('reset-password request returns generic success for unknown email and does 
 
   assert.equal(result.status, 200);
   assert.equal(result.body.success, true);
-  assert.equal(result.body.data?.message, 'Nếu email tồn tại, OTP đã được gửi');
+  if (!result.body.data || !('message' in result.body.data)) {
+    assert.fail('Expected success payload with message');
+  }
+  assert.equal(result.body.data.message, 'Nếu email tồn tại, OTP đã được gửi');
   assert.equal(createOtpCalled, true);
   assert.equal(sendOtpCalled, false);
 });
@@ -67,7 +70,10 @@ test('reset-password request returns 429 when throttled', async () => {
 
   assert.equal(result.status, 429);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.data?.retryAfter, 30);
+  if (!result.body.data || !('retryAfter' in result.body.data)) {
+    assert.fail('Expected throttled payload with retryAfter');
+  }
+  assert.equal(result.body.data.retryAfter, 30);
 });
 
 test('reset-password verify returns sanitized error on OTP failure', async () => {
@@ -142,3 +148,4 @@ test('reset-password verify returns success and calls reset side effects', async
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0], { userId: 'u1', passwordHash: 'hashed-secret' });
 });
+
