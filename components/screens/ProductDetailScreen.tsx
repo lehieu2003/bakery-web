@@ -157,7 +157,7 @@ export default function ProductDetailScreen({
   function handleAddToCart() {
     const variantSuffix = selectedVariant ? `-${selectedVariant.id}` : '';
     addToCart({
-      id: selectedProduct!.id + variantSuffix + '-' + Date.now(),
+      id: selectedProduct!.id + variantSuffix,
       productId: selectedProduct!.id,
       name: selectedProduct!.name,
       price: selectedVariant?.price ?? selectedProduct!.price,

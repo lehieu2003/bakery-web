@@ -62,7 +62,7 @@ function ProductCard({ product }: { product: SuggestedProduct }) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     addToCart({
-      id: `${product.id}-${Date.now()}`,
+      id: product.id,
       productId: product.id,
       name: product.name,
       price: product.price,

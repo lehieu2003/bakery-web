@@ -4,9 +4,22 @@ import React, {
   createContext,
   useContext,
   useState,
+  useEffect,
+  useRef,
   useCallback,
 } from 'react';
 import { useAuth } from '@/providers/auth-provider';
+import {
+  GUEST_CART_STORAGE_KEY,
+  clampCartQuantityWithDelta,
+  getUserCartStorageKey,
+  mergeCartItems,
+  normalizeCartItem,
+  normalizeCheckoutInfo,
+  readPersistedCartState,
+  removePersistedCartState,
+  writePersistedCartState,
+} from '@/lib/cart-utils';
 
 export type MemberLevel = 'silver' | 'gold' | 'platinum';
 
@@ -71,6 +84,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [checkoutInfo, setCheckoutInfoState] = useState<CheckoutInfo | null>(
     null,
   );
+  const hasHydratedRef = useRef(false);
+  const previousUserIdRef = useRef<string | null>(null);
   const auth = useAuth();
 
   const user: User | null = auth.user
@@ -87,14 +102,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     : null;
 
   const addToCart = useCallback((item: CartItem) => {
+    const normalizedItem = normalizeCartItem(item);
+    if (!normalizedItem) return;
+
     setCart((prev) => {
-      const exists = prev.find((i) => i.id === item.id);
-      if (exists) {
-        return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i,
-        );
-      }
-      return [...prev, item];
+      return mergeCartItems(prev, [normalizedItem]);
     });
   }, []);
 
@@ -104,11 +116,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQty = useCallback((id: string, delta: number) => {
     setCart((prev) =>
-      prev
-        .map((i) =>
-          i.id === id ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i,
-        )
-        .filter((i) => i.quantity > 0),
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              quantity: clampCartQuantityWithDelta(item.quantity, delta),
+            }
+          : item,
+      ),
     );
   }, []);
 
@@ -118,8 +133,102 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setCheckoutInfo = useCallback((info: CheckoutInfo) => {
-    setCheckoutInfoState(info);
+    setCheckoutInfoState(normalizeCheckoutInfo(info));
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (auth.isLoading || hasHydratedRef.current) return;
+
+    const currentUserId = auth.user?.id ?? null;
+    const storage = window.localStorage;
+    const guestState = readPersistedCartState(storage, GUEST_CART_STORAGE_KEY);
+
+    if (currentUserId) {
+      const userStorageKey = getUserCartStorageKey(currentUserId);
+      const userState = readPersistedCartState(storage, userStorageKey);
+      // Deterministic precedence: merge persisted guest cart into user cart.
+      const mergedCart = mergeCartItems(userState.cart, guestState.cart);
+      const mergedCheckoutInfo =
+        normalizeCheckoutInfo(guestState.checkoutInfo) ??
+        normalizeCheckoutInfo(userState.checkoutInfo);
+
+      queueMicrotask(() => {
+        hasHydratedRef.current = true;
+        previousUserIdRef.current = currentUserId;
+        setCart(mergedCart);
+        setCheckoutInfoState(mergedCheckoutInfo);
+      });
+
+      writePersistedCartState(storage, userStorageKey, {
+        cart: mergedCart,
+        checkoutInfo: mergedCheckoutInfo,
+      });
+      removePersistedCartState(storage, GUEST_CART_STORAGE_KEY);
+    } else {
+      queueMicrotask(() => {
+        hasHydratedRef.current = true;
+        previousUserIdRef.current = currentUserId;
+        setCart(guestState.cart);
+        setCheckoutInfoState(normalizeCheckoutInfo(guestState.checkoutInfo));
+      });
+    }
+  }, [auth.isLoading, auth.user?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (auth.isLoading || !hasHydratedRef.current) return;
+
+    const currentUserId = auth.user?.id ?? null;
+    const previousUserId = previousUserIdRef.current;
+    if (previousUserId === currentUserId) return;
+
+    const storage = window.localStorage;
+
+    if (currentUserId) {
+      const userStorageKey = getUserCartStorageKey(currentUserId);
+      const userState = readPersistedCartState(storage, userStorageKey);
+      // Deterministic precedence: merge active in-memory session cart into user cart.
+      const mergedCart = mergeCartItems(userState.cart, cart);
+      const mergedCheckoutInfo =
+        normalizeCheckoutInfo(checkoutInfo) ??
+        normalizeCheckoutInfo(userState.checkoutInfo);
+
+      queueMicrotask(() => {
+        setCart(mergedCart);
+        setCheckoutInfoState(mergedCheckoutInfo);
+      });
+
+      writePersistedCartState(storage, userStorageKey, {
+        cart: mergedCart,
+        checkoutInfo: mergedCheckoutInfo,
+      });
+      removePersistedCartState(storage, GUEST_CART_STORAGE_KEY);
+    } else {
+      writePersistedCartState(storage, GUEST_CART_STORAGE_KEY, {
+        cart,
+        checkoutInfo,
+      });
+    }
+
+    previousUserIdRef.current = currentUserId;
+  }, [auth.isLoading, auth.user?.id, cart, checkoutInfo]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!hasHydratedRef.current) return;
+
+    const storage = window.localStorage;
+    const currentUserId = auth.user?.id ?? null;
+    const storageKey = currentUserId
+      ? getUserCartStorageKey(currentUserId)
+      : GUEST_CART_STORAGE_KEY;
+
+    writePersistedCartState(storage, storageKey, {
+      cart,
+      checkoutInfo,
+    });
+  }, [auth.user?.id, cart, checkoutInfo]);
 
   return (
     <CartContext.Provider

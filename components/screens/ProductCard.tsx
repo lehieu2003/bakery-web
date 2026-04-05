@@ -89,7 +89,7 @@ export default function ProductCard({ product }: { product: Product }) {
     event.stopPropagation();
 
     addToCart({
-      id: `${product.id}-${Date.now()}`,
+      id: product.id,
       productId: product.id,
       name: product.name,
       price: product.price,
@@ -134,12 +134,12 @@ export default function ProductCard({ product }: { product: Product }) {
           />
         </Link>
 
-        <div className='pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/55 via-black/25 to-transparent px-4 pb-4 pt-8 opacity-0 transition-all duration-300 group-hover:opacity-100'>
+        <div className='pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/55 via-black/25 to-transparent px-4 pb-4 pt-8 opacity-100 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100'>
           <button
             type='button'
             onClick={handleAddToCart}
             disabled={product.stock <= 0}
-            className='pointer-events-auto mx-auto block w-full max-w-[180px] translate-y-4 rounded-full bg-white/95 px-4 py-2 text-center text-xs font-semibold text-foreground shadow-sm transition-all duration-300 group-hover:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50'
+            className='pointer-events-auto mx-auto block w-full max-w-[180px] translate-y-0 rounded-full bg-white/95 px-4 py-2 text-center text-xs font-semibold text-foreground shadow-sm transition-all duration-300 md:translate-y-4 md:group-hover:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50'
           >
             {product.stock <= 0 ? 'Hết hàng' : 'Add to Cart'}
           </button>
