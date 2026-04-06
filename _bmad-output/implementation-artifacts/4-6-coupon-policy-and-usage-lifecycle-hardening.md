@@ -1,6 +1,6 @@
 # Story 4.6: Coupon Policy and Usage Lifecycle Hardening
 
-Status: review
+Status: done
 
 ## Story
 
@@ -130,4 +130,5 @@ so that users are not blocked by unfair rejections and operations can safely run
 - Corrective story created from production-readiness gap review after Epic 4 coupon workflows.
 - Governance extension added to define ownership, issuance criteria, and auditable control path.
 - Priority intent: resolve coupon unfairness, policy ambiguity, and operational ownership before expanding new growth features.
+
 
