@@ -17,6 +17,14 @@ export interface CreateOrderPayload {
   }>;
 }
 
+export interface PreviewIncentivePayload {
+  incentiveCode?: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+  }>;
+}
+
 export interface AppliedIncentiveSummary {
   code: string;
   type: 'PERCENTAGE' | 'FIXED';
@@ -27,6 +35,15 @@ export interface CreateOrderResponse {
   order: Order;
   paymentUrl: string | null;
   paymentError?: string;
+  appliedIncentive?: AppliedIncentiveSummary | null;
+}
+
+export interface PreviewIncentiveResponse {
+  subtotal: number;
+  membershipDiscount: number;
+  couponDiscount: number;
+  totalDiscount: number;
+  total: number;
   appliedIncentive?: AppliedIncentiveSummary | null;
 }
 
@@ -80,6 +97,17 @@ export const orderService = {
   ): Promise<CreateOrderResponse> => {
     const response = await http.post<CreateOrderResponse>(
       ENDPOINTS.ORDERS,
+      payload,
+      { showErrorToast: false },
+    );
+    return response.data!;
+  },
+
+  previewIncentive: async (
+    payload: PreviewIncentivePayload,
+  ): Promise<PreviewIncentiveResponse> => {
+    const response = await http.post<PreviewIncentiveResponse>(
+      ENDPOINTS.INCENTIVES.PREVIEW,
       payload,
       { showErrorToast: false },
     );

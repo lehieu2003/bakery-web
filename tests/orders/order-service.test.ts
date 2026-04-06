@@ -105,3 +105,49 @@ test('orderService.prepareReorder posts orderId to reorder endpoint and returns 
     (http as { post: typeof http.post }).post = originalPost;
   }
 });
+
+test('orderService.previewIncentive posts to preview endpoint and returns pricing data', async () => {
+  const originalPost = http.post;
+  let capturedUrl = '';
+  let capturedPayload: unknown = null;
+  let capturedConfig: unknown = null;
+
+  (http as { post: typeof http.post }).post = async (url, payload, config) => {
+    capturedUrl = url;
+    capturedPayload = payload;
+    capturedConfig = config;
+    return {
+      success: true,
+      data: {
+        subtotal: 200000,
+        membershipDiscount: 14000,
+        couponDiscount: 40000,
+        totalDiscount: 40000,
+        total: 160000,
+        appliedIncentive: {
+          code: 'SPRING20',
+          type: 'PERCENTAGE',
+          discount: 40000,
+        },
+      } as never,
+    };
+  };
+
+  try {
+    const payload = {
+      incentiveCode: 'SPRING20',
+      items: [{ productId: 'p1', quantity: 2 }],
+    };
+    const result = await orderService.previewIncentive(payload);
+
+    assert.equal(capturedUrl, ENDPOINTS.INCENTIVES.PREVIEW);
+    assert.deepEqual(capturedPayload, payload);
+    assert.deepEqual(capturedConfig, { showErrorToast: false });
+    assert.equal(result.total, 160000);
+    assert.equal(result.couponDiscount, 40000);
+    assert.equal(result.appliedIncentive?.code, 'SPRING20');
+  } finally {
+    (http as { post: typeof http.post }).post = originalPost;
+  }
+});
+

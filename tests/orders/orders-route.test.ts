@@ -4,6 +4,7 @@ import {
   handleCreateOrderRequest,
   handleGetOrdersRequest,
 } from '@/app/api/orders/route';
+import { INCENTIVE_PER_USER_LIMIT_REACHED } from '@/lib/incentives/redemption-lifecycle';
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
@@ -17,15 +18,26 @@ type CreateOrderWithItemsArgs = Parameters<
 >[0];
 
 type IncentiveFixture = {
+  id: string;
   code: string;
+  sourceType: 'PUBLIC' | 'TARGETED' | 'TRIGGERED';
   type: 'PERCENTAGE' | 'FIXED';
   value: number;
   minOrder: number | null;
   maxDiscount: number | null;
   usageLimit: number | null;
+  perUserLimit: number | null;
+  scopeProductIds: string[];
+  scopeCategoryIds: string[];
   startAt: Date;
   endAt: Date;
   isActive: boolean;
+  assignments: Array<{
+    userId: string | null;
+    targetSegment: 'SILVER' | 'GOLD' | 'PLATINUM' | null;
+    isActive: boolean;
+    expiresAt: Date | null;
+  }>;
 };
 
 function createDeps(): CreateOrderDeps {
@@ -38,12 +50,20 @@ function createDeps(): CreateOrderDeps {
   return {
     getCurrentUser: async () => null,
     findProducts: async () => [
-      { id: 'p1', name: 'Cake A', price: 100000, stock: 10 },
+      {
+        id: 'p1',
+        name: 'Cake A',
+        price: 100000,
+        stock: 10,
+        categoryIds: ['cat-cake'],
+      },
     ],
     findIncentiveByCode: async () => null,
+    countUserCommittedIncentiveUsage: async () => 0,
     now: () => new Date('2026-04-06T12:00:00.000Z'),
     createOrderWithItems: async () => order,
     createPaymentRecord: async () => undefined,
+    handlePaymentInitFailure: async () => undefined,
     createMoMoPayment: async () => ({ payUrl: 'https://pay.example/momo' }),
     createZaloPayPayment: async () => ({ payUrl: 'https://pay.example/zalo' }),
     getAppUrl: () => 'http://localhost:3000',
@@ -84,15 +104,21 @@ function createIncentiveFixture(
   overrides: Partial<IncentiveFixture> = {},
 ): IncentiveFixture {
   return {
+    id: 'coupon-welcome10',
     code: 'WELCOME10',
+    sourceType: 'PUBLIC',
     type: 'PERCENTAGE',
     value: 10,
     minOrder: null,
     maxDiscount: null,
     usageLimit: null,
+    perUserLimit: null,
+    scopeProductIds: [],
+    scopeCategoryIds: [],
     startAt: new Date('2026-04-01T00:00:00.000Z'),
     endAt: new Date('2026-04-30T23:59:59.000Z'),
     isActive: true,
+    assignments: [],
     ...overrides,
   };
 }
@@ -461,8 +487,8 @@ test('POST /api/orders rejects incentive when usage limit is exhausted during tr
     deps,
   );
 
-  assert.equal(capturedArgs?.appliedIncentiveCode, 'FLASH30');
-  assert.equal(capturedArgs?.appliedIncentiveUsageLimited, true);
+  assert.equal(capturedArgs?.appliedIncentive?.code, 'FLASH30');
+  assert.equal(capturedArgs?.appliedIncentive?.usageLimit, 1);
   assert.equal(result.status, 400);
   assert.equal(
     result.body.error,
@@ -699,3 +725,76 @@ test('POST /api/orders clamps negative membership discounts to avoid surcharges'
 });
 
 
+
+
+
+
+
+
+test('POST /api/orders cancels order and releases reserved coupon when MoMo init fails', async () => {
+  const deps = createDeps();
+  const cleanupCalls: Array<{ orderId: string; provider: 'MOMO' | 'ZALOPAY'; reason: string }> = [];
+  deps.createMoMoPayment = async () =>
+    ({ error: 'momo init failed' }) as never;
+  deps.handlePaymentInitFailure = async (args) => {
+    cleanupCalls.push(args);
+  };
+  const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(result.body.data?.paymentError, 'momo init failed');
+  assert.deepEqual(cleanupCalls, [
+    {
+      orderId: 'o1',
+      provider: 'MOMO',
+      reason: 'PAYMENT_INIT_FAILED',
+    },
+  ]);
+});
+test('POST /api/orders cancels order and releases reserved coupon when ZaloPay init fails', async () => {
+  const deps = createDeps();
+  const cleanupCalls: Array<{ orderId: string; provider: 'MOMO' | 'ZALOPAY'; reason: string }> = [];
+  deps.createZaloPayPayment = async () =>
+    ({ error: 'zalo init failed' }) as never;
+  deps.handlePaymentInitFailure = async (args) => {
+    cleanupCalls.push(args);
+  };
+  const result = await handleCreateOrderRequest(buildPayload('ZALOPAY'), deps);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(result.body.data?.paymentError, 'zalo init failed');
+  assert.deepEqual(cleanupCalls, [
+    {
+      orderId: 'o1',
+      provider: 'ZALOPAY',
+      reason: 'PAYMENT_INIT_FAILED',
+    },
+  ]);
+});
+test('POST /api/orders rejects incentive when per-user limit is exhausted during transaction', async () => {
+  const deps = createDeps();
+  deps.findIncentiveByCode = async () =>
+    createIncentiveFixture({
+      code: 'ONCEONLY',
+      type: 'FIXED',
+      value: 20000,
+      perUserLimit: 1,
+    });
+  deps.getCurrentUser = async () => ({
+    id: 'u1',
+    email: 'u1@example.com',
+    memberLevel: 'SILVER',
+  });
+  deps.createOrderWithItems = async () => {
+    throw new Error(INCENTIVE_PER_USER_LIMIT_REACHED);
+  };
+  const result = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), incentiveCode: 'onceonly' },
+    deps,
+  );
+  assert.equal(result.status, 400);
+  assert.equal(
+    result.body.error,
+    'Incentive code has reached your personal usage limit. Please try another code.',
+  );
+});

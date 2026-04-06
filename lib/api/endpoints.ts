@@ -171,6 +171,7 @@ export const ENDPOINTS = {
   ORDERS_REORDER: `${API_BASE}/orders/reorder`,
   INCENTIVES: {
     AVAILABLE: `${API_BASE}/incentives/available`,
+    PREVIEW: `${API_BASE}/incentives/preview`,
   },
   MEMBERSHIP: {
     BENEFITS: `${API_BASE}/membership/benefits`,

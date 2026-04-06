@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
 
 // GET: Get order details
 export async function GET(
@@ -123,16 +124,30 @@ export async function PATCH(
     if (body.customerAddress !== undefined)
       updateData.customerAddress = body.customerAddress;
 
-    const order = await prisma.order.update({
-      where: { id },
-      data: updateData,
-      include: {
-        user: {
-          select: { name: true, email: true },
+    const order = await prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.order.update({
+        where: { id },
+        data: updateData,
+        include: {
+          user: {
+            select: { name: true, email: true },
+          },
+          orderItems: true,
+          payment: true,
         },
-        orderItems: true,
-        payment: true,
-      },
+      });
+
+      if (body.status && body.status !== existing.status) {
+        await applyCouponLifecycleForOrderStatus({
+          orderId: id,
+          status: body.status,
+          reason:
+            body.status === 'CANCELLED' ? 'ADMIN_CANCELLED' : 'ADMIN_STATUS_UPDATE',
+          tx,
+        });
+      }
+
+      return updatedOrder;
     });
 
     return NextResponse.json({

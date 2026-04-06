@@ -8,7 +8,19 @@ import {
   getMembershipRulesConfig,
   type MembershipRulesConfig,
 } from '@/lib/membership/rules';
-import { PaymentMethod } from '@prisma/client';
+import {
+  asNumber,
+  evaluateIncentiveEligibility,
+  normalizeIncentiveCode,
+  type IncentiveReadModel,
+} from '@/lib/incentives/policy';
+import {
+  INCENTIVE_PER_USER_LIMIT_REACHED,
+  INCENTIVE_USAGE_LIMIT_REACHED,
+  applyCouponLifecycleForOrderStatus,
+  reserveCouponRedemption,
+} from '@/lib/incentives/redemption-lifecycle';
+import { PaymentMethod, Prisma } from '@prisma/client';
 
 const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'COD',
@@ -17,7 +29,6 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'ZALOPAY',
 ];
 const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
-const INCENTIVE_USAGE_LIMIT_REACHED = 'INCENTIVE_USAGE_LIMIT_REACHED';
 
 type CreateOrderPayload = {
   customerName?: string;
@@ -33,21 +44,12 @@ type CreateOrderPayload = {
   }>;
 };
 
-type IncentiveReadModel = {
-  code: string;
-  type: 'PERCENTAGE' | 'FIXED';
-  value: unknown;
-  minOrder: unknown | null;
-  maxDiscount: unknown | null;
-  usageLimit: number | null;
-  startAt: Date;
-  endAt: Date;
-  isActive: boolean;
-};
-
 type AppliedIncentive = {
+  couponId: string;
   code: string;
   type: 'PERCENTAGE' | 'FIXED';
+  usageLimit: number | null;
+  perUserLimit: number | null;
   discount: number;
 };
 
@@ -60,9 +62,22 @@ type CreateOrderRouteDeps = {
   findProducts: (
     productIds: string[],
   ) => Promise<
-    Array<{ id: string; name: string; price: number; stock: number }>
+    Array<{
+      id: string;
+      name: string;
+      price: number;
+      stock: number;
+      categoryIds: string[];
+    }>
   >;
-  findIncentiveByCode: (code: string) => Promise<IncentiveReadModel | null>;
+  findIncentiveByCode: (
+    code: string,
+    user: { id: string | null; memberLevel?: string | null } | null,
+  ) => Promise<IncentiveReadModel | null>;
+  countUserCommittedIncentiveUsage: (
+    couponId: string,
+    userId: string,
+  ) => Promise<number>;
   now: () => Date;
   createOrderWithItems: (args: {
     orderNumber: string;
@@ -73,8 +88,7 @@ type CreateOrderRouteDeps = {
     subtotal: number;
     discount: number;
     total: number;
-    appliedIncentiveCode?: string | null;
-    appliedIncentiveUsageLimited?: boolean;
+    appliedIncentive?: AppliedIncentive | null;
     paymentMethod: PaymentMethod;
     orderItems: Array<{
       productId: string;
@@ -98,6 +112,11 @@ type CreateOrderRouteDeps = {
     orderId: string;
     provider: 'MOMO' | 'ZALOPAY';
     amount: number;
+  }) => Promise<void>;
+  handlePaymentInitFailure: (args: {
+    orderId: string;
+    provider: 'MOMO' | 'ZALOPAY';
+    reason: string;
   }) => Promise<void>;
   createMoMoPayment: typeof createMoMoPayment;
   createZaloPayPayment: typeof createZaloPayPayment;
@@ -160,37 +179,6 @@ function generateOrderNumber(): string {
   return `BK${dateStr}${rand}`;
 }
 
-function normalizeIncentiveCode(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
-  if (typeof value !== 'string') return '';
-  return value.trim().toUpperCase();
-}
-
-function formatCurrencyVnd(value: number): string {
-  return `${Math.round(value).toLocaleString('vi-VN')}đ`;
-}
-
-function calculateIncentiveDiscount(
-  incentive: IncentiveReadModel,
-  subtotal: number,
-): number {
-  const rawValue = Math.max(asNumber(incentive.value), 0);
-
-  if (incentive.type === 'FIXED') {
-    return Math.min(Math.round(rawValue), subtotal);
-  }
-
-  const percent = Math.min(Math.max(rawValue, 0), 100);
-  const uncapped = Math.round(subtotal * (percent / 100));
-  const maxDiscount = asNumber(incentive.maxDiscount);
-
-  if (maxDiscount > 0) {
-    return Math.min(uncapped, Math.round(maxDiscount), subtotal);
-  }
-
-  return Math.min(uncapped, subtotal);
-}
-
 function buildOrderSuccessData(args: {
   order: {
     id: string;
@@ -212,7 +200,13 @@ function buildOrderSuccessData(args: {
     order: { ...args.order, orderNumber: args.orderNumber },
     paymentUrl: args.paymentUrl,
     ...(args.paymentError ? { paymentError: args.paymentError } : {}),
-    appliedIncentive: args.appliedIncentive,
+    appliedIncentive: args.appliedIncentive
+      ? {
+          code: args.appliedIncentive.code,
+          type: args.appliedIncentive.type,
+          discount: args.appliedIncentive.discount,
+        }
+      : null,
   };
 }
 
@@ -223,27 +217,54 @@ const createOrderDeps: CreateOrderRouteDeps = {
     prisma.product
       .findMany({
         where: { id: { in: productIds }, isActive: true },
-        select: { id: true, name: true, price: true, stock: true },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          stock: true,
+          categories: {
+            select: {
+              categoryId: true,
+            },
+          },
+        },
       })
       .then((products) =>
         products.map((product) => ({
-          ...product,
+          id: product.id,
+          name: product.name,
           price: Number(product.price),
+          stock: product.stock,
+          categoryIds: product.categories.map((category) => category.categoryId),
         })),
       ),
   findIncentiveByCode: async (code) => {
     const coupon = await prisma.coupon.findUnique({
       where: { code },
       select: {
+        id: true,
         code: true,
+        sourceType: true,
         type: true,
         value: true,
         minOrder: true,
         maxDiscount: true,
         usageLimit: true,
+        perUserLimit: true,
+        scopeProductIds: true,
+        scopeCategoryIds: true,
         startAt: true,
         endAt: true,
         isActive: true,
+        assignments: {
+          where: { isActive: true },
+          select: {
+            userId: true,
+            targetSegment: true,
+            isActive: true,
+            expiresAt: true,
+          },
+        },
       },
     });
 
@@ -251,70 +272,83 @@ const createOrderDeps: CreateOrderRouteDeps = {
 
     return {
       ...coupon,
+      sourceType: coupon.sourceType as 'PUBLIC' | 'TARGETED' | 'TRIGGERED',
       type: coupon.type as 'PERCENTAGE' | 'FIXED',
+      assignments: coupon.assignments.map((assignment) => ({
+        userId: assignment.userId,
+        targetSegment: assignment.targetSegment as 'SILVER' | 'GOLD' | 'PLATINUM' | null,
+        isActive: assignment.isActive,
+        expiresAt: assignment.expiresAt,
+      })),
     };
   },
+  countUserCommittedIncentiveUsage: (couponId, userId) =>
+    prisma.couponRedemption.count({
+      where: {
+        couponId,
+        userId,
+        state: { in: ['RESERVED', 'COMMITTED'] },
+      },
+    }),
   now: () => new Date(),
   createOrderWithItems: (args) =>
-    prisma.$transaction(async (tx) => {
-      if (args.appliedIncentiveCode && args.appliedIncentiveUsageLimited) {
-        const result = await tx.coupon.updateMany({
-          where: {
-            code: args.appliedIncentiveCode,
-            isActive: true,
-            usageLimit: { gt: 0 },
-          },
-          data: {
-            usageLimit: { decrement: 1 },
-          },
-        });
-
-        if (result.count === 0) {
-          throw new Error(INCENTIVE_USAGE_LIMIT_REACHED);
+    prisma.$transaction(
+      async (tx) => {
+        for (const item of args.orderItems) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } },
+          });
         }
-      }
 
-      for (const item of args.orderItems) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
-
-      const created = await tx.order.create({
-        data: {
-          orderNumber: args.orderNumber,
-          userId: args.userId,
-          customerName: args.customerName,
-          customerPhone: args.customerPhone,
-          customerEmail: args.customerEmail,
-          subtotal: args.subtotal,
-          deliveryFee: 0,
-          discount: args.discount,
-          total: args.total,
-          paymentMethod: args.paymentMethod,
-          status: 'PENDING',
-          orderItems: {
-            create: args.orderItems,
+        const created = await tx.order.create({
+          data: {
+            orderNumber: args.orderNumber,
+            userId: args.userId,
+            customerName: args.customerName,
+            customerPhone: args.customerPhone,
+            customerEmail: args.customerEmail,
+            subtotal: args.subtotal,
+            deliveryFee: 0,
+            discount: args.discount,
+            total: args.total,
+            paymentMethod: args.paymentMethod,
+            status: 'PENDING',
+            orderItems: {
+              create: args.orderItems,
+            },
           },
-        },
-        include: {
-          orderItems: true,
-        },
-      });
+          include: {
+            orderItems: true,
+          },
+        });
+        if (args.appliedIncentive) {
+          await reserveCouponRedemption({
+            tx,
+            couponId: args.appliedIncentive.couponId,
+            couponCode: args.appliedIncentive.code,
+            usageLimit: args.appliedIncentive.usageLimit,
+            perUserLimit: args.appliedIncentive.perUserLimit,
+            orderId: created.id,
+            userId: args.userId,
+            reservedDiscount: args.appliedIncentive.discount,
+          });
+        }
 
-      return {
-        id: created.id,
-        orderNumber: created.orderNumber,
-        orderItems: created.orderItems.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          price: Number(item.price),
-          quantity: item.quantity,
-          subtotal: Number(item.subtotal),
-        })),
-      };
-    }),
+        return {
+          id: created.id,
+          orderNumber: created.orderNumber,
+          orderItems: created.orderItems.map((item) => ({
+            productId: item.productId,
+            name: item.name,
+            price: Number(item.price),
+            quantity: item.quantity,
+            subtotal: Number(item.subtotal),
+          })),
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
   createPaymentRecord: async ({ orderId, provider, amount }) => {
     await prisma.payment.create({
       data: {
@@ -323,6 +357,32 @@ const createOrderDeps: CreateOrderRouteDeps = {
         amount,
         status: 'PENDING',
       },
+    });
+  },
+  handlePaymentInitFailure: async ({ orderId, provider, reason }) => {
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.updateMany({
+        where: {
+          orderId,
+          provider,
+          status: 'PENDING',
+        },
+        data: {
+          status: 'FAILED',
+        },
+      });
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: 'CANCELLED' },
+      });
+
+      await applyCouponLifecycleForOrderStatus({
+        orderId,
+        status: 'CANCELLED',
+        reason,
+        tx,
+      });
     });
   },
   createMoMoPayment,
@@ -469,6 +529,7 @@ export async function handleCreateOrderRequest(
       price,
       quantity: item.quantity!,
       subtotal: price * item.quantity!,
+      categoryIds: product.categoryIds,
     };
   });
 
@@ -483,12 +544,14 @@ export async function handleCreateOrderRequest(
 
   let finalDiscount = membershipDiscount;
   let appliedIncentive: AppliedIncentive | null = null;
-  let appliedIncentiveUsageLimited = false;
 
   if (normalizedIncentiveCode) {
-    const incentive = await deps.findIncentiveByCode(normalizedIncentiveCode);
+    const incentive = await deps.findIncentiveByCode(normalizedIncentiveCode, {
+      id: user?.id ?? null,
+      memberLevel: user?.memberLevel ?? null,
+    });
 
-    if (!incentive || !incentive.isActive) {
+    if (!incentive) {
       return {
         status: 400,
         body: {
@@ -498,75 +561,45 @@ export async function handleCreateOrderRequest(
       };
     }
 
-    const now = deps.now();
-    if (now < incentive.startAt) {
+    const userCommittedUsageCount = user?.id
+      ? await deps.countUserCommittedIncentiveUsage(incentive.id, user.id)
+      : 0;
+
+    const evaluation = evaluateIncentiveEligibility({
+      incentive,
+      now: deps.now(),
+      user: {
+        id: user?.id ?? null,
+        memberLevel: user?.memberLevel ?? null,
+      },
+      cartSubtotal: subtotal,
+      cartItems: orderItems.map((item) => ({
+        productId: item.productId,
+        lineSubtotal: item.subtotal,
+        categoryIds: item.categoryIds,
+      })),
+      membershipDiscount,
+      userCommittedUsageCount,
+    });
+
+    if (!evaluation.ok) {
       return {
         status: 400,
         body: {
           success: false,
-          error: `Incentive code "${normalizedIncentiveCode}" is not active yet.`,
+          error: evaluation.message,
         },
       };
     }
 
-    if (now > incentive.endAt) {
-      return {
-        status: 400,
-        body: {
-          success: false,
-          error: `Incentive code "${normalizedIncentiveCode}" has expired.`,
-        },
-      };
-    }
-
-    if (incentive.usageLimit !== null && incentive.usageLimit <= 0) {
-      return {
-        status: 400,
-        body: {
-          success: false,
-          error: `Incentive code "${normalizedIncentiveCode}" has reached its usage limit.`,
-        },
-      };
-    }
-
-    const minOrder = asNumber(incentive.minOrder);
-    if (minOrder > 0 && subtotal < minOrder) {
-      return {
-        status: 400,
-        body: {
-          success: false,
-          error: `Incentive code "${normalizedIncentiveCode}" requires a minimum order of ${formatCurrencyVnd(minOrder)}.`,
-        },
-      };
-    }
-
-    const incentiveDiscount = calculateIncentiveDiscount(incentive, subtotal);
-    if (incentiveDiscount <= 0) {
-      return {
-        status: 400,
-        body: {
-          success: false,
-          error: `Incentive code "${normalizedIncentiveCode}" does not provide a valid discount.`,
-        },
-      };
-    }
-
-    if (membershipDiscount > 0 && incentiveDiscount <= membershipDiscount) {
-      return {
-        status: 400,
-        body: {
-          success: false,
-          error: `Incentive code "${normalizedIncentiveCode}" conflicts with your current membership benefit. Remove the code or increase cart value.`,
-        },
-      };
-    }
-
-    finalDiscount = incentiveDiscount;
-    appliedIncentiveUsageLimited = incentive.usageLimit !== null;
+    finalDiscount = evaluation.discount;
     appliedIncentive = {
+      couponId: incentive.id,
       code: normalizedIncentiveCode,
       type: incentive.type,
-      discount: incentiveDiscount,
+      usageLimit: incentive.usageLimit,
+      perUserLimit: incentive.perUserLimit,
+      discount: evaluation.discount,
     };
   }
 
@@ -581,6 +614,13 @@ export async function handleCreateOrderRequest(
 
   const totalInt = Math.round(total);
   const orderNumber = generateOrderNumber();
+  const persistableOrderItems = orderItems.map((item) => ({
+    productId: item.productId,
+    name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    subtotal: item.subtotal,
+  }));
   let order: Awaited<ReturnType<CreateOrderRouteDeps['createOrderWithItems']>>;
   try {
     order = await deps.createOrderWithItems({
@@ -592,10 +632,9 @@ export async function handleCreateOrderRequest(
       subtotal,
       discount: finalDiscount,
       total,
-      appliedIncentiveCode: appliedIncentive?.code ?? null,
-      appliedIncentiveUsageLimited,
       paymentMethod,
-      orderItems,
+      appliedIncentive,
+      orderItems: persistableOrderItems,
     });
   } catch (error) {
     if (
@@ -609,6 +648,20 @@ export async function handleCreateOrderRequest(
           success: false,
           error:
             'Incentive code is no longer available. Please try another code.',
+        },
+      };
+    }
+    if (
+      error instanceof Error &&
+      error.message === INCENTIVE_PER_USER_LIMIT_REACHED &&
+      appliedIncentive
+    ) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error:
+            'Incentive code has reached your personal usage limit. Please try another code.',
         },
       };
     }
@@ -636,6 +689,15 @@ export async function handleCreateOrderRequest(
     });
 
     if ('error' in result) {
+      try {
+        await deps.handlePaymentInitFailure({
+          orderId: order.id,
+          provider: 'MOMO',
+          reason: 'PAYMENT_INIT_FAILED',
+        });
+      } catch (cleanupError) {
+        console.error('MoMo payment init failure cleanup error:', cleanupError);
+      }
       return {
         status: 200,
         body: {
@@ -687,6 +749,18 @@ export async function handleCreateOrderRequest(
     });
 
     if ('error' in result) {
+      try {
+        await deps.handlePaymentInitFailure({
+          orderId: order.id,
+          provider: 'ZALOPAY',
+          reason: 'PAYMENT_INIT_FAILED',
+        });
+      } catch (cleanupError) {
+        console.error(
+          'ZaloPay payment init failure cleanup error:',
+          cleanupError,
+        );
+      }
       return {
         status: 200,
         body: {
@@ -728,25 +802,6 @@ export async function handleCreateOrderRequest(
       }),
     },
   };
-}
-
-function asNumber(value: unknown): number {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  if (
-    value &&
-    typeof value === 'object' &&
-    'toNumber' in value &&
-    typeof (value as { toNumber?: unknown }).toNumber === 'function'
-  ) {
-    const parsed = (value as { toNumber: () => number }).toNumber();
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  return 0;
 }
 
 function serializeOrder(order: OrderReadModel) {
@@ -832,3 +887,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+

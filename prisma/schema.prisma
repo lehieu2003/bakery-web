@@ -43,6 +43,18 @@ enum DiscountType {
   FIXED
 }
 
+enum CouponSourceType {
+  PUBLIC
+  TARGETED
+  TRIGGERED
+}
+
+enum CouponRedemptionState {
+  RESERVED
+  COMMITTED
+  RELEASED
+}
+
 enum PaymentMethod {
   COD
   BANK_TRANSFER
@@ -97,7 +109,7 @@ model User {
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   sessions             Session[]
   orders               Order[]
@@ -108,6 +120,10 @@ model User {
   blogComments         BlogComment[]
   notificationsCreated Notification[]
   notificationReads    NotificationRead[]
+  couponAssignments    CouponAssignment[] @relation("CouponAssignee")
+  issuedCouponAssignments CouponAssignment[] @relation("CouponIssuer")
+  couponRedemptions    CouponRedemption[]
+  couponAuditLogs      CouponAuditLog[]   @relation("CouponAuditActor")
 
   cart Cart?
 
@@ -202,7 +218,7 @@ model Category {
   menuItems MenuItem[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 ////////////////////////////////////////////////////////////
@@ -234,7 +250,7 @@ model Product {
   isFeatured Boolean @default(false)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   images               ProductImage[]
   variants             ProductVariant[]
@@ -270,7 +286,7 @@ model ProductAttribute {
   assignments ProductAttributeAssignment[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([isActive, isFilterable, displayOrder])
   @@index([type])
@@ -293,7 +309,7 @@ model ProductAttributeValue {
   assignments ProductAttributeAssignment[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([attributeId, slug])
   @@unique([attributeId, value])
@@ -312,7 +328,7 @@ model ProductAttributeAssignment {
   booleanValue Boolean?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   product   Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
   attribute ProductAttribute       @relation(fields: [attributeId], references: [id], onDelete: Cascade)
@@ -380,7 +396,7 @@ model ProductVariant {
   stock Int @default(0)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -398,7 +414,7 @@ model Cart {
   userId String? @unique
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   user User? @relation(fields: [userId], references: [id])
 
@@ -448,11 +464,12 @@ model Order {
   paymentMethod PaymentMethod?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   user       User?       @relation(fields: [userId], references: [id])
   orderItems OrderItem[]
   payment    Payment?
+  couponRedemption CouponRedemption?
 }
 
 model OrderItem {
@@ -546,6 +563,8 @@ model Coupon {
 
   code String @unique
 
+  sourceType CouponSourceType @default(PUBLIC)
+
   type  DiscountType
   value Decimal      @db.Decimal(10, 2)
 
@@ -553,6 +572,10 @@ model Coupon {
   maxDiscount Decimal?
 
   usageLimit Int?
+  perUserLimit Int?
+
+  scopeProductIds  String[] @default([])
+  scopeCategoryIds String[] @default([])
 
   startAt DateTime
   endAt   DateTime
@@ -560,6 +583,81 @@ model Coupon {
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  assignments CouponAssignment[]
+  redemptions CouponRedemption[]
+  auditLogs   CouponAuditLog[]
+}
+
+model CouponAssignment {
+  id String @id @default(cuid())
+
+  couponId String
+  userId   String?
+  issuedById String?
+
+  targetSegment MemberLevel?
+  isActive      Boolean      @default(true)
+
+  issuedAt  DateTime @default(now())
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user     User?  @relation("CouponAssignee", fields: [userId], references: [id], onDelete: SetNull)
+  issuedBy User?  @relation("CouponIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+
+  @@index([couponId, isActive])
+  @@index([userId, isActive])
+  @@index([targetSegment, isActive])
+}
+
+model CouponRedemption {
+  id String @id @default(cuid())
+
+  couponId String
+  orderId  String @unique
+  userId   String?
+
+  state CouponRedemptionState @default(RESERVED)
+
+  reservedDiscount Decimal  @db.Decimal(10, 2)
+  reservedAt       DateTime @default(now())
+  committedAt      DateTime?
+  releasedAt       DateTime?
+  releaseReason    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([couponId, state])
+  @@index([userId, state])
+}
+
+model CouponAuditLog {
+  id String @id @default(cuid())
+
+  couponId     String
+  actorUserId  String?
+  actorRole    UserRole?
+  mutationType String
+  beforeData   Json?
+  afterData    Json?
+
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  actor  User?  @relation("CouponAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([couponId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
 }
 
 ////////////////////////////////////////////////////////////
@@ -605,7 +703,7 @@ model Page {
   isPublished Boolean @default(true)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   menuItems MenuItem[]
 }
@@ -648,7 +746,7 @@ model Notification {
   createdById String
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   createdBy User               @relation(fields: [createdById], references: [id])
   reads     NotificationRead[]
@@ -687,7 +785,7 @@ model BlogCategory {
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   posts BlogPost[]
 }
@@ -723,7 +821,7 @@ model BlogPost {
   metaDescription String?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   author   User          @relation(fields: [authorId], references: [id])
   category BlogCategory? @relation(fields: [categoryId], references: [id])
@@ -782,5 +880,6 @@ model Setting {
   value String
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 }
+

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyZaloPayCallback } from '@/lib/payment/zalopay';
+import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
 
 type PaymentSnapshot = {
   orderId: string;
@@ -32,30 +33,38 @@ const defaultDeps: ZaloCallbackDeps = {
       select: { orderId: true, status: true, transactionId: true },
     }),
   applyPaymentTransition: async ({ orderId, paymentStatus, transactionId }) => {
-    await prisma.$transaction([
-      prisma.payment.update({
+    const nextOrderStatus =
+      paymentStatus === 'PAID'
+        ? 'CONFIRMED'
+        : paymentStatus === 'FAILED'
+          ? 'CANCELLED'
+          : null;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.update({
         where: { orderId },
         data: {
           status: paymentStatus,
           transactionId: transactionId ?? undefined,
         },
-      }),
-      ...(paymentStatus === 'PAID'
-        ? [
-            prisma.order.update({
-              where: { id: orderId },
-              data: { status: 'CONFIRMED' },
-            }),
-          ]
-        : paymentStatus === 'FAILED'
-          ? [
-              prisma.order.update({
-                where: { id: orderId },
-                data: { status: 'CANCELLED' },
-              }),
-            ]
-        : []),
-    ]);
+      });
+
+      if (nextOrderStatus) {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: nextOrderStatus },
+        });
+        await applyCouponLifecycleForOrderStatus({
+          orderId,
+          status: nextOrderStatus,
+          reason:
+            nextOrderStatus === 'CANCELLED'
+              ? 'PAYMENT_FAILED'
+              : 'PAYMENT_CONFIRMED',
+          tx,
+        });
+      }
+    });
   },
   logEvent: (event, payload) => {
     console.info(

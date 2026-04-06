@@ -1,11 +1,11 @@
 'use client';
 
 import { ChevronLeft, Banknote, Wallet, Loader2, TicketPercent } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
 import { useAvailableIncentives } from '@/hooks/use-available-incentives';
-import { orderService } from '@/services/order.service';
+import { orderService, type PreviewIncentiveResponse } from '@/services/order.service';
 import { ApiError } from '@/lib/api/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -64,19 +64,81 @@ export default function CheckoutPaymentScreen() {
   >('COD');
   const [incentiveCode, setIncentiveCode] = useState('');
   const [incentiveAssistMessage, setIncentiveAssistMessage] = useState('');
+  const [incentiveError, setIncentiveError] = useState('');
+  const [previewPricing, setPreviewPricing] =
+    useState<PreviewIncentiveResponse | null>(null);
+  const [isApplyingIncentive, setIsApplyingIncentive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const isSubmittingRef = useRef(false);
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const cartContext = Array.from(
+    cart.reduce((acc, item) => {
+      const current = acc.get(item.productId) ?? 0;
+      acc.set(item.productId, current + item.quantity);
+      return acc;
+    }, new Map<string, number>()),
+  ).map(([productId, quantity]) => ({ productId, quantity }));
   const discountRate = user ? discountPercent / 100 : 0;
   const discount = Math.round(subtotal * discountRate);
-  const total = subtotal - discount;
+  const baseTotal = subtotal - discount;
   const availableIncentivesQuery = useAvailableIncentives({
     subtotal,
+    cart: cartContext,
     enabled: cart.length > 0,
   });
   const availableIncentives = availableIncentivesQuery.data ?? [];
+  const couponDiscount = previewPricing?.couponDiscount ?? 0;
+  const total = previewPricing?.total ?? baseTotal;
+  const membershipDiscountApplied = previewPricing
+    ? Math.max(previewPricing.totalDiscount - previewPricing.couponDiscount, 0)
+    : discount;
+
+  useEffect(() => {
+    setPreviewPricing(null);
+    setIncentiveAssistMessage('');
+    setIncentiveError('');
+  }, [subtotal, discount]);
+
+  async function handleApplyIncentive(rawCode?: string) {
+    const normalizedCode = (rawCode ?? incentiveCode).trim().toUpperCase();
+
+    if (!normalizedCode) {
+      setIncentiveError('Please enter an incentive code.');
+      setPreviewPricing(null);
+      return;
+    }
+
+    setIncentiveError('');
+    setError('');
+    setIncentiveAssistMessage('');
+    setIsApplyingIncentive(true);
+
+    try {
+      const preview = await orderService.previewIncentive({
+        incentiveCode: normalizedCode,
+        items: cart.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      });
+      setIncentiveCode(normalizedCode);
+      setPreviewPricing(preview);
+      setIncentiveAssistMessage(
+        `Applied ${normalizedCode}. Coupon discount: -${preview.couponDiscount.toLocaleString('vi-VN')}đ.`,
+      );
+    } catch (caught) {
+      setPreviewPricing(null);
+      if (caught instanceof ApiError && caught.data?.error) {
+        setIncentiveError(caught.data.error);
+      } else {
+        setIncentiveError('Unable to apply incentive code right now.');
+      }
+    } finally {
+      setIsApplyingIncentive(false);
+    }
+  }
 
   async function handlePlaceOrder() {
     if (
@@ -97,6 +159,7 @@ export default function CheckoutPaymentScreen() {
     setIsSubmitting(true);
     setError('');
     setIncentiveAssistMessage('');
+    setIncentiveError('');
 
     try {
       const result = await orderService.createOrder({
@@ -161,13 +224,13 @@ export default function CheckoutPaymentScreen() {
       <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10 flex flex-col lg:flex-row gap-10'>
         {/* Payment method selection */}
         <div className='flex-1 min-w-0 space-y-6'>
-          {user && discount > 0 && (
+          {user && membershipDiscountApplied > 0 && (
             <div className='flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-primary/10 border border-primary/20'>
               <span className='text-primary text-lg font-serif'>✦</span>
               <p className='text-sm font-medium text-primary'>
                 {memberLabel}{' '}
                 Member Discount Applied — saving{' '}
-                {discount.toLocaleString('vi-VN')}đ on this order
+                {membershipDiscountApplied.toLocaleString('vi-VN')}đ on this order
               </p>
               <p className='text-xs text-primary' aria-live='polite'>
                 Current points: {membershipPoints.toLocaleString('vi-VN')}.{' '}
@@ -189,10 +252,29 @@ export default function CheckoutPaymentScreen() {
               onChange={(e) => {
                 setIncentiveCode(e.target.value.toUpperCase());
                 setIncentiveAssistMessage('');
+                setIncentiveError('');
+                setPreviewPricing(null);
               }}
               placeholder='Enter incentive code (optional)'
               className='w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
             />
+            <button
+              type='button'
+              onClick={() => {
+                void handleApplyIncentive();
+              }}
+              disabled={isApplyingIncentive || cart.length === 0}
+              className='w-full px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+            >
+              {isApplyingIncentive ? (
+                <>
+                  <Loader2 size={15} className='animate-spin' />
+                  Applying...
+                </>
+              ) : (
+                'Apply code'
+              )}
+            </button>
             {availableIncentivesQuery.isLoading && (
               <p className='text-xs text-muted-foreground' aria-live='polite'>
                 Loading available offers...
@@ -246,10 +328,7 @@ export default function CheckoutPaymentScreen() {
                           <button
                             type='button'
                             onClick={() => {
-                              setIncentiveCode(offer.code);
-                              setIncentiveAssistMessage(
-                                `Applied ${offer.code} to input. Final validation happens on order placement.`,
-                              );
+                              void handleApplyIncentive(offer.code);
                             }}
                             className='text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors'
                           >
@@ -261,6 +340,11 @@ export default function CheckoutPaymentScreen() {
                   </ul>
                 </div>
               )}
+            {incentiveError && (
+              <p className='text-xs text-destructive' aria-live='polite'>
+                {incentiveError}
+              </p>
+            )}
             {incentiveAssistMessage && (
               <p className='text-xs text-primary' aria-live='polite'>
                 {incentiveAssistMessage}
@@ -389,13 +473,21 @@ export default function CheckoutPaymentScreen() {
                   {subtotal.toLocaleString('vi-VN')}đ
                 </span>
               </div>
-              {discount > 0 && (
+              {membershipDiscountApplied > 0 && (
                 <div className='flex justify-between text-sm'>
                   <span className='text-primary'>
                     {memberLabel} discount ({discountPercent}%)
                   </span>
                   <span className='text-primary font-semibold'>
-                    -{discount.toLocaleString('vi-VN')}đ
+                    -{membershipDiscountApplied.toLocaleString('vi-VN')}đ
+                  </span>
+                </div>
+              )}
+              {couponDiscount > 0 && (
+                <div className='flex justify-between text-sm'>
+                  <span className='text-primary'>Coupon discount</span>
+                  <span className='text-primary font-semibold'>
+                    -{couponDiscount.toLocaleString('vi-VN')}đ
                   </span>
                 </div>
               )}
@@ -403,7 +495,7 @@ export default function CheckoutPaymentScreen() {
                 <div className='flex justify-between text-sm'>
                   <span className='text-muted-foreground'>Incentive code</span>
                   <span className='text-foreground font-medium'>
-                    {incentiveCode.trim()}
+                    {previewPricing?.appliedIncentive?.code ?? incentiveCode.trim()}
                   </span>
                 </div>
               )}

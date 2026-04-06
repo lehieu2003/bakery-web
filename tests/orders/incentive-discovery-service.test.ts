@@ -35,6 +35,8 @@ test('incentiveDiscoveryService.getAvailable uses incentives endpoint with subto
     assert.deepEqual(capturedConfig, {
       params: {
         subtotal: 200000,
+        cart: undefined,
+        productIds: undefined,
       },
       skipAuthRedirect: true,
       showErrorToast: false,
@@ -45,3 +47,38 @@ test('incentiveDiscoveryService.getAvailable uses incentives endpoint with subto
     (http as { get: typeof http.get }).get = originalGet;
   }
 });
+
+test('incentiveDiscoveryService.getAvailable includes cart query when provided', async () => {
+  const originalGet = http.get;
+  let capturedConfig: unknown = null;
+
+  (http as { get: typeof http.get }).get = async (_url, config) => {
+    capturedConfig = config;
+    return {
+      success: true,
+      data: { incentives: [] } as never,
+    };
+  };
+
+  try {
+    await incentiveDiscoveryService.getAvailable({
+      subtotal: 250000,
+      cart: [
+        { productId: 'p2', quantity: 1 },
+        { productId: 'p1', quantity: 2 },
+      ],
+    });
+    assert.deepEqual(capturedConfig, {
+      params: {
+        subtotal: 250000,
+        cart: 'p1:2,p2:1',
+        productIds: undefined,
+      },
+      skipAuthRedirect: true,
+      showErrorToast: false,
+    });
+  } finally {
+    (http as { get: typeof http.get }).get = originalGet;
+  }
+});
+
