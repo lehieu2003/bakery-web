@@ -87,4 +87,11 @@ For every backend/API change, run this checklist in the same PR/story before mar
 
 ## Testing Status
 
-No first-party test suite was detected in the application source folders during quick scan. Add a dedicated `test` strategy before major refactors.
+Current repository tests are implemented with Node.js built-in runner (`node:test`) and executed via `tsx --test`.
+
+## Testing Direction (Next Sprints)
+
+- Starting from upcoming sprints, prefer `Vitest` (or `Jest` when explicitly required) for all new test files.
+- Keep existing `node:test` suites passing during migration; do not rewrite old tests unless the touched area requires it.
+- For frontend component/hook testing, use `Vitest` + `jsdom` + React Testing Library.
+- Add a `test` script in `package.json` once the first Vitest/Jest setup lands, then standardize CI on that command.
