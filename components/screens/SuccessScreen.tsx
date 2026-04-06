@@ -1,24 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useCart } from '@/lib/cart-store';
+import { useMemo } from 'react';
 import Link from 'next/link';
+import { useOrders } from '@/hooks/use-orders';
+import { useAuth } from '@/providers/auth-provider';
+import {
+  getConfirmationTitle,
+  getOrderStatusPresentation,
+  getPaymentStatusPresentation,
+  toneToBadgeClass,
+} from '@/lib/orders/presentation';
 
 interface SuccessScreenProps {
   orderNumber: string;
 }
 
 export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
-  const { user } = useCart();
-  const [showPoints, setShowPoints] = useState(false);
-  const pointsEarned = 120;
-  const nextLevelPoints =
-    user?.level === 'gold' ? 60 : user?.level === 'silver' ? 80 : 0;
-
-  useEffect(() => {
-    const t = setTimeout(() => setShowPoints(true), 900);
-    return () => clearTimeout(t);
-  }, []);
+  const { user, isAuthenticated } = useAuth();
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+  } = useOrders({ enabled: isAuthenticated });
+  const matchedOrder = useMemo(
+    () =>
+      (isAuthenticated ? orders : []).find(
+        (order) => order.orderNumber === orderNumber,
+      ),
+    [isAuthenticated, orders, orderNumber],
+  );
+  const orderStatus = matchedOrder
+    ? getOrderStatusPresentation(matchedOrder.status)
+    : null;
+  const paymentStatus = matchedOrder
+    ? getPaymentStatusPresentation(
+        matchedOrder.payment?.status,
+        matchedOrder.paymentMethod,
+      )
+    : null;
+  const confirmationTitle = getConfirmationTitle({
+    isAuthenticated,
+    orderStatusLabel: orderStatus?.label,
+    paymentStatusLabel: paymentStatus?.label,
+  });
 
   return (
     <div className='bg-background min-h-[70vh] flex items-center justify-center px-6 py-16'>
@@ -51,11 +75,12 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
 
         <div className='text-center mb-8'>
           <h1 className='font-serif text-3xl font-semibold text-foreground mb-2'>
-            Order Confirmed
+            {confirmationTitle}
           </h1>
           <p className='text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto'>
-            Your order has been placed successfully. We will prepare it with
-            care and love.
+            {matchedOrder
+              ? 'Your order details are synced from your account history.'
+              : 'Your order was placed. Status may update after payment callback reconciliation.'}
           </p>
         </div>
 
@@ -69,44 +94,84 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
               #{orderNumber}
             </span>
           </div>
-          <div className='flex justify-between items-center pt-4'>
-            <span className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
-              Estimated Pickup
-            </span>
-            <span className='text-sm font-semibold text-foreground'>
-              25/03 · 17:00
-            </span>
+
+          <div className='pt-4 space-y-3'>
+            {isAuthenticated && isLoading && (
+              <p className='text-xs text-muted-foreground'>
+                Syncing latest order status...
+              </p>
+            )}
+
+            {matchedOrder && orderStatus && paymentStatus && (
+              <>
+                <div className='flex justify-between items-center'>
+                  <span className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
+                    Order Status
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
+                  >
+                    {orderStatus.label}
+                  </span>
+                </div>
+                <div className='flex justify-between items-center'>
+                  <span className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
+                    Payment
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
+                  >
+                    {paymentStatus.label}
+                  </span>
+                </div>
+                <div className='flex justify-between items-center'>
+                  <span className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
+                    Total
+                  </span>
+                  <span className='text-sm font-semibold text-foreground'>
+                    {matchedOrder.total.toLocaleString('vi-VN')}đ
+                  </span>
+                </div>
+              </>
+            )}
+
+            {!isAuthenticated && (
+              <p className='text-xs text-muted-foreground leading-relaxed'>
+                Guest checkout: keep this order number for support. Order
+                history tracking is available after sign-in.
+              </p>
+            )}
+
+            {isAuthenticated && !isLoading && !matchedOrder && (
+              <p className='text-xs text-muted-foreground leading-relaxed'>
+                Your order is being finalized. Open Order History to see live
+                status updates.
+              </p>
+            )}
+
+            {isError && (
+              <p className='text-xs text-amber-700'>
+                Could not sync current order status right now. You can still
+                check Order History.
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Points earned */}
-        {user && (
-          <div
-            className={`bg-primary/8 border border-primary/20 rounded-2xl p-5 mb-4 transition-all duration-700 ${
-              showPoints
-                ? 'opacity-100 translate-y-0'
-                : 'opacity-0 translate-y-3'
-            }`}
-          >
+        {/* Loyalty note */}
+        {user && matchedOrder && (
+          <div className='bg-primary/8 border border-primary/20 rounded-2xl p-5 mb-4'>
             <div className='flex items-center justify-between mb-2'>
               <p className='font-serif text-sm font-semibold text-primary'>
-                Points Earned
+                Loyalty Snapshot
               </p>
-              <span className='font-serif text-2xl font-bold text-primary'>
-                +{pointsEarned}
+              <span className='text-xs text-primary uppercase tracking-wider font-semibold'>
+                {user.memberLevel ?? 'SILVER'}
               </span>
             </div>
-            {nextLevelPoints > 0 && (
-              <p className='text-xs text-muted-foreground'>
-                You are {nextLevelPoints} points away from{' '}
-                {user.level === 'gold' ? 'Platinum' : 'Gold'} membership.
-              </p>
-            )}
-            {user.level === 'platinum' && (
-              <p className='text-xs text-muted-foreground'>
-                You are at our highest tier. Thank you for your loyalty.
-              </p>
-            )}
+            <p className='text-xs text-muted-foreground'>
+              Current points: {(user.points ?? 0).toLocaleString()}.
+            </p>
           </div>
         )}
 

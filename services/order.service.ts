@@ -22,9 +22,15 @@ export interface CreateOrderResponse {
   paymentError?: string;
 }
 
+export interface GetMyOrdersOptions {
+  skipAuthRedirect?: boolean;
+}
+
 export const orderService = {
-  getMyOrders: async (): Promise<Order[]> => {
-    const response = await http.get<{ orders: Order[] }>(ENDPOINTS.ORDERS);
+  getMyOrders: async (options?: GetMyOrdersOptions): Promise<Order[]> => {
+    const response = await http.get<{ orders: Order[] }>(ENDPOINTS.ORDERS, {
+      skipAuthRedirect: options?.skipAuthRedirect,
+    });
     return response.data!.orders;
   },
 

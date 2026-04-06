@@ -79,6 +79,54 @@ type CreateOrderRouteDeps = {
   getAppUrl: () => string;
 };
 
+type OrderReadModel = {
+  id: string;
+  orderNumber: string;
+  userId: string | null;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+  customerAddress: string | null;
+  status: string;
+  subtotal: unknown;
+  deliveryFee: unknown;
+  discount: unknown;
+  total: unknown;
+  paymentMethod: PaymentMethod | null;
+  createdAt: Date;
+  updatedAt: Date;
+  orderItems: Array<{
+    id: string;
+    orderId: string;
+    productId: string;
+    variantId: string | null;
+    name: string;
+    quantity: number;
+    price: unknown;
+    subtotal: unknown;
+    product: {
+      id: string;
+      name: string;
+      price: unknown;
+      images: Array<{ url: string }>;
+    } | null;
+  }>;
+  payment: {
+    id: string;
+    orderId: string;
+    provider: string;
+    transactionId: string | null;
+    amount: unknown;
+    status: string;
+    createdAt: Date;
+  } | null;
+};
+
+type GetOrdersRouteDeps = {
+  getCurrentUser: (request: NextRequest) => Promise<{ id: string } | null>;
+  findOrdersByUserId: (userId: string) => Promise<OrderReadModel[]>;
+};
+
 function generateOrderNumber(): string {
   const now = new Date();
   const dateStr = now.toISOString().slice(2, 10).replace(/-/g, '');
@@ -157,6 +205,38 @@ const createOrderDeps: CreateOrderRouteDeps = {
   createMoMoPayment,
   createZaloPayPayment,
   getAppUrl: () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+};
+
+const getOrdersDeps: GetOrdersRouteDeps = {
+  getCurrentUser: getCurrentUserFromRequest,
+  findOrdersByUserId: async (userId) =>
+    prisma.order.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                images: {
+                  select: { url: true, isPrimary: true },
+                  where: { isPrimary: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+        payment: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    }) as Promise<OrderReadModel[]>,
 };
 
 export async function handleCreateOrderRequest(
@@ -373,57 +453,88 @@ export async function handleCreateOrderRequest(
   };
 }
 
-// GET: Get user's orders
-export async function GET(request: NextRequest) {
+function asNumber(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toNumber' in value &&
+    typeof (value as { toNumber?: unknown }).toNumber === 'function'
+  ) {
+    const parsed = (value as { toNumber: () => number }).toNumber();
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
+function serializeOrder(order: OrderReadModel) {
+  return {
+    ...order,
+    subtotal: asNumber(order.subtotal),
+    deliveryFee: asNumber(order.deliveryFee),
+    discount: asNumber(order.discount),
+    total: asNumber(order.total),
+    orderItems: order.orderItems.map((item) => ({
+      ...item,
+      price: asNumber(item.price),
+      subtotal: asNumber(item.subtotal),
+      product: item.product
+        ? {
+            ...item.product,
+            price: asNumber(item.product.price),
+          }
+        : null,
+    })),
+    payment: order.payment
+      ? {
+          ...order.payment,
+          amount: asNumber(order.payment.amount),
+        }
+      : null,
+  };
+}
+
+export async function handleGetOrdersRequest(
+  request: NextRequest,
+  deps: GetOrdersRouteDeps = getOrdersDeps,
+) {
   try {
-    const user = await getCurrentUserFromRequest(request);
+    const user = await deps.getCurrentUser(request);
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
+      return {
+        status: 401,
+        body: { success: false, error: 'Unauthorized' },
+      };
     }
 
-    const orders = await prisma.order.findMany({
-      where: {
-        userId: user.id,
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                price: true,
-                images: {
-                  select: { url: true, isPrimary: true },
-                  where: { isPrimary: true },
-                  take: 1,
-                },
-              },
-            },
-          },
-        },
-        payment: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    const orders = await deps.findOrdersByUserId(user.id);
 
-    return NextResponse.json({
-      success: true,
-      data: { orders },
-    });
+    return {
+      status: 200,
+      body: {
+        success: true,
+        data: { orders: orders.map(serializeOrder) },
+      },
+    };
   } catch (error) {
     console.error('Get orders error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch orders' },
-      { status: 500 },
-    );
+    return {
+      status: 500,
+      body: { success: false, error: 'Failed to fetch orders' },
+    };
   }
+}
+
+// GET: Get user's orders
+export async function GET(request: NextRequest) {
+  const result = await handleGetOrdersRequest(request, getOrdersDeps);
+  return NextResponse.json(result.body, { status: result.status });
 }
 
 // POST: Create a new order

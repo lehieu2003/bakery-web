@@ -8,6 +8,11 @@ import { useRouter } from 'next/navigation';
 import { useOrders } from '@/hooks/use-orders';
 import { useLogout, useUpdateProfile } from '@/hooks/use-auth';
 import { useAuth } from '@/providers/auth-provider';
+import {
+  getOrderStatusPresentation,
+  getPaymentStatusPresentation,
+  toneToBadgeClass,
+} from '@/lib/orders/presentation';
 
 const LEVEL_BENEFITS: Record<
   MemberLevel,
@@ -49,12 +54,18 @@ const MOCK_POINT_HISTORY = [
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { data: ordersData, isLoading: ordersLoading } = useOrders();
+  const { user: authUser, logout: clearAuthUser, setUser } = useAuth();
+  const {
+    data: ordersData,
+    isLoading: ordersLoading,
+    isError: ordersError,
+  } = useOrders({
+    enabled: !!authUser,
+  });
   const orders = ordersData || [];
   const { mutate: logout } = useLogout();
   const { mutate: updateProfile, isPending: isUpdatingProfile } =
     useUpdateProfile();
-  const { user: authUser, logout: clearAuthUser, setUser } = useAuth();
   const [draftProfile, setDraftProfile] = useState<{
     name: string;
     phone: string;
@@ -474,13 +485,26 @@ export default function ProfileScreen() {
                     </div>
                   </div>
                 ))
+              ) : ordersError ? (
+                <div className='text-center py-12 text-muted-foreground'>
+                  <p className='text-sm text-amber-700'>
+                    Could not load order history right now.
+                  </p>
+                  <p className='text-xs mt-1'>
+                    Please refresh the page or try again in a few minutes.
+                  </p>
+                </div>
               ) : orders.length > 0 ? (
                 orders.map((order) => {
                   const itemsText =
                     order.orderItems.length > 1
                       ? `${order.orderItems[0].name} +${order.orderItems.length - 1} more`
                       : order.orderItems[0]?.name || 'No items';
-                  const pointsEarned = Math.floor(order.total * 0.2);
+                  const orderStatus = getOrderStatusPresentation(order.status);
+                  const paymentStatus = getPaymentStatusPresentation(
+                    order.payment?.status,
+                    order.paymentMethod,
+                  );
 
                   return (
                     <div
@@ -497,6 +521,18 @@ export default function ProfileScreen() {
                           <p className='text-sm font-semibold text-foreground'>
                             #{order.orderNumber}
                           </p>
+                          <div className='mt-1 flex flex-wrap gap-1.5'>
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
+                            >
+                              {orderStatus.label}
+                            </span>
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
+                            >
+                              {paymentStatus.label}
+                            </span>
+                          </div>
                           <p className='text-xs text-muted-foreground mt-0.5'>
                             {itemsText}
                           </p>
@@ -517,8 +553,9 @@ export default function ProfileScreen() {
                           <p className='text-base font-bold text-accent'>
                             {order.total.toLocaleString('vi-VN')}đ
                           </p>
-                          <p className='text-xs text-primary font-medium'>
-                            +{pointsEarned} pts
+                          <p className='text-xs text-muted-foreground'>
+                            {order.orderItems.length} item
+                            {order.orderItems.length > 1 ? 's' : ''}
                           </p>
                         </div>
                         <ChevronRight

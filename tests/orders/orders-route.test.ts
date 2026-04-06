@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handleCreateOrderRequest } from '@/app/api/orders/route';
+import {
+  handleCreateOrderRequest,
+  handleGetOrdersRequest,
+} from '@/app/api/orders/route';
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
@@ -128,3 +131,136 @@ test('POST /api/orders returns paymentError for ZALOPAY gateway failures', async
 });
 
 
+
+test('GET /api/orders returns 401 when user is unauthenticated', async () => {
+  const result = await handleGetOrdersRequest({} as never, {
+    getCurrentUser: async () => null,
+    findOrdersByUserId: async () => [],
+  });
+
+  assert.equal(result.status, 401);
+  assert.equal(result.body.success, false);
+  assert.equal(result.body.error, 'Unauthorized');
+});
+
+test('GET /api/orders returns serialized orders for authenticated user', async () => {
+  const result = await handleGetOrdersRequest({} as never, {
+    getCurrentUser: async () => ({ id: 'u1' }),
+    findOrdersByUserId: async () => [
+      {
+        id: 'o1',
+        orderNumber: 'BK260405ABCD',
+        userId: 'u1',
+        customerName: 'Lan',
+        customerPhone: '0909123456',
+        customerEmail: 'lan@example.com',
+        customerAddress: null,
+        status: 'CONFIRMED',
+        subtotal: '200000',
+        deliveryFee: '0',
+        discount: '10000',
+        total: '190000',
+        paymentMethod: 'MOMO',
+        createdAt: new Date('2026-04-05T10:00:00.000Z'),
+        updatedAt: new Date('2026-04-05T10:00:00.000Z'),
+        orderItems: [
+          {
+            id: 'oi1',
+            orderId: 'o1',
+            productId: 'p1',
+            variantId: null,
+            name: 'Cake A',
+            quantity: 2,
+            price: '100000',
+            subtotal: '200000',
+            product: {
+              id: 'p1',
+              name: 'Cake A',
+              price: '100000',
+              images: [{ url: '/img.jpg' }],
+            },
+          },
+        ],
+        payment: {
+          id: 'pay1',
+          orderId: 'o1',
+          provider: 'MOMO',
+          transactionId: 'tx-1',
+          amount: '190000',
+          status: 'PAID',
+          createdAt: new Date('2026-04-05T10:01:00.000Z'),
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(result.body.data?.orders.length, 1);
+  assert.equal(result.body.data?.orders[0].total, 190000);
+  assert.equal(result.body.data?.orders[0].orderItems[0].price, 100000);
+  assert.equal(result.body.data?.orders[0].payment?.amount, 190000);
+});
+
+test('GET /api/orders sanitizes invalid numeric fields to 0', async () => {
+  const result = await handleGetOrdersRequest({} as never, {
+    getCurrentUser: async () => ({ id: 'u1' }),
+    findOrdersByUserId: async () => [
+      {
+        id: 'o2',
+        orderNumber: 'BK260405WXYZ',
+        userId: 'u1',
+        customerName: 'Lan',
+        customerPhone: '0909123456',
+        customerEmail: 'lan@example.com',
+        customerAddress: null,
+        status: 'PENDING',
+        subtotal: 'invalid',
+        deliveryFee: Number.NaN,
+        discount: Infinity,
+        total: '-not-a-number',
+        paymentMethod: 'MOMO',
+        createdAt: new Date('2026-04-05T10:00:00.000Z'),
+        updatedAt: new Date('2026-04-05T10:00:00.000Z'),
+        orderItems: [
+          {
+            id: 'oi2',
+            orderId: 'o2',
+            productId: 'p2',
+            variantId: null,
+            name: 'Cake B',
+            quantity: 1,
+            price: 'oops',
+            subtotal: Number.NaN,
+            product: {
+              id: 'p2',
+              name: 'Cake B',
+              price: Infinity,
+              images: [{ url: '/img2.jpg' }],
+            },
+          },
+        ],
+        payment: {
+          id: 'pay2',
+          orderId: 'o2',
+          provider: 'MOMO',
+          transactionId: 'tx-2',
+          amount: 'bad-amount',
+          status: 'PENDING',
+          createdAt: new Date('2026-04-05T10:01:00.000Z'),
+        },
+      },
+    ],
+  });
+
+  const order = result.body.data?.orders[0];
+  assert.equal(result.status, 200);
+  assert.equal(order?.subtotal, 0);
+  assert.equal(order?.deliveryFee, 0);
+  assert.equal(order?.discount, 0);
+  assert.equal(order?.total, 0);
+  assert.equal(order?.orderItems[0].price, 0);
+  assert.equal(order?.orderItems[0].subtotal, 0);
+  assert.equal(order?.orderItems[0].product?.price, 0);
+  assert.equal(order?.payment?.amount, 0);
+});
