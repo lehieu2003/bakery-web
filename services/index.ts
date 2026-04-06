@@ -12,6 +12,7 @@ export { notificationsService } from './notifications.service';
 export { wishlistService } from './wishlist.service';
 export { membershipBenefitsService } from './membership-benefits.service';
 export { incentiveDiscoveryService } from './incentive-discovery.service';
+export { personalizedRecommendationService } from './personalized-recommendation.service';
 
 // Admin Services
 export {
@@ -27,4 +28,5 @@ export {
 
 // Admin namespace
 export { default as adminServices } from './admin';
+
 

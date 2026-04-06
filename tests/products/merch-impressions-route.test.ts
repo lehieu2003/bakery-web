@@ -12,7 +12,7 @@ test('merch impression route rejects invalid payload', async () => {
   assert.equal(result.body.success, false);
 });
 
-test('merch impression route accepts valid payload', async () => {
+test('merch impression route accepts best-seller payload', async () => {
   const result = await handlePostMerchImpressionRequest({
     productId: 'p-1',
     slot: 'best-seller',
@@ -23,3 +23,13 @@ test('merch impression route accepts valid payload', async () => {
   assert.equal(result.body.success, true);
 });
 
+test('merch impression route accepts personalized payload', async () => {
+  const result = await handlePostMerchImpressionRequest({
+    productId: 'p-2',
+    slot: 'personalized',
+    surface: 'home',
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+});

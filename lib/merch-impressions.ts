@@ -2,7 +2,7 @@
 
 type MerchImpressionPayload = {
   productId: string;
-  slot: 'related' | 'best-seller';
+  slot: 'related' | 'best-seller' | 'personalized';
   surface: 'product-detail' | 'home';
   contextProductId?: string;
 };
@@ -31,4 +31,3 @@ export async function trackMerchImpression(payload: MerchImpressionPayload) {
     // Intentionally ignore analytics failures to avoid impacting UX.
   }
 }
-

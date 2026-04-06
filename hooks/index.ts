@@ -57,4 +57,7 @@ export {
   useAvailableIncentives,
   availableIncentivesKeys,
 } from './use-available-incentives';
-
+export {
+  usePersonalizedRecommendations,
+  personalizedRecommendationsKeys,
+} from './use-personalized-recommendations';

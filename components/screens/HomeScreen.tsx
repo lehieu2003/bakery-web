@@ -4,6 +4,7 @@ import Image from 'next/image';
 import BannerCarousel from '@/components/ui-custom/BannerCarousel';
 import { useBanners } from '@/hooks/use-banners';
 import BestSellersSection from '@/components/screens/BestSellersSection';
+import PersonalizedSuggestionsSection from '@/components/screens/PersonalizedSuggestionsSection';
 import CategoriesSection from './CategoriesSection';
 
 export default function HomeScreen() {
@@ -21,6 +22,9 @@ export default function HomeScreen() {
 
       {/* ── Best Sellers ── */}
       <BestSellersSection />
+
+      {/* ── Personalized Suggestions ── */}
+      <PersonalizedSuggestionsSection />
 
       {/* ── Categories ── */}
       <CategoriesSection />
@@ -235,3 +239,4 @@ export default function HomeScreen() {
     </div>
   );
 }
+

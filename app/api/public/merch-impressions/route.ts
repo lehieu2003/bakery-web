@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 type MerchImpressionPayload = {
   productId: string;
-  slot: 'related' | 'best-seller';
+  slot: 'related' | 'best-seller' | 'personalized';
   surface: 'product-detail' | 'home';
   contextProductId?: string;
 };
@@ -11,7 +11,13 @@ function isValidPayload(value: unknown): value is MerchImpressionPayload {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   if (typeof record.productId !== 'string' || !record.productId.trim()) return false;
-  if (record.slot !== 'related' && record.slot !== 'best-seller') return false;
+  if (
+    record.slot !== 'related' &&
+    record.slot !== 'best-seller' &&
+    record.slot !== 'personalized'
+  ) {
+    return false;
+  }
   if (record.surface !== 'product-detail' && record.surface !== 'home') return false;
   if (
     record.contextProductId !== undefined &&
@@ -48,4 +54,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 
