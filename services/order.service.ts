@@ -30,6 +30,39 @@ export interface CreateOrderResponse {
   appliedIncentive?: AppliedIncentiveSummary | null;
 }
 
+export type ReorderUnavailableReason =
+  | 'PRODUCT_UNAVAILABLE'
+  | 'VARIANT_UNAVAILABLE'
+  | 'INSUFFICIENT_STOCK';
+
+export interface ReorderPreparedItem {
+  productId: string;
+  variantId: string | null;
+  name: string;
+  variantName: string | null;
+  price: number;
+  quantity: number;
+  image: string;
+  type: 'cake' | 'ingredient';
+}
+
+export interface ReorderUnavailableItem {
+  productId: string;
+  variantId: string | null;
+  name: string;
+  reason: ReorderUnavailableReason;
+  requestedQuantity: number;
+  availableQuantity: number;
+  guidance: string;
+}
+
+export interface PrepareReorderResponse {
+  sourceOrderId: string;
+  sourceOrderNumber: string;
+  items: ReorderPreparedItem[];
+  unavailableItems: ReorderUnavailableItem[];
+}
+
 export interface GetMyOrdersOptions {
   skipAuthRedirect?: boolean;
 }
@@ -49,6 +82,18 @@ export const orderService = {
       ENDPOINTS.ORDERS,
       payload,
       { showErrorToast: false },
+    );
+    return response.data!;
+  },
+
+  prepareReorder: async (orderId: string): Promise<PrepareReorderResponse> => {
+    const response = await http.post<PrepareReorderResponse>(
+      ENDPOINTS.ORDERS_REORDER,
+      { orderId },
+      {
+        skipAuthRedirect: true,
+        showErrorToast: false,
+      },
     );
     return response.data!;
   },

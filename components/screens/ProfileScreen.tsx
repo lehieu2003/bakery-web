@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { LogOut, ChevronRight } from 'lucide-react';
-import type { MemberLevel } from '@/lib/cart-store';
+import { useCart, type MemberLevel } from '@/lib/cart-store';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useOrders } from '@/hooks/use-orders';
+import { useOrders, usePrepareReorder } from '@/hooks/use-orders';
 import { useLogout, useUpdateProfile } from '@/hooks/use-auth';
 import { useAuth } from '@/providers/auth-provider';
 import {
@@ -13,6 +13,8 @@ import {
   getPaymentStatusPresentation,
   toneToBadgeClass,
 } from '@/lib/orders/presentation';
+import { ApiError } from '@/lib/api/client';
+import type { ReorderUnavailableItem } from '@/services/order.service';
 
 const LEVEL_BENEFITS: Record<
   MemberLevel,
@@ -52,8 +54,17 @@ const MOCK_POINT_HISTORY = [
   { label: 'Redeemed Discount', date: '14 Feb', points: -100, type: 'redeem' },
 ];
 
+type ReorderFeedbackState = {
+  orderId: string;
+  tone: 'success' | 'warning' | 'danger';
+  message: string;
+  unavailableItems: ReorderUnavailableItem[];
+  hasPreparedItems: boolean;
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
+  const { replaceCart } = useCart();
   const { user: authUser, logout: clearAuthUser, setUser } = useAuth();
   const {
     data: ordersData,
@@ -64,12 +75,19 @@ export default function ProfileScreen() {
   });
   const orders = ordersData || [];
   const { mutate: logout } = useLogout();
+  const { mutateAsync: prepareReorder, isPending: isPreparingReorder } =
+    usePrepareReorder();
   const { mutate: updateProfile, isPending: isUpdatingProfile } =
     useUpdateProfile();
   const [draftProfile, setDraftProfile] = useState<{
     name: string;
     phone: string;
   } | null>(null);
+  const [activeReorderOrderId, setActiveReorderOrderId] = useState<
+    string | null
+  >(null);
+  const [reorderFeedback, setReorderFeedback] =
+    useState<ReorderFeedbackState | null>(null);
 
   // Logout handler
   const handleLogout = () => {
@@ -219,6 +237,66 @@ export default function ProfileScreen() {
         },
       },
     );
+  };
+
+  const handleReorder = async (orderId: string) => {
+    setActiveReorderOrderId(orderId);
+    setReorderFeedback(null);
+
+    try {
+      const result = await prepareReorder({ orderId });
+      replaceCart(
+        result.items.map((item) => ({
+          id: `${item.productId}:${item.variantId ?? 'default'}`,
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          image: item.image,
+          type: item.type,
+          variantId: item.variantId ?? undefined,
+          variantName: item.variantName ?? undefined,
+          quantity: item.quantity,
+        })),
+      );
+
+      const addedUnits = result.items.reduce((sum, item) => sum + item.quantity, 0);
+      const baseMessage =
+        addedUnits > 0
+          ? `Added ${addedUnits} item(s) to cart from order #${result.sourceOrderNumber}.`
+          : `No items from order #${result.sourceOrderNumber} could be added to cart.`;
+
+      const tone: ReorderFeedbackState['tone'] = result.items.length
+        ? result.unavailableItems.length
+          ? 'warning'
+          : 'success'
+        : 'warning';
+      const message = result.unavailableItems.length
+        ? `${baseMessage} ${result.unavailableItems.length} item(s) need your attention below.`
+        : baseMessage;
+
+      setReorderFeedback({
+        orderId,
+        tone,
+        message,
+        unavailableItems: result.unavailableItems,
+        hasPreparedItems: result.items.length > 0,
+      });
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.data?.error
+          ? error.data.error
+          : 'Could not prepare reorder right now. Please try again.';
+
+      setReorderFeedback({
+        orderId,
+        tone: 'danger',
+        message,
+        unavailableItems: [],
+        hasPreparedItems: false,
+      });
+    } finally {
+      setActiveReorderOrderId(null);
+    }
   };
 
   return (
@@ -505,64 +583,118 @@ export default function ProfileScreen() {
                     order.payment?.status,
                     order.paymentMethod,
                   );
+                  const canReorder = order.status === 'COMPLETED';
+                  const feedbackForOrder =
+                    reorderFeedback?.orderId === order.id ? reorderFeedback : null;
+                  const feedbackToneClass = (() => {
+                    if (!feedbackForOrder) return '';
+                    if (feedbackForOrder.tone === 'success') {
+                      return 'border-green-200 bg-green-50 text-green-800';
+                    }
+                    if (feedbackForOrder.tone === 'warning') {
+                      return 'border-amber-200 bg-amber-50 text-amber-800';
+                    }
+                    return 'border-rose-200 bg-rose-50 text-rose-800';
+                  })();
 
                   return (
-                    <div
-                      key={order.id}
-                      className='flex items-center justify-between px-5 py-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/40 transition-colors cursor-pointer group'
-                    >
-                      <div className='flex items-center gap-5'>
-                        <div className='w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0'>
-                          <span className='font-serif text-xs font-semibold text-muted-foreground'>
-                            {order.orderNumber.slice(-3)}
-                          </span>
-                        </div>
-                        <div>
-                          <p className='text-sm font-semibold text-foreground'>
-                            #{order.orderNumber}
-                          </p>
-                          <div className='mt-1 flex flex-wrap gap-1.5'>
-                            <span
-                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
-                            >
-                              {orderStatus.label}
-                            </span>
-                            <span
-                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
-                            >
-                              {paymentStatus.label}
+                    <div key={order.id} className='space-y-2'>
+                      <div className='flex items-center justify-between px-5 py-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/40 transition-colors group'>
+                        <div className='flex items-center gap-5'>
+                          <div className='w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0'>
+                            <span className='font-serif text-xs font-semibold text-muted-foreground'>
+                              {order.orderNumber.slice(-3)}
                             </span>
                           </div>
-                          <p className='text-xs text-muted-foreground mt-0.5'>
-                            {itemsText}
-                          </p>
-                          <p className='text-xs text-muted-foreground'>
-                            {new Date(order.createdAt).toLocaleDateString(
-                              'en-GB',
-                              {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric',
-                              },
-                            )}
-                          </p>
+                          <div>
+                            <p className='text-sm font-semibold text-foreground'>
+                              #{order.orderNumber}
+                            </p>
+                            <div className='mt-1 flex flex-wrap gap-1.5'>
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
+                              >
+                                {orderStatus.label}
+                              </span>
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
+                              >
+                                {paymentStatus.label}
+                              </span>
+                            </div>
+                            <p className='text-xs text-muted-foreground mt-0.5'>
+                              {itemsText}
+                            </p>
+                            <p className='text-xs text-muted-foreground'>
+                              {new Date(order.createdAt).toLocaleDateString(
+                                'en-GB',
+                                {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                },
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className='flex items-center gap-3'>
+                          <div className='text-right'>
+                            <p className='text-base font-bold text-accent'>
+                              {order.total.toLocaleString('vi-VN')}đ
+                            </p>
+                            <p className='text-xs text-muted-foreground'>
+                              {order.orderItems.length} item
+                              {order.orderItems.length > 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          {canReorder ? (
+                            <button
+                              type='button'
+                              onClick={() => void handleReorder(order.id)}
+                              disabled={
+                                isPreparingReorder && activeReorderOrderId === order.id
+                              }
+                              className='rounded-full border border-primary/30 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60'
+                              aria-label={`Reorder order ${order.orderNumber}`}
+                            >
+                              {isPreparingReorder && activeReorderOrderId === order.id
+                                ? 'Preparing...'
+                                : 'Reorder'}
+                            </button>
+                          ) : null}
+                          <ChevronRight
+                            size={16}
+                            className='text-muted-foreground group-hover:text-foreground transition-colors'
+                          />
                         </div>
                       </div>
-                      <div className='flex items-center gap-6'>
-                        <div className='text-right'>
-                          <p className='text-base font-bold text-accent'>
-                            {order.total.toLocaleString('vi-VN')}đ
-                          </p>
-                          <p className='text-xs text-muted-foreground'>
-                            {order.orderItems.length} item
-                            {order.orderItems.length > 1 ? 's' : ''}
-                          </p>
+                      {feedbackForOrder ? (
+                        <div
+                          className={`rounded-xl border px-4 py-3 text-xs ${feedbackToneClass}`}
+                          aria-live='polite'
+                        >
+                          <p>{feedbackForOrder.message}</p>
+                          {feedbackForOrder.unavailableItems.length > 0 ? (
+                            <ul className='mt-2 space-y-1'>
+                              {feedbackForOrder.unavailableItems.map((item) => (
+                                <li
+                                  key={`${item.productId}-${item.variantId ?? 'default'}-${item.reason}`}
+                                >
+                                  {item.name}: {item.guidance}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {feedbackForOrder.hasPreparedItems ? (
+                            <Link
+                              href='/cart'
+                              className='mt-3 inline-flex text-xs font-semibold underline underline-offset-2'
+                            >
+                              Review cart
+                            </Link>
+                          ) : null}
                         </div>
-                        <ChevronRight
-                          size={16}
-                          className='text-muted-foreground group-hover:text-foreground transition-colors'
-                        />
-                      </div>
+                      ) : null}
                     </div>
                   );
                 })

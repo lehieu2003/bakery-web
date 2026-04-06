@@ -135,6 +135,7 @@ function buildCartValue(overrides?: Partial<ReturnType<typeof useCart>>) {
       deliveryMethod: 'pickup' as const,
     },
     addToCart: vi.fn(),
+    replaceCart: vi.fn(),
     removeFromCart: vi.fn(),
     updateQty: vi.fn(),
     clearCart: vi.fn(),
@@ -304,3 +305,4 @@ describe('Membership benefit visibility across purchase flow', () => {
     expect(liveRegion).toBeInTheDocument();
   });
 });
+

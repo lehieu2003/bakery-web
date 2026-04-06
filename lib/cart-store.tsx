@@ -72,6 +72,7 @@ interface CartState {
   cart: CartItem[];
   checkoutInfo: CheckoutInfo | null;
   addToCart: (item: CartItem) => void;
+  replaceCart: (items: CartItem[]) => void;
   removeFromCart: (id: string) => void;
   updateQty: (id: string, delta: number) => void;
   clearCart: () => void;
@@ -109,6 +110,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCart((prev) => {
       return mergeCartItems(prev, [normalizedItem]);
     });
+  }, []);
+
+  const replaceCart = useCallback((items: CartItem[]) => {
+    const normalizedItems = items
+      .map((item) => normalizeCartItem(item))
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    setCart(mergeCartItems([], normalizedItems));
+    setCheckoutInfoState(null);
   }, []);
 
   const removeFromCart = useCallback((id: string) => {
@@ -238,6 +248,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         cart,
         checkoutInfo,
         addToCart,
+        replaceCart,
         removeFromCart,
         updateQty,
         clearCart,

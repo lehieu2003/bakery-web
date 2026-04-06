@@ -57,3 +57,51 @@ test('orderService.createOrder posts to orders endpoint and returns data payload
     (http as { post: typeof http.post }).post = originalPost;
   }
 });
+
+test('orderService.prepareReorder posts orderId to reorder endpoint and returns prepared data', async () => {
+  const originalPost = http.post;
+  let capturedUrl = '';
+  let capturedPayload: unknown = null;
+  let capturedConfig: unknown = null;
+
+  (http as { post: typeof http.post }).post = async (url, payload, config) => {
+    capturedUrl = url;
+    capturedPayload = payload;
+    capturedConfig = config;
+    return {
+      success: true,
+      data: {
+        sourceOrderId: 'o1',
+        sourceOrderNumber: 'BK260406DONE',
+        items: [
+          {
+            productId: 'p1',
+            variantId: null,
+            name: 'Chocolate Cake',
+            variantName: null,
+            price: 90000,
+            quantity: 2,
+            image: '/images/chocolate.jpg',
+            type: 'cake',
+          },
+        ],
+        unavailableItems: [],
+      } as never,
+    };
+  };
+
+  try {
+    const result = await orderService.prepareReorder('o1');
+    assert.equal(capturedUrl, ENDPOINTS.ORDERS_REORDER);
+    assert.deepEqual(capturedPayload, { orderId: 'o1' });
+    assert.deepEqual(capturedConfig, {
+      skipAuthRedirect: true,
+      showErrorToast: false,
+    });
+    assert.equal(result.sourceOrderNumber, 'BK260406DONE');
+    assert.equal(result.items.length, 1);
+    assert.equal(result.items[0].name, 'Chocolate Cake');
+  } finally {
+    (http as { post: typeof http.post }).post = originalPost;
+  }
+});

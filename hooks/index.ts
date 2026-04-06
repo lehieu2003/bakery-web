@@ -49,6 +49,11 @@ export {
   membershipBenefitsKeys,
 } from './use-membership-benefits';
 export {
+  useOrders as useCustomerOrders,
+  usePrepareReorder,
+  orderKeys as customerOrderKeys,
+} from './use-orders';
+export {
   useAvailableIncentives,
   availableIncentivesKeys,
 } from './use-available-incentives';
