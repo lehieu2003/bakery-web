@@ -1,6 +1,6 @@
 # Story 4.5: Coupon Discoverability in Checkout
 
-Status: review
+Status: done
 
 ## Story
 
@@ -117,3 +117,4 @@ GPT-5 Codex
 
 - 2026-04-06: Created Story 4.5 to address coupon discoverability gap after Story 4.2.
 - 2026-04-06: Implemented Story 4.5 discoverability API, checkout integration, and regression coverage.
+- 2026-04-06: Code review passed and story status moved to `done`.

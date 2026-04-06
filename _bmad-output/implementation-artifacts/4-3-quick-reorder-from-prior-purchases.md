@@ -1,6 +1,6 @@
 # Story 4.3: Quick Reorder from Prior Purchases
 
-Status: review
+Status: done
 
 ## Story
 
@@ -114,3 +114,4 @@ GPT-5 Codex
 - 2026-04-06: Implemented Story 4.3 quick reorder flow across order API, service/hook layers, cart integration, and order-history UI.
 - 2026-04-06: Added regression coverage for reorder route/service and order-history integration behavior.
 - 2026-04-06: Updated Story 4.3 status to `review` with completion notes, file list, and validation evidence.
+- 2026-04-06: Code review passed and story status moved to `done`.
