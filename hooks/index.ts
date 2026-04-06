@@ -43,3 +43,9 @@ export {
 
 // Admin hooks - re-export from admin folder
 export * from './admin';
+
+export {
+  useMembershipBenefits,
+  membershipBenefitsKeys,
+} from './use-membership-benefits';
+

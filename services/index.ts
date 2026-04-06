@@ -10,6 +10,7 @@ export { authService } from './auth.service';
 export { productService } from './product.service';
 export { notificationsService } from './notifications.service';
 export { wishlistService } from './wishlist.service';
+export { membershipBenefitsService } from './membership-benefits.service';
 
 // Admin Services
 export {
@@ -25,3 +26,4 @@ export {
 
 // Admin namespace
 export { default as adminServices } from './admin';
+

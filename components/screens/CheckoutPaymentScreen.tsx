@@ -3,17 +3,12 @@
 import { ChevronLeft, Banknote, Wallet, Loader2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useCart } from '@/lib/cart-store';
+import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
 import { orderService } from '@/services/order.service';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { canSubmitOrderRequest } from '@/lib/checkout-utils';
-
-const DISCOUNT_RATE: Record<string, number> = {
-  silver: 0.05,
-  gold: 0.1,
-  platinum: 0.15,
-};
 
 const PAYMENT_METHODS = [
   {
@@ -47,6 +42,21 @@ const PAYMENT_METHODS = [
 export default function CheckoutPaymentScreen() {
   const { user, cart, checkoutInfo, clearCart } = useCart();
   const router = useRouter();
+  const membershipBenefitsQuery = useMembershipBenefits({
+    enabled: Boolean(user),
+  });
+  const discountPercent =
+    membershipBenefitsQuery.data?.benefits.currentTier.discountPercent ?? 0;
+  const memberLabel =
+    membershipBenefitsQuery.data?.benefits.currentTier.label ??
+    user?.level ??
+    'Member';
+  const membershipPoints =
+    membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
+  const eligibilityMessage = membershipBenefitsQuery.isLoading
+    ? 'Checking membership benefit eligibility...'
+    : membershipBenefitsQuery.data?.benefits.eligibility.message ??
+      'Membership eligibility details are unavailable right now.';
   const [payMethod, setPayMethod] = useState<
     'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER'
   >('COD');
@@ -55,7 +65,7 @@ export default function CheckoutPaymentScreen() {
   const isSubmittingRef = useRef(false);
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountRate = user ? DISCOUNT_RATE[user.level] : 0;
+  const discountRate = user ? discountPercent / 100 : 0;
   const discount = Math.round(subtotal * discountRate);
   const total = subtotal - discount;
 
@@ -140,9 +150,13 @@ export default function CheckoutPaymentScreen() {
             <div className='flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-primary/10 border border-primary/20'>
               <span className='text-primary text-lg font-serif'>✦</span>
               <p className='text-sm font-medium text-primary'>
-                {user.level.charAt(0).toUpperCase() + user.level.slice(1)}{' '}
+                {memberLabel}{' '}
                 Member Discount Applied — saving{' '}
                 {discount.toLocaleString('vi-VN')}đ on this order
+              </p>
+              <p className='text-xs text-primary' aria-live='polite'>
+                Current points: {membershipPoints.toLocaleString('vi-VN')}.{' '}
+                {eligibilityMessage}
               </p>
             </div>
           )}
@@ -264,7 +278,7 @@ export default function CheckoutPaymentScreen() {
               </div>
               {discount > 0 && (
                 <div className='flex justify-between text-sm'>
-                  <span className='text-primary'>Membership discount</span>
+                  <span className='text-primary'>{memberLabel} discount ({discountPercent}%)</span>
                   <span className='text-primary font-semibold'>
                     -{discount.toLocaleString('vi-VN')}đ
                   </span>
@@ -286,3 +300,4 @@ export default function CheckoutPaymentScreen() {
     </div>
   );
 }
+

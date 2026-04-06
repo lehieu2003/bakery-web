@@ -3,18 +3,26 @@
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-store';
+import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-function OrderSidebar({ step }: { step: 1 | 2 }) {
+function OrderSidebar({
+  step,
+  discountPercent,
+  memberLabel,
+  points,
+  eligibilityMessage,
+}: {
+  step: 1 | 2;
+  discountPercent: number;
+  memberLabel: string;
+  points: number;
+  eligibilityMessage: string;
+}) {
   const { cart, user } = useCart();
-  const DISCOUNT_RATE: Record<string, number> = {
-    silver: 0.05,
-    gold: 0.1,
-    platinum: 0.15,
-  };
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountRate = user ? DISCOUNT_RATE[user.level] : 0;
+  const discountRate = user ? discountPercent / 100 : 0;
   const discount = Math.round(subtotal * discountRate);
   const total = subtotal - discount;
 
@@ -47,11 +55,19 @@ function OrderSidebar({ step }: { step: 1 | 2 }) {
         {user && discount > 0 && (
           <div className='flex justify-between text-sm'>
             <span className='text-primary capitalize'>
-              {user.level} discount
+              {memberLabel} discount
             </span>
             <span className='text-primary font-semibold'>
               -{discount.toLocaleString('vi-VN')}đ
             </span>
+          </div>
+        )}
+        {user && (
+          <div className='rounded-xl bg-secondary/70 px-3 py-2' aria-live='polite'>
+            <p className='text-xs text-muted-foreground'>
+              Current points: {points.toLocaleString('vi-VN')}
+            </p>
+            <p className='text-xs text-muted-foreground'>{eligibilityMessage}</p>
           </div>
         )}
       </div>
@@ -71,6 +87,21 @@ function OrderSidebar({ step }: { step: 1 | 2 }) {
 export default function CheckoutInfoScreen() {
   const { user, cart, setCheckoutInfo, checkoutInfo } = useCart();
   const router = useRouter();
+  const membershipBenefitsQuery = useMembershipBenefits({
+    enabled: Boolean(user),
+  });
+  const discountPercent =
+    membershipBenefitsQuery.data?.benefits.currentTier.discountPercent ?? 0;
+  const memberLabel =
+    membershipBenefitsQuery.data?.benefits.currentTier.label ??
+    user?.level ??
+    'Member';
+  const membershipPoints =
+    membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
+  const eligibilityMessage = membershipBenefitsQuery.isLoading
+    ? 'Checking membership benefit eligibility...'
+    : membershipBenefitsQuery.data?.benefits.eligibility.message ??
+      'Membership eligibility details are unavailable right now.';
   const [name, setName] = useState(
     checkoutInfo?.customerName || user?.name || '',
   );
@@ -330,9 +361,17 @@ export default function CheckoutInfoScreen() {
 
         {/* Summary sidebar */}
         <aside className='w-full lg:w-80 flex-shrink-0'>
-          <OrderSidebar step={1} />
+          <OrderSidebar
+            step={1}
+            discountPercent={discountPercent}
+            memberLabel={memberLabel}
+            points={membershipPoints}
+            eligibilityMessage={eligibilityMessage}
+          />
         </aside>
       </div>
     </div>
   );
 }
+
+

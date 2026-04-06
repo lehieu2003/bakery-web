@@ -398,6 +398,36 @@ export interface MembershipConfig {
   totalMembers: number;
 }
 
+export interface MembershipBenefitTier {
+  level: MemberLevel;
+  label: string;
+  minPoints: number;
+  discountPercent: number;
+  isEligible: boolean;
+}
+
+export interface MembershipBenefitsResponse {
+  user: {
+    id: string;
+    memberLevel: MemberLevel;
+    points: number;
+  };
+  benefits: {
+    tiers: MembershipBenefitTier[];
+    currentTier: Omit<MembershipBenefitTier, 'isEligible'>;
+    nextTier: {
+      level: MemberLevel;
+      label: string;
+      minPoints: number;
+      pointsNeeded: number;
+    } | null;
+    eligibility: {
+      isHighestTier: boolean;
+      message: string;
+    };
+    pointsPerOrder: number;
+  };
+}
 // ============================================================================
 // Request Types
 // ============================================================================
@@ -741,3 +771,4 @@ export interface BlogPostsQueryParams extends PaginationParams {
   tagId?: string;
   tagSlug?: string;
 }
+

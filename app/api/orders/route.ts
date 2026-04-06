@@ -3,13 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUserFromRequest } from '@/lib/session';
 import { createMoMoPayment } from '@/lib/payment/momo';
 import { createZaloPayPayment } from '@/lib/payment/zalopay';
+import {
+  getDiscountPercentForLevel,
+  getMembershipRulesConfig,
+  type MembershipRulesConfig,
+} from '@/lib/membership/rules';
 import { PaymentMethod } from '@prisma/client';
-
-const DISCOUNT_RATE: Record<string, number> = {
-  SILVER: 0.05,
-  GOLD: 0.1,
-  PLATINUM: 0.15,
-};
 
 const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'COD',
@@ -77,6 +76,7 @@ type CreateOrderRouteDeps = {
   createMoMoPayment: typeof createMoMoPayment;
   createZaloPayPayment: typeof createZaloPayPayment;
   getAppUrl: () => string;
+  getMembershipConfig: () => Promise<MembershipRulesConfig>;
 };
 
 type OrderReadModel = {
@@ -205,6 +205,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
   createMoMoPayment,
   createZaloPayPayment,
   getAppUrl: () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  getMembershipConfig: getMembershipRulesConfig,
 };
 
 const getOrdersDeps: GetOrdersRouteDeps = {
@@ -332,7 +333,11 @@ export async function handleCreateOrderRequest(
   });
 
   const subtotal = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
-  const discountRate = user ? DISCOUNT_RATE[user.memberLevel || ''] || 0 : 0;
+  const membershipConfig = await deps.getMembershipConfig();
+  const discountPercent = user
+    ? getDiscountPercentForLevel(membershipConfig, user.memberLevel)
+    : 0;
+  const discountRate = discountPercent / 100;
   const discount = Math.round(subtotal * discountRate);
   const total = subtotal - discount;
 
@@ -551,3 +556,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+

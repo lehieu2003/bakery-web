@@ -3,21 +3,31 @@
 import Image from 'next/image';
 import { ChevronLeft, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/lib/cart-store';
+import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
-const DISCOUNT_RATE: Record<string, number> = {
-  silver: 0.05,
-  gold: 0.1,
-  platinum: 0.15,
-};
 
 export default function CartScreen() {
   const { cart, user, removeFromCart, updateQty } = useCart();
   const router = useRouter();
+  const membershipBenefitsQuery = useMembershipBenefits({
+    enabled: Boolean(user),
+  });
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountRate = user ? DISCOUNT_RATE[user.level] : 0;
+  const discountPercent =
+    membershipBenefitsQuery.data?.benefits.currentTier.discountPercent ?? 0;
+  const memberLabel =
+    membershipBenefitsQuery.data?.benefits.currentTier.label ??
+    user?.level ??
+    'Member';
+  const membershipPoints =
+    membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
+  const eligibilityMessage = membershipBenefitsQuery.isLoading
+    ? 'Checking membership benefit eligibility...'
+    : membershipBenefitsQuery.data?.benefits.eligibility.message ??
+      'Membership eligibility details are unavailable right now.';
+  const discountRate = user ? discountPercent / 100 : 0;
   const discount = Math.round(subtotal * discountRate);
   const total = subtotal - discount;
 
@@ -164,12 +174,23 @@ export default function CartScreen() {
                     {user && discount > 0 && (
                       <div className='flex justify-between'>
                         <span className='text-sm text-primary capitalize'>
-                          {user.level} Member ({Math.round(discountRate * 100)}%
+                          {memberLabel} Member ({discountPercent}%
                           off)
                         </span>
                         <span className='text-sm text-primary font-semibold'>
                           -{discount.toLocaleString('vi-VN')}đ
                         </span>
+                      </div>
+                    )}
+                    {user && (
+                      <div className='rounded-xl bg-secondary/70 px-3 py-2' aria-live='polite'>
+                        <p className='text-xs text-muted-foreground'>
+                          Current points:{' '}
+                          {membershipPoints.toLocaleString('vi-VN')}
+                        </p>
+                        <p className='text-xs text-muted-foreground'>
+                          {eligibilityMessage}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -210,3 +231,7 @@ export default function CartScreen() {
     </div>
   );
 }
+
+
+
+

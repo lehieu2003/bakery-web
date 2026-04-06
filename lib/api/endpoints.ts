@@ -167,6 +167,9 @@ export const ENDPOINTS = {
   // Customer APIs
   // ============================================================================
   ORDERS: `${API_BASE}/orders`,
+  MEMBERSHIP: {
+    BENEFITS: `${API_BASE}/membership/benefits`,
+  },
   NOTIFICATIONS: {
     LIST: `${API_BASE}/notifications`,
     MARK_READ: (id: string) => `${API_BASE}/notifications/${id}/read`,
@@ -184,3 +187,5 @@ export const ENDPOINTS = {
 } as const;
 
 export default ENDPOINTS;
+
+

@@ -9,7 +9,14 @@ type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
 };
 
-function createDeps() {
+type CreateOrderDeps = NonNullable<
+  Parameters<typeof handleCreateOrderRequest>[1]
+>;
+type CreateOrderWithItemsArgs = Parameters<
+  CreateOrderDeps['createOrderWithItems']
+>[0];
+
+function createDeps(): CreateOrderDeps {
   const order = {
     id: 'o1',
     orderNumber: 'BK260405ABCD',
@@ -26,6 +33,19 @@ function createDeps() {
     createMoMoPayment: async () => ({ payUrl: 'https://pay.example/momo' }),
     createZaloPayPayment: async () => ({ payUrl: 'https://pay.example/zalo' }),
     getAppUrl: () => 'http://localhost:3000',
+    getMembershipConfig: async () => ({
+      pointsPerOrder: 10000,
+      levels: [
+        { level: 'SILVER', label: 'Silver', minPoints: 0, discountPercent: 3 },
+        { level: 'GOLD', label: 'Gold', minPoints: 300, discountPercent: 7 },
+        {
+          level: 'PLATINUM',
+          label: 'Platinum',
+          minPoints: 900,
+          discountPercent: 12,
+        },
+      ],
+    }),
   };
 }
 
@@ -132,6 +152,42 @@ test('POST /api/orders returns paymentError for ZALOPAY gateway failures', async
 
 
 
+test('POST /api/orders resolves membership discount from shared membership settings', async () => {
+  const deps = createDeps();
+  let capturedArgs:
+    | {
+        subtotal: number;
+        discount: number;
+        total: number;
+      }
+    | undefined;
+
+  deps.getCurrentUser = async () => ({
+    id: 'u-gold',
+    email: 'gold@example.com',
+    memberLevel: 'GOLD',
+  });
+  deps.createOrderWithItems = async (args: CreateOrderWithItemsArgs) => {
+    capturedArgs = {
+      subtotal: args.subtotal,
+      discount: args.discount,
+      total: args.total,
+    };
+    return {
+      id: 'o-membership',
+      orderNumber: 'BK260406GOLD',
+      orderItems: [],
+    };
+  };
+
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
+
+  assert.equal(result.status, 200);
+  assert.equal(capturedArgs?.subtotal, 200000);
+  // GOLD default discount from membership settings should be 7%.
+  assert.equal(capturedArgs?.discount, 14000);
+  assert.equal(capturedArgs?.total, 186000);
+});
 test('GET /api/orders returns 401 when user is unauthenticated', async () => {
   const result = await handleGetOrdersRequest({} as never, {
     getCurrentUser: async () => null,
@@ -263,4 +319,58 @@ test('GET /api/orders sanitizes invalid numeric fields to 0', async () => {
   assert.equal(order?.orderItems[0].subtotal, 0);
   assert.equal(order?.orderItems[0].product?.price, 0);
   assert.equal(order?.payment?.amount, 0);
+});
+
+
+
+
+
+
+test('POST /api/orders clamps negative membership discounts to avoid surcharges', async () => {
+  const deps = createDeps();
+  let capturedArgs:
+    | {
+        subtotal: number;
+        discount: number;
+        total: number;
+      }
+    | undefined;
+
+  deps.getCurrentUser = async () => ({
+    id: 'u-gold',
+    email: 'gold@example.com',
+    memberLevel: 'GOLD',
+  });
+  deps.getMembershipConfig = async () => ({
+    pointsPerOrder: 10000,
+    levels: [
+      { level: 'SILVER', label: 'Silver', minPoints: 0, discountPercent: 3 },
+      { level: 'GOLD', label: 'Gold', minPoints: 300, discountPercent: -20 },
+      {
+        level: 'PLATINUM',
+        label: 'Platinum',
+        minPoints: 900,
+        discountPercent: 12,
+      },
+    ],
+  });
+  deps.createOrderWithItems = async (args: CreateOrderWithItemsArgs) => {
+    capturedArgs = {
+      subtotal: args.subtotal,
+      discount: args.discount,
+      total: args.total,
+    };
+    return {
+      id: 'o-no-surcharge',
+      orderNumber: 'BK260406SAFE',
+      orderItems: [],
+    };
+  };
+
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
+
+  assert.equal(result.status, 200);
+  assert.equal(capturedArgs?.subtotal, 200000);
+  assert.equal(capturedArgs?.discount, 0);
+  assert.equal(capturedArgs?.total, 200000);
 });
