@@ -75,7 +75,7 @@ test('POST /api/incentives/preview returns recalculated total and coupon discoun
   assert.equal(result.body.data?.appliedIncentive?.code, 'SPRING20');
 });
 
-test('POST /api/incentives/preview rejects coupon when membership benefit is stronger', async () => {
+test('POST /api/incentives/preview applies coupon alongside membership discount', async () => {
   const deps = createDeps();
   deps.getCurrentUser = async () => ({
     id: 'u-gold',
@@ -108,12 +108,67 @@ test('POST /api/incentives/preview rejects coupon when membership benefit is str
     {} as never,
   );
 
-  assert.equal(result.status, 400);
-  assert.equal(result.body.success, false);
-  assert.equal(
-    result.body.error,
-    'Incentive code "WEAK5" conflicts with your current membership benefit. Remove the code or increase cart value.',
-  );
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(result.body.data?.membershipDiscount, 14000);
+  assert.equal(result.body.data?.couponDiscount, 10000);
+  assert.equal(result.body.data?.total, 176000);
 });
 
+test('POST /api/incentives/preview supports multiple incentive codes', async () => {
+  const deps = createDeps();
+  deps.findIncentiveByCode = async (code) => {
+    if (code === 'FIXED30') {
+      return {
+        id: 'coupon-fixed30',
+        code: 'FIXED30',
+        sourceType: 'PUBLIC',
+        type: 'FIXED',
+        value: 30000,
+        minOrder: null,
+        maxDiscount: null,
+        usageLimit: null,
+        perUserLimit: null,
+        scopeProductIds: [],
+        scopeCategoryIds: [],
+        startAt: new Date('2026-04-01T00:00:00.000Z'),
+        endAt: new Date('2026-04-30T23:59:59.000Z'),
+        isActive: true,
+        assignments: [],
+      };
+    }
 
+    return {
+      id: 'coupon-spring20',
+      code: 'SPRING20',
+      sourceType: 'PUBLIC',
+      type: 'PERCENTAGE',
+      value: 20,
+      minOrder: null,
+      maxDiscount: null,
+      usageLimit: null,
+      perUserLimit: null,
+      scopeProductIds: [],
+      scopeCategoryIds: [],
+      startAt: new Date('2026-04-01T00:00:00.000Z'),
+      endAt: new Date('2026-04-30T23:59:59.000Z'),
+      isActive: true,
+      assignments: [],
+    };
+  };
+
+  const result = await handlePreviewIncentiveRequest(
+    {
+      incentiveCodes: ['spring20', 'fixed30'],
+      items: [{ productId: 'p1', quantity: 2 }],
+    },
+    deps,
+    {} as never,
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(result.body.data?.couponDiscount, 70000);
+  assert.equal(result.body.data?.total, 130000);
+  assert.equal(result.body.data?.appliedIncentives?.length, 2);
+});

@@ -151,3 +151,35 @@ test('orderService.previewIncentive posts to preview endpoint and returns pricin
   }
 });
 
+
+test('orderService.createOrder forwards incentiveCodes array payload', async () => {
+  const originalPost = http.post;
+  let capturedPayload: unknown = null;
+
+  (http as { post: typeof http.post }).post = async (_url, payload) => {
+    capturedPayload = payload;
+    return {
+      success: true,
+      data: {
+        order: { id: 'o2', orderNumber: 'BK456' },
+        paymentUrl: null,
+        appliedIncentives: [],
+      } as never,
+    };
+  };
+
+  try {
+    await orderService.createOrder({
+      ...createPayload,
+      incentiveCode: undefined,
+      incentiveCodes: ['SPRING20', 'FIXED20'],
+    });
+    assert.deepEqual(capturedPayload, {
+      ...createPayload,
+      incentiveCode: undefined,
+      incentiveCodes: ['SPRING20', 'FIXED20'],
+    });
+  } finally {
+    (http as { post: typeof http.post }).post = originalPost;
+  }
+});

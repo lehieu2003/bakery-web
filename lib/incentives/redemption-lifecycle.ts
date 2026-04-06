@@ -78,17 +78,29 @@ export async function commitCouponRedemptionByOrderId(
   tx?: TxClient,
 ) {
   const executor = async (client: TxClient) => {
-    const redemption = await client.couponRedemption.findUnique({
+    const redemptions = await client.couponRedemption.findMany({
       where: { orderId },
       select: { id: true, state: true },
     });
 
-    if (!redemption) return 'MISSING' as const;
-    if (redemption.state === 'COMMITTED') return 'NOOP_COMMITTED' as const;
-    if (redemption.state === 'RELEASED') return 'NOOP_RELEASED' as const;
+    if (redemptions.length === 0) return 'MISSING' as const;
 
-    await client.couponRedemption.update({
-      where: { id: redemption.id },
+    const reservableIds = redemptions
+      .filter((redemption) => redemption.state === 'RESERVED')
+      .map((redemption) => redemption.id);
+
+    if (reservableIds.length === 0) {
+      if (redemptions.every((redemption) => redemption.state === 'COMMITTED')) {
+        return 'NOOP_COMMITTED' as const;
+      }
+      if (redemptions.every((redemption) => redemption.state === 'RELEASED')) {
+        return 'NOOP_RELEASED' as const;
+      }
+      return 'NOOP_COMMITTED' as const;
+    }
+
+    await client.couponRedemption.updateMany({
+      where: { id: { in: reservableIds } },
       data: {
         state: 'COMMITTED',
         committedAt: new Date(),
@@ -130,12 +142,13 @@ export async function releaseStaleCouponReservations(args?: {
     take: batchSize,
   });
 
+  const uniqueOrderIds = Array.from(
+    new Set(staleReservations.map((reservation) => reservation.orderId)),
+  );
+
   let released = 0;
-  for (const reservation of staleReservations) {
-    const result = await releaseCouponRedemptionByOrderId(
-      reservation.orderId,
-      reason,
-    );
+  for (const orderId of uniqueOrderIds) {
+    const result = await releaseCouponRedemptionByOrderId(orderId, reason);
     if (result === 'RELEASED') {
       released += 1;
     }
@@ -154,7 +167,7 @@ export async function releaseCouponRedemptionByOrderId(
   tx?: TxClient,
 ) {
   const executor = async (client: TxClient) => {
-    const redemption = await client.couponRedemption.findUnique({
+    const redemptions = await client.couponRedemption.findMany({
       where: { orderId },
       select: {
         id: true,
@@ -168,12 +181,24 @@ export async function releaseCouponRedemptionByOrderId(
       },
     });
 
-    if (!redemption) return 'MISSING' as const;
-    if (redemption.state === 'RELEASED') return 'NOOP_RELEASED' as const;
-    if (redemption.state === 'COMMITTED') return 'NOOP_COMMITTED' as const;
+    if (redemptions.length === 0) return 'MISSING' as const;
 
-    await client.couponRedemption.update({
-      where: { id: redemption.id },
+    const releasable = redemptions.filter(
+      (redemption) => redemption.state === 'RESERVED',
+    );
+
+    if (releasable.length === 0) {
+      if (redemptions.every((redemption) => redemption.state === 'RELEASED')) {
+        return 'NOOP_RELEASED' as const;
+      }
+      if (redemptions.some((redemption) => redemption.state === 'COMMITTED')) {
+        return 'NOOP_COMMITTED' as const;
+      }
+      return 'NOOP_RELEASED' as const;
+    }
+
+    await client.couponRedemption.updateMany({
+      where: { id: { in: releasable.map((redemption) => redemption.id) } },
       data: {
         state: 'RELEASED',
         releasedAt: new Date(),
@@ -181,7 +206,8 @@ export async function releaseCouponRedemptionByOrderId(
       },
     });
 
-    if (redemption.coupon.usageLimit !== null) {
+    for (const redemption of releasable) {
+      if (redemption.coupon.usageLimit === null) continue;
       await client.coupon.update({
         where: { id: redemption.coupon.id },
         data: {

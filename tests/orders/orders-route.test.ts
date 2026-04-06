@@ -260,7 +260,7 @@ test('POST /api/orders rejects blank incentive code input', async () => {
   );
 });
 
-test('POST /api/orders applies valid incentive when stronger than membership discount', async () => {
+test('POST /api/orders stacks membership and coupon discount for eligible incentive', async () => {
   const deps = createDeps();
   let capturedArgs:
     | {
@@ -301,13 +301,20 @@ test('POST /api/orders applies valid incentive when stronger than membership dis
 
   assert.equal(result.status, 200);
   assert.equal(capturedArgs?.subtotal, 200000);
-  assert.equal(capturedArgs?.discount, 40000);
-  assert.equal(capturedArgs?.total, 160000);
+  assert.equal(capturedArgs?.discount, 54000);
+  assert.equal(capturedArgs?.total, 146000);
   assert.deepEqual(result.body.data?.appliedIncentive, {
     code: 'SPRING20',
     type: 'PERCENTAGE',
     discount: 40000,
   });
+  assert.deepEqual(result.body.data?.appliedIncentives, [
+    {
+      code: 'SPRING20',
+      type: 'PERCENTAGE',
+      discount: 40000,
+    },
+  ]);
 });
 test('POST /api/orders applies FIXED incentive amount correctly', async () => {
   const deps = createDeps();
@@ -516,7 +523,7 @@ test('POST /api/orders rejects incentive code when subtotal is below minimum ord
   );
 });
 
-test('POST /api/orders rejects incentive that is not better than membership discount', async () => {
+test('POST /api/orders applies incentive even when coupon is smaller than membership discount', async () => {
   const deps = createDeps();
   deps.getCurrentUser = async () => ({
     id: 'u-gold',
@@ -535,11 +542,13 @@ test('POST /api/orders rejects incentive that is not better than membership disc
     deps,
   );
 
-  assert.equal(result.status, 400);
-  assert.equal(
-    result.body.error,
-    'Incentive code "TENPERCENT" conflicts with your current membership benefit. Remove the code or increase cart value.',
-  );
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.deepEqual(result.body.data?.appliedIncentive, {
+    code: 'TENPERCENT',
+    type: 'PERCENTAGE',
+    discount: 10000,
+  });
 });
 
 test('GET /api/orders returns 401 when user is unauthenticated', async () => {
@@ -797,4 +806,48 @@ test('POST /api/orders rejects incentive when per-user limit is exhausted during
     result.body.error,
     'Incentive code has reached your personal usage limit. Please try another code.',
   );
+});
+
+
+
+test('POST /api/orders supports multiple incentive codes in one order', async () => {
+  const deps = createDeps();
+  let capturedArgs: CreateOrderWithItemsArgs | undefined;
+
+  deps.findIncentiveByCode = async (code) => {
+    if (code === 'FIXED20') {
+      return createIncentiveFixture({
+        id: 'coupon-fixed20',
+        code: 'FIXED20',
+        type: 'FIXED',
+        value: 20000,
+      });
+    }
+
+    return createIncentiveFixture({
+      id: 'coupon-spring20',
+      code: 'SPRING20',
+      type: 'PERCENTAGE',
+      value: 20,
+    });
+  };
+  deps.createOrderWithItems = async (args: CreateOrderWithItemsArgs) => {
+    capturedArgs = args;
+    return {
+      id: 'o-multi',
+      orderNumber: 'BK260406MULTI',
+      orderItems: [],
+    };
+  };
+
+  const result = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), incentiveCodes: ['spring20', 'fixed20'] },
+    deps,
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(capturedArgs?.discount, 60000);
+  assert.equal(capturedArgs?.total, 140000);
+  assert.equal(capturedArgs?.appliedIncentives?.length, 2);
+  assert.equal(result.body.data?.appliedIncentives?.length, 2);
 });

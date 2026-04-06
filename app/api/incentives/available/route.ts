@@ -275,6 +275,7 @@ export async function handleGetAvailableIncentivesRequest(
       cartItems,
       membershipDiscount,
       userCommittedUsageCount,
+      ignoreMembershipConflict: true,
     });
 
     if (!evaluation.ok) {

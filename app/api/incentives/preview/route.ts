@@ -14,6 +14,7 @@ import {
 
 type PreviewPayload = {
   incentiveCode?: string;
+  incentiveCodes?: string[];
   items?: Array<{
     productId?: string;
     quantity?: number;
@@ -117,6 +118,49 @@ const defaultDeps: PreviewRouteDeps = {
   now: () => new Date(),
 };
 
+function resolveNormalizedIncentiveCodes(args: {
+  incentiveCodeInput: unknown;
+  incentiveCodesInput: unknown;
+}): { codes: string[]; error?: string } {
+  const normalizedSingle = normalizeIncentiveCode(args.incentiveCodeInput);
+  if (normalizedSingle === '') {
+    return {
+      codes: [],
+      error: 'Incentive code is invalid. Please enter a non-empty code.',
+    };
+  }
+
+  const codes: string[] = [];
+  if (Array.isArray(args.incentiveCodesInput)) {
+    for (const value of args.incentiveCodesInput) {
+      const normalized = normalizeIncentiveCode(value);
+      if (normalized === '') {
+        return {
+          codes: [],
+          error: 'One or more incentive codes are invalid.',
+        };
+      }
+      if (normalized) {
+        codes.push(normalized);
+      }
+    }
+  }
+
+  if (normalizedSingle) {
+    codes.push(normalizedSingle);
+  }
+
+  const uniqueCodes = Array.from(new Set(codes));
+  if (uniqueCodes.length > 5) {
+    return {
+      codes: [],
+      error: 'You can apply up to 5 incentive codes per order.',
+    };
+  }
+
+  return { codes: uniqueCodes };
+}
+
 export async function handlePreviewIncentiveRequest(
   body: unknown,
   deps: PreviewRouteDeps = defaultDeps,
@@ -155,16 +199,20 @@ export async function handlePreviewIncentiveRequest(
     }
   }
 
-  const normalizedIncentiveCode = normalizeIncentiveCode(payload.incentiveCode);
-  if (normalizedIncentiveCode === '') {
+  const normalizedIncentiveCodesResult = resolveNormalizedIncentiveCodes({
+    incentiveCodeInput: payload.incentiveCode,
+    incentiveCodesInput: payload.incentiveCodes,
+  });
+  if (normalizedIncentiveCodesResult.error) {
     return {
       status: 400,
       body: {
         success: false,
-        error: 'Incentive code is invalid. Please enter a non-empty code.',
+        error: normalizedIncentiveCodesResult.error,
       },
     };
   }
+  const normalizedIncentiveCodes = normalizedIncentiveCodesResult.codes;
 
   const products = await deps.findProducts(payload.items.map((item) => item.productId!));
   const productMap = new Map(products.map((product) => [product.id, product]));
@@ -199,7 +247,7 @@ export async function handlePreviewIncentiveRequest(
     : 0;
   const membershipDiscount = Math.round(subtotal * (membershipDiscountPercent / 100));
 
-  if (!normalizedIncentiveCode) {
+  if (normalizedIncentiveCodes.length === 0) {
     return {
       status: 200,
       body: {
@@ -211,50 +259,83 @@ export async function handlePreviewIncentiveRequest(
           totalDiscount: membershipDiscount,
           total: subtotal - membershipDiscount,
           appliedIncentive: null,
+          appliedIncentives: [],
         },
       },
     };
   }
 
-  const incentive = await deps.findIncentiveByCode(normalizedIncentiveCode);
-  if (!incentive) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: `Incentive code "${normalizedIncentiveCode}" is invalid or inactive.`,
+  let couponDiscount = 0;
+  const appliedIncentives: Array<{
+    code: string;
+    type: 'PERCENTAGE' | 'FIXED';
+    discount: number;
+  }> = [];
+
+  for (const code of normalizedIncentiveCodes) {
+    const incentive = await deps.findIncentiveByCode(code);
+    if (!incentive) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${code}" is invalid or inactive.`,
+        },
+      };
+    }
+
+    const userCommittedUsageCount = user?.id
+      ? await deps.countUserCommittedIncentiveUsage(incentive.id, user.id)
+      : 0;
+    const evaluation = evaluateIncentiveEligibility({
+      incentive,
+      now: deps.now(),
+      user: {
+        id: user?.id ?? null,
+        memberLevel: user?.memberLevel ?? null,
       },
-    };
+      cartSubtotal: subtotal,
+      cartItems,
+      membershipDiscount,
+      userCommittedUsageCount,
+      ignoreMembershipConflict: true,
+    });
+
+    if (!evaluation.ok) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: evaluation.message,
+        },
+      };
+    }
+
+    const remainingDiscountBudget = Math.max(
+      subtotal - membershipDiscount - couponDiscount,
+      0,
+    );
+    const appliedDiscount = Math.min(evaluation.discount, remainingDiscountBudget);
+    if (appliedDiscount <= 0) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${code}" does not provide additional discount.`,
+        },
+      };
+    }
+
+    couponDiscount += appliedDiscount;
+    appliedIncentives.push({
+      code,
+      type: incentive.type,
+      discount: appliedDiscount,
+    });
   }
 
-  const userCommittedUsageCount = user?.id
-    ? await deps.countUserCommittedIncentiveUsage(incentive.id, user.id)
-    : 0;
-  const evaluation = evaluateIncentiveEligibility({
-    incentive,
-    now: deps.now(),
-    user: {
-      id: user?.id ?? null,
-      memberLevel: user?.memberLevel ?? null,
-    },
-    cartSubtotal: subtotal,
-    cartItems,
-    membershipDiscount,
-    userCommittedUsageCount,
-  });
-
-  if (!evaluation.ok) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: evaluation.message,
-      },
-    };
-  }
-
-  const couponDiscount = evaluation.discount;
-  const total = subtotal - couponDiscount;
+  const totalDiscount = membershipDiscount + couponDiscount;
+  const total = subtotal - totalDiscount;
   if (total <= 0) {
     return {
       status: 400,
@@ -273,13 +354,10 @@ export async function handlePreviewIncentiveRequest(
         subtotal,
         membershipDiscount,
         couponDiscount,
-        totalDiscount: couponDiscount,
+        totalDiscount,
         total,
-        appliedIncentive: {
-          code: incentive.code,
-          type: incentive.type,
-          discount: couponDiscount,
-        },
+        appliedIncentive: appliedIncentives[0] ?? null,
+        appliedIncentives,
       },
     },
   };

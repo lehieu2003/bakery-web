@@ -171,6 +171,7 @@ export function evaluateIncentiveEligibility(args: {
   cartItems: IncentiveCartItem[];
   membershipDiscount: number;
   userCommittedUsageCount: number;
+  ignoreMembershipConflict?: boolean;
 }): IncentiveEligibilityResult {
   const {
     incentive,
@@ -180,6 +181,7 @@ export function evaluateIncentiveEligibility(args: {
     cartItems,
     membershipDiscount,
     userCommittedUsageCount,
+    ignoreMembershipConflict = false,
   } = args;
   const code = incentive.code;
 
@@ -267,7 +269,7 @@ export function evaluateIncentiveEligibility(args: {
     };
   }
 
-  if (membershipDiscount > 0 && discount <= membershipDiscount) {
+  if (!ignoreMembershipConflict && membershipDiscount > 0 && discount <= membershipDiscount) {
     return {
       ok: false,
       reasonCode: 'MEMBERSHIP_CONFLICT',

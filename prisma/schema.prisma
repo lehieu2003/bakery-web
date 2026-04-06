@@ -469,7 +469,7 @@ model Order {
   user       User?       @relation(fields: [userId], references: [id])
   orderItems OrderItem[]
   payment    Payment?
-  couponRedemption CouponRedemption?
+  couponRedemptions CouponRedemption[]
 }
 
 model OrderItem {
@@ -619,7 +619,7 @@ model CouponRedemption {
   id String @id @default(cuid())
 
   couponId String
-  orderId  String @unique
+  orderId  String
   userId   String?
 
   state CouponRedemptionState @default(RESERVED)
@@ -637,7 +637,9 @@ model CouponRedemption {
   order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
   user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@unique([couponId, orderId])
   @@index([couponId, state])
+  @@index([orderId, state])
   @@index([userId, state])
 }
 

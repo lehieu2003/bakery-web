@@ -62,7 +62,8 @@ export default function CheckoutPaymentScreen() {
   const [payMethod, setPayMethod] = useState<
     'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER'
   >('COD');
-  const [incentiveCode, setIncentiveCode] = useState('');
+  const [incentiveCodeInput, setIncentiveCodeInput] = useState('');
+  const [selectedIncentiveCodes, setSelectedIncentiveCodes] = useState<string[]>([]);
   const [incentiveAssistMessage, setIncentiveAssistMessage] = useState('');
   const [incentiveError, setIncentiveError] = useState('');
   const [previewPricing, setPreviewPricing] =
@@ -91,6 +92,9 @@ export default function CheckoutPaymentScreen() {
   const availableIncentives = availableIncentivesQuery.data ?? [];
   const couponDiscount = previewPricing?.couponDiscount ?? 0;
   const total = previewPricing?.total ?? baseTotal;
+  const appliedIncentiveCodes =
+    previewPricing?.appliedIncentives?.map((item) => item.code) ??
+    selectedIncentiveCodes;
   const membershipDiscountApplied = previewPricing
     ? Math.max(previewPricing.totalDiscount - previewPricing.couponDiscount, 0)
     : discount;
@@ -101,12 +105,33 @@ export default function CheckoutPaymentScreen() {
     setIncentiveError('');
   }, [subtotal, discount]);
 
+  async function previewWithCodes(codes: string[]) {
+    const preview = await orderService.previewIncentive({
+      incentiveCodes: codes,
+      items: cart.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+      })),
+    });
+    setPreviewPricing(preview);
+    setSelectedIncentiveCodes(codes);
+    return preview;
+  }
+
   async function handleApplyIncentive(rawCode?: string) {
-    const normalizedCode = (rawCode ?? incentiveCode).trim().toUpperCase();
+    const normalizedCode = (rawCode ?? incentiveCodeInput).trim().toUpperCase();
 
     if (!normalizedCode) {
       setIncentiveError('Please enter an incentive code.');
       setPreviewPricing(null);
+      return;
+    }
+
+    const nextCodes = Array.from(
+      new Set([...selectedIncentiveCodes, normalizedCode]),
+    );
+    if (nextCodes.length > 5) {
+      setIncentiveError('You can apply up to 5 incentive codes.');
       return;
     }
 
@@ -116,24 +141,45 @@ export default function CheckoutPaymentScreen() {
     setIsApplyingIncentive(true);
 
     try {
-      const preview = await orderService.previewIncentive({
-        incentiveCode: normalizedCode,
-        items: cart.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-        })),
-      });
-      setIncentiveCode(normalizedCode);
-      setPreviewPricing(preview);
+      const preview = await previewWithCodes(nextCodes);
+      setIncentiveCodeInput('');
       setIncentiveAssistMessage(
-        `Applied ${normalizedCode}. Coupon discount: -${preview.couponDiscount.toLocaleString('vi-VN')}đ.`,
+        `Applied ${nextCodes.length} code(s). Coupon discount: -${preview.couponDiscount.toLocaleString('vi-VN')}đ.`,
       );
     } catch (caught) {
-      setPreviewPricing(null);
       if (caught instanceof ApiError && caught.data?.error) {
         setIncentiveError(caught.data.error);
       } else {
         setIncentiveError('Unable to apply incentive code right now.');
+      }
+    } finally {
+      setIsApplyingIncentive(false);
+    }
+  }
+
+  async function handleRemoveIncentive(code: string) {
+    const nextCodes = selectedIncentiveCodes.filter((item) => item !== code);
+    setIncentiveError('');
+    setError('');
+    setIncentiveAssistMessage('');
+    setIsApplyingIncentive(true);
+
+    try {
+      if (nextCodes.length === 0) {
+        setSelectedIncentiveCodes([]);
+        setPreviewPricing(null);
+        return;
+      }
+
+      const preview = await previewWithCodes(nextCodes);
+      setIncentiveAssistMessage(
+        `Updated codes. Coupon discount: -${preview.couponDiscount.toLocaleString('vi-VN')}đ.`,
+      );
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.data?.error) {
+        setIncentiveError(caught.data.error);
+      } else {
+        setIncentiveError('Unable to update incentive codes right now.');
       }
     } finally {
       setIsApplyingIncentive(false);
@@ -168,7 +214,8 @@ export default function CheckoutPaymentScreen() {
         customerEmail: checkoutInfo.customerEmail,
         customerAddress: checkoutInfo.customerAddress,
         paymentMethod: payMethod,
-        incentiveCode: incentiveCode.trim() || undefined,
+        incentiveCodes:
+          selectedIncentiveCodes.length > 0 ? selectedIncentiveCodes : undefined,
         items: cart.map((item) => ({
           productId: item.productId,
           name: item.name,
@@ -248,12 +295,9 @@ export default function CheckoutPaymentScreen() {
             </div>
             <input
               type='text'
-              value={incentiveCode}
+              value={incentiveCodeInput}
               onChange={(e) => {
-                setIncentiveCode(e.target.value.toUpperCase());
-                setIncentiveAssistMessage('');
-                setIncentiveError('');
-                setPreviewPricing(null);
+                setIncentiveCodeInput(e.target.value.toUpperCase());
               }}
               placeholder='Enter incentive code (optional)'
               className='w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
@@ -275,6 +319,27 @@ export default function CheckoutPaymentScreen() {
                 'Apply code'
               )}
             </button>
+            {selectedIncentiveCodes.length > 0 && (
+              <div className='space-y-2'>
+                <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
+                  Applied codes
+                </p>
+                <div className='flex flex-wrap gap-2'>
+                  {selectedIncentiveCodes.map((code) => (
+                    <button
+                      key={code}
+                      type='button'
+                      onClick={() => {
+                        void handleRemoveIncentive(code);
+                      }}
+                      className='text-xs px-3 py-1.5 rounded-full border border-primary/30 text-primary hover:bg-primary/10 transition-colors'
+                    >
+                      {code} ×
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {availableIncentivesQuery.isLoading && (
               <p className='text-xs text-muted-foreground' aria-live='polite'>
                 Loading available offers...
@@ -330,9 +395,12 @@ export default function CheckoutPaymentScreen() {
                             onClick={() => {
                               void handleApplyIncentive(offer.code);
                             }}
-                            className='text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors'
+                            disabled={selectedIncentiveCodes.includes(offer.code)}
+                            className='text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                           >
-                            Apply
+                            {selectedIncentiveCodes.includes(offer.code)
+                              ? 'Added'
+                              : 'Apply'}
                           </button>
                         </li>
                       );
@@ -351,7 +419,7 @@ export default function CheckoutPaymentScreen() {
               </p>
             )}
             <p className='text-xs text-muted-foreground' aria-live='polite'>
-              One incentive code per order. Final eligibility and totals are validated by server.
+              You can apply multiple incentive codes. Final eligibility and totals are validated by server.
             </p>
           </div>
 
@@ -491,11 +559,11 @@ export default function CheckoutPaymentScreen() {
                   </span>
                 </div>
               )}
-              {incentiveCode.trim() && (
+              {appliedIncentiveCodes.length > 0 && (
                 <div className='flex justify-between text-sm'>
-                  <span className='text-muted-foreground'>Incentive code</span>
-                  <span className='text-foreground font-medium'>
-                    {previewPricing?.appliedIncentive?.code ?? incentiveCode.trim()}
+                  <span className='text-muted-foreground'>Incentive codes</span>
+                  <span className='text-foreground font-medium text-right'>
+                    {appliedIncentiveCodes.join(', ')}
                   </span>
                 </div>
               )}

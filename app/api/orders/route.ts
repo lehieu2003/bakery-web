@@ -36,6 +36,7 @@ type CreateOrderPayload = {
   customerEmail?: string;
   paymentMethod?: PaymentMethod;
   incentiveCode?: string;
+  incentiveCodes?: string[];
   items?: Array<{
     productId?: string;
     name?: string;
@@ -88,6 +89,7 @@ type CreateOrderRouteDeps = {
     subtotal: number;
     discount: number;
     total: number;
+    appliedIncentives?: AppliedIncentive[];
     appliedIncentive?: AppliedIncentive | null;
     paymentMethod: PaymentMethod;
     orderItems: Array<{
@@ -194,19 +196,24 @@ function buildOrderSuccessData(args: {
   orderNumber: string;
   paymentUrl: string | null;
   paymentError?: string;
-  appliedIncentive: AppliedIncentive | null;
+  appliedIncentives: AppliedIncentive[];
 }) {
   return {
     order: { ...args.order, orderNumber: args.orderNumber },
     paymentUrl: args.paymentUrl,
     ...(args.paymentError ? { paymentError: args.paymentError } : {}),
-    appliedIncentive: args.appliedIncentive
+    appliedIncentive: args.appliedIncentives.length > 0
       ? {
-          code: args.appliedIncentive.code,
-          type: args.appliedIncentive.type,
-          discount: args.appliedIncentive.discount,
+          code: args.appliedIncentives[0].code,
+          type: args.appliedIncentives[0].type,
+          discount: args.appliedIncentives[0].discount,
         }
       : null,
+    appliedIncentives: args.appliedIncentives.map((incentive) => ({
+      code: incentive.code,
+      type: incentive.type,
+      discount: incentive.discount,
+    })),
   };
 }
 
@@ -322,16 +329,19 @@ const createOrderDeps: CreateOrderRouteDeps = {
             orderItems: true,
           },
         });
-        if (args.appliedIncentive) {
+        const incentivesToReserve =
+          args.appliedIncentives ??
+          (args.appliedIncentive ? [args.appliedIncentive] : []);
+        for (const incentive of incentivesToReserve) {
           await reserveCouponRedemption({
             tx,
-            couponId: args.appliedIncentive.couponId,
-            couponCode: args.appliedIncentive.code,
-            usageLimit: args.appliedIncentive.usageLimit,
-            perUserLimit: args.appliedIncentive.perUserLimit,
+            couponId: incentive.couponId,
+            couponCode: incentive.code,
+            usageLimit: incentive.usageLimit,
+            perUserLimit: incentive.perUserLimit,
             orderId: created.id,
             userId: args.userId,
-            reservedDiscount: args.appliedIncentive.discount,
+            reservedDiscount: incentive.discount,
           });
         }
 
@@ -423,6 +433,49 @@ const getOrdersDeps: GetOrdersRouteDeps = {
     }) as Promise<OrderReadModel[]>,
 };
 
+function resolveNormalizedIncentiveCodes(args: {
+  incentiveCodeInput: unknown;
+  incentiveCodesInput: unknown;
+}): { codes: string[]; error?: string } {
+  const normalizedSingle = normalizeIncentiveCode(args.incentiveCodeInput);
+  if (normalizedSingle === '') {
+    return {
+      codes: [],
+      error: 'Incentive code is invalid. Please enter a non-empty code.',
+    };
+  }
+
+  const codes: string[] = [];
+  if (Array.isArray(args.incentiveCodesInput)) {
+    for (const value of args.incentiveCodesInput) {
+      const normalized = normalizeIncentiveCode(value);
+      if (normalized === '') {
+        return {
+          codes: [],
+          error: 'One or more incentive codes are invalid.',
+        };
+      }
+      if (normalized) {
+        codes.push(normalized);
+      }
+    }
+  }
+
+  if (normalizedSingle) {
+    codes.push(normalizedSingle);
+  }
+
+  const uniqueCodes = Array.from(new Set(codes));
+  if (uniqueCodes.length > 5) {
+    return {
+      codes: [],
+      error: 'You can apply up to 5 incentive codes per order.',
+    };
+  }
+
+  return { codes: uniqueCodes };
+}
+
 export async function handleCreateOrderRequest(
   body: unknown,
   deps: CreateOrderRouteDeps = createOrderDeps,
@@ -443,6 +496,7 @@ export async function handleCreateOrderRequest(
     paymentMethod,
     items,
     incentiveCode: incentiveCodeInput,
+    incentiveCodes: incentiveCodesInput,
   } = payload;
 
   if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
@@ -482,16 +536,20 @@ export async function handleCreateOrderRequest(
     }
   }
 
-  const normalizedIncentiveCode = normalizeIncentiveCode(incentiveCodeInput);
-  if (normalizedIncentiveCode === '') {
+  const normalizedIncentiveCodesResult = resolveNormalizedIncentiveCodes({
+    incentiveCodeInput,
+    incentiveCodesInput,
+  });
+  if (normalizedIncentiveCodesResult.error) {
     return {
       status: 400,
       body: {
         success: false,
-        error: 'Incentive code is invalid. Please enter a non-empty code.',
+        error: normalizedIncentiveCodesResult.error,
       },
     };
   }
+  const normalizedIncentiveCodes = normalizedIncentiveCodesResult.codes;
 
   const products = await deps.findProducts(items.map((i) => i.productId!));
   const productMap = new Map(products.map((p) => [p.id, p]));
@@ -542,11 +600,17 @@ export async function handleCreateOrderRequest(
     subtotal * (membershipDiscountPercent / 100),
   );
 
-  let finalDiscount = membershipDiscount;
-  let appliedIncentive: AppliedIncentive | null = null;
+  let couponDiscount = 0;
+  const appliedIncentives: AppliedIncentive[] = [];
+  const cartItemsForEligibility = orderItems.map((item) => ({
+    productId: item.productId,
+    lineSubtotal: item.subtotal,
+    categoryIds: item.categoryIds,
+  }));
+  const ignoreMembershipConflict = normalizedIncentiveCodes.length >= 1;
 
-  if (normalizedIncentiveCode) {
-    const incentive = await deps.findIncentiveByCode(normalizedIncentiveCode, {
+  for (const code of normalizedIncentiveCodes) {
+    const incentive = await deps.findIncentiveByCode(code, {
       id: user?.id ?? null,
       memberLevel: user?.memberLevel ?? null,
     });
@@ -556,7 +620,7 @@ export async function handleCreateOrderRequest(
         status: 400,
         body: {
           success: false,
-          error: `Incentive code "${normalizedIncentiveCode}" is invalid or inactive.`,
+          error: `Incentive code "${code}" is invalid or inactive.`,
         },
       };
     }
@@ -573,13 +637,10 @@ export async function handleCreateOrderRequest(
         memberLevel: user?.memberLevel ?? null,
       },
       cartSubtotal: subtotal,
-      cartItems: orderItems.map((item) => ({
-        productId: item.productId,
-        lineSubtotal: item.subtotal,
-        categoryIds: item.categoryIds,
-      })),
+      cartItems: cartItemsForEligibility,
       membershipDiscount,
       userCommittedUsageCount,
+      ignoreMembershipConflict,
     });
 
     if (!evaluation.ok) {
@@ -592,16 +653,33 @@ export async function handleCreateOrderRequest(
       };
     }
 
-    finalDiscount = evaluation.discount;
-    appliedIncentive = {
+    const remainingDiscountBudget = Math.max(
+      subtotal - membershipDiscount - couponDiscount,
+      0,
+    );
+    const appliedDiscount = Math.min(evaluation.discount, remainingDiscountBudget);
+    if (appliedDiscount <= 0) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${code}" does not provide additional discount.`,
+        },
+      };
+    }
+
+    couponDiscount += appliedDiscount;
+    appliedIncentives.push({
       couponId: incentive.id,
-      code: normalizedIncentiveCode,
+      code,
       type: incentive.type,
       usageLimit: incentive.usageLimit,
       perUserLimit: incentive.perUserLimit,
-      discount: evaluation.discount,
-    };
+      discount: appliedDiscount,
+    });
   }
+
+  const finalDiscount = membershipDiscount + couponDiscount;
 
   const total = subtotal - finalDiscount;
 
@@ -633,14 +711,15 @@ export async function handleCreateOrderRequest(
       discount: finalDiscount,
       total,
       paymentMethod,
-      appliedIncentive,
+      appliedIncentives,
+      appliedIncentive: appliedIncentives[0] ?? null,
       orderItems: persistableOrderItems,
     });
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === INCENTIVE_USAGE_LIMIT_REACHED &&
-      appliedIncentive
+      appliedIncentives.length > 0
     ) {
       return {
         status: 400,
@@ -654,7 +733,7 @@ export async function handleCreateOrderRequest(
     if (
       error instanceof Error &&
       error.message === INCENTIVE_PER_USER_LIMIT_REACHED &&
-      appliedIncentive
+      appliedIncentives.length > 0
     ) {
       return {
         status: 400,
@@ -707,7 +786,7 @@ export async function handleCreateOrderRequest(
             orderNumber,
             paymentUrl: null,
             paymentError: result.error,
-            appliedIncentive,
+            appliedIncentives,
           }),
         },
       };
@@ -721,7 +800,7 @@ export async function handleCreateOrderRequest(
           order,
           orderNumber,
           paymentUrl: result.payUrl,
-          appliedIncentive,
+          appliedIncentives,
         }),
       },
     };
@@ -770,7 +849,7 @@ export async function handleCreateOrderRequest(
             orderNumber,
             paymentUrl: null,
             paymentError: result.error,
-            appliedIncentive,
+            appliedIncentives,
           }),
         },
       };
@@ -784,7 +863,7 @@ export async function handleCreateOrderRequest(
           order,
           orderNumber,
           paymentUrl: result.payUrl,
-          appliedIncentive,
+          appliedIncentives,
         }),
       },
     };
@@ -798,7 +877,7 @@ export async function handleCreateOrderRequest(
         order,
         orderNumber,
         paymentUrl: null,
-        appliedIncentive,
+        appliedIncentives,
       }),
     },
   };

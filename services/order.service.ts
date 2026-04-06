@@ -9,6 +9,7 @@ export interface CreateOrderPayload {
   customerAddress?: string;
   paymentMethod: 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
   incentiveCode?: string;
+  incentiveCodes?: string[];
   items: Array<{
     productId: string;
     name: string;
@@ -19,6 +20,7 @@ export interface CreateOrderPayload {
 
 export interface PreviewIncentivePayload {
   incentiveCode?: string;
+  incentiveCodes?: string[];
   items: Array<{
     productId: string;
     quantity: number;
@@ -36,6 +38,7 @@ export interface CreateOrderResponse {
   paymentUrl: string | null;
   paymentError?: string;
   appliedIncentive?: AppliedIncentiveSummary | null;
+  appliedIncentives?: AppliedIncentiveSummary[] | null;
 }
 
 export interface PreviewIncentiveResponse {
@@ -45,6 +48,7 @@ export interface PreviewIncentiveResponse {
   totalDiscount: number;
   total: number;
   appliedIncentive?: AppliedIncentiveSummary | null;
+  appliedIncentives?: AppliedIncentiveSummary[] | null;
 }
 
 export type ReorderUnavailableReason =
