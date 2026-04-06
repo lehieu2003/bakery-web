@@ -1,7 +1,8 @@
 import React from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MembershipBenefitsResponse } from '@/types/api.types';
+import { ApiError } from '@/lib/api/client';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -33,14 +34,22 @@ vi.mock('@/hooks/use-membership-benefits', () => ({
   useMembershipBenefits: vi.fn(),
 }));
 
+vi.mock('@/services/order.service', () => ({
+  orderService: {
+    createOrder: vi.fn(),
+  },
+}));
+
 import CartScreen from '@/components/screens/CartScreen';
 import CheckoutInfoScreen from '@/components/screens/CheckoutInfoScreen';
 import CheckoutPaymentScreen from '@/components/screens/CheckoutPaymentScreen';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
+import { orderService } from '@/services/order.service';
 
 const mockedUseCart = vi.mocked(useCart);
 const mockedUseMembershipBenefits = vi.mocked(useMembershipBenefits);
+const mockedCreateOrder = vi.mocked(orderService.createOrder);
 
 const membershipData: MembershipBenefitsResponse = {
   user: {
@@ -138,6 +147,12 @@ describe('Membership benefit visibility across purchase flow', () => {
   beforeEach(() => {
     mockedUseCart.mockReturnValue(buildCartValue());
     mockMembershipBenefits(membershipData);
+    mockedCreateOrder.mockResolvedValue({
+      order: { id: 'o-1', orderNumber: 'BK260406OK' } as never,
+      paymentUrl: null,
+      paymentError: undefined,
+      appliedIncentive: null,
+    });
   });
 
   test('shows points context and eligibility message in cart for logged-in members', () => {
@@ -188,5 +203,54 @@ describe('Membership benefit visibility across purchase flow', () => {
 
     const liveMessage = screen.getByText(/Current points:/i);
     expect(liveMessage).toHaveAttribute('aria-live', 'polite');
+  });
+
+  test('shows entered incentive code in checkout summary', () => {
+    render(<CheckoutPaymentScreen />);
+
+    const incentiveInput = screen.getByPlaceholderText(
+      /Enter incentive code/i,
+    ) as HTMLInputElement;
+
+    fireEvent.change(incentiveInput, { target: { value: 'spring20' } });
+
+    expect(incentiveInput.value).toBe('SPRING20');
+    expect(screen.getByText(/^SPRING20$/i)).toBeInTheDocument();
+  });
+
+  test('renders actionable incentive rejection feedback in aria-live region', async () => {
+    mockedCreateOrder.mockRejectedValueOnce(
+      new ApiError(400, 'Bad Request', {
+        success: false,
+        error:
+          'Incentive code "TENPERCENT" conflicts with your current membership benefit. Remove the code or increase cart value.',
+      }),
+    );
+
+    render(<CheckoutPaymentScreen />);
+
+    const incentiveInput = screen.getByPlaceholderText(
+      /Enter incentive code/i,
+    ) as HTMLInputElement;
+
+    fireEvent.change(incentiveInput, { target: { value: 'tenpercent ' } });
+    fireEvent.click(screen.getByRole('button', { name: /Place Order/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/conflicts with your current membership benefit/i),
+      ).toBeInTheDocument();
+    });
+
+    expect(mockedCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        incentiveCode: 'TENPERCENT',
+      }),
+    );
+
+    const liveRegion = screen
+      .getByText(/conflicts with your current membership benefit/i)
+      .closest('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ export interface CreateOrderPayload {
   customerEmail?: string;
   customerAddress?: string;
   paymentMethod: 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
+  incentiveCode?: string;
   items: Array<{
     productId: string;
     name: string;
@@ -16,10 +17,17 @@ export interface CreateOrderPayload {
   }>;
 }
 
+export interface AppliedIncentiveSummary {
+  code: string;
+  type: 'PERCENTAGE' | 'FIXED';
+  discount: number;
+}
+
 export interface CreateOrderResponse {
   order: Order;
   paymentUrl: string | null;
   paymentError?: string;
+  appliedIncentive?: AppliedIncentiveSummary | null;
 }
 
 export interface GetMyOrdersOptions {
@@ -40,6 +48,7 @@ export const orderService = {
     const response = await http.post<CreateOrderResponse>(
       ENDPOINTS.ORDERS,
       payload,
+      { showErrorToast: false },
     );
     return response.data!;
   },

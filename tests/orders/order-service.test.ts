@@ -10,6 +10,7 @@ const createPayload: CreateOrderPayload = {
   customerEmail: 'lan@example.com',
   customerAddress: '123 Bakery St',
   paymentMethod: 'COD',
+  incentiveCode: 'WELCOME10',
   items: [
     {
       productId: 'p1',
@@ -24,15 +25,22 @@ test('orderService.createOrder posts to orders endpoint and returns data payload
   const originalPost = http.post;
   let capturedUrl = '';
   let capturedPayload: unknown = null;
+  let capturedConfig: unknown = null;
 
-  (http as { post: typeof http.post }).post = async (url, payload) => {
+  (http as { post: typeof http.post }).post = async (url, payload, config) => {
     capturedUrl = url;
     capturedPayload = payload;
+    capturedConfig = config;
     return {
       success: true,
       data: {
         order: { id: 'o1', orderNumber: 'BK123' },
         paymentUrl: null,
+        appliedIncentive: {
+          code: 'WELCOME10',
+          type: 'PERCENTAGE',
+          discount: 10000,
+        },
       } as never,
     };
   };
@@ -41,8 +49,10 @@ test('orderService.createOrder posts to orders endpoint and returns data payload
     const result = await orderService.createOrder(createPayload);
     assert.equal(capturedUrl, ENDPOINTS.ORDERS);
     assert.deepEqual(capturedPayload, createPayload);
+    assert.deepEqual(capturedConfig, { showErrorToast: false });
     assert.equal(result.paymentUrl, null);
     assert.equal(result.order.orderNumber, 'BK123');
+    assert.equal(result.appliedIncentive?.code, 'WELCOME10');
   } finally {
     (http as { post: typeof http.post }).post = originalPost;
   }

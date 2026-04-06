@@ -17,12 +17,14 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'ZALOPAY',
 ];
 const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+const INCENTIVE_USAGE_LIMIT_REACHED = 'INCENTIVE_USAGE_LIMIT_REACHED';
 
 type CreateOrderPayload = {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
   paymentMethod?: PaymentMethod;
+  incentiveCode?: string;
   items?: Array<{
     productId?: string;
     name?: string;
@@ -31,15 +33,37 @@ type CreateOrderPayload = {
   }>;
 };
 
+type IncentiveReadModel = {
+  code: string;
+  type: 'PERCENTAGE' | 'FIXED';
+  value: unknown;
+  minOrder: unknown | null;
+  maxDiscount: unknown | null;
+  usageLimit: number | null;
+  startAt: Date;
+  endAt: Date;
+  isActive: boolean;
+};
+
+type AppliedIncentive = {
+  code: string;
+  type: 'PERCENTAGE' | 'FIXED';
+  discount: number;
+};
+
 type CreateOrderRouteDeps = {
   getCurrentUser: (request?: NextRequest) => Promise<{
     id: string;
     email?: string | null;
     memberLevel?: string | null;
   } | null>;
-  findProducts: (productIds: string[]) => Promise<
+  findProducts: (
+    productIds: string[],
+  ) => Promise<
     Array<{ id: string; name: string; price: number; stock: number }>
   >;
+  findIncentiveByCode: (code: string) => Promise<IncentiveReadModel | null>;
+  now: () => Date;
   createOrderWithItems: (args: {
     orderNumber: string;
     userId: string | null;
@@ -49,6 +73,8 @@ type CreateOrderRouteDeps = {
     subtotal: number;
     discount: number;
     total: number;
+    appliedIncentiveCode?: string | null;
+    appliedIncentiveUsageLimited?: boolean;
     paymentMethod: PaymentMethod;
     orderItems: Array<{
       productId: string;
@@ -134,6 +160,62 @@ function generateOrderNumber(): string {
   return `BK${dateStr}${rand}`;
 }
 
+function normalizeIncentiveCode(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') return '';
+  return value.trim().toUpperCase();
+}
+
+function formatCurrencyVnd(value: number): string {
+  return `${Math.round(value).toLocaleString('vi-VN')}đ`;
+}
+
+function calculateIncentiveDiscount(
+  incentive: IncentiveReadModel,
+  subtotal: number,
+): number {
+  const rawValue = Math.max(asNumber(incentive.value), 0);
+
+  if (incentive.type === 'FIXED') {
+    return Math.min(Math.round(rawValue), subtotal);
+  }
+
+  const percent = Math.min(Math.max(rawValue, 0), 100);
+  const uncapped = Math.round(subtotal * (percent / 100));
+  const maxDiscount = asNumber(incentive.maxDiscount);
+
+  if (maxDiscount > 0) {
+    return Math.min(uncapped, Math.round(maxDiscount), subtotal);
+  }
+
+  return Math.min(uncapped, subtotal);
+}
+
+function buildOrderSuccessData(args: {
+  order: {
+    id: string;
+    orderNumber: string;
+    orderItems: Array<{
+      productId: string;
+      name: string;
+      price: number;
+      quantity: number;
+      subtotal: number;
+    }>;
+  };
+  orderNumber: string;
+  paymentUrl: string | null;
+  paymentError?: string;
+  appliedIncentive: AppliedIncentive | null;
+}) {
+  return {
+    order: { ...args.order, orderNumber: args.orderNumber },
+    paymentUrl: args.paymentUrl,
+    ...(args.paymentError ? { paymentError: args.paymentError } : {}),
+    appliedIncentive: args.appliedIncentive,
+  };
+}
+
 const createOrderDeps: CreateOrderRouteDeps = {
   getCurrentUser: (request) =>
     request ? getCurrentUserFromRequest(request) : Promise.resolve(null),
@@ -149,8 +231,49 @@ const createOrderDeps: CreateOrderRouteDeps = {
           price: Number(product.price),
         })),
       ),
+  findIncentiveByCode: async (code) => {
+    const coupon = await prisma.coupon.findUnique({
+      where: { code },
+      select: {
+        code: true,
+        type: true,
+        value: true,
+        minOrder: true,
+        maxDiscount: true,
+        usageLimit: true,
+        startAt: true,
+        endAt: true,
+        isActive: true,
+      },
+    });
+
+    if (!coupon) return null;
+
+    return {
+      ...coupon,
+      type: coupon.type as 'PERCENTAGE' | 'FIXED',
+    };
+  },
+  now: () => new Date(),
   createOrderWithItems: (args) =>
     prisma.$transaction(async (tx) => {
+      if (args.appliedIncentiveCode && args.appliedIncentiveUsageLimited) {
+        const result = await tx.coupon.updateMany({
+          where: {
+            code: args.appliedIncentiveCode,
+            isActive: true,
+            usageLimit: { gt: 0 },
+          },
+          data: {
+            usageLimit: { decrement: 1 },
+          },
+        });
+
+        if (result.count === 0) {
+          throw new Error(INCENTIVE_USAGE_LIMIT_REACHED);
+        }
+      }
+
       for (const item of args.orderItems) {
         await tx.product.update({
           where: { id: item.productId },
@@ -253,8 +376,14 @@ export async function handleCreateOrderRequest(
   }
 
   const payload = body as CreateOrderPayload;
-  const { customerName, customerPhone, customerEmail, paymentMethod, items } =
-    payload;
+  const {
+    customerName,
+    customerPhone,
+    customerEmail,
+    paymentMethod,
+    items,
+    incentiveCode: incentiveCodeInput,
+  } = payload;
 
   if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
     return {
@@ -291,6 +420,17 @@ export async function handleCreateOrderRequest(
         body: { success: false, error: 'Invalid item quantity' },
       };
     }
+  }
+
+  const normalizedIncentiveCode = normalizeIncentiveCode(incentiveCodeInput);
+  if (normalizedIncentiveCode === '') {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        error: 'Incentive code is invalid. Please enter a non-empty code.',
+      },
+    };
   }
 
   const products = await deps.findProducts(items.map((i) => i.productId!));
@@ -334,12 +474,103 @@ export async function handleCreateOrderRequest(
 
   const subtotal = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
   const membershipConfig = await deps.getMembershipConfig();
-  const discountPercent = user
+  const membershipDiscountPercent = user
     ? getDiscountPercentForLevel(membershipConfig, user.memberLevel)
     : 0;
-  const discountRate = discountPercent / 100;
-  const discount = Math.round(subtotal * discountRate);
-  const total = subtotal - discount;
+  const membershipDiscount = Math.round(
+    subtotal * (membershipDiscountPercent / 100),
+  );
+
+  let finalDiscount = membershipDiscount;
+  let appliedIncentive: AppliedIncentive | null = null;
+  let appliedIncentiveUsageLimited = false;
+
+  if (normalizedIncentiveCode) {
+    const incentive = await deps.findIncentiveByCode(normalizedIncentiveCode);
+
+    if (!incentive || !incentive.isActive) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${normalizedIncentiveCode}" is invalid or inactive.`,
+        },
+      };
+    }
+
+    const now = deps.now();
+    if (now < incentive.startAt) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${normalizedIncentiveCode}" is not active yet.`,
+        },
+      };
+    }
+
+    if (now > incentive.endAt) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${normalizedIncentiveCode}" has expired.`,
+        },
+      };
+    }
+
+    if (incentive.usageLimit !== null && incentive.usageLimit <= 0) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${normalizedIncentiveCode}" has reached its usage limit.`,
+        },
+      };
+    }
+
+    const minOrder = asNumber(incentive.minOrder);
+    if (minOrder > 0 && subtotal < minOrder) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${normalizedIncentiveCode}" requires a minimum order of ${formatCurrencyVnd(minOrder)}.`,
+        },
+      };
+    }
+
+    const incentiveDiscount = calculateIncentiveDiscount(incentive, subtotal);
+    if (incentiveDiscount <= 0) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${normalizedIncentiveCode}" does not provide a valid discount.`,
+        },
+      };
+    }
+
+    if (membershipDiscount > 0 && incentiveDiscount <= membershipDiscount) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Incentive code "${normalizedIncentiveCode}" conflicts with your current membership benefit. Remove the code or increase cart value.`,
+        },
+      };
+    }
+
+    finalDiscount = incentiveDiscount;
+    appliedIncentiveUsageLimited = incentive.usageLimit !== null;
+    appliedIncentive = {
+      code: normalizedIncentiveCode,
+      type: incentive.type,
+      discount: incentiveDiscount,
+    };
+  }
+
+  const total = subtotal - finalDiscount;
 
   if (total <= 0) {
     return {
@@ -350,18 +581,40 @@ export async function handleCreateOrderRequest(
 
   const totalInt = Math.round(total);
   const orderNumber = generateOrderNumber();
-  const order = await deps.createOrderWithItems({
-    orderNumber,
-    userId: user?.id || null,
-    customerName,
-    customerPhone,
-    customerEmail: customerEmail || user?.email || null,
-    subtotal,
-    discount,
-    total,
-    paymentMethod,
-    orderItems,
-  });
+  let order: Awaited<ReturnType<CreateOrderRouteDeps['createOrderWithItems']>>;
+  try {
+    order = await deps.createOrderWithItems({
+      orderNumber,
+      userId: user?.id || null,
+      customerName,
+      customerPhone,
+      customerEmail: customerEmail || user?.email || null,
+      subtotal,
+      discount: finalDiscount,
+      total,
+      appliedIncentiveCode: appliedIncentive?.code ?? null,
+      appliedIncentiveUsageLimited,
+      paymentMethod,
+      orderItems,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === INCENTIVE_USAGE_LIMIT_REACHED &&
+      appliedIncentive
+    ) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error:
+            'Incentive code is no longer available. Please try another code.',
+        },
+      };
+    }
+
+    throw error;
+  }
 
   const appUrl = deps.getAppUrl();
   const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
@@ -387,11 +640,13 @@ export async function handleCreateOrderRequest(
         status: 200,
         body: {
           success: true,
-          data: {
-            order: { ...order, orderNumber },
+          data: buildOrderSuccessData({
+            order,
+            orderNumber,
             paymentUrl: null,
             paymentError: result.error,
-          },
+            appliedIncentive,
+          }),
         },
       };
     }
@@ -400,7 +655,12 @@ export async function handleCreateOrderRequest(
       status: 200,
       body: {
         success: true,
-        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
+        data: buildOrderSuccessData({
+          order,
+          orderNumber,
+          paymentUrl: result.payUrl,
+          appliedIncentive,
+        }),
       },
     };
   }
@@ -431,11 +691,13 @@ export async function handleCreateOrderRequest(
         status: 200,
         body: {
           success: true,
-          data: {
-            order: { ...order, orderNumber },
+          data: buildOrderSuccessData({
+            order,
+            orderNumber,
             paymentUrl: null,
             paymentError: result.error,
-          },
+            appliedIncentive,
+          }),
         },
       };
     }
@@ -444,7 +706,12 @@ export async function handleCreateOrderRequest(
       status: 200,
       body: {
         success: true,
-        data: { order: { ...order, orderNumber }, paymentUrl: result.payUrl },
+        data: buildOrderSuccessData({
+          order,
+          orderNumber,
+          paymentUrl: result.payUrl,
+          appliedIncentive,
+        }),
       },
     };
   }
@@ -453,7 +720,12 @@ export async function handleCreateOrderRequest(
     status: 200,
     body: {
       success: true,
-      data: { order: { ...order, orderNumber }, paymentUrl: null },
+      data: buildOrderSuccessData({
+        order,
+        orderNumber,
+        paymentUrl: null,
+        appliedIncentive,
+      }),
     },
   };
 }
@@ -546,7 +818,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const result = await handleCreateOrderRequest(body, createOrderDeps, request);
+    const result = await handleCreateOrderRequest(
+      body,
+      createOrderDeps,
+      request,
+    );
     return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Create order error:', error);
@@ -556,5 +832,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

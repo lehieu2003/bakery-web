@@ -1,10 +1,11 @@
 'use client';
 
-import { ChevronLeft, Banknote, Wallet, Loader2 } from 'lucide-react';
+import { ChevronLeft, Banknote, Wallet, Loader2, TicketPercent } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
 import { orderService } from '@/services/order.service';
+import { ApiError } from '@/lib/api/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -60,6 +61,7 @@ export default function CheckoutPaymentScreen() {
   const [payMethod, setPayMethod] = useState<
     'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER'
   >('COD');
+  const [incentiveCode, setIncentiveCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const isSubmittingRef = useRef(false);
@@ -95,6 +97,7 @@ export default function CheckoutPaymentScreen() {
         customerEmail: checkoutInfo.customerEmail,
         customerAddress: checkoutInfo.customerAddress,
         paymentMethod: payMethod,
+        incentiveCode: incentiveCode.trim() || undefined,
         items: cart.map((item) => ({
           productId: item.productId,
           name: item.name,
@@ -118,8 +121,12 @@ export default function CheckoutPaymentScreen() {
       // Cash payment — clear cart and go to success page
       clearCart();
       router.push(`/checkout/success?order=${result.order.orderNumber}`);
-    } catch {
-      setError('Failed to place order. Please try again.');
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.data?.error) {
+        setError(caught.data.error);
+      } else {
+        setError('Failed to place order. Please try again.');
+      }
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -160,6 +167,25 @@ export default function CheckoutPaymentScreen() {
               </p>
             </div>
           )}
+
+          <div className='rounded-2xl border border-border bg-card px-5 py-4 space-y-3'>
+            <div className='flex items-center gap-2'>
+              <TicketPercent size={16} className='text-primary' />
+              <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
+                Incentive Code
+              </p>
+            </div>
+            <input
+              type='text'
+              value={incentiveCode}
+              onChange={(e) => setIncentiveCode(e.target.value.toUpperCase())}
+              placeholder='Enter incentive code (optional)'
+              className='w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+            />
+            <p className='text-xs text-muted-foreground' aria-live='polite'>
+              One incentive code per order. Final eligibility and totals are validated by server.
+            </p>
+          </div>
 
           <div>
             <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4'>
@@ -220,7 +246,10 @@ export default function CheckoutPaymentScreen() {
           </div>
 
           {error && (
-            <div className='px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20'>
+            <div
+              className='px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20'
+              aria-live='polite'
+            >
               <p className='text-sm text-destructive'>{error}</p>
             </div>
           )}
@@ -278,9 +307,19 @@ export default function CheckoutPaymentScreen() {
               </div>
               {discount > 0 && (
                 <div className='flex justify-between text-sm'>
-                  <span className='text-primary'>{memberLabel} discount ({discountPercent}%)</span>
+                  <span className='text-primary'>
+                    {memberLabel} discount ({discountPercent}%)
+                  </span>
                   <span className='text-primary font-semibold'>
                     -{discount.toLocaleString('vi-VN')}đ
+                  </span>
+                </div>
+              )}
+              {incentiveCode.trim() && (
+                <div className='flex justify-between text-sm'>
+                  <span className='text-muted-foreground'>Incentive code</span>
+                  <span className='text-foreground font-medium'>
+                    {incentiveCode.trim()}
                   </span>
                 </div>
               )}
@@ -300,4 +339,3 @@ export default function CheckoutPaymentScreen() {
     </div>
   );
 }
-
