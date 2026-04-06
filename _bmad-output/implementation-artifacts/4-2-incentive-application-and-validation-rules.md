@@ -1,6 +1,6 @@
 # Story 4.2: Incentive Application and Validation Rules
 
-Status: review
+Status: done
 
 ## Story
 
@@ -149,3 +149,4 @@ GPT-5 Codex
 
 - 2026-04-06: Implemented Story 4.2 incentive validation rules across order API, checkout integration, and regression coverage.
 - 2026-04-06: Updated Story 4.2 status to `review` with completion notes, file list, and validation evidence.
+
