@@ -11,6 +11,7 @@ export { productService } from './product.service';
 export { notificationsService } from './notifications.service';
 export { wishlistService } from './wishlist.service';
 export { membershipBenefitsService } from './membership-benefits.service';
+export { incentiveDiscoveryService } from './incentive-discovery.service';
 
 // Admin Services
 export {

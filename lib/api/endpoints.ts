@@ -167,6 +167,9 @@ export const ENDPOINTS = {
   // Customer APIs
   // ============================================================================
   ORDERS: `${API_BASE}/orders`,
+  INCENTIVES: {
+    AVAILABLE: `${API_BASE}/incentives/available`,
+  },
   MEMBERSHIP: {
     BENEFITS: `${API_BASE}/membership/benefits`,
   },

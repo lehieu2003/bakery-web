@@ -48,4 +48,8 @@ export {
   useMembershipBenefits,
   membershipBenefitsKeys,
 } from './use-membership-benefits';
+export {
+  useAvailableIncentives,
+  availableIncentivesKeys,
+} from './use-available-incentives';
 

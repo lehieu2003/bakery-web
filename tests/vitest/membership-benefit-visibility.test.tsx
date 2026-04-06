@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MembershipBenefitsResponse } from '@/types/api.types';
 import { ApiError } from '@/lib/api/client';
+import type { AvailableIncentive } from '@/services/incentive-discovery.service';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -34,6 +35,10 @@ vi.mock('@/hooks/use-membership-benefits', () => ({
   useMembershipBenefits: vi.fn(),
 }));
 
+vi.mock('@/hooks/use-available-incentives', () => ({
+  useAvailableIncentives: vi.fn(),
+}));
+
 vi.mock('@/services/order.service', () => ({
   orderService: {
     createOrder: vi.fn(),
@@ -45,10 +50,12 @@ import CheckoutInfoScreen from '@/components/screens/CheckoutInfoScreen';
 import CheckoutPaymentScreen from '@/components/screens/CheckoutPaymentScreen';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
+import { useAvailableIncentives } from '@/hooks/use-available-incentives';
 import { orderService } from '@/services/order.service';
 
 const mockedUseCart = vi.mocked(useCart);
 const mockedUseMembershipBenefits = vi.mocked(useMembershipBenefits);
+const mockedUseAvailableIncentives = vi.mocked(useAvailableIncentives);
 const mockedCreateOrder = vi.mocked(orderService.createOrder);
 
 const membershipData: MembershipBenefitsResponse = {
@@ -143,10 +150,28 @@ function mockMembershipBenefits(data: MembershipBenefitsResponse | undefined) {
   } as ReturnType<typeof useMembershipBenefits>);
 }
 
+function mockAvailableIncentives(data: AvailableIncentive[]) {
+  mockedUseAvailableIncentives.mockReturnValue({
+    data,
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useAvailableIncentives>);
+}
+
 describe('Membership benefit visibility across purchase flow', () => {
   beforeEach(() => {
     mockedUseCart.mockReturnValue(buildCartValue());
     mockMembershipBenefits(membershipData);
+    mockAvailableIncentives([
+      {
+        code: 'WELCOME10',
+        type: 'PERCENTAGE',
+        value: 10,
+        minOrder: 200000,
+        maxDiscount: null,
+        endAt: '2026-12-31T23:59:59.000Z',
+      },
+    ]);
     mockedCreateOrder.mockResolvedValue({
       order: { id: 'o-1', orderNumber: 'BK260406OK' } as never,
       paymentUrl: null,
@@ -203,6 +228,31 @@ describe('Membership benefit visibility across purchase flow', () => {
 
     const liveMessage = screen.getByText(/Current points:/i);
     expect(liveMessage).toHaveAttribute('aria-live', 'polite');
+  });
+
+  test('renders available offers and apply action fills incentive input', () => {
+    render(<CheckoutPaymentScreen />);
+
+    expect(screen.getByText(/Available offers/i)).toBeInTheDocument();
+    expect(screen.getByText(/^WELCOME10$/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+
+    const incentiveInput = screen.getByPlaceholderText(
+      /Enter incentive code/i,
+    ) as HTMLInputElement;
+    expect(incentiveInput.value).toBe('WELCOME10');
+    expect(screen.getByText(/Applied WELCOME10 to input/i)).toBeInTheDocument();
+  });
+
+  test('shows explicit empty state when there are no available offers', () => {
+    mockAvailableIncentives([]);
+
+    render(<CheckoutPaymentScreen />);
+
+    expect(
+      screen.getByText(/No available offers for this cart right now/i),
+    ).toBeInTheDocument();
   });
 
   test('shows entered incentive code in checkout summary', () => {

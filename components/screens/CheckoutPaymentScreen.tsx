@@ -4,6 +4,7 @@ import { ChevronLeft, Banknote, Wallet, Loader2, TicketPercent } from 'lucide-re
 import { useRef, useState } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
+import { useAvailableIncentives } from '@/hooks/use-available-incentives';
 import { orderService } from '@/services/order.service';
 import { ApiError } from '@/lib/api/client';
 import Link from 'next/link';
@@ -62,6 +63,7 @@ export default function CheckoutPaymentScreen() {
     'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER'
   >('COD');
   const [incentiveCode, setIncentiveCode] = useState('');
+  const [incentiveAssistMessage, setIncentiveAssistMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const isSubmittingRef = useRef(false);
@@ -70,6 +72,11 @@ export default function CheckoutPaymentScreen() {
   const discountRate = user ? discountPercent / 100 : 0;
   const discount = Math.round(subtotal * discountRate);
   const total = subtotal - discount;
+  const availableIncentivesQuery = useAvailableIncentives({
+    subtotal,
+    enabled: cart.length > 0,
+  });
+  const availableIncentives = availableIncentivesQuery.data ?? [];
 
   async function handlePlaceOrder() {
     if (
@@ -89,6 +96,7 @@ export default function CheckoutPaymentScreen() {
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     setError('');
+    setIncentiveAssistMessage('');
 
     try {
       const result = await orderService.createOrder({
@@ -178,10 +186,86 @@ export default function CheckoutPaymentScreen() {
             <input
               type='text'
               value={incentiveCode}
-              onChange={(e) => setIncentiveCode(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setIncentiveCode(e.target.value.toUpperCase());
+                setIncentiveAssistMessage('');
+              }}
               placeholder='Enter incentive code (optional)'
               className='w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
             />
+            {availableIncentivesQuery.isLoading && (
+              <p className='text-xs text-muted-foreground' aria-live='polite'>
+                Loading available offers...
+              </p>
+            )}
+            {!availableIncentivesQuery.isLoading && availableIncentivesQuery.isError && (
+              <p className='text-xs text-muted-foreground' aria-live='polite'>
+                Unable to load offers right now. You can still enter a code manually.
+              </p>
+            )}
+            {!availableIncentivesQuery.isLoading &&
+              !availableIncentivesQuery.isError &&
+              availableIncentives.length === 0 && (
+                <p className='text-xs text-muted-foreground' aria-live='polite'>
+                  No available offers for this cart right now.
+                </p>
+              )}
+            {!availableIncentivesQuery.isLoading &&
+              !availableIncentivesQuery.isError &&
+              availableIncentives.length > 0 && (
+                <div className='space-y-2'>
+                  <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
+                    Available offers
+                  </p>
+                  <ul className='space-y-2'>
+                    {availableIncentives.map((offer) => {
+                      const valueLabel =
+                        offer.type === 'PERCENTAGE'
+                          ? `${offer.value}% off`
+                          : `-${offer.value.toLocaleString('vi-VN')}đ`;
+                      const minOrderLabel = offer.minOrder
+                        ? `Min ${offer.minOrder.toLocaleString('vi-VN')}đ`
+                        : 'No minimum order';
+                      const maxDiscountLabel = offer.maxDiscount
+                        ? `, max ${offer.maxDiscount.toLocaleString('vi-VN')}đ`
+                        : '';
+                      const expiresLabel = new Date(offer.endAt).toLocaleDateString('vi-VN');
+
+                      return (
+                        <li
+                          key={offer.code}
+                          className='rounded-xl border border-border/80 bg-background px-3 py-2 flex items-start justify-between gap-3'
+                        >
+                          <div>
+                            <p className='text-sm font-semibold text-foreground'>{offer.code}</p>
+                            <p className='text-xs text-muted-foreground'>
+                              {valueLabel} · {minOrderLabel}
+                              {maxDiscountLabel} · Ends {expiresLabel}
+                            </p>
+                          </div>
+                          <button
+                            type='button'
+                            onClick={() => {
+                              setIncentiveCode(offer.code);
+                              setIncentiveAssistMessage(
+                                `Applied ${offer.code} to input. Final validation happens on order placement.`,
+                              );
+                            }}
+                            className='text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors'
+                          >
+                            Apply
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            {incentiveAssistMessage && (
+              <p className='text-xs text-primary' aria-live='polite'>
+                {incentiveAssistMessage}
+              </p>
+            )}
             <p className='text-xs text-muted-foreground' aria-live='polite'>
               One incentive code per order. Final eligibility and totals are validated by server.
             </p>
