@@ -31,6 +31,7 @@ export const ENDPOINTS = {
     PRODUCTS: {
       LIST: `${ADMIN_BASE}/products`,
       DETAIL: (id: string) => `${ADMIN_BASE}/products/${id}`,
+      AUDIT: (id: string) => `${ADMIN_BASE}/products/${id}/audit`,
       CREATE: `${ADMIN_BASE}/products`,
       UPDATE: (id: string) => `${ADMIN_BASE}/products/${id}`,
       DELETE: (id: string) => `${ADMIN_BASE}/products/${id}`,

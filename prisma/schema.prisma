@@ -137,6 +137,7 @@ model User {
   issuedCouponAssignments CouponAssignment[] @relation("CouponIssuer")
   couponRedemptions    CouponRedemption[]
   couponAuditLogs      CouponAuditLog[]   @relation("CouponAuditActor")
+  productAuditLogs     ProductAuditLog[]  @relation("ProductAuditActor")
 
   cart Cart?
 
@@ -273,6 +274,7 @@ model Product {
   orderItems           OrderItem[]
   cartItems            CartItem[]
   attributeAssignments ProductAttributeAssignment[]
+  auditLogs            ProductAuditLog[]
 
   @@index([isActive, price])
   @@index([stock, trackStock])
@@ -415,6 +417,29 @@ model ProductVariant {
 
   cartItems  CartItem[]
   orderItems OrderItem[]
+}
+
+model ProductAuditLog {
+  id String @id @default(cuid())
+
+  productId    String?
+  productRefId String
+
+  actorUserId String?
+  actorRole   UserRole?
+
+  mutationType String
+  beforeData   Json?
+  afterData    Json?
+  metadata     Json?
+
+  createdAt DateTime @default(now())
+
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  actor   User?   @relation("ProductAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([productRefId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
 }
 
 ////////////////////////////////////////////////////////////
