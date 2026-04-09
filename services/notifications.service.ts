@@ -5,7 +5,7 @@ import type {
   UserNotificationsQueryParams,
 } from '@/types/api.types';
 
-interface UserNotificationListResponse {
+export interface UserNotificationListResponse {
   notifications: NotificationListItem[];
   pagination: {
     page: number;

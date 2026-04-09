@@ -2,35 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUserFromRequest } from '@/lib/session';
 
-// GET /api/notifications - Get current user's published notifications
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUserFromRequest(request);
+type NotificationWithReads = {
+  id: string;
+  title: string;
+  content: string;
+  imageUrl: string | null;
+  linkUrl: string | null;
+  status: string;
+  publishedAt: Date | null;
+  createdById: string;
+  createdAt: Date;
+  updatedAt: Date;
+  reads: Array<{ readAt: Date }>;
+};
 
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
+type GetNotificationsDeps = {
+  getCurrentUser: (
+    request: NextRequest,
+  ) => Promise<{ id: string } | null>;
+  getNotifications: (args: {
+    userId: string;
+    unreadOnly: boolean;
+    skip: number;
+    take: number;
+  }) => Promise<{ notifications: NotificationWithReads[]; total: number }>;
+};
 
-    const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    const limit = Math.max(1, parseInt(searchParams.get('limit') || '20', 10));
-    const unreadOnly = searchParams.get('unreadOnly') === 'true';
-    const skip = (page - 1) * limit;
-
+const defaultDeps: GetNotificationsDeps = {
+  getCurrentUser: getCurrentUserFromRequest,
+  getNotifications: async ({ userId, unreadOnly, skip, take }) => {
     const where: Record<string, unknown> = {
       status: 'PUBLISHED',
       OR: [
         { audience: 'GLOBAL' },
-        { audience: 'USER', targetUserId: user.id },
+        { audience: 'USER', targetUserId: userId },
       ],
     };
 
     if (unreadOnly) {
       where.reads = {
-        none: { userId: user.id },
+        none: { userId },
       };
     }
 
@@ -39,19 +50,59 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           reads: {
-            where: { userId: user.id },
+            where: { userId },
             select: { readAt: true },
             take: 1,
           },
         },
         skip,
-        take: limit,
-        orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+        take,
+        orderBy: [
+          { publishedAt: 'desc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
       }),
       prisma.notification.count({ where }),
     ]);
 
-    return NextResponse.json({
+    return { notifications, total };
+  },
+};
+
+export async function handleGetNotificationsRequest(
+  request: NextRequest,
+  deps: GetNotificationsDeps = defaultDeps,
+) {
+  const user = await deps.getCurrentUser(request);
+
+  if (!user) {
+    return {
+      status: 401,
+      body: { success: false, error: 'Unauthorized' },
+    };
+  }
+
+  const { searchParams } = new URL(request.url);
+  const rawPage = Number.parseInt(searchParams.get('page') || '1', 10);
+  const rawLimit = Number.parseInt(searchParams.get('limit') || '20', 10);
+  const page = Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1;
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(50, Math.max(1, rawLimit))
+    : 20;
+  const unreadOnly = searchParams.get('unreadOnly') === 'true';
+  const skip = (page - 1) * limit;
+
+  const { notifications, total } = await deps.getNotifications({
+    userId: user.id,
+    unreadOnly,
+    skip,
+    take: limit,
+  });
+
+  return {
+    status: 200,
+    body: {
       success: true,
       data: {
         notifications: notifications.map((item) => {
@@ -78,7 +129,15 @@ export async function GET(request: NextRequest) {
           totalPages: Math.ceil(total / limit),
         },
       },
-    });
+    },
+  };
+}
+
+// GET /api/notifications - Get current user's published notifications
+export async function GET(request: NextRequest) {
+  try {
+    const result = await handleGetNotificationsRequest(request, defaultDeps);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Get notifications error:', error);
     return NextResponse.json(
