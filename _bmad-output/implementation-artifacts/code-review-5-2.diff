@@ -1,0 +1,462 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 89e6a9b..f63a1cf 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -1,5 +1,5 @@
+ # generated: 2026-04-04 13:43:39+07:00
+-# last_updated: 2026-04-09 18:47:00+07:00
++# last_updated: 2026-04-09 19:46:00+07:00
+ # project: bakery-web
+ # project_key: NOKEY
+ # tracking_system: file-system
+@@ -35,7 +35,7 @@
+ # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+ 
+ generated: 2026-04-04 13:43:39+07:00
+-last_updated: 2026-04-09 18:47:00+07:00
++last_updated: 2026-04-09 19:46:00+07:00
+ project: bakery-web
+ project_key: NOKEY
+ tracking_system: file-system
+@@ -70,7 +70,7 @@ development_status:
+   epic-4-retrospective: optional
+   epic-5: in-progress
+   5-1-event-driven-notification-delivery: done
+-  5-2-notification-inbox-and-read-state-management: backlog
++  5-2-notification-inbox-and-read-state-management: review
+   epic-5-retrospective: optional
+   epic-6: backlog
+   6-1-product-and-variant-crud: backlog
+diff --git a/app/api/notifications/[id]/read/route.ts b/app/api/notifications/[id]/read/route.ts
+index 5bb4814..b2989e8 100644
+--- a/app/api/notifications/[id]/read/route.ts
++++ b/app/api/notifications/[id]/read/route.ts
+@@ -2,62 +2,106 @@ import { NextRequest, NextResponse } from 'next/server';
+ import { prisma } from '@/lib/prisma';
+ import { getCurrentUserFromRequest } from '@/lib/session';
+ 
+-// POST /api/notifications/[id]/read - Mark notification as read for current user
+-export async function POST(
+-  request: NextRequest,
+-  { params }: { params: Promise<{ id: string }> },
+-) {
+-  try {
+-    const user = await getCurrentUserFromRequest(request);
+-    if (!user) {
+-      return NextResponse.json(
+-        { success: false, error: 'Unauthorized' },
+-        { status: 401 },
+-      );
+-    }
+-
+-    const { id } = await params;
++type MarkNotificationReadDeps = {
++  getCurrentUser: (
++    request: NextRequest,
++  ) => Promise<{ id: string } | null>;
++  findAccessibleNotification: (args: {
++    id: string;
++    userId: string;
++  }) => Promise<{ id: string } | null>;
++  upsertReadState: (args: {
++    notificationId: string;
++    userId: string;
++  }) => Promise<{ notificationId: string; readAt: Date }>;
++};
+ 
+-    const notification = await prisma.notification.findFirst({
++const defaultDeps: MarkNotificationReadDeps = {
++  getCurrentUser: getCurrentUserFromRequest,
++  findAccessibleNotification: ({ id, userId }) =>
++    prisma.notification.findFirst({
+       where: {
+         id,
+         status: 'PUBLISHED',
+         OR: [
+           { audience: 'GLOBAL' },
+-          { audience: 'USER', targetUserId: user.id },
++          { audience: 'USER', targetUserId: userId },
+         ],
+       },
+       select: { id: true },
+-    });
+-
+-    if (!notification) {
+-      return NextResponse.json(
+-        { success: false, error: 'Notification not found' },
+-        { status: 404 },
+-      );
+-    }
+-
+-    const read = await prisma.notificationRead.upsert({
++    }),
++  upsertReadState: ({ notificationId, userId }) =>
++    prisma.notificationRead.upsert({
+       where: {
+         notificationId_userId: {
+-          notificationId: id,
+-          userId: user.id,
++          notificationId,
++          userId,
+         },
+       },
+       create: {
+-        notificationId: id,
+-        userId: user.id,
++        notificationId,
++        userId,
+       },
+       update: {},
+-    });
++    }),
++};
++
++export async function handleMarkNotificationAsReadRequest(
++  request: NextRequest,
++  params: Promise<{ id: string }>,
++  deps: MarkNotificationReadDeps = defaultDeps,
++) {
++  const user = await deps.getCurrentUser(request);
++  if (!user) {
++    return {
++      status: 401,
++      body: { success: false, error: 'Unauthorized' },
++    };
++  }
++
++  const { id } = await params;
+ 
+-    return NextResponse.json({
++  const notification = await deps.findAccessibleNotification({
++    id,
++    userId: user.id,
++  });
++
++  if (!notification) {
++    return {
++      status: 404,
++      body: { success: false, error: 'Notification not found' },
++    };
++  }
++
++  const read = await deps.upsertReadState({
++    notificationId: id,
++    userId: user.id,
++  });
++
++  return {
++    status: 200,
++    body: {
+       success: true,
+       data: {
+         notificationId: read.notificationId,
+         readAt: read.readAt,
+       },
+-    });
++    },
++  };
++}
++
++// POST /api/notifications/[id]/read - Mark notification as read for current user
++export async function POST(
++  request: NextRequest,
++  { params }: { params: Promise<{ id: string }> },
++) {
++  try {
++    const result = await handleMarkNotificationAsReadRequest(
++      request,
++      params,
++      defaultDeps,
++    );
++    return NextResponse.json(result.body, { status: result.status });
+   } catch (error) {
+     console.error('Mark notification as read error:', error);
+     return NextResponse.json(
+diff --git a/app/api/notifications/read-all/route.ts b/app/api/notifications/read-all/route.ts
+index 9d6d58d..63ad3ce 100644
+--- a/app/api/notifications/read-all/route.ts
++++ b/app/api/notifications/read-all/route.ts
+@@ -2,50 +2,93 @@ import { NextRequest, NextResponse } from 'next/server';
+ import { prisma } from '@/lib/prisma';
+ import { getCurrentUserFromRequest } from '@/lib/session';
+ 
+-// POST /api/notifications/read-all - Mark all published notifications as read
+-export async function POST(request: NextRequest) {
+-  try {
+-    const user = await getCurrentUserFromRequest(request);
+-    if (!user) {
+-      return NextResponse.json(
+-        { success: false, error: 'Unauthorized' },
+-        { status: 401 },
+-      );
+-    }
+-
+-    const unreadNotifications = await prisma.notification.findMany({
++type MarkAllNotificationsReadDeps = {
++  getCurrentUser: (
++    request: NextRequest,
++  ) => Promise<{ id: string } | null>;
++  findUnreadNotificationIds: (args: {
++    userId: string;
++  }) => Promise<Array<{ id: string }>>;
++  markAllAsRead: (args: {
++    userId: string;
++    notificationIds: string[];
++  }) => Promise<{ count: number }>;
++};
++
++const defaultDeps: MarkAllNotificationsReadDeps = {
++  getCurrentUser: getCurrentUserFromRequest,
++  findUnreadNotificationIds: ({ userId }) =>
++    prisma.notification.findMany({
+       where: {
+         status: 'PUBLISHED',
+         OR: [
+           { audience: 'GLOBAL' },
+-          { audience: 'USER', targetUserId: user.id },
++          { audience: 'USER', targetUserId: userId },
+         ],
+         reads: {
+-          none: { userId: user.id },
++          none: { userId },
+         },
+       },
+       select: { id: true },
+-    });
++    }),
++  markAllAsRead: ({ userId, notificationIds }) =>
++    prisma.notificationRead.createMany({
++      data: notificationIds.map((id) => ({
++        notificationId: id,
++        userId,
++      })),
++      skipDuplicates: true,
++    }),
++};
++
++export async function handleMarkAllNotificationsAsReadRequest(
++  request: NextRequest,
++  deps: MarkAllNotificationsReadDeps = defaultDeps,
++) {
++  const user = await deps.getCurrentUser(request);
++  if (!user) {
++    return {
++      status: 401,
++      body: { success: false, error: 'Unauthorized' },
++    };
++  }
+ 
+-    if (unreadNotifications.length === 0) {
+-      return NextResponse.json({
++  const unreadNotifications = await deps.findUnreadNotificationIds({
++    userId: user.id,
++  });
++
++  if (unreadNotifications.length === 0) {
++    return {
++      status: 200,
++      body: {
+         success: true,
+         data: { count: 0 },
+-      });
+-    }
++      },
++    };
++  }
+ 
+-    const result = await prisma.notificationRead.createMany({
+-      data: unreadNotifications.map((item) => ({
+-        notificationId: item.id,
+-        userId: user.id,
+-      })),
+-      skipDuplicates: true,
+-    });
++  const result = await deps.markAllAsRead({
++    userId: user.id,
++    notificationIds: unreadNotifications.map((item) => item.id),
++  });
+ 
+-    return NextResponse.json({
++  return {
++    status: 200,
++    body: {
+       success: true,
+       data: { count: result.count },
+-    });
++    },
++  };
++}
++
++// POST /api/notifications/read-all - Mark all published notifications as read
++export async function POST(request: NextRequest) {
++  try {
++    const result = await handleMarkAllNotificationsAsReadRequest(
++      request,
++      defaultDeps,
++    );
++    return NextResponse.json(result.body, { status: result.status });
+   } catch (error) {
+     console.error('Mark all notifications as read error:', error);
+     return NextResponse.json(
+diff --git a/app/api/notifications/route.ts b/app/api/notifications/route.ts
+index a16d1f9..c048dd3 100644
+--- a/app/api/notifications/route.ts
++++ b/app/api/notifications/route.ts
+@@ -2,35 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
+ import { prisma } from '@/lib/prisma';
+ import { getCurrentUserFromRequest } from '@/lib/session';
+ 
+-// GET /api/notifications - Get current user's published notifications
+-export async function GET(request: NextRequest) {
+-  try {
+-    const user = await getCurrentUserFromRequest(request);
+-
+-    if (!user) {
+-      return NextResponse.json(
+-        { success: false, error: 'Unauthorized' },
+-        { status: 401 },
+-      );
+-    }
++type NotificationWithReads = {
++  id: string;
++  title: string;
++  content: string;
++  imageUrl: string | null;
++  linkUrl: string | null;
++  status: string;
++  publishedAt: Date | null;
++  createdById: string;
++  createdAt: Date;
++  updatedAt: Date;
++  reads: Array<{ readAt: Date }>;
++};
+ 
+-    const { searchParams } = new URL(request.url);
+-    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+-    const limit = Math.max(1, parseInt(searchParams.get('limit') || '20', 10));
+-    const unreadOnly = searchParams.get('unreadOnly') === 'true';
+-    const skip = (page - 1) * limit;
++type GetNotificationsDeps = {
++  getCurrentUser: (
++    request: NextRequest,
++  ) => Promise<{ id: string } | null>;
++  getNotifications: (args: {
++    userId: string;
++    unreadOnly: boolean;
++    skip: number;
++    take: number;
++  }) => Promise<{ notifications: NotificationWithReads[]; total: number }>;
++};
+ 
++const defaultDeps: GetNotificationsDeps = {
++  getCurrentUser: getCurrentUserFromRequest,
++  getNotifications: async ({ userId, unreadOnly, skip, take }) => {
+     const where: Record<string, unknown> = {
+       status: 'PUBLISHED',
+       OR: [
+         { audience: 'GLOBAL' },
+-        { audience: 'USER', targetUserId: user.id },
++        { audience: 'USER', targetUserId: userId },
+       ],
+     };
+ 
+     if (unreadOnly) {
+       where.reads = {
+-        none: { userId: user.id },
++        none: { userId },
+       };
+     }
+ 
+@@ -39,19 +50,58 @@ export async function GET(request: NextRequest) {
+         where,
+         include: {
+           reads: {
+-            where: { userId: user.id },
++            where: { userId },
+             select: { readAt: true },
+             take: 1,
+           },
+         },
+         skip,
+-        take: limit,
+-        orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
++        take,
++        orderBy: [
++          { publishedAt: 'desc' },
++          { createdAt: 'desc' },
++          { id: 'desc' },
++        ],
+       }),
+       prisma.notification.count({ where }),
+     ]);
+ 
+-    return NextResponse.json({
++    return { notifications, total };
++  },
++};
++
++export async function handleGetNotificationsRequest(
++  request: NextRequest,
++  deps: GetNotificationsDeps = defaultDeps,
++) {
++  const user = await deps.getCurrentUser(request);
++
++  if (!user) {
++    return {
++      status: 401,
++      body: { success: false, error: 'Unauthorized' },
++    };
++  }
++
++  const { searchParams } = new URL(request.url);
++  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
++  const limit = Math.min(
++    50,
++    Math.max(1, parseInt(searchParams.get('limit') || '20', 10)),
++  );
++  const unreadOnly = searchParams.get('unreadOnly') === 'true';
++  const skip = (page - 1) * limit;
++
++  const { notifications, total } = await deps.getNotifications({
++    userId: user.id,
++    unreadOnly,
++    skip,
++    take: limit,
++  });
++
++  return {
++    status: 200,
++    body: {
+       success: true,
+       data: {
+         notifications: notifications.map((item) => {
+@@ -78,7 +128,15 @@ export async function GET(request: NextRequest) {
+           totalPages: Math.ceil(total / limit),
+         },
+       },
+-    });
++    },
++  };
++}
++
++// GET /api/notifications - Get current user's published notifications
++export async function GET(request: NextRequest) {
++  try {
++    const result = await handleGetNotificationsRequest(request, defaultDeps);
++    return NextResponse.json(result.body, { status: result.status });
+   } catch (error) {
+     console.error('Get notifications error:', error);
+     return NextResponse.json(
+diff --git a/services/notifications.service.ts b/services/notifications.service.ts
+index 45654d0..c9a2ea9 100644
+--- a/services/notifications.service.ts
++++ b/services/notifications.service.ts
+@@ -5,7 +5,7 @@ import type {
+   UserNotificationsQueryParams,
+ } from '@/types/api.types';
+ 
+-interface UserNotificationListResponse {
++export interface UserNotificationListResponse {
+   notifications: NotificationListItem[];
+   pagination: {
+     page: number;
