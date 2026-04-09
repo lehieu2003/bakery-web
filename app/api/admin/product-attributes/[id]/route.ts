@@ -1,26 +1,493 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/session';
+import type { Prisma, ProductAttributeType, UserRole } from '@prisma/client';
+
 import { prisma } from '@/lib/prisma';
-import type { UpdateProductAttributeRequest, ProductAttributeValueInput } from '@/types/api.types';
 import { slugifyProductAttribute } from '@/lib/product-attributes';
+import { requireAdmin } from '@/lib/session';
+import type {
+  ProductAttributeValueInput,
+  UpdateProductAttributeRequest,
+} from '@/types/api.types';
 
-function normalizeValues(values: ProductAttributeValueInput[] | undefined) {
-  return (values ?? [])
-    .map((value, index) => {
-      const label = value.label.trim();
-      if (!label) return null;
+type AdminUser = {
+  id: string;
+  role: UserRole;
+};
 
+type AttributeValueRow = {
+  id: string;
+  slug: string;
+  value: string;
+};
+
+type NormalizedValue = {
+  label: string;
+  value: string;
+  slug: string;
+  colorHex: string | null;
+  imageUrl: string | null;
+  displayOrder: number;
+  isActive: boolean;
+};
+
+type DetailDeps = {
+  requireAdmin: () => Promise<AdminUser>;
+  findAttributeById: (id: string) => Promise<unknown | null>;
+  findAttributeForUpdate: (id: string) => Promise<{
+    id: string;
+    slug: string;
+    code: string;
+    values: AttributeValueRow[];
+  } | null>;
+  findAttributeBySlug: (slug: string, excludeId: string) => Promise<{ id: string } | null>;
+  findAttributeByCode: (code: string, excludeId: string) => Promise<{ id: string } | null>;
+  countAssignmentsByValueIds: (valueIds: string[], tx?: Prisma.TransactionClient) => Promise<number>;
+  deleteValuesByIds: (valueIds: string[], tx?: Prisma.TransactionClient) => Promise<void>;
+  createValue: (
+    attributeId: string,
+    value: NormalizedValue,
+    tx?: Prisma.TransactionClient,
+  ) => Promise<void>;
+  updateValueById: (
+    id: string,
+    value: NormalizedValue,
+    tx?: Prisma.TransactionClient,
+  ) => Promise<void>;
+  updateAttribute: (
+    id: string,
+    data: Prisma.ProductAttributeUpdateInput,
+    tx?: Prisma.TransactionClient,
+  ) => Promise<void>;
+  findAttributeDetailById: (id: string, tx?: Prisma.TransactionClient) => Promise<unknown | null>;
+  deleteAttribute: (id: string) => Promise<void>;
+  withTransaction: <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => Promise<T>;
+};
+
+type HandlerResult = {
+  status: number;
+  body: {
+    success: boolean;
+    data?: unknown;
+    error?: string;
+  };
+};
+
+type ParseError = { error: string };
+type ParseValuesSuccess = { values: NormalizedValue[] | undefined };
+type ParsedUpdatePayload = {
+  name?: string;
+  slug?: string;
+  code?: string;
+  type?: ProductAttributeType;
+  description?: string | null;
+  isRequired?: boolean;
+  isFilterable?: boolean;
+  isVariantAxis?: boolean;
+  isActive?: boolean;
+  displayOrder?: number;
+};
+type ParseUpdateSuccess = {
+  payload: ParsedUpdatePayload;
+  values: NormalizedValue[] | undefined;
+};
+
+const ALLOWED_ATTRIBUTE_TYPES = new Set<ProductAttributeType>([
+  'SELECT',
+  'MULTI_SELECT',
+  'TEXT',
+  'NUMBER',
+  'BOOLEAN',
+]);
+
+const defaultDeps: DetailDeps = {
+  requireAdmin,
+  findAttributeById: (id) =>
+    prisma.productAttribute.findUnique({
+      where: { id },
+      include: {
+        values: {
+          orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }],
+        },
+      },
+    }),
+  findAttributeForUpdate: (id) =>
+    prisma.productAttribute.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        slug: true,
+        code: true,
+        values: {
+          select: {
+            id: true,
+            slug: true,
+            value: true,
+          },
+        },
+      },
+    }),
+  findAttributeBySlug: (slug, excludeId) =>
+    prisma.productAttribute.findFirst({
+      where: {
+        slug,
+        id: { not: excludeId },
+      },
+      select: { id: true },
+    }),
+  findAttributeByCode: (code, excludeId) =>
+    prisma.productAttribute.findFirst({
+      where: {
+        code,
+        id: { not: excludeId },
+      },
+      select: { id: true },
+    }),
+  countAssignmentsByValueIds: (valueIds, tx) =>
+    (tx ?? prisma).productAttributeAssignment.count({
+      where: { valueId: { in: valueIds } },
+    }),
+  deleteValuesByIds: async (valueIds, tx) => {
+    await (tx ?? prisma).productAttributeValue.deleteMany({
+      where: { id: { in: valueIds } },
+    });
+  },
+  createValue: async (attributeId, value, tx) => {
+    await (tx ?? prisma).productAttributeValue.create({
+      data: {
+        attributeId,
+        ...value,
+      },
+    });
+  },
+  updateValueById: async (id, value, tx) => {
+    await (tx ?? prisma).productAttributeValue.update({
+      where: { id },
+      data: value,
+    });
+  },
+  updateAttribute: async (id, data, tx) => {
+    await (tx ?? prisma).productAttribute.update({
+      where: { id },
+      data,
+      select: { id: true },
+    });
+  },
+  findAttributeDetailById: (id, tx) =>
+    (tx ?? prisma).productAttribute.findUnique({
+      where: { id },
+      include: {
+        values: {
+          orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }],
+        },
+      },
+    }),
+  deleteAttribute: async (id) => {
+    await prisma.productAttribute.delete({ where: { id } });
+  },
+  withTransaction: (fn) => prisma.$transaction((tx) => fn(tx)),
+};
+
+function mapErrorToStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
+function normalizeValues(values: unknown): ParseError | ParseValuesSuccess {
+  if (values === undefined) return { values: undefined };
+  if (!Array.isArray(values)) return { error: 'values must be an array' };
+
+  const normalized: NormalizedValue[] = [];
+  for (const [index, item] of values.entries()) {
+    if (!item || typeof item !== 'object') {
+      return { error: `value at index ${index} is invalid` };
+    }
+
+    const value = item as ProductAttributeValueInput;
+    const label = typeof value.label === 'string' ? value.label.trim() : '';
+    if (!label) {
+      return { error: `value at index ${index} requires label` };
+    }
+
+    const slugSource =
+      typeof value.slug === 'string' && value.slug.trim()
+        ? value.slug
+        : label;
+    const slug = slugifyProductAttribute(slugSource);
+    if (!slug) {
+      return { error: `value at index ${index} has invalid slug` };
+    }
+
+    const valueText =
+      typeof value.value === 'string' && value.value.trim()
+        ? value.value.trim()
+        : label;
+
+    const displayOrder = Number(value.displayOrder ?? index);
+    if (!Number.isInteger(displayOrder) || displayOrder < 0) {
       return {
-        label,
-        value: value.value?.trim() || label,
-        slug: slugifyProductAttribute(value.slug?.trim() || label),
-        colorHex: value.colorHex?.trim() || null,
-        imageUrl: value.imageUrl?.trim() || null,
-        displayOrder: value.displayOrder ?? index,
-        isActive: value.isActive ?? true,
+        error: `value at index ${index} has invalid displayOrder`,
       };
-    })
-    .filter((value): value is NonNullable<typeof value> => Boolean(value));
+    }
+
+    if (value.isActive !== undefined && typeof value.isActive !== 'boolean') {
+      return { error: `value at index ${index} has invalid isActive` };
+    }
+
+    if (value.colorHex !== undefined && value.colorHex !== null && typeof value.colorHex !== 'string') {
+      return { error: `value at index ${index} has invalid colorHex` };
+    }
+
+    if (value.imageUrl !== undefined && value.imageUrl !== null && typeof value.imageUrl !== 'string') {
+      return { error: `value at index ${index} has invalid imageUrl` };
+    }
+
+    normalized.push({
+      label,
+      value: valueText,
+      slug,
+      colorHex:
+        typeof value.colorHex === 'string' ? value.colorHex.trim() || null : null,
+      imageUrl:
+        typeof value.imageUrl === 'string' ? value.imageUrl.trim() || null : null,
+      displayOrder,
+      isActive: value.isActive ?? true,
+    });
+  }
+
+  const seenSlug = new Set<string>();
+  const seenValue = new Set<string>();
+  for (const row of normalized) {
+    const slugKey = row.slug.toLowerCase();
+    if (seenSlug.has(slugKey)) {
+      return { error: `Duplicate value slug: ${row.slug}` };
+    }
+    seenSlug.add(slugKey);
+
+    const valueKey = row.value.toLowerCase();
+    if (seenValue.has(valueKey)) {
+      return { error: `Duplicate value: ${row.value}` };
+    }
+    seenValue.add(valueKey);
+  }
+
+  return { values: normalized };
+}
+
+function parseUpdatePayload(raw: unknown): ParseError | ParseUpdateSuccess {
+  if (!raw || typeof raw !== 'object') {
+    return { error: 'Invalid payload' };
+  }
+
+  const body = raw as UpdateProductAttributeRequest;
+
+  if (body.name !== undefined && (typeof body.name !== 'string' || !body.name.trim())) {
+    return { error: 'name must be a non-empty string' };
+  }
+
+  if (body.slug !== undefined && (typeof body.slug !== 'string' || !body.slug.trim())) {
+    return { error: 'slug must be a non-empty string' };
+  }
+
+  if (body.code !== undefined && (typeof body.code !== 'string' || !body.code.trim())) {
+    return { error: 'code must be a non-empty string' };
+  }
+
+  if (body.type !== undefined && !ALLOWED_ATTRIBUTE_TYPES.has(body.type as ProductAttributeType)) {
+    return { error: 'Invalid attribute type' };
+  }
+
+  if (
+    body.displayOrder !== undefined &&
+    (!Number.isInteger(body.displayOrder) || Number(body.displayOrder) < 0)
+  ) {
+    return { error: 'displayOrder must be a non-negative integer' };
+  }
+
+  if (body.isRequired !== undefined && typeof body.isRequired !== 'boolean') {
+    return { error: 'isRequired must be a boolean' };
+  }
+  if (body.isFilterable !== undefined && typeof body.isFilterable !== 'boolean') {
+    return { error: 'isFilterable must be a boolean' };
+  }
+  if (body.isVariantAxis !== undefined && typeof body.isVariantAxis !== 'boolean') {
+    return { error: 'isVariantAxis must be a boolean' };
+  }
+  if (body.isActive !== undefined && typeof body.isActive !== 'boolean') {
+    return { error: 'isActive must be a boolean' };
+  }
+
+  const parsedValues = normalizeValues(body.values);
+  if ('error' in parsedValues) return parsedValues;
+
+  return {
+    payload: {
+      ...(body.name !== undefined ? { name: body.name.trim() } : {}),
+      ...(body.slug !== undefined
+        ? { slug: slugifyProductAttribute(body.slug.trim()) }
+        : {}),
+      ...(body.code !== undefined ? { code: body.code.trim() } : {}),
+      ...(body.type !== undefined ? { type: body.type as ProductAttributeType } : {}),
+      ...(body.description !== undefined
+        ? {
+            description:
+              typeof body.description === 'string'
+                ? body.description.trim() || null
+                : null,
+          }
+        : {}),
+      ...(body.isRequired !== undefined ? { isRequired: body.isRequired } : {}),
+      ...(body.isFilterable !== undefined ? { isFilterable: body.isFilterable } : {}),
+      ...(body.isVariantAxis !== undefined ? { isVariantAxis: body.isVariantAxis } : {}),
+      ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+      ...(body.displayOrder !== undefined
+        ? { displayOrder: Number(body.displayOrder) }
+        : {}),
+    },
+    values: parsedValues.values,
+  };
+}
+
+export async function handleAdminProductAttributeDetailGetRequest(
+  params: Promise<{ id: string }>,
+  deps: DetailDeps = defaultDeps,
+): Promise<HandlerResult> {
+  await deps.requireAdmin();
+  const { id } = await params;
+
+  const attribute = await deps.findAttributeById(id);
+  if (!attribute) {
+    return {
+      status: 404,
+      body: { success: false, error: 'Attribute not found' },
+    };
+  }
+
+  return {
+    status: 200,
+    body: { success: true, data: { attribute } },
+  };
+}
+
+export async function handleAdminProductAttributeUpdateRequest(
+  request: NextRequest,
+  params: Promise<{ id: string }>,
+  deps: DetailDeps = defaultDeps,
+): Promise<HandlerResult> {
+  await deps.requireAdmin();
+  const { id } = await params;
+
+  const existing = await deps.findAttributeForUpdate(id);
+  if (!existing) {
+    return {
+      status: 404,
+      body: { success: false, error: 'Attribute not found' },
+    };
+  }
+
+  const parsed = parseUpdatePayload(await request.json());
+  if ('error' in parsed) {
+    return {
+      status: 400,
+      body: { success: false, error: parsed.error },
+    };
+  }
+
+  if (parsed.payload.slug && parsed.payload.slug !== existing.slug) {
+    const slugExists = await deps.findAttributeBySlug(parsed.payload.slug, id);
+    if (slugExists) {
+      return {
+        status: 400,
+        body: { success: false, error: 'Attribute slug already exists' },
+      };
+    }
+  }
+
+  if (parsed.payload.code && parsed.payload.code !== existing.code) {
+    const codeExists = await deps.findAttributeByCode(parsed.payload.code, id);
+    if (codeExists) {
+      return {
+        status: 400,
+        body: { success: false, error: 'Attribute code already exists' },
+      };
+    }
+  }
+
+  const attribute = await deps.withTransaction(async (tx) => {
+    await deps.updateAttribute(id, parsed.payload, tx);
+
+    if (parsed.values) {
+      const existingBySlug = new Map(
+        existing.values.map((value) => [value.slug.toLowerCase(), value]),
+      );
+
+      const nextSlugKeys = new Set(parsed.values.map((value) => value.slug.toLowerCase()));
+      const toDelete = existing.values.filter(
+        (value) => !nextSlugKeys.has(value.slug.toLowerCase()),
+      );
+
+      if (toDelete.length > 0) {
+        const assignedCount = await deps.countAssignmentsByValueIds(
+          toDelete.map((value) => value.id),
+          tx,
+        );
+
+        if (assignedCount > 0) {
+          throw new Error('Cannot remove attribute values assigned to products');
+        }
+
+        await deps.deleteValuesByIds(
+          toDelete.map((value) => value.id),
+          tx,
+        );
+      }
+
+      for (const value of parsed.values) {
+        const existingValue = existingBySlug.get(value.slug.toLowerCase());
+        if (existingValue) {
+          await deps.updateValueById(existingValue.id, value, tx);
+        } else {
+          await deps.createValue(id, value, tx);
+        }
+      }
+    }
+
+    return deps.findAttributeDetailById(id, tx);
+  });
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      data: { attribute },
+    },
+  };
+}
+
+export async function handleAdminProductAttributeDeleteRequest(
+  params: Promise<{ id: string }>,
+  deps: DetailDeps = defaultDeps,
+): Promise<HandlerResult> {
+  await deps.requireAdmin();
+  const { id } = await params;
+
+  const existing = await deps.findAttributeById(id);
+  if (!existing) {
+    return {
+      status: 404,
+      body: { success: false, error: 'Attribute not found' },
+    };
+  }
+
+  await deps.deleteAttribute(id);
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      data: { message: 'Deleted attribute' },
+    },
+  };
 }
 
 // GET /api/admin/product-attributes/[id]
@@ -29,35 +496,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
-    const { id } = await params;
-
-    const attribute = await prisma.productAttribute.findUnique({
-      where: { id },
-      include: {
-        values: {
-          orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }],
-        },
-      },
-    });
-
-    if (!attribute) {
-      return NextResponse.json(
-        { success: false, error: 'Attribute not found' },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: { attribute },
-    });
+    const result = await handleAdminProductAttributeDetailGetRequest(params);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Admin get product attribute detail error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Đã có lỗi xảy ra' },
-      { status: message === 'Unauthorized' ? 401 : 500 },
+      { status: mapErrorToStatus(message) },
     );
   }
 }
@@ -68,118 +514,19 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
-    const { id } = await params;
-    const body = (await request.json()) as UpdateProductAttributeRequest;
-
-    const existing = await prisma.productAttribute.findUnique({
-      where: { id },
-      include: { values: true },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Attribute not found' },
-        { status: 404 },
-      );
-    }
-
-    const nextSlug =
-      body.slug !== undefined
-        ? slugifyProductAttribute(body.slug?.trim() || body.name?.trim() || '')
-        : undefined;
-    if (nextSlug && nextSlug !== existing.slug) {
-      const slugExists = await prisma.productAttribute.findFirst({
-        where: { slug: nextSlug, id: { not: id } },
-      });
-      if (slugExists) {
-        return NextResponse.json(
-          { success: false, error: 'Attribute slug already exists' },
-          { status: 400 },
-        );
-      }
-    }
-
-    const nextCode = body.code?.trim();
-    if (nextCode && nextCode !== existing.code) {
-      const codeExists = await prisma.productAttribute.findFirst({
-        where: { code: nextCode, id: { not: id } },
-      });
-      if (codeExists) {
-        return NextResponse.json(
-          { success: false, error: 'Attribute code already exists' },
-          { status: 400 },
-        );
-      }
-    }
-
-    const values = body.values ? normalizeValues(body.values) : undefined;
-    if (values) {
-      const seenSlugs = new Set<string>();
-      for (const value of values) {
-        const key = value.slug.toLowerCase();
-        if (seenSlugs.has(key)) {
-          return NextResponse.json(
-            { success: false, error: `Duplicate value slug: ${value.slug}` },
-            { status: 400 },
-          );
-        }
-        seenSlugs.add(key);
-      }
-    }
-
-    if (values) {
-      await prisma.productAttributeValue.deleteMany({
-        where: { attributeId: id },
-      });
-    }
-
-    const attribute = await prisma.productAttribute.update({
-      where: { id },
-      data: {
-        ...(body.name !== undefined ? { name: body.name.trim() } : {}),
-        ...(nextSlug !== undefined ? { slug: nextSlug } : {}),
-        ...(nextCode !== undefined ? { code: nextCode } : {}),
-        ...(body.type !== undefined ? { type: body.type } : {}),
-        ...(body.description !== undefined
-          ? { description: body.description?.trim() || null }
-          : {}),
-        ...(body.isRequired !== undefined ? { isRequired: body.isRequired } : {}),
-        ...(body.isFilterable !== undefined
-          ? { isFilterable: body.isFilterable }
-          : {}),
-        ...(body.isVariantAxis !== undefined
-          ? { isVariantAxis: body.isVariantAxis }
-          : {}),
-        ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
-        ...(body.displayOrder !== undefined
-          ? { displayOrder: body.displayOrder }
-          : {}),
-        ...(values
-          ? {
-              values: {
-                create: values,
-              },
-            }
-          : {}),
-      },
-      include: {
-        values: {
-          orderBy: [{ displayOrder: 'asc' }, { label: 'asc' }],
-        },
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: { attribute },
-    });
+    const result = await handleAdminProductAttributeUpdateRequest(request, params);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Admin update product attribute error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const status =
+      message === 'Cannot remove attribute values assigned to products'
+        ? 400
+        : mapErrorToStatus(message);
+
     return NextResponse.json(
       { success: false, error: message || 'Đã có lỗi xảy ra' },
-      { status: message === 'Unauthorized' ? 401 : 500 },
+      { status },
     );
   }
 }
@@ -190,44 +537,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
-    const { id } = await params;
-
-    const existing = await prisma.productAttribute.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: { assignments: true },
-        },
-      },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Attribute not found' },
-        { status: 404 },
-      );
-    }
-
-    await prisma.productAttribute.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        message:
-          existing._count.assignments > 0
-            ? 'Deleted attribute and detached assigned products'
-            : 'Deleted attribute',
-      },
-    });
+    const result = await handleAdminProductAttributeDeleteRequest(params);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Admin delete product attribute error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Đã có lỗi xảy ra' },
-      { status: message === 'Unauthorized' ? 401 : 500 },
+      { status: mapErrorToStatus(message) },
     );
   }
 }

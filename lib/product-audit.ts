@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
@@ -9,8 +10,16 @@ type ProductAuditPayload = {
   actorRole?: UserRole | null;
   beforeData?: unknown;
   afterData?: unknown;
-  metadata?: Record<string, unknown>;
+  metadata?: unknown;
 };
+
+function toNullableJsonInput(
+  value: unknown,
+): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return Prisma.JsonNull;
+  return value as Prisma.InputJsonValue;
+}
 
 export async function writeProductAuditLog(payload: ProductAuditPayload) {
   await prisma.productAuditLog.create({
@@ -20,29 +29,14 @@ export async function writeProductAuditLog(payload: ProductAuditPayload) {
       mutationType: payload.mutationType,
       actorUserId: payload.actorUserId ?? null,
       actorRole: payload.actorRole ?? null,
-      beforeData: payload.beforeData as object | undefined,
-      afterData: payload.afterData as object | undefined,
-      metadata: payload.metadata,
+      beforeData: toNullableJsonInput(payload.beforeData),
+      afterData: toNullableJsonInput(payload.afterData),
+      metadata: toNullableJsonInput(payload.metadata),
     },
   });
 }
 
-type ProductAuditWriter = {
-  productAuditLog: {
-    create: (args: {
-      data: {
-        productId: string | null;
-        productRefId: string;
-        mutationType: string;
-        actorUserId: string | null;
-        actorRole: UserRole | null;
-        beforeData?: object;
-        afterData?: object;
-        metadata?: Record<string, unknown>;
-      };
-    }) => Promise<unknown>;
-  };
-};
+type ProductAuditWriter = Pick<Prisma.TransactionClient, 'productAuditLog'>;
 
 export async function writeProductAuditLogWithClient(
   client: ProductAuditWriter,
@@ -55,9 +49,9 @@ export async function writeProductAuditLogWithClient(
       mutationType: payload.mutationType,
       actorUserId: payload.actorUserId ?? null,
       actorRole: payload.actorRole ?? null,
-      beforeData: payload.beforeData as object | undefined,
-      afterData: payload.afterData as object | undefined,
-      metadata: payload.metadata,
+      beforeData: toNullableJsonInput(payload.beforeData),
+      afterData: toNullableJsonInput(payload.afterData),
+      metadata: toNullableJsonInput(payload.metadata),
     },
   });
 }
