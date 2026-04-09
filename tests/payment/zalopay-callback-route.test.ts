@@ -6,6 +6,10 @@ type PaymentSnapshot = {
   orderId: string;
   status: string;
   transactionId: string | null;
+  userId: string | null;
+  customerEmail: string | null;
+  userEmail: string | null;
+  orderNumber: string | null;
 };
 
 type TestDeps = {
@@ -15,7 +19,15 @@ type TestDeps = {
     orderId: string;
     paymentStatus: string;
     transactionId: string | null;
-  }) => Promise<void>;
+  }) => Promise<{ applied: boolean; conflict: boolean }>;
+  dispatchNotificationEvent?: (event: {
+    eventType: 'ORDER_STATUS_CHANGED';
+    entityId: string;
+    correlationKey: string;
+    targetUserId?: string | null;
+    targetEmail?: string | null;
+    payload?: Record<string, unknown>;
+  }) => Promise<unknown>;
   logEvent: (event: string, payload: Record<string, unknown>) => void;
 };
 
@@ -26,6 +38,7 @@ function createDeps() {
     paymentStatus: string;
     transactionId: string | null;
   }> = [];
+  const notificationEvents: Array<Record<string, unknown>> = [];
 
   const deps: TestDeps = {
     verifyCallback: () => true,
@@ -33,16 +46,24 @@ function createDeps() {
       orderId: 'order-1',
       status: 'PENDING',
       transactionId: null,
+      userId: 'user-1',
+      customerEmail: 'lan@example.com',
+      userEmail: 'user@example.com',
+      orderNumber: 'BK260405ABCD',
     }),
     applyPaymentTransition: async (args) => {
       transitions.push(args);
+      return { applied: true, conflict: false };
+    },
+    dispatchNotificationEvent: async (event) => {
+      notificationEvents.push(event);
     },
     logEvent: (event, payload) => {
       logs.push({ event, payload });
     },
   };
 
-  return { deps, logs, transitions };
+  return { deps, logs, transitions, notificationEvents };
 }
 
 test('ZaloPay callback rejects missing data/mac payload', async () => {
@@ -90,7 +111,7 @@ test('ZaloPay callback returns already processed when payment is missing', async
 });
 
 test('ZaloPay callback applies PAID transition on success status', async () => {
-  const { deps, transitions } = createDeps();
+  const { deps, transitions, notificationEvents } = createDeps();
   const data = JSON.stringify({
     app_trans_id: '260405_order-1',
     status: 1,
@@ -106,6 +127,9 @@ test('ZaloPay callback applies PAID transition on success status', async () => {
     paymentStatus: 'PAID',
     transactionId: 'zp-tx-1',
   });
+  assert.equal(notificationEvents.length, 1);
+  assert.equal(notificationEvents[0].eventType, 'ORDER_STATUS_CHANGED');
+  assert.equal(notificationEvents[0].entityId, 'order-1');
 });
 
 test('ZaloPay callback applies FAILED transition on explicit failed status', async () => {
@@ -144,12 +168,17 @@ test('ZaloPay callback rejects payload when status cannot be resolved', async ()
     true,
   );
 });
+
 test('ZaloPay callback logs conflict and avoids mutation on conflicting duplicate', async () => {
   const { deps, logs, transitions } = createDeps();
   deps.findPaymentByOrderId = async () => ({
     orderId: 'order-1',
     status: 'PAID',
     transactionId: 'zp-tx-1',
+    userId: 'user-1',
+    customerEmail: 'lan@example.com',
+    userEmail: 'user@example.com',
+    orderNumber: 'BK260405ABCD',
   });
 
   const data = JSON.stringify({
@@ -169,3 +198,22 @@ test('ZaloPay callback logs conflict and avoids mutation on conflicting duplicat
   );
 });
 
+test('ZaloPay callback treats atomic-transition miss as replay and skips notification dispatch', async () => {
+  const { deps, logs, notificationEvents } = createDeps();
+  deps.applyPaymentTransition = async () => ({ applied: false, conflict: false });
+  const data = JSON.stringify({
+    app_trans_id: '260405_order-1',
+    status: 1,
+    zp_trans_id: 'zp-tx-1',
+  });
+
+  const result = await handleZaloPayCallbackRequest({ data, mac: 'ok' }, deps);
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.return_message, 'already processed');
+  assert.equal(notificationEvents.length, 0);
+  assert.equal(
+    logs.some((entry) => entry.event === 'payment.callback.replay_ignored'),
+    true,
+  );
+});

@@ -851,3 +851,19 @@ test('POST /api/orders supports multiple incentive codes in one order', async ()
   assert.equal(capturedArgs?.appliedIncentives?.length, 2);
   assert.equal(result.body.data?.appliedIncentives?.length, 2);
 });
+
+test('POST /api/orders dispatches order-status notification event asynchronously', async () => {
+  const deps = createDeps();
+  const events: Array<Record<string, unknown>> = [];
+  deps.dispatchNotificationEvent = async (event) => {
+    events.push(event);
+  };
+
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
+
+  assert.equal(result.status, 200);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].eventType, 'ORDER_STATUS_CHANGED');
+  assert.equal(events[0].entityId, 'o1');
+  assert.equal(events[0].targetEmail, 'lan@example.com');
+});

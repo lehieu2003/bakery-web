@@ -80,6 +80,17 @@ enum NotificationStatus {
   ARCHIVED
 }
 
+enum NotificationAudience {
+  GLOBAL
+  USER
+}
+
+enum NotificationDispatchStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
 enum ProductAttributeType {
   SELECT
   MULTI_SELECT
@@ -119,7 +130,9 @@ model User {
   blogPosts            BlogPost[]
   blogComments         BlogComment[]
   notificationsCreated Notification[]
+  notificationsTargeted Notification[] @relation("NotificationTarget")
   notificationReads    NotificationRead[]
+  notificationDispatches NotificationDispatch[]
   couponAssignments    CouponAssignment[] @relation("CouponAssignee")
   issuedCouponAssignments CouponAssignment[] @relation("CouponIssuer")
   couponRedemptions    CouponRedemption[]
@@ -742,6 +755,9 @@ model Notification {
   imageUrl String?
   linkUrl String?
 
+  audience     NotificationAudience @default(GLOBAL)
+  targetUserId String?
+
   status      NotificationStatus @default(DRAFT)
   publishedAt DateTime?
 
@@ -750,10 +766,13 @@ model Notification {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  createdBy User               @relation(fields: [createdById], references: [id])
-  reads     NotificationRead[]
+  createdBy  User                   @relation(fields: [createdById], references: [id])
+  targetUser User?                  @relation("NotificationTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  reads      NotificationRead[]
+  dispatches NotificationDispatch[]
 
   @@index([status, publishedAt(sort: Desc)])
+  @@index([audience, targetUserId, status, publishedAt(sort: Desc)])
 }
 
 model NotificationRead {
@@ -767,6 +786,34 @@ model NotificationRead {
 
   @@id([notificationId, userId])
   @@index([userId, readAt(sort: Desc)])
+}
+
+model NotificationDispatch {
+  id String @id @default(cuid())
+
+  correlationKey String @unique
+  eventType      String
+  entityId       String
+
+  targetUserId String?
+  targetEmail  String?
+
+  status       NotificationDispatchStatus @default(PENDING)
+  channel      String?
+  attemptCount Int                        @default(0)
+  error        String?
+
+  notificationId String?
+  notification   Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  targetUser     User?         @relation(fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  processedAt DateTime?
+
+  @@index([eventType, createdAt(sort: Desc)])
+  @@index([status, updatedAt(sort: Desc)])
+  @@index([targetUserId, createdAt(sort: Desc)])
 }
 
 ////////////////////////////////////////////////////////////

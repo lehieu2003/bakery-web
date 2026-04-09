@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { NotificationStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
+import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 
 const VALID_STATUSES: NotificationStatus[] = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
 
@@ -129,6 +130,22 @@ export async function PUT(
         _count: { select: { reads: true } },
       },
     });
+
+    if (notification.status === 'PUBLISHED') {
+      void dispatchNotificationEvent({
+        eventType: 'CAMPAIGN_TRIGGERED',
+        entityId: notification.id,
+        correlationKey: `campaign:${notification.id}:publish:${notification.publishedAt?.toISOString() ?? 'none'}`,
+        payload: {
+          campaignTitle: notification.title,
+          campaignContent: notification.content,
+          linkUrl: notification.linkUrl,
+          imageUrl: notification.imageUrl,
+        },
+      }).catch((error) => {
+        console.error('Campaign notification dispatch error:', error);
+      });
+    }
 
     return NextResponse.json({
       success: true,

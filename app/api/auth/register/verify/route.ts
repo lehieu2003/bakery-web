@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
 import { createSession } from '@/lib/session';
 import { emailService } from '@/lib/email';
+import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
@@ -102,6 +103,25 @@ export async function POST(request: Request) {
         error,
       });
     }
+
+    void dispatchNotificationEvent({
+      eventType: 'ACCOUNT_VERIFIED',
+      entityId: user.id,
+      correlationKey: `account:${user.id}:verified`,
+      targetUserId: user.id,
+      targetEmail: normalizedEmail,
+      payload: {
+        userId: user.id,
+        userName: user.name || 'Khách hàng',
+        linkUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/profile`,
+      },
+    }).catch((error) => {
+      console.error('[auth.verify-email] account notification dispatch failed', {
+        requestId,
+        userId: user.id,
+        error,
+      });
+    });
 
     console.info('[auth.verify-email] account verified', {
       requestId,

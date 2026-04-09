@@ -7,11 +7,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyMoMoCallback } from '@/lib/payment/momo';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
+import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 
 type PaymentSnapshot = {
   orderId: string;
   status: string;
   transactionId: string | null;
+  userId: string | null;
+  customerEmail: string | null;
+  userEmail: string | null;
+  orderNumber: string | null;
 };
 
 type MomoCallbackDeps = {
@@ -21,7 +26,15 @@ type MomoCallbackDeps = {
     orderId: string;
     paymentStatus: string;
     transactionId: string | null;
-  }) => Promise<void>;
+  }) => Promise<{ applied: boolean; conflict: boolean }>;
+  dispatchNotificationEvent?: (event: {
+    eventType: 'ORDER_STATUS_CHANGED';
+    entityId: string;
+    correlationKey: string;
+    targetUserId?: string | null;
+    targetEmail?: string | null;
+    payload?: Record<string, unknown>;
+  }) => Promise<unknown>;
   logEvent: (event: string, payload: Record<string, unknown>) => void;
 };
 
@@ -30,7 +43,34 @@ const defaultDeps: MomoCallbackDeps = {
   findPaymentByOrderId: async (orderId) =>
     prisma.payment.findUnique({
       where: { orderId },
-      select: { orderId: true, status: true, transactionId: true },
+      select: {
+        orderId: true,
+        status: true,
+        transactionId: true,
+        order: {
+          select: {
+            userId: true,
+            customerEmail: true,
+            orderNumber: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    }).then((payment) => {
+      if (!payment) return null;
+      return {
+        orderId: payment.orderId,
+        status: payment.status,
+        transactionId: payment.transactionId,
+        userId: payment.order.userId,
+        customerEmail: payment.order.customerEmail,
+        userEmail: payment.order.user?.email ?? null,
+        orderNumber: payment.order.orderNumber ?? null,
+      };
     }),
   applyPaymentTransition: async ({ orderId, paymentStatus, transactionId }) => {
     const nextOrderStatus =
@@ -40,14 +80,30 @@ const defaultDeps: MomoCallbackDeps = {
           ? 'CANCELLED'
           : null;
 
-    await prisma.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { orderId },
+    return prisma.$transaction(async (tx) => {
+      const paymentUpdate = await tx.payment.updateMany({
+        where: { orderId, status: 'PENDING' },
         data: {
           status: paymentStatus,
           transactionId: transactionId ?? undefined,
         },
       });
+
+      if (paymentUpdate.count === 0) {
+        const existing = await tx.payment.findUnique({
+          where: { orderId },
+          select: { status: true, transactionId: true },
+        });
+
+        const conflict =
+          !!existing &&
+          (existing.status !== paymentStatus ||
+            (existing.transactionId !== null &&
+              transactionId !== null &&
+              existing.transactionId !== transactionId));
+
+        return { applied: false, conflict };
+      }
 
       if (nextOrderStatus) {
         await tx.order.update({
@@ -64,8 +120,11 @@ const defaultDeps: MomoCallbackDeps = {
           tx,
         });
       }
+
+      return { applied: true, conflict: false };
     });
   },
+  dispatchNotificationEvent,
   logEvent: (event, payload) => {
     console.info(
       JSON.stringify({
@@ -195,11 +254,56 @@ export async function handleMoMoCallbackRequest(
     };
   }
 
-  await deps.applyPaymentTransition({
+  const transitionResult = await deps.applyPaymentTransition({
     orderId,
     paymentStatus: incomingStatus,
     transactionId,
   });
+  if (!transitionResult.applied) {
+    deps.logEvent(
+      transitionResult.conflict
+        ? 'payment.callback.conflict'
+        : 'payment.callback.replay_ignored',
+      {
+        orderId,
+        existingStatus: payment.status,
+        incomingStatus,
+        existingTransactionId: payment.transactionId,
+        incomingTransactionId: transactionId,
+      },
+    );
+
+    return {
+      status: 200,
+      body: { resultCode: 0, message: 'already processed' },
+    };
+  }
+
+  if (deps.dispatchNotificationEvent) {
+    const orderStatus = incomingStatus === 'PAID' ? 'CONFIRMED' : 'CANCELLED';
+    void deps
+      .dispatchNotificationEvent({
+        eventType: 'ORDER_STATUS_CHANGED',
+        entityId: orderId,
+        correlationKey: `order:${orderId}:status:${orderStatus}:${transactionId ?? 'none'}`,
+        targetUserId: payment.userId ?? null,
+        targetEmail: payment.customerEmail || payment.userEmail || null,
+        payload: {
+          orderId,
+          orderNumber: payment.orderNumber,
+          orderStatus,
+          provider: 'MOMO',
+          transactionId,
+        },
+      })
+      .catch((error) => {
+        deps.logEvent('notification.dispatch.failed', {
+          orderId,
+          provider: 'MOMO',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+  }
 
   deps.logEvent('payment.callback.processed', {
     orderId,

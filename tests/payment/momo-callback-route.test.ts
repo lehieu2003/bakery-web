@@ -6,6 +6,10 @@ type PaymentSnapshot = {
   orderId: string;
   status: string;
   transactionId: string | null;
+  userId: string | null;
+  customerEmail: string | null;
+  userEmail: string | null;
+  orderNumber: string | null;
 };
 
 type TestDeps = {
@@ -15,7 +19,15 @@ type TestDeps = {
     orderId: string;
     paymentStatus: string;
     transactionId: string | null;
-  }) => Promise<void>;
+  }) => Promise<{ applied: boolean; conflict: boolean }>;
+  dispatchNotificationEvent?: (event: {
+    eventType: 'ORDER_STATUS_CHANGED';
+    entityId: string;
+    correlationKey: string;
+    targetUserId?: string | null;
+    targetEmail?: string | null;
+    payload?: Record<string, unknown>;
+  }) => Promise<unknown>;
   logEvent: (event: string, payload: Record<string, unknown>) => void;
 };
 
@@ -27,6 +39,7 @@ function createDeps() {
     transactionId: string | null;
   }> = [];
   const orderFinalizations: Array<{ orderId: string; orderStatus: string }> = [];
+  const notificationEvents: Array<Record<string, unknown>> = [];
 
   const deps: TestDeps = {
     verifyCallback: () => true,
@@ -34,6 +47,10 @@ function createDeps() {
       orderId: 'order-1',
       status: 'PENDING',
       transactionId: null,
+      userId: 'user-1',
+      customerEmail: 'lan@example.com',
+      userEmail: 'user@example.com',
+      orderNumber: 'BK260405ABCD',
     }),
     applyPaymentTransition: async (args) => {
       transitions.push(args);
@@ -42,13 +59,17 @@ function createDeps() {
       } else if (args.paymentStatus === 'FAILED') {
         orderFinalizations.push({ orderId: args.orderId, orderStatus: 'CANCELLED' });
       }
+      return { applied: true, conflict: false };
+    },
+    dispatchNotificationEvent: async (event) => {
+      notificationEvents.push(event);
     },
     logEvent: (event, payload) => {
       logs.push({ event, payload });
     },
   };
 
-  return { deps, logs, transitions, orderFinalizations };
+  return { deps, logs, transitions, orderFinalizations, notificationEvents };
 }
 
 test('MoMo callback rejects non-object payload', async () => {
@@ -87,7 +108,8 @@ test('MoMo callback returns already processed when payment is missing', async ()
 });
 
 test('MoMo callback applies PAID transition for successful resultCode', async () => {
-  const { deps, transitions, orderFinalizations } = createDeps();
+  const { deps, transitions, orderFinalizations, notificationEvents } =
+    createDeps();
 
   const result = await handleMoMoCallbackRequest(
     { orderId: 'order-1', resultCode: 0, transId: 'momo-tx-1' },
@@ -106,6 +128,9 @@ test('MoMo callback applies PAID transition for successful resultCode', async ()
     orderId: 'order-1',
     orderStatus: 'CONFIRMED',
   });
+  assert.equal(notificationEvents.length, 1);
+  assert.equal(notificationEvents[0].eventType, 'ORDER_STATUS_CHANGED');
+  assert.equal(notificationEvents[0].entityId, 'order-1');
 });
 
 test('MoMo callback finalizes order as CANCELLED when payment fails', async () => {
@@ -135,6 +160,10 @@ test('MoMo callback ignores replay when payment already finalized with same outc
     orderId: 'order-1',
     status: 'PAID',
     transactionId: 'momo-tx-1',
+    userId: 'user-1',
+    customerEmail: 'lan@example.com',
+    userEmail: 'user@example.com',
+    orderNumber: 'BK260405ABCD',
   });
 
   const result = await handleMoMoCallbackRequest(
@@ -157,6 +186,10 @@ test('MoMo callback logs conflict and does not mutate finalized state on conflic
     orderId: 'order-1',
     status: 'PAID',
     transactionId: 'momo-tx-1',
+    userId: 'user-1',
+    customerEmail: 'lan@example.com',
+    userEmail: 'user@example.com',
+    orderNumber: 'BK260405ABCD',
   });
 
   const result = await handleMoMoCallbackRequest(
@@ -169,6 +202,24 @@ test('MoMo callback logs conflict and does not mutate finalized state on conflic
   assert.equal(transitions.length, 0);
   assert.equal(
     logs.some((entry) => entry.event === 'payment.callback.conflict'),
+    true,
+  );
+});
+
+test('MoMo callback treats atomic-transition miss as replay and skips notification dispatch', async () => {
+  const { deps, logs, notificationEvents } = createDeps();
+  deps.applyPaymentTransition = async () => ({ applied: false, conflict: false });
+
+  const result = await handleMoMoCallbackRequest(
+    { orderId: 'order-1', resultCode: 0, transId: 'momo-tx-1' },
+    deps,
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.message, 'already processed');
+  assert.equal(notificationEvents.length, 0);
+  assert.equal(
+    logs.some((entry) => entry.event === 'payment.callback.replay_ignored'),
     true,
   );
 });

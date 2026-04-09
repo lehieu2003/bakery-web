@@ -16,6 +16,10 @@ export async function POST(request: NextRequest) {
     const unreadNotifications = await prisma.notification.findMany({
       where: {
         status: 'PUBLISHED',
+        OR: [
+          { audience: 'GLOBAL' },
+          { audience: 'USER', targetUserId: user.id },
+        ],
         reads: {
           none: { userId: user.id },
         },

@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {
       status: 'PUBLISHED',
+      OR: [
+        { audience: 'GLOBAL' },
+        { audience: 'USER', targetUserId: user.id },
+      ],
     };
 
     if (unreadOnly) {

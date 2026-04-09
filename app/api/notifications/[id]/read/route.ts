@@ -22,6 +22,10 @@ export async function POST(
       where: {
         id,
         status: 'PUBLISHED',
+        OR: [
+          { audience: 'GLOBAL' },
+          { audience: 'USER', targetUserId: user.id },
+        ],
       },
       select: { id: true },
     });

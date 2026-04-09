@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUserFromRequest } from '@/lib/session';
 import { createMoMoPayment } from '@/lib/payment/momo';
 import { createZaloPayPayment } from '@/lib/payment/zalopay';
+import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 import {
   getDiscountPercentForLevel,
   getMembershipRulesConfig,
@@ -122,6 +123,14 @@ type CreateOrderRouteDeps = {
   }) => Promise<void>;
   createMoMoPayment: typeof createMoMoPayment;
   createZaloPayPayment: typeof createZaloPayPayment;
+  dispatchNotificationEvent?: (event: {
+    eventType: 'ORDER_STATUS_CHANGED';
+    entityId: string;
+    correlationKey: string;
+    targetUserId?: string | null;
+    targetEmail?: string | null;
+    payload?: Record<string, unknown>;
+  }) => Promise<unknown>;
   getAppUrl: () => string;
   getMembershipConfig: () => Promise<MembershipRulesConfig>;
 };
@@ -397,6 +406,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
   },
   createMoMoPayment,
   createZaloPayPayment,
+  dispatchNotificationEvent,
   getAppUrl: () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   getMembershipConfig: getMembershipRulesConfig,
 };
@@ -749,6 +759,29 @@ export async function handleCreateOrderRequest(
   }
 
   const appUrl = deps.getAppUrl();
+  const orderStatus = 'PENDING';
+  if (deps.dispatchNotificationEvent) {
+    void deps
+      .dispatchNotificationEvent({
+        eventType: 'ORDER_STATUS_CHANGED',
+        entityId: order.id,
+        correlationKey: `order:${order.id}:status:${orderStatus}`,
+        targetUserId: user?.id ?? null,
+        targetEmail: customerEmail || user?.email || null,
+        payload: {
+          orderId: order.id,
+          orderNumber,
+          orderStatus,
+          paymentMethod,
+          occurredAt: deps.now().toISOString(),
+          linkUrl: `${appUrl}/orders`,
+        },
+      })
+      .catch((error) => {
+        console.error('Order notification dispatch error:', error);
+      });
+  }
+
   const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
 
   if (paymentMethod === 'MOMO') {
