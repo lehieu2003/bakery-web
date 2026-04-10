@@ -48,8 +48,13 @@ export async function POST(request: NextRequest) {
       typeof body.slug === 'string' && body.slug.trim() ? body.slug : title,
     );
     const content = typeof body.content === 'string' ? body.content : '';
-    const isPublished =
-      typeof body.isPublished === 'boolean' ? body.isPublished : false;
+
+    if (body.isPublished !== undefined && typeof body.isPublished !== 'boolean') {
+      return NextResponse.json(
+        { success: false, error: 'isPublished must be a boolean' },
+        { status: 400 },
+      );
+    }
 
     if (!title || !slug || !content) {
       return NextResponse.json(
@@ -71,7 +76,7 @@ export async function POST(request: NextRequest) {
         title,
         slug,
         content,
-        isPublished: isPublished ?? false,
+        isPublished: body.isPublished ?? false,
       },
     });
 

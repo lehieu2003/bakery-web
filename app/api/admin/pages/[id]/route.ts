@@ -64,6 +64,13 @@ export async function PUT(
       );
     }
 
+    if (body.isPublished !== undefined && typeof body.isPublished !== 'boolean') {
+      return NextResponse.json(
+        { success: false, error: 'isPublished must be a boolean' },
+        { status: 400 },
+      );
+    }
+
     const nextSlug =
       typeof body.slug === 'string'
         ? slugify(body.slug || (typeof body.title === 'string' ? body.title : ''))
