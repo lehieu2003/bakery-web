@@ -138,6 +138,7 @@ model User {
   couponRedemptions    CouponRedemption[]
   couponAuditLogs      CouponAuditLog[]   @relation("CouponAuditActor")
   productAuditLogs     ProductAuditLog[]  @relation("ProductAuditActor")
+  orderAuditLogs       OrderAuditLog[]    @relation("OrderAuditActor")
 
   cart Cart?
 
@@ -508,6 +509,7 @@ model Order {
   orderItems OrderItem[]
   payment    Payment?
   couponRedemptions CouponRedemption[]
+  auditLogs  OrderAuditLog[]
 }
 
 model OrderItem {
@@ -697,6 +699,28 @@ model CouponAuditLog {
   actor  User?  @relation("CouponAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([couponId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
+}
+
+model OrderAuditLog {
+  id String @id @default(cuid())
+
+  orderId String
+
+  actorUserId String?
+  actorRole   UserRole?
+
+  mutationType String
+  beforeData   Json?
+  afterData    Json?
+  metadata     Json?
+
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User? @relation("OrderAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt(sort: Desc)])
   @@index([actorUserId, createdAt(sort: Desc)])
 }
 

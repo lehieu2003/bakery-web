@@ -1,164 +1,352 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { OrderStatus, UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/session';
+import { requireAdmin } from '@/lib/session';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
+import { writeOrderAuditLogWithClient } from '@/lib/order-audit';
 
-// GET: Get order details
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getSession();
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
+type Params = { params: Promise<{ id: string }> };
 
-    const { id } = await params;
+type AdminUser = {
+  id: string;
+  role: UserRole;
+};
 
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            memberLevel: true,
+type OrderDetailRow = {
+  id: string;
+  status: OrderStatus;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+  customerAddress: string | null;
+  [key: string]: unknown;
+};
+
+type OrderPatchPayload = Partial<{
+  status: OrderStatus;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+  customerAddress: string | null;
+  note: string | null;
+  notes: string | null;
+}>;
+
+type OrderPatchMetadata = {
+  note: string | null;
+};
+
+type HandlerResult = {
+  status: number;
+  body: {
+    success: boolean;
+    data?: unknown;
+    error?: string;
+  };
+};
+
+type OrderByIdDeps = {
+  requireAdmin: () => Promise<AdminUser>;
+  findOrderById: (id: string) => Promise<OrderDetailRow | null>;
+  updateOrderWithLifecycleAndAudit: (args: {
+    orderId: string;
+    actor: AdminUser;
+    before: OrderDetailRow;
+    payload: OrderPatchPayload;
+    metadata: OrderPatchMetadata;
+  }) => Promise<OrderDetailRow>;
+};
+
+const ORDER_STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  PENDING: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED'],
+  PROCESSING: ['READY'],
+  READY: ['COMPLETED'],
+};
+
+const ORDER_STATUSES: OrderStatus[] = [
+  'PENDING',
+  'CONFIRMED',
+  'PROCESSING',
+  'READY',
+  'COMPLETED',
+  'CANCELLED',
+];
+
+const includeFields = {
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      memberLevel: true,
+    },
+  },
+  orderItems: {
+    include: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          images: {
+            select: { url: true, isPrimary: true },
+            where: { isPrimary: true },
+            take: 1,
           },
         },
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                images: {
-                  select: { url: true, isPrimary: true },
-                  where: { isPrimary: true },
-                  take: 1,
-                },
-              },
-            },
-          },
-        },
-        payment: true,
       },
-    });
+    },
+  },
+  payment: true,
+};
 
-    if (!order) {
-      return NextResponse.json(
-        { success: false, error: 'Order not found' },
-        { status: 404 },
-      );
+const defaultDeps: OrderByIdDeps = {
+  requireAdmin,
+  findOrderById: (id) =>
+    prisma.order.findUnique({
+      where: { id },
+      include: includeFields,
+    }),
+  updateOrderWithLifecycleAndAudit: async ({
+    orderId,
+    actor,
+    before,
+    payload,
+    metadata,
+  }) =>
+    prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: payload.status,
+          customerName: payload.customerName,
+          customerPhone: payload.customerPhone,
+          customerEmail: payload.customerEmail,
+          customerAddress: payload.customerAddress,
+        },
+        include: includeFields,
+      });
+
+      if (payload.status && payload.status !== before.status) {
+        await applyCouponLifecycleForOrderStatus({
+          orderId,
+          status: payload.status,
+          reason:
+            payload.status === 'CANCELLED'
+              ? 'ADMIN_CANCELLED'
+              : 'ADMIN_STATUS_UPDATE',
+          tx,
+        });
+
+        await writeOrderAuditLogWithClient(tx, {
+          orderId,
+          mutationType: 'STATUS_UPDATE',
+          actorUserId: actor.id,
+          actorRole: actor.role,
+          beforeData: {
+            status: before.status,
+            customerName: before.customerName,
+            customerPhone: before.customerPhone,
+            customerEmail: before.customerEmail,
+            customerAddress: before.customerAddress,
+          },
+          afterData: {
+            status: updatedOrder.status,
+            customerName: updatedOrder.customerName,
+            customerPhone: updatedOrder.customerPhone,
+            customerEmail: updatedOrder.customerEmail,
+            customerAddress: updatedOrder.customerAddress,
+          },
+          metadata: {
+            note: metadata.note,
+            transition: `${before.status}->${updatedOrder.status}`,
+          },
+        });
+      }
+
+      return updatedOrder as OrderDetailRow;
+    }),
+};
+
+function mapErrorToStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
+type OptionalStringParseResult =
+  | { kind: 'skipped' }
+  | { kind: 'value'; value: string | null }
+  | { kind: 'error'; error: string };
+
+function normalizeOptionalString(raw: unknown, fieldName: string) {
+  if (raw === undefined) return { kind: 'skipped' } satisfies OptionalStringParseResult;
+  if (raw === null || raw === '')
+    return { kind: 'value', value: null } satisfies OptionalStringParseResult;
+  if (typeof raw !== 'string') {
+    return {
+      kind: 'error',
+      error: `${fieldName} must be a string`,
+    } satisfies OptionalStringParseResult;
+  }
+  return {
+    kind: 'value',
+    value: raw.trim() || null,
+  } satisfies OptionalStringParseResult;
+}
+
+function parseOrderPatchPayload(raw: unknown, existing: OrderDetailRow) {
+  if (!raw || typeof raw !== 'object') {
+    return { error: 'Invalid payload' } as const;
+  }
+  const body = raw as Record<string, unknown>;
+  const payload: OrderPatchPayload = {};
+  const metadata: OrderPatchMetadata = { note: null };
+
+  if (body.status !== undefined) {
+    if (typeof body.status !== 'string' || !ORDER_STATUSES.includes(body.status as OrderStatus)) {
+      return { error: 'Invalid status' } as const;
     }
+    const nextStatus = body.status as OrderStatus;
+    if (nextStatus !== existing.status) {
+      const allowed = ORDER_STATUS_TRANSITIONS[existing.status] ?? [];
+      if (!allowed.includes(nextStatus)) {
+        return {
+          error: `Invalid status transition from ${existing.status} to ${nextStatus}`,
+        } as const;
+      }
+    }
+    if (nextStatus !== existing.status) {
+      payload.status = nextStatus;
+    }
+  }
 
-    return NextResponse.json({
-      success: true,
-      data: order,
-    });
-  } catch (error) {
+  if (body.customerName !== undefined) {
+    if (typeof body.customerName !== 'string' || !body.customerName.trim()) {
+      return { error: 'customerName must be a non-empty string' } as const;
+    }
+    payload.customerName = body.customerName.trim();
+  }
+
+  if (body.customerPhone !== undefined) {
+    if (typeof body.customerPhone !== 'string' || !body.customerPhone.trim()) {
+      return { error: 'customerPhone must be a non-empty string' } as const;
+    }
+    payload.customerPhone = body.customerPhone.trim();
+  }
+
+  const customerEmail = normalizeOptionalString(body.customerEmail, 'customerEmail');
+  if (customerEmail.kind === 'error') return { error: customerEmail.error } as const;
+  if (customerEmail.kind === 'value') payload.customerEmail = customerEmail.value;
+
+  const customerAddress = normalizeOptionalString(body.customerAddress, 'customerAddress');
+  if (customerAddress.kind === 'error') return { error: customerAddress.error } as const;
+  if (customerAddress.kind === 'value') payload.customerAddress = customerAddress.value;
+
+  const noteInput = body.notes ?? body.note;
+  if (noteInput !== undefined) {
+    const note = normalizeOptionalString(noteInput, 'notes');
+    if (note.kind === 'error') return { error: note.error } as const;
+    if (note.kind === 'value') metadata.note = note.value;
+  }
+
+  return { payload, metadata } as const;
+}
+
+function hasPatchChanges(payload: OrderPatchPayload) {
+  return (
+    payload.status !== undefined ||
+    payload.customerName !== undefined ||
+    payload.customerPhone !== undefined ||
+    payload.customerEmail !== undefined ||
+    payload.customerAddress !== undefined
+  );
+}
+
+export async function handleAdminOrderGetByIdRequest(
+  params: Promise<{ id: string }>,
+  deps: OrderByIdDeps = defaultDeps,
+): Promise<HandlerResult> {
+  await deps.requireAdmin();
+  const { id } = await params;
+  const order = await deps.findOrderById(id);
+
+  if (!order) {
+    return { status: 404, body: { success: false, error: 'Order not found' } };
+  }
+
+  return { status: 200, body: { success: true, data: order } };
+}
+
+export async function handleAdminOrderPatchRequest(
+  request: Pick<NextRequest, 'json'>,
+  params: Promise<{ id: string }>,
+  deps: OrderByIdDeps = defaultDeps,
+): Promise<HandlerResult> {
+  const admin = await deps.requireAdmin();
+  const { id } = await params;
+  const existing = await deps.findOrderById(id);
+
+  if (!existing) {
+    return { status: 404, body: { success: false, error: 'Order not found' } };
+  }
+
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return { status: 400, body: { success: false, error: 'Invalid JSON payload' } };
+  }
+
+  const parsed = parseOrderPatchPayload(rawBody, existing);
+  if ('error' in parsed) {
+    return { status: 400, body: { success: false, error: parsed.error } };
+  }
+
+  if (!hasPatchChanges(parsed.payload)) {
+    return { status: 200, body: { success: true, data: { order: existing } } };
+  }
+
+  const order = await deps.updateOrderWithLifecycleAndAudit({
+    orderId: id,
+    actor: admin,
+    before: existing,
+    payload: parsed.payload,
+    metadata: parsed.metadata,
+  });
+
+  return { status: 200, body: { success: true, data: { order } } };
+}
+
+// GET /api/admin/orders/[id]
+export async function GET(_request: NextRequest, { params }: Params) {
+  try {
+    const result = await handleAdminOrderGetByIdRequest(params);
+    return NextResponse.json(result.body, { status: result.status });
+  } catch (error: unknown) {
     console.error('Get order error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = mapErrorToStatus(message);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch order' },
-      { status: 500 },
+      { success: false, error: status === 500 ? 'Internal server error' : message },
+      { status },
     );
   }
 }
 
-// PATCH: Update order (status, notes, etc.)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+// PATCH /api/admin/orders/[id]
+export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const session = await getSession();
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
-
-    const { id } = await params;
-    const body = await request.json();
-
-    const existing = await prisma.order.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Order not found' },
-        { status: 404 },
-      );
-    }
-
-    const validStatuses = [
-      'PENDING',
-      'CONFIRMED',
-      'PROCESSING',
-      'READY',
-      'COMPLETED',
-      'CANCELLED',
-    ];
-
-    const updateData: Record<string, unknown> = {};
-
-    if (body.status !== undefined) {
-      if (!validStatuses.includes(body.status)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid status' },
-          { status: 400 },
-        );
-      }
-      updateData.status = body.status;
-    }
-
-    if (body.note !== undefined) updateData.note = body.note;
-    if (body.customerName !== undefined)
-      updateData.customerName = body.customerName;
-    if (body.customerPhone !== undefined)
-      updateData.customerPhone = body.customerPhone;
-    if (body.customerAddress !== undefined)
-      updateData.customerAddress = body.customerAddress;
-
-    const order = await prisma.$transaction(async (tx) => {
-      const updatedOrder = await tx.order.update({
-        where: { id },
-        data: updateData,
-        include: {
-          user: {
-            select: { name: true, email: true },
-          },
-          orderItems: true,
-          payment: true,
-        },
-      });
-
-      if (body.status && body.status !== existing.status) {
-        await applyCouponLifecycleForOrderStatus({
-          orderId: id,
-          status: body.status,
-          reason:
-            body.status === 'CANCELLED' ? 'ADMIN_CANCELLED' : 'ADMIN_STATUS_UPDATE',
-          tx,
-        });
-      }
-
-      return updatedOrder;
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: order,
-    });
-  } catch (error) {
+    const result = await handleAdminOrderPatchRequest(request, params);
+    return NextResponse.json(result.body, { status: result.status });
+  } catch (error: unknown) {
     console.error('Update order error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = mapErrorToStatus(message);
     return NextResponse.json(
-      { success: false, error: 'Failed to update order' },
-      { status: 500 },
+      { success: false, error: status === 500 ? 'Internal server error' : message },
+      { status },
     );
   }
 }

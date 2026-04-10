@@ -58,6 +58,7 @@ export const ENDPOINTS = {
     ORDERS: {
       LIST: `${ADMIN_BASE}/orders`,
       DETAIL: (id: string) => `${ADMIN_BASE}/orders/${id}`,
+      AUDIT: (id: string) => `${ADMIN_BASE}/orders/${id}/audit`,
       UPDATE: (id: string) => `${ADMIN_BASE}/orders/${id}`,
       UPDATE_STATUS: (id: string) => `${ADMIN_BASE}/orders/${id}/status`,
     },

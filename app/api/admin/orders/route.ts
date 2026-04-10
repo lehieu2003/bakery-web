@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma, OrderStatus, UserRole } from '@prisma/client';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import type { Prisma, OrderStatus } from '@prisma/client';
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
-}
-
-function getErrorStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
 
 const ORDER_STATUSES: OrderStatus[] = [
   'PENDING',
@@ -22,82 +16,163 @@ const ORDER_STATUSES: OrderStatus[] = [
   'CANCELLED',
 ];
 
-function isOrderStatus(value: string): value is OrderStatus {
-  return ORDER_STATUSES.includes(value as OrderStatus);
-}
+type AdminUser = {
+  id: string;
+  role: UserRole;
+};
 
-// GET /api/admin/orders - List all orders
-export async function GET(request: NextRequest) {
-  try {
-    await requireAdmin();
+type OrderListQuery = {
+  page: number;
+  limit: number;
+  search: string;
+  status: OrderStatus | null;
+};
 
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const status = searchParams.get('status');
-    const search = searchParams.get('search');
+type OrderListDeps = {
+  requireAdmin: () => Promise<AdminUser>;
+  findOrders: (args: {
+    where: Prisma.OrderWhereInput;
+    skip: number;
+    take: number;
+  }) => Promise<unknown[]>;
+  countOrders: (where: Prisma.OrderWhereInput) => Promise<number>;
+};
 
-    const skip = (page - 1) * limit;
+type HandlerResult = {
+  status: number;
+  body: {
+    success: boolean;
+    data?: unknown;
+    error?: string;
+  };
+};
 
-    const where: Prisma.OrderWhereInput = {};
-    if (status && isOrderStatus(status)) where.status = status;
-    if (search) {
-      where.OR = [
-        { orderNumber: { contains: search, mode: 'insensitive' } },
-        { customerName: { contains: search, mode: 'insensitive' } },
-        { customerPhone: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        include: {
-          user: {
-            select: { id: true, phone: true, name: true },
-          },
-          payment: true,
-          orderItems: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  images: {
-                    select: { url: true, isPrimary: true },
-                    where: { isPrimary: true },
-                    take: 1,
-                  },
+const defaultDeps: OrderListDeps = {
+  requireAdmin,
+  findOrders: ({ where, skip, take }) =>
+    prisma.order.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, phone: true, name: true },
+        },
+        payment: true,
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                images: {
+                  select: { url: true, isPrimary: true },
+                  where: { isPrimary: true },
+                  take: 1,
                 },
               },
             },
           },
         },
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.order.count({ where }),
-    ]);
+      },
+      skip,
+      take,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    }),
+  countOrders: (where) => prisma.order.count({ where }),
+};
 
-    return NextResponse.json({
+function mapErrorToStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
+function normalizePositiveInt(value: string | null, fallback: number, max?: number) {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  if (typeof max === 'number' && parsed > max) return max;
+  return parsed;
+}
+
+function parseOrderListQuery(requestUrl: string) {
+  const { searchParams } = new URL(requestUrl);
+  const page = normalizePositiveInt(searchParams.get('page'), DEFAULT_PAGE);
+  const limit = normalizePositiveInt(searchParams.get('limit'), DEFAULT_LIMIT, MAX_LIMIT);
+  const search = (searchParams.get('search') ?? '').trim();
+  const statusRaw = (searchParams.get('status') ?? '').trim();
+
+  if (!statusRaw) {
+    return { page, limit, search, status: null } satisfies OrderListQuery;
+  }
+
+  if (!ORDER_STATUSES.includes(statusRaw as OrderStatus)) {
+    return { error: 'Invalid status filter' } as const;
+  }
+
+  return {
+    page,
+    limit,
+    search,
+    status: statusRaw as OrderStatus,
+  } satisfies OrderListQuery;
+}
+
+export async function handleAdminOrdersGetRequest(
+  requestUrl: string,
+  deps: OrderListDeps = defaultDeps,
+): Promise<HandlerResult> {
+  await deps.requireAdmin();
+
+  const parsed = parseOrderListQuery(requestUrl);
+  if ('error' in parsed) {
+    return { status: 400, body: { success: false, error: parsed.error } };
+  }
+
+  const where: Prisma.OrderWhereInput = {};
+  if (parsed.status) {
+    where.status = parsed.status;
+  }
+  if (parsed.search) {
+    where.OR = [
+      { orderNumber: { contains: parsed.search, mode: 'insensitive' } },
+      { customerName: { contains: parsed.search, mode: 'insensitive' } },
+      { customerPhone: { contains: parsed.search, mode: 'insensitive' } },
+    ];
+  }
+
+  const skip = (parsed.page - 1) * parsed.limit;
+  const [orders, total] = await Promise.all([
+    deps.findOrders({ where, skip, take: parsed.limit }),
+    deps.countOrders(where),
+  ]);
+
+  return {
+    status: 200,
+    body: {
       success: true,
       data: {
         orders,
         pagination: {
-          page,
-          limit,
+          page: parsed.page,
+          limit: parsed.limit,
           total,
-          totalPages: Math.ceil(total / limit),
+          totalPages: Math.ceil(total / parsed.limit),
         },
       },
-    });
+    },
+  };
+}
+
+// GET /api/admin/orders - List all orders
+export async function GET(request: NextRequest) {
+  try {
+    const result = await handleAdminOrdersGetRequest(request.url);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error: unknown) {
     console.error('Admin orders error:', error);
-    const message = getErrorMessage(error);
-    const status = getErrorStatus(message);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = mapErrorToStatus(message);
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
