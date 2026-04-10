@@ -1,0 +1,2211 @@
+diff --git a/app/api/admin/blog/categories/[id]/route.ts b/app/api/admin/blog/categories/[id]/route.ts
+index 1c1605f..d4dab98 100644
+--- a/app/api/admin/blog/categories/[id]/route.ts
++++ b/app/api/admin/blog/categories/[id]/route.ts
+@@ -1,107 +1,247 @@
+ import { NextRequest, NextResponse } from 'next/server';
++import type { UserRole } from '@prisma/client';
+ import { requireAdmin } from '@/lib/session';
+ import { prisma } from '@/lib/prisma';
+ import { slugify } from '@/lib/slug';
+ 
+ type Params = { params: Promise<{ id: string }> };
+ 
+-// GET /api/admin/blog/categories/[id]
+-export async function GET(_request: NextRequest, { params }: Params) {
+-  try {
+-    await requireAdmin();
+-    const { id } = await params;
++type AdminUser = {
++  id: string;
++  role: UserRole;
++};
++
++type BlogCategoryUpdatePayload = Partial<{
++  name: string;
++  slug: string;
++  description: string | null;
++  imageUrl: string | null;
++  displayOrder: number;
++  isActive: boolean;
++}>;
+ 
+-    const category = await prisma.blogCategory.findUnique({
++type HandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++  };
++};
++
++type AdminBlogCategoryByIdDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  findCategoryById: (id: string) => Promise<{ id: string; name: string } | null>;
++  findCategoryDetailById: (id: string) => Promise<unknown | null>;
++  findCategoryBySlugExcludingId: (slug: string, id: string) => Promise<{ id: string } | null>;
++  updateCategoryById: (id: string, payload: BlogCategoryUpdatePayload) => Promise<unknown>;
++  countPostsByCategoryId: (id: string) => Promise<number>;
++  deleteCategoryById: (id: string) => Promise<void>;
++};
++
++const defaultDeps: AdminBlogCategoryByIdDeps = {
++  requireAdmin,
++  findCategoryById: (id) =>
++    prisma.blogCategory.findUnique({
++      where: { id },
++      select: { id: true, name: true },
++    }),
++  findCategoryDetailById: (id) =>
++    prisma.blogCategory.findUnique({
+       where: { id },
+       include: { _count: { select: { posts: true } } },
+-    });
++    }),
++  findCategoryBySlugExcludingId: (slug, id) =>
++    prisma.blogCategory.findFirst({
++      where: { slug, id: { not: id } },
++      select: { id: true },
++    }),
++  updateCategoryById: (id, payload) =>
++    prisma.blogCategory.update({
++      where: { id },
++      data: payload,
++      include: { _count: { select: { posts: true } } },
++    }),
++  countPostsByCategoryId: (id) => prisma.blogPost.count({ where: { categoryId: id } }),
++  deleteCategoryById: async (id) => {
++    await prisma.blogCategory.delete({ where: { id } });
++  },
++};
++
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
++}
++
++function normalizeOptionalString(raw: unknown, fieldName: string) {
++  if (raw === undefined) return { skipped: true as const };
++  if (raw === null || raw === '') return { value: null as string | null };
++  if (typeof raw !== 'string') return { error: `${fieldName} must be a string` } as const;
++  return { value: raw.trim() || null };
++}
++
++function parseCategoryUpdatePayload(raw: unknown, existingName: string) {
++  if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
++  const body = raw as Record<string, unknown>;
++  const payload: BlogCategoryUpdatePayload = {};
++
++  if (body.name !== undefined) {
++    if (typeof body.name !== 'string' || !body.name.trim()) {
++      return { error: 'name must be a non-empty string' } as const;
++    }
++    payload.name = body.name.trim();
++  }
++
++  if (body.slug !== undefined) {
++    if (typeof body.slug !== 'string') return { error: 'slug must be a string' } as const;
++    const normalized = slugify(body.slug || String(body.name ?? payload.name ?? existingName));
++    if (!normalized) return { error: 'slug is required' } as const;
++    payload.slug = normalized;
++  }
++
++  const description = normalizeOptionalString(body.description, 'description');
++  if ('error' in description) return { error: description.error } as const;
++  if ('value' in description) payload.description = description.value;
++
++  const imageUrl = normalizeOptionalString(body.imageUrl, 'imageUrl');
++  if ('error' in imageUrl) return { error: imageUrl.error } as const;
++  if ('value' in imageUrl) payload.imageUrl = imageUrl.value;
++
++  if (body.displayOrder !== undefined) {
++    if (
++      typeof body.displayOrder !== 'number' ||
++      !Number.isInteger(body.displayOrder) ||
++      body.displayOrder < 0
++    ) {
++      return { error: 'displayOrder must be a non-negative integer' } as const;
++    }
++    payload.displayOrder = body.displayOrder;
++  }
++
++  if (body.isActive !== undefined) {
++    if (typeof body.isActive !== 'boolean') {
++      return { error: 'isActive must be a boolean' } as const;
++    }
++    payload.isActive = body.isActive;
++  }
++
++  return { payload } as const;
++}
+ 
+-    if (!category) {
+-      return NextResponse.json(
+-        { success: false, error: 'Không tìm thấy danh mục blog' },
+-        { status: 404 },
+-      );
++export async function handleAdminBlogCategoryGetByIdRequest(
++  params: Promise<{ id: string }>,
++  deps: AdminBlogCategoryByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++  const category = await deps.findCategoryDetailById(id);
++
++  if (!category) {
++    return { status: 404, body: { success: false, error: 'Blog category not found' } };
++  }
++
++  return { status: 200, body: { success: true, data: category } };
++}
++
++export async function handleAdminBlogCategoryPutRequest(
++  request: NextRequest,
++  params: Promise<{ id: string }>,
++  deps: AdminBlogCategoryByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++  const existing = await deps.findCategoryById(id);
++  if (!existing) {
++    return { status: 404, body: { success: false, error: 'Blog category not found' } };
++  }
++
++  const parsed = parseCategoryUpdatePayload(await request.json(), existing.name);
++  if ('error' in parsed) {
++    return { status: 400, body: { success: false, error: parsed.error } };
++  }
++
++  if (parsed.payload.slug) {
++    const duplicated = await deps.findCategoryBySlugExcludingId(parsed.payload.slug, id);
++    if (duplicated) {
++      return { status: 400, body: { success: false, error: 'Slug already exists' } };
+     }
++  }
++
++  const category = await deps.updateCategoryById(id, parsed.payload);
++  return { status: 200, body: { success: true, data: category } };
++}
++
++export async function handleAdminBlogCategoryDeleteRequest(
++  params: Promise<{ id: string }>,
++  deps: AdminBlogCategoryByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++  const existing = await deps.findCategoryById(id);
++  if (!existing) {
++    return { status: 404, body: { success: false, error: 'Blog category not found' } };
++  }
++
++  const postCount = await deps.countPostsByCategoryId(id);
++  if (postCount > 0) {
++    return {
++      status: 400,
++      body: { success: false, error: `Cannot delete category with ${postCount} blog posts` },
++    };
++  }
++
++  await deps.deleteCategoryById(id);
++  return {
++    status: 200,
++    body: { success: true, data: { message: 'Blog category deleted successfully' } },
++  };
++}
+ 
+-    return NextResponse.json({ success: true, data: category });
+-  } catch (error) {
++// GET /api/admin/blog/categories/[id]
++export async function GET(_request: NextRequest, { params }: Params) {
++  try {
++    const result = await handleAdminBlogCategoryGetByIdRequest(params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin blog category detail error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+ 
+ // PUT /api/admin/blog/categories/[id]
+ export async function PUT(request: NextRequest, { params }: Params) {
+   try {
+-    await requireAdmin();
+-    const { id } = await params;
+-    const body = await request.json();
+-    const { name, description, imageUrl, displayOrder, isActive } = body;
+-    const nextSlug =
+-      body.slug !== undefined ? slugify(body.slug || body.name || '') : undefined;
+-
+-    if (nextSlug) {
+-      const existing = await prisma.blogCategory.findFirst({
+-        where: { slug: nextSlug, id: { not: id } },
+-      });
+-      if (existing) {
+-        return NextResponse.json(
+-          { success: false, error: 'Slug đã tồn tại' },
+-          { status: 400 },
+-        );
+-      }
+-    }
+-
+-    const category = await prisma.blogCategory.update({
+-      where: { id },
+-      data: {
+-        ...(name !== undefined && { name }),
+-        ...(nextSlug !== undefined && { slug: nextSlug }),
+-        ...(description !== undefined && { description }),
+-        ...(imageUrl !== undefined && { imageUrl }),
+-        ...(displayOrder !== undefined && { displayOrder }),
+-        ...(isActive !== undefined && { isActive }),
+-      },
+-      include: { _count: { select: { posts: true } } },
+-    });
+-
+-    return NextResponse.json({ success: true, data: category });
+-  } catch (error) {
++    const result = await handleAdminBlogCategoryPutRequest(request, params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin update blog category error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+ 
+ // DELETE /api/admin/blog/categories/[id]
+ export async function DELETE(_request: NextRequest, { params }: Params) {
+   try {
+-    await requireAdmin();
+-    const { id } = await params;
+-
+-    const postCount = await prisma.blogPost.count({
+-      where: { categoryId: id },
+-    });
+-    if (postCount > 0) {
+-      return NextResponse.json(
+-        {
+-          success: false,
+-          error: `Không thể xoá: danh mục đang chứa ${postCount} bài viết`,
+-        },
+-        { status: 400 },
+-      );
+-    }
+-
+-    await prisma.blogCategory.delete({ where: { id } });
+-
+-    return NextResponse.json({
+-      success: true,
+-      data: { message: 'Đã xoá danh mục blog' },
+-    });
+-  } catch (error) {
++    const result = await handleAdminBlogCategoryDeleteRequest(params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin delete blog category error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+diff --git a/app/api/admin/blog/categories/route.ts b/app/api/admin/blog/categories/route.ts
+index d614ec4..b5c3882 100644
+--- a/app/api/admin/blog/categories/route.ts
++++ b/app/api/admin/blog/categories/route.ts
+@@ -1,67 +1,161 @@
+ import { NextRequest, NextResponse } from 'next/server';
++import type { UserRole } from '@prisma/client';
+ import { requireAdmin } from '@/lib/session';
+ import { prisma } from '@/lib/prisma';
+ import { slugify } from '@/lib/slug';
+ 
+-// GET /api/admin/blog/categories
+-export async function GET() {
+-  try {
+-    await requireAdmin();
++type AdminUser = {
++  id: string;
++  role: UserRole;
++};
++
++type BlogCategoryPayload = {
++  name: string;
++  slug: string;
++  description: string | null;
++  imageUrl: string | null;
++  displayOrder: number;
++  isActive: boolean;
++};
++
++type HandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++  };
++};
+ 
+-    const categories = await prisma.blogCategory.findMany({
++type AdminBlogCategoriesDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  listCategories: () => Promise<unknown[]>;
++  findCategoryBySlug: (slug: string) => Promise<{ id: string } | null>;
++  createCategory: (payload: BlogCategoryPayload) => Promise<unknown>;
++};
++
++const defaultDeps: AdminBlogCategoriesDeps = {
++  requireAdmin,
++  listCategories: () =>
++    prisma.blogCategory.findMany({
+       include: { _count: { select: { posts: true } } },
+       orderBy: { displayOrder: 'asc' },
+-    });
++    }),
++  findCategoryBySlug: (slug) =>
++    prisma.blogCategory.findUnique({
++      where: { slug },
++      select: { id: true },
++    }),
++  createCategory: (payload) =>
++    prisma.blogCategory.create({
++      data: payload,
++      include: { _count: { select: { posts: true } } },
++    }),
++};
++
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
++}
++
++function normalizeOptionalString(raw: unknown, fieldName: string) {
++  if (raw === undefined || raw === null || raw === '') return { value: null as string | null };
++  if (typeof raw !== 'string') return { error: `${fieldName} must be a string` } as const;
++  return { value: raw.trim() || null };
++}
++
++function parseCategoryPayload(raw: unknown) {
++  if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
++  const body = raw as Record<string, unknown>;
++
++  const name = typeof body.name === 'string' ? body.name.trim() : '';
++  if (!name) return { error: 'name is required' } as const;
++
++  const slug = slugify((typeof body.slug === 'string' ? body.slug : name) || '');
++  if (!slug) return { error: 'slug is required' } as const;
++
++  const displayOrderRaw = body.displayOrder ?? 0;
++  if (typeof displayOrderRaw !== 'number' || !Number.isInteger(displayOrderRaw) || displayOrderRaw < 0) {
++    return { error: 'displayOrder must be a non-negative integer' } as const;
++  }
++
++  if (body.isActive !== undefined && typeof body.isActive !== 'boolean') {
++    return { error: 'isActive must be a boolean' } as const;
++  }
++
++  const descriptionResult = normalizeOptionalString(body.description, 'description');
++  if ('error' in descriptionResult) return { error: descriptionResult.error } as const;
++  const imageResult = normalizeOptionalString(body.imageUrl, 'imageUrl');
++  if ('error' in imageResult) return { error: imageResult.error } as const;
+ 
+-    return NextResponse.json({ success: true, data: { categories } });
+-  } catch (error) {
++  return {
++    payload: {
++      name,
++      slug,
++      description: descriptionResult.value,
++      imageUrl: imageResult.value,
++      displayOrder: displayOrderRaw,
++      isActive: body.isActive ?? true,
++    } satisfies BlogCategoryPayload,
++  } as const;
++}
++
++export async function handleAdminBlogCategoriesGetRequest(
++  deps: AdminBlogCategoriesDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const categories = await deps.listCategories();
++  return { status: 200, body: { success: true, data: { categories } } };
++}
++
++export async function handleAdminBlogCategoriesPostRequest(
++  request: NextRequest,
++  deps: AdminBlogCategoriesDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const parsed = parseCategoryPayload(await request.json());
++  if ('error' in parsed) {
++    return { status: 400, body: { success: false, error: parsed.error } };
++  }
++
++  const existing = await deps.findCategoryBySlug(parsed.payload.slug);
++  if (existing) {
++    return { status: 400, body: { success: false, error: 'Slug already exists' } };
++  }
++
++  const category = await deps.createCategory(parsed.payload);
++  return { status: 200, body: { success: true, data: category } };
++}
++
++// GET /api/admin/blog/categories
++export async function GET() {
++  try {
++    const result = await handleAdminBlogCategoriesGetRequest();
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin blog categories list error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    const status =
+-      msg === 'Unauthorized' ? 401 : msg.includes('Forbidden') ? 403 : 500;
+-    return NextResponse.json({ success: false, error: msg }, { status });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+ 
+ // POST /api/admin/blog/categories
+ export async function POST(request: NextRequest) {
+   try {
+-    await requireAdmin();
+-    const body = await request.json();
+-    const { name, description, imageUrl, displayOrder, isActive } = body;
+-    const slug = slugify(body.slug || name || '');
+-
+-    if (!name || !slug) {
+-      return NextResponse.json(
+-        { success: false, error: 'Thiếu thông tin bắt buộc (name, slug)' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    const existing = await prisma.blogCategory.findUnique({ where: { slug } });
+-    if (existing) {
+-      return NextResponse.json(
+-        { success: false, error: 'Slug đã tồn tại' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    const category = await prisma.blogCategory.create({
+-      data: {
+-        name,
+-        slug,
+-        description: description || null,
+-        imageUrl: imageUrl || null,
+-        displayOrder: displayOrder || 0,
+-        isActive: isActive !== undefined ? isActive : true,
+-      },
+-      include: { _count: { select: { posts: true } } },
+-    });
+-
+-    return NextResponse.json({ success: true, data: category });
+-  } catch (error) {
++    const result = await handleAdminBlogCategoriesPostRequest(request);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin create blog category error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+diff --git a/app/api/admin/blog/posts/[id]/route.ts b/app/api/admin/blog/posts/[id]/route.ts
+index 5f957ba..e24e54e 100644
+--- a/app/api/admin/blog/posts/[id]/route.ts
++++ b/app/api/admin/blog/posts/[id]/route.ts
+@@ -1,144 +1,407 @@
+ import { NextRequest, NextResponse } from 'next/server';
+-import { requireAdmin } from '@/lib/session';
++import type { BlogPostStatus, UserRole } from '@prisma/client';
+ import { prisma } from '@/lib/prisma';
++import { requireAdmin } from '@/lib/session';
+ import { slugify } from '@/lib/slug';
+ 
+-// GET /api/admin/blog/posts/[id]
+-export async function GET(
+-  request: NextRequest,
+-  { params }: { params: Promise<{ id: string }> },
+-) {
+-  try {
+-    await requireAdmin();
+-    const { id } = await params;
++type Params = { params: Promise<{ id: string }> };
++
++type AdminUser = {
++  id: string;
++  role: UserRole;
++};
++
++type BlogPostRecord = {
++  id: string;
++  title: string;
++  slug: string;
++  excerpt: string | null;
++  content: string;
++  coverUrl: string | null;
++  categoryId: string | null;
++  status: BlogPostStatus;
++  publishedAt: Date | null;
++  metaTitle: string | null;
++  metaDescription: string | null;
++};
++
++type BlogPostRow = {
++  tags: Array<{ tag: unknown }>;
++  [key: string]: unknown;
++};
++
++type BlogPostUpdatePayload = Partial<{
++  title: string;
++  slug: string;
++  excerpt: string | null;
++  content: string;
++  coverUrl: string | null;
++  categoryId: string | null;
++  status: BlogPostStatus;
++  publishedAt: Date | null;
++  metaTitle: string | null;
++  metaDescription: string | null;
++}>;
++
++type HandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++  };
++};
++
++type AdminBlogPostByIdDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  findPostById: (id: string) => Promise<BlogPostRecord | null>;
++  findPostDetailById: (id: string) => Promise<BlogPostRow | null>;
++  findPostBySlug: (slug: string) => Promise<{ id: string } | null>;
++  findCategoryById: (id: string) => Promise<{ id: string } | null>;
++  findTagsByIds: (ids: string[]) => Promise<Array<{ id: string }>>;
++  updatePostById: (id: string, payload: BlogPostUpdatePayload) => Promise<BlogPostRow>;
++  replacePostTags: (id: string, tagIds: string[]) => Promise<void>;
++  deletePostById: (id: string) => Promise<void>;
++};
++
++const ALLOWED_STATUSES = new Set<BlogPostStatus>([
++  'DRAFT',
++  'PUBLISHED',
++  'ARCHIVED',
++]);
++
++const includeFields = {
++  author: { select: { id: true, name: true } },
++  category: true,
++  tags: { include: { tag: true } },
++};
+ 
+-    const post = await prisma.blogPost.findUnique({
++const defaultDeps: AdminBlogPostByIdDeps = {
++  requireAdmin,
++  findPostById: (id) =>
++    prisma.blogPost.findUnique({
+       where: { id },
+-      include: {
+-        author: { select: { id: true, name: true } },
+-        category: true,
+-        tags: { include: { tag: true } },
++      select: {
++        id: true,
++        title: true,
++        slug: true,
++        excerpt: true,
++        content: true,
++        coverUrl: true,
++        categoryId: true,
++        status: true,
++        publishedAt: true,
++        metaTitle: true,
++        metaDescription: true,
+       },
+-    });
+-
+-    if (!post) {
+-      return NextResponse.json(
+-        { success: false, error: 'Post not found' },
+-        { status: 404 },
+-      );
++    }),
++  findPostDetailById: (id) =>
++    prisma.blogPost.findUnique({
++      where: { id },
++      include: includeFields,
++    }),
++  findPostBySlug: (slug) =>
++    prisma.blogPost.findUnique({
++      where: { slug },
++      select: { id: true },
++    }),
++  findCategoryById: (id) =>
++    prisma.blogCategory.findUnique({
++      where: { id },
++      select: { id: true },
++    }),
++  findTagsByIds: (ids) =>
++    prisma.blogTag.findMany({
++      where: { id: { in: ids } },
++      select: { id: true },
++    }),
++  updatePostById: (id, payload) =>
++    prisma.blogPost.update({
++      where: { id },
++      data: payload,
++      include: includeFields,
++    }),
++  replacePostTags: async (id, tagIds) => {
++    await prisma.blogPostTag.deleteMany({ where: { postId: id } });
++    if (tagIds.length > 0) {
++      await prisma.blogPostTag.createMany({
++        data: tagIds.map((tagId) => ({ postId: id, tagId })),
++      });
+     }
++  },
++  deletePostById: async (id) => {
++    await prisma.blogPost.delete({ where: { id } });
++  },
++};
+ 
+-    return NextResponse.json({
+-      success: true,
+-      data: { ...post, tags: post.tags.map((t) => t.tag) },
+-    });
+-  } catch (error) {
+-    console.error('Admin get blog post error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
++}
++
++function normalizeOptionalTrimmedString(raw: unknown, fieldName: string) {
++  if (raw === undefined) return { skipped: true as const };
++  if (raw === null || raw === '') return { value: null as string | null };
++  if (typeof raw !== 'string') return { error: `${fieldName} must be a string` } as const;
++  return { value: raw.trim() || null };
++}
++
++function parseDateInput(raw: unknown, fieldName: string) {
++  if (raw === undefined) return { skipped: true as const };
++  if (raw === null || raw === '') return { value: null as Date | null };
++  if (typeof raw !== 'string') {
++    return { error: `${fieldName} must be a valid ISO datetime string` } as const;
++  }
++  const parsed = new Date(raw);
++  if (Number.isNaN(parsed.getTime())) {
++    return { error: `${fieldName} must be a valid ISO datetime string` } as const;
+   }
++  return { value: parsed };
+ }
+ 
+-// PUT /api/admin/blog/posts/[id]
+-export async function PUT(
+-  request: NextRequest,
+-  { params }: { params: Promise<{ id: string }> },
+-) {
+-  try {
+-    await requireAdmin();
+-    const { id } = await params;
+-    const body = await request.json();
+-    const normalizedSlug =
+-      body.slug !== undefined ? slugify(body.slug || body.title || '') : undefined;
+-
+-    const existing = await prisma.blogPost.findUnique({ where: { id } });
+-    if (!existing) {
+-      return NextResponse.json(
+-        { success: false, error: 'Post not found' },
+-        { status: 404 },
+-      );
++function normalizeTagIds(raw: unknown) {
++  if (raw === undefined) return { skipped: true as const };
++  if (!Array.isArray(raw)) return { error: 'tagIds must be an array of strings' } as const;
++  const normalized = raw
++    .map((id) => (typeof id === 'string' ? id.trim() : ''))
++    .filter((id) => id.length > 0);
++  if (normalized.length !== raw.length) {
++    return { error: 'tagIds must be an array of strings' } as const;
++  }
++  return { value: Array.from(new Set(normalized)) };
++}
++
++function parseUpdatePayload(raw: unknown, existing: BlogPostRecord) {
++  if (!raw || typeof raw !== 'object') {
++    return { error: 'Invalid payload' } as const;
++  }
++  const body = raw as Record<string, unknown>;
++  const payload: BlogPostUpdatePayload = {};
++  let tagIds: string[] | undefined;
++
++  if (body.title !== undefined) {
++    if (typeof body.title !== 'string' || !body.title.trim()) {
++      return { error: 'title must be a non-empty string' } as const;
+     }
++    payload.title = body.title.trim();
++  }
+ 
+-    // Check slug uniqueness if changed
+-    if (normalizedSlug && normalizedSlug !== existing.slug) {
+-      const slugExists = await prisma.blogPost.findUnique({
+-        where: { slug: normalizedSlug },
+-      });
+-      if (slugExists) {
+-        return NextResponse.json(
+-          { success: false, error: 'Slug đã tồn tại' },
+-          { status: 400 },
+-        );
+-      }
++  if (body.content !== undefined) {
++    if (typeof body.content !== 'string' || !body.content.trim()) {
++      return { error: 'content must be a non-empty string' } as const;
+     }
++    payload.content = body.content.trim();
++  }
+ 
+-    const { tagIds, ...updateData } = body;
+-    if (normalizedSlug !== undefined) {
+-      updateData.slug = normalizedSlug;
++  const slugSource = body.slug !== undefined ? body.slug : undefined;
++  if (slugSource !== undefined) {
++    if (typeof slugSource !== 'string') {
++      return { error: 'slug must be a string' } as const;
+     }
++    const normalizedSlug = slugify(slugSource || String(body.title ?? existing.title));
++    if (!normalizedSlug) return { error: 'slug is required' } as const;
++    payload.slug = normalizedSlug;
++  }
+ 
+-    // Handle tags if provided
+-    if (Array.isArray(tagIds)) {
+-      await prisma.blogPostTag.deleteMany({ where: { postId: id } });
+-      if (tagIds.length > 0) {
+-        await prisma.blogPostTag.createMany({
+-          data: tagIds.map((tagId: string) => ({ postId: id, tagId })),
+-        });
+-      }
++  const excerptResult = normalizeOptionalTrimmedString(body.excerpt, 'excerpt');
++  if ('error' in excerptResult) return { error: excerptResult.error } as const;
++  if ('value' in excerptResult) payload.excerpt = excerptResult.value;
++
++  const coverUrlResult = normalizeOptionalTrimmedString(body.coverUrl, 'coverUrl');
++  if ('error' in coverUrlResult) return { error: coverUrlResult.error } as const;
++  if ('value' in coverUrlResult) payload.coverUrl = coverUrlResult.value;
++
++  const metaTitleResult = normalizeOptionalTrimmedString(body.metaTitle, 'metaTitle');
++  if ('error' in metaTitleResult) return { error: metaTitleResult.error } as const;
++  if ('value' in metaTitleResult) payload.metaTitle = metaTitleResult.value;
++
++  const metaDescriptionResult = normalizeOptionalTrimmedString(
++    body.metaDescription,
++    'metaDescription',
++  );
++  if ('error' in metaDescriptionResult) {
++    return { error: metaDescriptionResult.error } as const;
++  }
++  if ('value' in metaDescriptionResult) payload.metaDescription = metaDescriptionResult.value;
++
++  const categoryIdResult = normalizeOptionalTrimmedString(body.categoryId, 'categoryId');
++  if ('error' in categoryIdResult) return { error: categoryIdResult.error } as const;
++  if ('value' in categoryIdResult) payload.categoryId = categoryIdResult.value;
++
++  if (body.status !== undefined) {
++    if (typeof body.status !== 'string' || !ALLOWED_STATUSES.has(body.status as BlogPostStatus)) {
++      return { error: 'Invalid post status' } as const;
+     }
++    payload.status = body.status as BlogPostStatus;
++  }
++
++  const publishedAtResult = parseDateInput(body.publishedAt, 'publishedAt');
++  if ('error' in publishedAtResult) return { error: publishedAtResult.error } as const;
++  if ('value' in publishedAtResult) payload.publishedAt = publishedAtResult.value;
++
++  const tagIdsResult = normalizeTagIds(body.tagIds);
++  if ('error' in tagIdsResult) return { error: tagIdsResult.error } as const;
++  if ('value' in tagIdsResult) tagIds = tagIdsResult.value;
+ 
+-    // Auto-set publishedAt when publishing
+-    if (updateData.status === 'PUBLISHED' && !existing.publishedAt) {
+-      updateData.publishedAt = new Date().toISOString();
++  const nextStatus = payload.status ?? existing.status;
++  if (nextStatus === 'PUBLISHED') {
++    if (payload.publishedAt === undefined && !existing.publishedAt) {
++      payload.publishedAt = new Date();
+     }
++  } else {
++    payload.publishedAt = null;
++  }
+ 
+-    const post = await prisma.blogPost.update({
+-      where: { id },
+-      data: updateData,
+-      include: {
+-        author: { select: { id: true, name: true } },
+-        category: true,
+-        tags: { include: { tag: true } },
+-      },
+-    });
++  if (payload.publishedAt && nextStatus !== 'PUBLISHED') {
++    return { error: 'publishedAt is only allowed for published posts' } as const;
++  }
++
++  return { payload, tagIds } as const;
++}
++
++export async function handleAdminBlogPostGetByIdRequest(
++  params: Promise<{ id: string }>,
++  deps: AdminBlogPostByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
+ 
+-    return NextResponse.json({
++  const post = await deps.findPostDetailById(id);
++  if (!post) {
++    return { status: 404, body: { success: false, error: 'Post not found' } };
++  }
++
++  return {
++    status: 200,
++    body: {
+       success: true,
+       data: { ...post, tags: post.tags.map((t) => t.tag) },
+-    });
+-  } catch (error) {
+-    console.error('Admin update blog post error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+-  }
++    },
++  };
+ }
+ 
+-// DELETE /api/admin/blog/posts/[id]
+-export async function DELETE(
++export async function handleAdminBlogPostPutRequest(
+   request: NextRequest,
+-  { params }: { params: Promise<{ id: string }> },
+-) {
+-  try {
+-    await requireAdmin();
+-    const { id } = await params;
+-
+-    const existing = await prisma.blogPost.findUnique({ where: { id } });
+-    if (!existing) {
+-      return NextResponse.json(
+-        { success: false, error: 'Post not found' },
+-        { status: 404 },
+-      );
++  params: Promise<{ id: string }>,
++  deps: AdminBlogPostByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++
++  const existing = await deps.findPostById(id);
++  if (!existing) {
++    return { status: 404, body: { success: false, error: 'Post not found' } };
++  }
++
++  const parsed = parseUpdatePayload(await request.json(), existing);
++  if ('error' in parsed) {
++    return { status: 400, body: { success: false, error: parsed.error } };
++  }
++
++  if (parsed.payload.slug && parsed.payload.slug !== existing.slug) {
++    const slugExists = await deps.findPostBySlug(parsed.payload.slug);
++    if (slugExists) {
++      return { status: 400, body: { success: false, error: 'Slug already exists' } };
+     }
++  }
+ 
+-    await prisma.blogPost.delete({ where: { id } });
++  if (parsed.payload.categoryId) {
++    const category = await deps.findCategoryById(parsed.payload.categoryId);
++    if (!category) {
++      return { status: 400, body: { success: false, error: 'Category not found' } };
++    }
++  }
+ 
+-    return NextResponse.json({
++  if (parsed.tagIds) {
++    if (parsed.tagIds.length > 0) {
++      const tags = await deps.findTagsByIds(parsed.tagIds);
++      if (tags.length !== parsed.tagIds.length) {
++        return {
++          status: 400,
++          body: { success: false, error: 'One or more tags do not exist' },
++        };
++      }
++    }
++    await deps.replacePostTags(id, parsed.tagIds);
++  }
++
++  const post = await deps.updatePostById(id, parsed.payload);
++  return {
++    status: 200,
++    body: {
++      success: true,
++      data: { ...post, tags: post.tags.map((t) => t.tag) },
++    },
++  };
++}
++
++export async function handleAdminBlogPostDeleteRequest(
++  params: Promise<{ id: string }>,
++  deps: AdminBlogPostByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++  const existing = await deps.findPostById(id);
++
++  if (!existing) {
++    return { status: 404, body: { success: false, error: 'Post not found' } };
++  }
++
++  await deps.deletePostById(id);
++  return {
++    status: 200,
++    body: {
+       success: true,
+-      data: { message: 'Xóa bài viết thành công' },
+-    });
+-  } catch (error) {
++      data: { message: 'Blog post deleted successfully' },
++    },
++  };
++}
++
++// GET /api/admin/blog/posts/[id]
++export async function GET(_request: NextRequest, { params }: Params) {
++  try {
++    const result = await handleAdminBlogPostGetByIdRequest(params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
++    console.error('Admin get blog post error:', error);
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
++  }
++}
++
++// PUT /api/admin/blog/posts/[id]
++export async function PUT(request: NextRequest, { params }: Params) {
++  try {
++    const result = await handleAdminBlogPostPutRequest(request, params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
++    console.error('Admin update blog post error:', error);
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
++  }
++}
++
++// DELETE /api/admin/blog/posts/[id]
++export async function DELETE(_request: NextRequest, { params }: Params) {
++  try {
++    const result = await handleAdminBlogPostDeleteRequest(params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin delete blog post error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+diff --git a/app/api/admin/blog/posts/[id]/status/route.ts b/app/api/admin/blog/posts/[id]/status/route.ts
+index 0f469d0..1e60e11 100644
+--- a/app/api/admin/blog/posts/[id]/status/route.ts
++++ b/app/api/admin/blog/posts/[id]/status/route.ts
+@@ -1,55 +1,117 @@
+ import { NextRequest, NextResponse } from 'next/server';
++import type { BlogPostStatus, UserRole } from '@prisma/client';
+ import { requireAdmin } from '@/lib/session';
+ import { prisma } from '@/lib/prisma';
+ 
+-// PATCH /api/admin/blog/posts/[id]/status
+-export async function PATCH(
+-  request: NextRequest,
+-  { params }: { params: Promise<{ id: string }> },
+-) {
+-  try {
+-    await requireAdmin();
+-    const { id } = await params;
+-    const { status } = await request.json();
+-
+-    if (!['DRAFT', 'PUBLISHED', 'ARCHIVED'].includes(status)) {
+-      return NextResponse.json(
+-        { success: false, error: 'Invalid status' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    const existing = await prisma.blogPost.findUnique({ where: { id } });
+-    if (!existing) {
+-      return NextResponse.json(
+-        { success: false, error: 'Post not found' },
+-        { status: 404 },
+-      );
+-    }
+-
+-    const data: Record<string, unknown> = { status };
+-    // Auto-set publishedAt when first publishing
+-    if (status === 'PUBLISHED' && !existing.publishedAt) {
+-      data.publishedAt = new Date();
+-    }
+-
+-    const post = await prisma.blogPost.update({
++type Params = { params: Promise<{ id: string }> };
++
++type AdminUser = {
++  id: string;
++  role: UserRole;
++};
++
++type AdminBlogPostStatusDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  findPostById: (id: string) => Promise<{ id: string; publishedAt: Date | null } | null>;
++  updatePostStatusById: (args: {
++    id: string;
++    status: BlogPostStatus;
++    publishedAt: Date | null;
++  }) => Promise<{ tags: Array<{ tag: unknown }>; [key: string]: unknown }>;
++};
++
++type HandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++  };
++};
++
++const ALLOWED_STATUSES = new Set<BlogPostStatus>([
++  'DRAFT',
++  'PUBLISHED',
++  'ARCHIVED',
++]);
++
++const includeFields = {
++  author: { select: { id: true, name: true } },
++  category: true,
++  tags: { include: { tag: true } },
++};
++
++const defaultDeps: AdminBlogPostStatusDeps = {
++  requireAdmin,
++  findPostById: (id) =>
++    prisma.blogPost.findUnique({
+       where: { id },
+-      data,
+-      include: {
+-        author: { select: { id: true, name: true } },
+-        category: true,
+-        tags: { include: { tag: true } },
+-      },
+-    });
++      select: { id: true, publishedAt: true },
++    }),
++  updatePostStatusById: ({ id, status, publishedAt }) =>
++    prisma.blogPost.update({
++      where: { id },
++      data: { status, publishedAt },
++      include: includeFields,
++    }),
++};
++
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
++}
+ 
+-    return NextResponse.json({
++export async function handleAdminBlogPostStatusPatchRequest(
++  request: NextRequest,
++  params: Promise<{ id: string }>,
++  deps: AdminBlogPostStatusDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++  const body = await request.json();
++  const statusRaw = (body as Record<string, unknown>).status;
++
++  if (typeof statusRaw !== 'string' || !ALLOWED_STATUSES.has(statusRaw as BlogPostStatus)) {
++    return { status: 400, body: { success: false, error: 'Invalid status' } };
++  }
++
++  const status = statusRaw as BlogPostStatus;
++  const existing = await deps.findPostById(id);
++  if (!existing) {
++    return { status: 404, body: { success: false, error: 'Post not found' } };
++  }
++
++  const publishedAt =
++    status === 'PUBLISHED'
++      ? (existing.publishedAt ?? new Date())
++      : null;
++
++  const post = await deps.updatePostStatusById({ id, status, publishedAt });
++  return {
++    status: 200,
++    body: {
+       success: true,
+-      data: { ...post, tags: post.tags.map((t) => t.tag) },
+-    });
+-  } catch (error) {
++      data: {
++        ...post,
++        tags: post.tags.map((t) => t.tag),
++      },
++    },
++  };
++}
++
++// PATCH /api/admin/blog/posts/[id]/status
++export async function PATCH(request: NextRequest, { params }: Params) {
++  try {
++    const result = await handleAdminBlogPostStatusPatchRequest(request, params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin update blog post status error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+diff --git a/app/api/admin/blog/posts/route.ts b/app/api/admin/blog/posts/route.ts
+index e1ed875..ea6634e 100644
+--- a/app/api/admin/blog/posts/route.ts
++++ b/app/api/admin/blog/posts/route.ts
+@@ -1,150 +1,401 @@
+ import { NextRequest, NextResponse } from 'next/server';
+-import { requireAdmin } from '@/lib/session';
++import type { BlogPostStatus, UserRole } from '@prisma/client';
+ import { prisma } from '@/lib/prisma';
++import { requireAdmin } from '@/lib/session';
+ import { slugify } from '@/lib/slug';
+ 
+-// GET /api/admin/blog/posts
+-export async function GET(request: NextRequest) {
+-  try {
+-    await requireAdmin();
+-
+-    const { searchParams } = new URL(request.url);
+-    const page = parseInt(searchParams.get('page') || '1');
+-    const limit = parseInt(searchParams.get('limit') || '20');
+-    const search = searchParams.get('search');
+-    const status = searchParams.get('status');
+-    const categoryId = searchParams.get('categoryId');
+-    const tagId = searchParams.get('tagId');
+-
+-    const skip = (page - 1) * limit;
+-
+-    const where: Record<string, unknown> = {};
+-    if (search) {
+-      where.OR = [
+-        { title: { contains: search, mode: 'insensitive' } },
+-        { excerpt: { contains: search, mode: 'insensitive' } },
+-      ];
+-    }
+-    if (status) where.status = status;
+-    if (categoryId) where.categoryId = categoryId;
+-    if (tagId) where.tags = { some: { tagId } };
+-
+-    const [posts, total] = await Promise.all([
+-      prisma.blogPost.findMany({
+-        where,
+-        include: {
+-          author: { select: { id: true, name: true } },
+-          category: true,
+-          tags: { include: { tag: true } },
+-        },
+-        skip,
+-        take: limit,
+-        orderBy: { createdAt: 'desc' },
+-      }),
+-      prisma.blogPost.count({ where }),
+-    ]);
+-
+-    // Flatten tags for response
+-    const formatted = posts.map((p) => ({
+-      ...p,
+-      tags: p.tags.map((t) => t.tag),
+-    }));
+-
+-    return NextResponse.json({
+-      success: true,
++type AdminUser = {
++  id: string;
++  role: UserRole;
++};
++
++type BlogPostListQuery = {
++  page: number;
++  limit: number;
++  search: string;
++  status: BlogPostStatus | null;
++  categoryId: string | null;
++  tagId: string | null;
++};
++
++type BlogPostCreatePayload = {
++  title: string;
++  slug: string;
++  excerpt: string | null;
++  content: string;
++  coverUrl: string | null;
++  categoryId: string | null;
++  tagIds: string[];
++  status: BlogPostStatus;
++  publishedAt: Date | null;
++  metaTitle: string | null;
++  metaDescription: string | null;
++};
++
++type HandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++  };
++};
++
++type ListPostsArgs = {
++  where: Record<string, unknown>;
++  page: number;
++  limit: number;
++};
++
++type BlogPostRow = {
++  tags: Array<{ tag: unknown }>;
++  [key: string]: unknown;
++};
++
++type AdminBlogPostsDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  listPosts: (args: ListPostsArgs) => Promise<BlogPostRow[]>;
++  countPosts: (where: Record<string, unknown>) => Promise<number>;
++  findPostBySlug: (slug: string) => Promise<{ id: string } | null>;
++  findCategoryById: (id: string) => Promise<{ id: string } | null>;
++  findTagsByIds: (ids: string[]) => Promise<Array<{ id: string }>>;
++  createPost: (args: {
++    adminId: string;
++    payload: BlogPostCreatePayload;
++  }) => Promise<BlogPostRow>;
++};
++
++const ALLOWED_STATUSES = new Set<BlogPostStatus>([
++  'DRAFT',
++  'PUBLISHED',
++  'ARCHIVED',
++]);
++
++const includeFields = {
++  author: { select: { id: true, name: true } },
++  category: true,
++  tags: { include: { tag: true } },
++};
++
++const defaultDeps: AdminBlogPostsDeps = {
++  requireAdmin,
++  listPosts: ({ where, page, limit }) =>
++    prisma.blogPost.findMany({
++      where,
++      include: includeFields,
++      orderBy: { createdAt: 'desc' },
++      skip: (page - 1) * limit,
++      take: limit,
++    }),
++  countPosts: (where) => prisma.blogPost.count({ where }),
++  findPostBySlug: (slug) =>
++    prisma.blogPost.findUnique({
++      where: { slug },
++      select: { id: true },
++    }),
++  findCategoryById: (id) =>
++    prisma.blogCategory.findUnique({
++      where: { id },
++      select: { id: true },
++    }),
++  findTagsByIds: (ids) =>
++    prisma.blogTag.findMany({
++      where: { id: { in: ids } },
++      select: { id: true },
++    }),
++  createPost: ({ adminId, payload }) =>
++    prisma.blogPost.create({
+       data: {
+-        posts: formatted,
+-        pagination: {
+-          page,
+-          limit,
+-          total,
+-          totalPages: Math.ceil(total / limit),
+-        },
++        title: payload.title,
++        slug: payload.slug,
++        excerpt: payload.excerpt,
++        content: payload.content,
++        coverUrl: payload.coverUrl,
++        categoryId: payload.categoryId,
++        authorId: adminId,
++        status: payload.status,
++        publishedAt: payload.publishedAt,
++        metaTitle: payload.metaTitle,
++        metaDescription: payload.metaDescription,
++        tags: payload.tagIds.length
++          ? { create: payload.tagIds.map((tagId) => ({ tagId })) }
++          : undefined,
+       },
+-    });
+-  } catch (error) {
+-    console.error('Admin blog posts list error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    const status =
+-      msg === 'Unauthorized' ? 401 : msg.includes('Forbidden') ? 403 : 500;
+-    return NextResponse.json({ success: false, error: msg }, { status });
++      include: includeFields,
++    }),
++};
++
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
++}
++
++function normalizePositiveInt(value: string | null, fallback: number, max?: number) {
++  const parsed = Number.parseInt(value ?? '', 10);
++  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
++  if (typeof max === 'number' && parsed > max) return max;
++  return parsed;
++}
++
++function parseListQuery(requestUrl: string) {
++  const { searchParams } = new URL(requestUrl);
++  const page = normalizePositiveInt(searchParams.get('page'), 1);
++  const limit = normalizePositiveInt(searchParams.get('limit'), 20, 50);
++
++  const search = (searchParams.get('search') ?? '').trim();
++  const categoryId = (searchParams.get('categoryId') ?? '').trim() || null;
++  const tagId = (searchParams.get('tagId') ?? '').trim() || null;
++  const statusRaw = (searchParams.get('status') ?? '').trim();
++
++  if (!statusRaw) {
++    return {
++      page,
++      limit,
++      search,
++      categoryId,
++      tagId,
++      status: null,
++    } satisfies BlogPostListQuery;
+   }
++
++  if (!ALLOWED_STATUSES.has(statusRaw as BlogPostStatus)) {
++    return { error: 'Invalid status filter' } as const;
++  }
++
++  return {
++    page,
++    limit,
++    search,
++    categoryId,
++    tagId,
++    status: statusRaw as BlogPostStatus,
++  } satisfies BlogPostListQuery;
+ }
+ 
+-// POST /api/admin/blog/posts
+-export async function POST(request: NextRequest) {
+-  try {
+-    const admin = await requireAdmin();
+-    const body = await request.json();
++function parseDateInput(raw: unknown, fieldName: string) {
++  if (raw === undefined || raw === null || raw === '') return { value: null as Date | null };
++  if (typeof raw !== 'string') {
++    return { error: `${fieldName} must be a valid ISO datetime string` } as const;
++  }
++  const parsed = new Date(raw);
++  if (Number.isNaN(parsed.getTime())) {
++    return { error: `${fieldName} must be a valid ISO datetime string` } as const;
++  }
++  return { value: parsed };
++}
++
++function normalizeOptionalTrimmedString(raw: unknown, fieldName: string) {
++  if (raw === undefined || raw === null || raw === '') return { value: null as string | null };
++  if (typeof raw !== 'string') return { error: `${fieldName} must be a string` } as const;
++  return { value: raw.trim() || null };
++}
++
++function normalizeTagIds(raw: unknown) {
++  if (raw === undefined) return { value: [] as string[] };
++  if (!Array.isArray(raw)) return { error: 'tagIds must be an array of strings' } as const;
++
++  const normalized = raw
++    .map((id) => (typeof id === 'string' ? id.trim() : ''))
++    .filter((id) => id.length > 0);
++  if (normalized.length !== raw.length) {
++    return { error: 'tagIds must be an array of strings' } as const;
++  }
++  return { value: Array.from(new Set(normalized)) };
++}
++
++function parseCreatePayload(raw: unknown) {
++  if (!raw || typeof raw !== 'object') {
++    return { error: 'Invalid payload' } as const;
++  }
++
++  const body = raw as Record<string, unknown>;
++  const title = typeof body.title === 'string' ? body.title.trim() : '';
++  if (!title) return { error: 'title is required' } as const;
+ 
+-    const {
++  const slug = slugify(
++    (typeof body.slug === 'string' ? body.slug : title) || '',
++  );
++  if (!slug) return { error: 'slug is required' } as const;
++
++  const content = typeof body.content === 'string' ? body.content.trim() : '';
++  if (!content) return { error: 'content is required' } as const;
++
++  const statusRaw = body.status ?? 'DRAFT';
++  if (typeof statusRaw !== 'string' || !ALLOWED_STATUSES.has(statusRaw as BlogPostStatus)) {
++    return { error: 'Invalid post status' } as const;
++  }
++  const status = statusRaw as BlogPostStatus;
++
++  const excerptResult = normalizeOptionalTrimmedString(body.excerpt, 'excerpt');
++  if ('error' in excerptResult) return { error: excerptResult.error } as const;
++  const coverUrlResult = normalizeOptionalTrimmedString(body.coverUrl, 'coverUrl');
++  if ('error' in coverUrlResult) return { error: coverUrlResult.error } as const;
++  const metaTitleResult = normalizeOptionalTrimmedString(body.metaTitle, 'metaTitle');
++  if ('error' in metaTitleResult) return { error: metaTitleResult.error } as const;
++  const metaDescriptionResult = normalizeOptionalTrimmedString(
++    body.metaDescription,
++    'metaDescription',
++  );
++  if ('error' in metaDescriptionResult) {
++    return { error: metaDescriptionResult.error } as const;
++  }
++
++  const categoryIdResult = normalizeOptionalTrimmedString(body.categoryId, 'categoryId');
++  if ('error' in categoryIdResult) return { error: categoryIdResult.error } as const;
++
++  const tagIdsResult = normalizeTagIds(body.tagIds);
++  if ('error' in tagIdsResult) return { error: tagIdsResult.error } as const;
++
++  const publishedAtResult = parseDateInput(body.publishedAt, 'publishedAt');
++  if ('error' in publishedAtResult) return { error: publishedAtResult.error } as const;
++  const publishedAt =
++    status === 'PUBLISHED'
++      ? (publishedAtResult.value ?? new Date())
++      : null;
++
++  return {
++    payload: {
+       title,
+-      excerpt,
++      slug,
++      excerpt: excerptResult.value,
+       content,
+-      coverUrl,
+-      categoryId,
+-      tagIds,
++      coverUrl: coverUrlResult.value,
++      categoryId: categoryIdResult.value,
++      tagIds: tagIdsResult.value,
+       status,
+       publishedAt,
+-      metaTitle,
+-      metaDescription,
+-    } = body;
+-    const slug = slugify(body.slug || title || '');
+-
+-    if (!title || !slug || !content) {
+-      return NextResponse.json(
+-        {
+-          success: false,
+-          error: 'Thiếu thông tin bắt buộc (title, slug, content)',
++      metaTitle: metaTitleResult.value,
++      metaDescription: metaDescriptionResult.value,
++    } satisfies BlogPostCreatePayload,
++  } as const;
++}
++
++export async function handleAdminBlogPostsGetRequest(
++  requestUrl: string,
++  deps: AdminBlogPostsDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++
++  const parsed = parseListQuery(requestUrl);
++  if ('error' in parsed) {
++    return { status: 400, body: { success: false, error: parsed.error } };
++  }
++
++  const where: Record<string, unknown> = {};
++  if (parsed.search) {
++    where.OR = [
++      { title: { contains: parsed.search, mode: 'insensitive' } },
++      { excerpt: { contains: parsed.search, mode: 'insensitive' } },
++    ];
++  }
++  if (parsed.status) where.status = parsed.status;
++  if (parsed.categoryId) where.categoryId = parsed.categoryId;
++  if (parsed.tagId) where.tags = { some: { tagId: parsed.tagId } };
++
++  const [posts, total] = await Promise.all([
++    deps.listPosts({ where, page: parsed.page, limit: parsed.limit }),
++    deps.countPosts(where),
++  ]);
++
++  return {
++    status: 200,
++    body: {
++      success: true,
++      data: {
++        posts: posts.map((post) => ({
++          ...post,
++          tags: post.tags.map((t) => t.tag),
++        })),
++        pagination: {
++          page: parsed.page,
++          limit: parsed.limit,
++          total,
++          totalPages: Math.ceil(total / parsed.limit),
+         },
+-        { status: 400 },
+-      );
++      },
++    },
++  };
++}
++
++export async function handleAdminBlogPostsPostRequest(
++  request: NextRequest,
++  deps: AdminBlogPostsDeps = defaultDeps,
++): Promise<HandlerResult> {
++  const admin = await deps.requireAdmin();
++
++  const parsed = parseCreatePayload(await request.json());
++  if ('error' in parsed) {
++    return { status: 400, body: { success: false, error: parsed.error } };
++  }
++
++  const existing = await deps.findPostBySlug(parsed.payload.slug);
++  if (existing) {
++    return { status: 400, body: { success: false, error: 'Slug already exists' } };
++  }
++
++  if (parsed.payload.categoryId) {
++    const category = await deps.findCategoryById(parsed.payload.categoryId);
++    if (!category) {
++      return { status: 400, body: { success: false, error: 'Category not found' } };
+     }
++  }
+ 
+-    const existing = await prisma.blogPost.findUnique({ where: { slug } });
+-    if (existing) {
+-      return NextResponse.json(
+-        { success: false, error: 'Slug đã tồn tại' },
+-        { status: 400 },
+-      );
++  if (parsed.payload.tagIds.length > 0) {
++    const existingTags = await deps.findTagsByIds(parsed.payload.tagIds);
++    if (existingTags.length !== parsed.payload.tagIds.length) {
++      return {
++        status: 400,
++        body: { success: false, error: 'One or more tags do not exist' },
++      };
+     }
++  }
++
++  const post = await deps.createPost({
++    adminId: admin.id,
++    payload: parsed.payload,
++  });
+ 
+-    const post = await prisma.blogPost.create({
++  return {
++    status: 200,
++    body: {
++      success: true,
+       data: {
+-        title,
+-        slug,
+-        excerpt: excerpt || null,
+-        content,
+-        coverUrl: coverUrl || null,
+-        authorId: admin.id,
+-        categoryId: categoryId || null,
+-        status: status || 'DRAFT',
+-        publishedAt:
+-          status === 'PUBLISHED'
+-            ? publishedAt || new Date().toISOString()
+-            : null,
+-        metaTitle: metaTitle || null,
+-        metaDescription: metaDescription || null,
+-        tags: tagIds?.length
+-          ? { create: tagIds.map((tagId: string) => ({ tagId })) }
+-          : undefined,
+-      },
+-      include: {
+-        author: { select: { id: true, name: true } },
+-        category: true,
+-        tags: { include: { tag: true } },
++        ...post,
++        tags: post.tags.map((t) => t.tag),
+       },
+-    });
++    },
++  };
++}
+ 
+-    return NextResponse.json({
+-      success: true,
+-      data: { ...post, tags: post.tags.map((t) => t.tag) },
+-    });
+-  } catch (error) {
++// GET /api/admin/blog/posts
++export async function GET(request: NextRequest) {
++  try {
++    const result = await handleAdminBlogPostsGetRequest(request.url);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
++    console.error('Admin blog posts list error:', error);
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
++  }
++}
++
++// POST /api/admin/blog/posts
++export async function POST(request: NextRequest) {
++  try {
++    const result = await handleAdminBlogPostsPostRequest(request);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin create blog post error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    const status =
+-      msg === 'Unauthorized' ? 401 : msg.includes('Forbidden') ? 403 : 500;
+-    return NextResponse.json({ success: false, error: msg }, { status });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+diff --git a/app/api/admin/blog/tags/[id]/route.ts b/app/api/admin/blog/tags/[id]/route.ts
+index 9dbce76..279cf4a 100644
+--- a/app/api/admin/blog/tags/[id]/route.ts
++++ b/app/api/admin/blog/tags/[id]/route.ts
+@@ -1,92 +1,208 @@
+ import { NextRequest, NextResponse } from 'next/server';
++import type { UserRole } from '@prisma/client';
+ import { requireAdmin } from '@/lib/session';
+ import { prisma } from '@/lib/prisma';
+ import { slugify } from '@/lib/slug';
+ 
+ type Params = { params: Promise<{ id: string }> };
+ 
+-// GET /api/admin/blog/tags/[id]
+-export async function GET(_request: NextRequest, { params }: Params) {
+-  try {
+-    await requireAdmin();
+-    const { id } = await params;
++type AdminUser = {
++  id: string;
++  role: UserRole;
++};
++
++type BlogTagUpdatePayload = Partial<{
++  name: string;
++  slug: string;
++}>;
+ 
+-    const tag = await prisma.blogTag.findUnique({
++type HandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++  };
++};
++
++type AdminBlogTagByIdDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  findTagById: (id: string) => Promise<{ id: string; name: string } | null>;
++  findTagDetailById: (id: string) => Promise<unknown | null>;
++  findTagBySlugExcludingId: (slug: string, id: string) => Promise<{ id: string } | null>;
++  updateTagById: (id: string, payload: BlogTagUpdatePayload) => Promise<unknown>;
++  deleteTagRelationsByTagId: (id: string) => Promise<void>;
++  deleteTagById: (id: string) => Promise<void>;
++};
++
++const defaultDeps: AdminBlogTagByIdDeps = {
++  requireAdmin,
++  findTagById: (id) =>
++    prisma.blogTag.findUnique({
++      where: { id },
++      select: { id: true, name: true },
++    }),
++  findTagDetailById: (id) =>
++    prisma.blogTag.findUnique({
+       where: { id },
+       include: { _count: { select: { posts: true } } },
+-    });
++    }),
++  findTagBySlugExcludingId: (slug, id) =>
++    prisma.blogTag.findFirst({
++      where: { slug, id: { not: id } },
++      select: { id: true },
++    }),
++  updateTagById: (id, payload) =>
++    prisma.blogTag.update({
++      where: { id },
++      data: payload,
++      include: { _count: { select: { posts: true } } },
++    }),
++  deleteTagRelationsByTagId: async (id) => {
++    await prisma.blogPostTag.deleteMany({ where: { tagId: id } });
++  },
++  deleteTagById: async (id) => {
++    await prisma.blogTag.delete({ where: { id } });
++  },
++};
++
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
++}
+ 
+-    if (!tag) {
+-      return NextResponse.json(
+-        { success: false, error: 'Không tìm thấy tag' },
+-        { status: 404 },
+-      );
++function parseTagUpdatePayload(raw: unknown, existingName: string) {
++  if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
++  const body = raw as Record<string, unknown>;
++  const payload: BlogTagUpdatePayload = {};
++
++  if (body.name !== undefined) {
++    if (typeof body.name !== 'string' || !body.name.trim()) {
++      return { error: 'name must be a non-empty string' } as const;
+     }
++    payload.name = body.name.trim();
++  }
++
++  if (body.slug !== undefined) {
++    if (typeof body.slug !== 'string') return { error: 'slug must be a string' } as const;
++    const normalized = slugify(body.slug || String(body.name ?? payload.name ?? existingName));
++    if (!normalized) return { error: 'slug is required' } as const;
++    payload.slug = normalized;
++  }
++
++  return { payload } as const;
++}
++
++export async function handleAdminBlogTagGetByIdRequest(
++  params: Promise<{ id: string }>,
++  deps: AdminBlogTagByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++  const tag = await deps.findTagDetailById(id);
+ 
+-    return NextResponse.json({ success: true, data: tag });
+-  } catch (error) {
++  if (!tag) {
++    return { status: 404, body: { success: false, error: 'Blog tag not found' } };
++  }
++  return { status: 200, body: { success: true, data: tag } };
++}
++
++export async function handleAdminBlogTagPutRequest(
++  request: NextRequest,
++  params: Promise<{ id: string }>,
++  deps: AdminBlogTagByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++  const existing = await deps.findTagById(id);
++  if (!existing) {
++    return { status: 404, body: { success: false, error: 'Blog tag not found' } };
++  }
++
++  const parsed = parseTagUpdatePayload(await request.json(), existing.name);
++  if ('error' in parsed) {
++    return { status: 400, body: { success: false, error: parsed.error } };
++  }
++
++  if (parsed.payload.slug) {
++    const duplicated = await deps.findTagBySlugExcludingId(parsed.payload.slug, id);
++    if (duplicated) {
++      return { status: 400, body: { success: false, error: 'Slug already exists' } };
++    }
++  }
++
++  const tag = await deps.updateTagById(id, parsed.payload);
++  return { status: 200, body: { success: true, data: tag } };
++}
++
++export async function handleAdminBlogTagDeleteRequest(
++  params: Promise<{ id: string }>,
++  deps: AdminBlogTagByIdDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const { id } = await params;
++  const existing = await deps.findTagById(id);
++  if (!existing) {
++    return { status: 404, body: { success: false, error: 'Blog tag not found' } };
++  }
++
++  await deps.deleteTagRelationsByTagId(id);
++  await deps.deleteTagById(id);
++
++  return {
++    status: 200,
++    body: {
++      success: true,
++      data: { message: 'Blog tag deleted successfully' },
++    },
++  };
++}
++
++// GET /api/admin/blog/tags/[id]
++export async function GET(_request: NextRequest, { params }: Params) {
++  try {
++    const result = await handleAdminBlogTagGetByIdRequest(params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin blog tag detail error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+ 
+ // PUT /api/admin/blog/tags/[id]
+ export async function PUT(request: NextRequest, { params }: Params) {
+   try {
+-    await requireAdmin();
+-    const { id } = await params;
+-    const body = await request.json();
+-    const { name } = body;
+-    const nextSlug =
+-      body.slug !== undefined ? slugify(body.slug || body.name || '') : undefined;
+-
+-    if (nextSlug) {
+-      const existing = await prisma.blogTag.findFirst({
+-        where: { slug: nextSlug, id: { not: id } },
+-      });
+-      if (existing) {
+-        return NextResponse.json(
+-          { success: false, error: 'Slug đã tồn tại' },
+-          { status: 400 },
+-        );
+-      }
+-    }
+-
+-    const tag = await prisma.blogTag.update({
+-      where: { id },
+-      data: {
+-        ...(name !== undefined && { name }),
+-        ...(nextSlug !== undefined && { slug: nextSlug }),
+-      },
+-      include: { _count: { select: { posts: true } } },
+-    });
+-
+-    return NextResponse.json({ success: true, data: tag });
+-  } catch (error) {
++    const result = await handleAdminBlogTagPutRequest(request, params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin update blog tag error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+ 
+ // DELETE /api/admin/blog/tags/[id]
+ export async function DELETE(_request: NextRequest, { params }: Params) {
+   try {
+-    await requireAdmin();
+-    const { id } = await params;
+-
+-    // Delete tag relations first, then the tag
+-    await prisma.blogPostTag.deleteMany({ where: { tagId: id } });
+-    await prisma.blogTag.delete({ where: { id } });
+-
+-    return NextResponse.json({
+-      success: true,
+-      data: { message: 'Đã xoá tag' },
+-    });
+-  } catch (error) {
++    const result = await handleAdminBlogTagDeleteRequest(params);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin delete blog tag error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+diff --git a/app/api/admin/blog/tags/route.ts b/app/api/admin/blog/tags/route.ts
+index 517b785..9d73746 100644
+--- a/app/api/admin/blog/tags/route.ts
++++ b/app/api/admin/blog/tags/route.ts
+@@ -1,60 +1,128 @@
+ import { NextRequest, NextResponse } from 'next/server';
++import type { UserRole } from '@prisma/client';
+ import { requireAdmin } from '@/lib/session';
+ import { prisma } from '@/lib/prisma';
+ import { slugify } from '@/lib/slug';
+ 
+-// GET /api/admin/blog/tags
+-export async function GET() {
+-  try {
+-    await requireAdmin();
++type AdminUser = {
++  id: string;
++  role: UserRole;
++};
++
++type BlogTagPayload = {
++  name: string;
++  slug: string;
++};
+ 
+-    const tags = await prisma.blogTag.findMany({
++type HandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++  };
++};
++
++type AdminBlogTagsDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  listTags: () => Promise<unknown[]>;
++  findTagBySlug: (slug: string) => Promise<{ id: string } | null>;
++  createTag: (payload: BlogTagPayload) => Promise<unknown>;
++};
++
++const defaultDeps: AdminBlogTagsDeps = {
++  requireAdmin,
++  listTags: () =>
++    prisma.blogTag.findMany({
+       include: { _count: { select: { posts: true } } },
+       orderBy: { name: 'asc' },
+-    });
++    }),
++  findTagBySlug: (slug) =>
++    prisma.blogTag.findUnique({
++      where: { slug },
++      select: { id: true },
++    }),
++  createTag: (payload) =>
++    prisma.blogTag.create({
++      data: payload,
++      include: { _count: { select: { posts: true } } },
++    }),
++};
++
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
++}
++
++function parseTagPayload(raw: unknown) {
++  if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
++  const body = raw as Record<string, unknown>;
++
++  const name = typeof body.name === 'string' ? body.name.trim() : '';
++  if (!name) return { error: 'name is required' } as const;
++
++  const slug = slugify((typeof body.slug === 'string' ? body.slug : name) || '');
++  if (!slug) return { error: 'slug is required' } as const;
++
++  return { payload: { name, slug } satisfies BlogTagPayload } as const;
++}
+ 
+-    return NextResponse.json({ success: true, data: { tags } });
+-  } catch (error) {
++export async function handleAdminBlogTagsGetRequest(
++  deps: AdminBlogTagsDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const tags = await deps.listTags();
++  return { status: 200, body: { success: true, data: { tags } } };
++}
++
++export async function handleAdminBlogTagsPostRequest(
++  request: NextRequest,
++  deps: AdminBlogTagsDeps = defaultDeps,
++): Promise<HandlerResult> {
++  await deps.requireAdmin();
++  const parsed = parseTagPayload(await request.json());
++  if ('error' in parsed) {
++    return { status: 400, body: { success: false, error: parsed.error } };
++  }
++
++  const existing = await deps.findTagBySlug(parsed.payload.slug);
++  if (existing) {
++    return { status: 400, body: { success: false, error: 'Slug already exists' } };
++  }
++
++  const tag = await deps.createTag(parsed.payload);
++  return { status: 200, body: { success: true, data: tag } };
++}
++
++// GET /api/admin/blog/tags
++export async function GET() {
++  try {
++    const result = await handleAdminBlogTagsGetRequest();
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin blog tags list error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    const status =
+-      msg === 'Unauthorized' ? 401 : msg.includes('Forbidden') ? 403 : 500;
+-    return NextResponse.json({ success: false, error: msg }, { status });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
+ 
+ // POST /api/admin/blog/tags
+ export async function POST(request: NextRequest) {
+   try {
+-    await requireAdmin();
+-    const body = await request.json();
+-    const { name } = body;
+-    const slug = slugify(body.slug || name || '');
+-
+-    if (!name || !slug) {
+-      return NextResponse.json(
+-        { success: false, error: 'Thiếu thông tin bắt buộc (name, slug)' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    const existing = await prisma.blogTag.findUnique({ where: { slug } });
+-    if (existing) {
+-      return NextResponse.json(
+-        { success: false, error: 'Slug đã tồn tại' },
+-        { status: 400 },
+-      );
+-    }
+-
+-    const tag = await prisma.blogTag.create({
+-      data: { name, slug },
+-      include: { _count: { select: { posts: true } } },
+-    });
+-
+-    return NextResponse.json({ success: true, data: tag });
+-  } catch (error) {
++    const result = await handleAdminBlogTagsPostRequest(request);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Admin create blog tag error:', error);
+-    const msg = error instanceof Error ? error.message : 'Unknown error';
+-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
+   }
+ }
