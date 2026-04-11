@@ -21,18 +21,32 @@ function toNullableJsonInput(
   return value as Prisma.InputJsonValue;
 }
 
+function isMissingAuditTableError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'P2021'
+  );
+}
+
 export async function writeOrderAuditLog(payload: OrderAuditPayload) {
-  await prisma.orderAuditLog.create({
-    data: {
-      orderId: payload.orderId,
-      mutationType: payload.mutationType,
-      actorUserId: payload.actorUserId ?? null,
-      actorRole: payload.actorRole ?? null,
-      beforeData: toNullableJsonInput(payload.beforeData),
-      afterData: toNullableJsonInput(payload.afterData),
-      metadata: toNullableJsonInput(payload.metadata),
-    },
-  });
+  try {
+    await prisma.orderAuditLog.create({
+      data: {
+        orderId: payload.orderId,
+        mutationType: payload.mutationType,
+        actorUserId: payload.actorUserId ?? null,
+        actorRole: payload.actorRole ?? null,
+        beforeData: toNullableJsonInput(payload.beforeData),
+        afterData: toNullableJsonInput(payload.afterData),
+        metadata: toNullableJsonInput(payload.metadata),
+      },
+    });
+  } catch (error: unknown) {
+    if (!isMissingAuditTableError(error)) throw error;
+    console.warn('OrderAuditLog table is missing; skip writing audit log.');
+  }
 }
 
 type OrderAuditWriter = Pick<Prisma.TransactionClient, 'orderAuditLog'>;
@@ -41,15 +55,20 @@ export async function writeOrderAuditLogWithClient(
   client: OrderAuditWriter,
   payload: OrderAuditPayload,
 ) {
-  await client.orderAuditLog.create({
-    data: {
-      orderId: payload.orderId,
-      mutationType: payload.mutationType,
-      actorUserId: payload.actorUserId ?? null,
-      actorRole: payload.actorRole ?? null,
-      beforeData: toNullableJsonInput(payload.beforeData),
-      afterData: toNullableJsonInput(payload.afterData),
-      metadata: toNullableJsonInput(payload.metadata),
-    },
-  });
+  try {
+    await client.orderAuditLog.create({
+      data: {
+        orderId: payload.orderId,
+        mutationType: payload.mutationType,
+        actorUserId: payload.actorUserId ?? null,
+        actorRole: payload.actorRole ?? null,
+        beforeData: toNullableJsonInput(payload.beforeData),
+        afterData: toNullableJsonInput(payload.afterData),
+        metadata: toNullableJsonInput(payload.metadata),
+      },
+    });
+  } catch (error: unknown) {
+    if (!isMissingAuditTableError(error)) throw error;
+    console.warn('OrderAuditLog table is missing; skip writing audit log.');
+  }
 }

@@ -71,6 +71,15 @@ function normalizeLimit(limitRaw: string | null) {
   return Math.min(parsed, MAX_LIMIT);
 }
 
+function isMissingAuditTableError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'P2021'
+  );
+}
+
 export async function handleAdminProductAuditGetRequest(
   request: Pick<NextRequest, 'url'>,
   params: Promise<{ id: string }>,
@@ -84,10 +93,19 @@ export async function handleAdminProductAuditGetRequest(
   const limit = normalizeLimit(searchParams.get('limit'));
   const skip = (page - 1) * limit;
 
-  const [logs, total] = await Promise.all([
-    deps.findLogs({ productRefId: id, skip, take: limit }),
-    deps.countLogs(id),
-  ]);
+  let logs: ProductAuditRow[] = [];
+  let total = 0;
+  try {
+    [logs, total] = await Promise.all([
+      deps.findLogs({ productRefId: id, skip, take: limit }),
+      deps.countLogs(id),
+    ]);
+  } catch (error: unknown) {
+    if (!isMissingAuditTableError(error)) {
+      throw error;
+    }
+    console.warn('Product audit table is missing; returning empty audit list.');
+  }
 
   return {
     status: 200,

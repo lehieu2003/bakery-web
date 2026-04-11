@@ -21,19 +21,33 @@ function toNullableJsonInput(
   return value as Prisma.InputJsonValue;
 }
 
+function isMissingAuditTableError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'P2021'
+  );
+}
+
 export async function writeProductAuditLog(payload: ProductAuditPayload) {
-  await prisma.productAuditLog.create({
-    data: {
-      productId: payload.productId,
-      productRefId: payload.productId,
-      mutationType: payload.mutationType,
-      actorUserId: payload.actorUserId ?? null,
-      actorRole: payload.actorRole ?? null,
-      beforeData: toNullableJsonInput(payload.beforeData),
-      afterData: toNullableJsonInput(payload.afterData),
-      metadata: toNullableJsonInput(payload.metadata),
-    },
-  });
+  try {
+    await prisma.productAuditLog.create({
+      data: {
+        productId: payload.productId,
+        productRefId: payload.productId,
+        mutationType: payload.mutationType,
+        actorUserId: payload.actorUserId ?? null,
+        actorRole: payload.actorRole ?? null,
+        beforeData: toNullableJsonInput(payload.beforeData),
+        afterData: toNullableJsonInput(payload.afterData),
+        metadata: toNullableJsonInput(payload.metadata),
+      },
+    });
+  } catch (error: unknown) {
+    if (!isMissingAuditTableError(error)) throw error;
+    console.warn('ProductAuditLog table is missing; skip writing audit log.');
+  }
 }
 
 type ProductAuditWriter = Pick<Prisma.TransactionClient, 'productAuditLog'>;
@@ -42,16 +56,21 @@ export async function writeProductAuditLogWithClient(
   client: ProductAuditWriter,
   payload: ProductAuditPayload,
 ) {
-  await client.productAuditLog.create({
-    data: {
-      productId: payload.productId,
-      productRefId: payload.productId,
-      mutationType: payload.mutationType,
-      actorUserId: payload.actorUserId ?? null,
-      actorRole: payload.actorRole ?? null,
-      beforeData: toNullableJsonInput(payload.beforeData),
-      afterData: toNullableJsonInput(payload.afterData),
-      metadata: toNullableJsonInput(payload.metadata),
-    },
-  });
+  try {
+    await client.productAuditLog.create({
+      data: {
+        productId: payload.productId,
+        productRefId: payload.productId,
+        mutationType: payload.mutationType,
+        actorUserId: payload.actorUserId ?? null,
+        actorRole: payload.actorRole ?? null,
+        beforeData: toNullableJsonInput(payload.beforeData),
+        afterData: toNullableJsonInput(payload.afterData),
+        metadata: toNullableJsonInput(payload.metadata),
+      },
+    });
+  } catch (error: unknown) {
+    if (!isMissingAuditTableError(error)) throw error;
+    console.warn('ProductAuditLog table is missing; skip writing audit log.');
+  }
 }
