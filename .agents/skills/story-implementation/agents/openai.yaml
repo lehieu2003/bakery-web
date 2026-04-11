@@ -1,0 +1,4 @@
+interface:
+  display_name: "Story Implementation"
+  short_description: "Implement stories with repo-safe workflow"
+  default_prompt: "Implement this story end-to-end following repository guards, validation gates, and delivery format."

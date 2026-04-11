@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatVND, MEMBER_LEVEL_COLORS, MemberLevel } from '@/lib/admin-data';
 import { cn } from '@/lib/utils';
-import { useCustomers } from '@/hooks/admin/use-customers';
+import { useCustomer, useCustomers } from '@/hooks/admin/use-customers';
 
 type LevelFilter = 'ALL' | MemberLevel;
 
@@ -42,18 +42,31 @@ function CustomerDetailPanel({
   customer: CustomerData;
   onClose: () => void;
 }) {
-  const levelBadge = MEMBER_LEVEL_COLORS[customer.level];
+  const { data: detail, isLoading: detailLoading } = useCustomer(customer.id);
+  const memberLevel = (detail?.memberLevel || detail?.level || customer.level) as MemberLevel;
+  const points = detail?.points ?? customer.points;
+  const totalOrders = detail?.totalOrders ?? customer.totalOrders;
+  const totalSpent = Number(detail?.totalSpent ?? customer.totalSpent);
+  const displayName = detail?.name ?? customer.name;
+  const displayEmail = detail?.email ?? customer.email;
+  const displayPhone = detail?.phone ?? customer.phone;
+  const createdAt = detail?.createdAt ?? customer.createdAt;
+  const levelBadge = MEMBER_LEVEL_COLORS[memberLevel];
+  const recentOrders = detail?.recentOrders ?? [];
+  const recentPayments = detail?.recentPayments ?? [];
+  const recentNotifications = detail?.recentNotifications ?? [];
+  const unreadPublished = detail?.notificationSummary?.unreadPublished ?? 0;
 
   const statCards = [
-    { label: 'Total Orders', value: customer.totalOrders, icon: ShoppingBag },
+    { label: 'Total Orders', value: totalOrders, icon: ShoppingBag },
     {
       label: 'Total Spent',
-      value: formatVND(Number(customer.totalSpent)),
+      value: formatVND(totalSpent),
       icon: Wallet,
     },
     {
       label: 'Points',
-      value: `${customer.points.toLocaleString()} pts`,
+      value: `${points.toLocaleString()} pts`,
       icon: Star,
     },
   ];
@@ -88,12 +101,12 @@ function CustomerDetailPanel({
             <div className='flex items-start gap-4'>
               <div className='w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0'>
                 <span className='text-base font-bold text-primary'>
-                  {(customer.name || customer.email).charAt(0).toUpperCase()}
+                  {(displayName || displayEmail).charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className='flex-1 min-w-0'>
                 <h3 className='font-semibold text-sm text-foreground truncate'>
-                  {customer.name || 'No name'}
+                  {displayName || 'No name'}
                 </h3>
                 <span
                   className={cn(
@@ -102,7 +115,7 @@ function CustomerDetailPanel({
                   )}
                 >
                   <Crown size={9} />
-                  {customer.level}
+                  {memberLevel}
                 </span>
               </div>
             </div>
@@ -111,19 +124,19 @@ function CustomerDetailPanel({
             <div className='mt-4 space-y-2'>
               <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                 <Mail size={11} className='shrink-0' />
-                <span className='truncate'>{customer.email}</span>
+                <span className='truncate'>{displayEmail}</span>
               </div>
-              {customer.phone && (
+              {displayPhone && (
                 <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                   <Phone size={11} className='shrink-0' />
-                  <span>{customer.phone}</span>
+                  <span>{displayPhone}</span>
                 </div>
               )}
               <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                 <CalendarDays size={11} className='shrink-0' />
                 <span>
                   Member since{' '}
-                  {new Date(customer.createdAt).toLocaleDateString('vi-VN')}
+                  {new Date(createdAt).toLocaleDateString('vi-VN')}
                 </span>
               </div>
             </div>
@@ -154,7 +167,7 @@ function CustomerDetailPanel({
             <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3'>
               Membership Progress
             </p>
-            {customer.level === 'PLATINUM' ? (
+            {memberLevel === 'PLATINUM' ? (
               <div className='flex items-center gap-2 text-xs text-pink-600'>
                 <Crown size={13} />
                 <span className='font-medium'>
@@ -172,13 +185,13 @@ function CustomerDetailPanel({
                   SILVER: 'GOLD',
                   GOLD: 'PLATINUM',
                 };
-                const next = nextLevel[customer.level];
+                const next = nextLevel[memberLevel];
                 const target = thresholds[next];
-                const pct = Math.min((customer.points / target) * 100, 100);
+                const pct = Math.min((points / target) * 100, 100);
                 return (
                   <div>
                     <div className='flex justify-between text-[10px] text-muted-foreground mb-1.5'>
-                      <span>{customer.points.toLocaleString()} pts</span>
+                      <span>{points.toLocaleString()} pts</span>
                       <span>
                         {target.toLocaleString()} pts to{' '}
                         <span className='font-medium text-foreground'>
@@ -193,13 +206,76 @@ function CustomerDetailPanel({
                       />
                     </div>
                     <p className='text-[10px] text-muted-foreground mt-1'>
-                      {(target - customer.points).toLocaleString()} more points
+                      {(target - points).toLocaleString()} more points
                       needed
                     </p>
                   </div>
                 );
               })()
             )}
+          </div>
+
+          <div className='px-6 py-4 border-t border-border'>
+            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
+              Operational Context
+            </p>
+            {detailLoading && (
+              <p className='text-[11px] text-muted-foreground mb-2'>Loading latest support data...</p>
+            )}
+            <p className='text-[11px] text-muted-foreground'>
+              Unread published notifications: {unreadPublished}
+            </p>
+          </div>
+
+          <div className='px-6 py-4 border-t border-border'>
+            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
+              Recent Orders
+            </p>
+            {recentOrders.length === 0 && (
+              <p className='text-[11px] text-muted-foreground'>No recent orders.</p>
+            )}
+            {recentOrders.slice(0, 5).map((order) => (
+              <div key={order.id} className='text-[11px] py-1.5 border-b border-border last:border-b-0'>
+                <p className='font-medium text-foreground'>{order.orderNumber}</p>
+                <p className='text-muted-foreground'>
+                  {order.status} • {formatVND(order.total)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className='px-6 py-4 border-t border-border'>
+            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
+              Recent Payments
+            </p>
+            {recentPayments.length === 0 && (
+              <p className='text-[11px] text-muted-foreground'>No recent payments.</p>
+            )}
+            {recentPayments.slice(0, 5).map((payment) => (
+              <div key={payment.paymentId} className='text-[11px] py-1.5 border-b border-border last:border-b-0'>
+                <p className='font-medium text-foreground'>{payment.provider}</p>
+                <p className='text-muted-foreground'>
+                  {payment.status} • {formatVND(payment.amount)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className='px-6 py-4 border-t border-border'>
+            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
+              Recent Notifications
+            </p>
+            {recentNotifications.length === 0 && (
+              <p className='text-[11px] text-muted-foreground'>No notification reads.</p>
+            )}
+            {recentNotifications.slice(0, 5).map((notification) => (
+              <div key={notification.notificationId} className='text-[11px] py-1.5 border-b border-border last:border-b-0'>
+                <p className='font-medium text-foreground'>{notification.title}</p>
+                <p className='text-muted-foreground'>
+                  {notification.status} • Read {new Date(notification.readAt).toLocaleDateString('vi-VN')}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -252,7 +328,7 @@ export default function CustomersPage() {
     name: c.name,
     email: c.email,
     phone: c.phone,
-    level: c.memberLevel || 'SILVER',
+    level: c.memberLevel || c.level || 'SILVER',
     points: c.points || 0,
     totalOrders: c.totalOrders || 0,
     totalSpent: c.totalSpent || 0,

@@ -20,6 +20,7 @@ export type DiscountType = 'PERCENTAGE' | 'FIXED';
 export type PaymentMethod = 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
 export type MenuType = 'CATEGORY' | 'PAGE' | 'LINK';
 export type NotificationStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type NotificationAudience = 'GLOBAL' | 'USER';
 export type ProductAttributeType =
   | 'SELECT'
   | 'MULTI_SELECT'
@@ -335,6 +336,46 @@ export interface Customer extends User {
   orders?: Order[];
   totalOrders: number;
   totalSpent?: number;
+  level?: MemberLevel;
+  recentOrders?: Array<{
+    id: string;
+    orderNumber: string;
+    total: number;
+    status: OrderStatus;
+    paymentMethod: PaymentMethod | null;
+    createdAt: string;
+    payment: {
+      id: string;
+      provider: string;
+      transactionId: string | null;
+      amount: number;
+      status: string;
+      createdAt: string;
+    } | null;
+  }>;
+  recentPayments?: Array<{
+    paymentId: string;
+    orderId: string;
+    orderNumber: string;
+    provider: string;
+    transactionId: string | null;
+    amount: number;
+    status: string;
+    createdAt: string;
+  }>;
+  recentNotifications?: Array<{
+    notificationId: string;
+    title: string;
+    status: NotificationStatus;
+    audience: NotificationAudience;
+    publishedAt: string | null;
+    createdAt: string;
+    readAt: string;
+  }>;
+  notificationSummary?: {
+    totalRead: number;
+    unreadPublished: number;
+  };
 }
 
 // ============================================================================
@@ -547,6 +588,7 @@ export interface UpdateOrderRequest {
 
 export interface UpdateCustomerRequest {
   name?: string;
+  phone?: string;
   memberLevel?: MemberLevel;
   points?: number;
   isActive?: boolean;
