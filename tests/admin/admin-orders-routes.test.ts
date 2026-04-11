@@ -5,6 +5,7 @@ import {
   handleAdminOrdersGetRequest,
 } from '@/app/api/admin/orders/route';
 import {
+  handleAdminOrderGetByIdRequest,
   handleAdminOrderPatchRequest,
 } from '@/app/api/admin/orders/[id]/route';
 import {
@@ -58,6 +59,30 @@ test('admin order patch blocks invalid status transition', async () => {
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
   assert.match(String(result.body.error), /Invalid status transition/);
+});
+
+test('admin order get-by-id returns order detail when found', async () => {
+  const result = await handleAdminOrderGetByIdRequest(
+    Promise.resolve({ id: 'BK260409VOB8' }),
+    {
+      requireAdmin: async () => ({ id: 'admin-1', role: 'ADMIN' }),
+      findOrderById: async (id) => ({
+        id: id === 'BK260409VOB8' ? 'order-1' : 'unknown',
+        status: 'CONFIRMED',
+        customerName: 'Alice',
+        customerPhone: '0900000001',
+        customerEmail: 'alice@example.com',
+        customerAddress: '1 Main St',
+      }),
+      updateOrderWithLifecycleAndAudit: async () => {
+        throw new Error('should not be called');
+      },
+    },
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal((result.body.data as { id: string }).id, 'order-1');
 });
 
 test('admin order patch allows valid transition and writes update path', async () => {

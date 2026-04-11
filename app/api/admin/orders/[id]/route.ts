@@ -104,8 +104,10 @@ const includeFields = {
 const defaultDeps: OrderByIdDeps = {
   requireAdmin,
   findOrderById: (id) =>
-    prisma.order.findUnique({
-      where: { id },
+    prisma.order.findFirst({
+      where: {
+        OR: [{ id: id.trim() }, { orderNumber: id.trim() }],
+      },
       include: includeFields,
     }),
   updateOrderWithLifecycleAndAudit: async ({
@@ -309,7 +311,7 @@ export async function handleAdminOrderPatchRequest(
   }
 
   const order = await deps.updateOrderWithLifecycleAndAudit({
-    orderId: id,
+    orderId: existing.id,
     actor: admin,
     before: existing,
     payload: parsed.payload,
