@@ -12,6 +12,27 @@ import type {
   UpdateProductRequest,
 } from '@/types/api.types';
 
+type ProductAuditListResponse = {
+  logs: Array<{
+    id: string;
+    mutationType: string;
+    actorRole: string | null;
+    createdAt: string;
+    metadata: unknown;
+    actor: {
+      id: string;
+      name: string | null;
+      role: string;
+    } | null;
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
 export const productsService = {
   /**
    * Get all products with pagination and filters
@@ -75,6 +96,19 @@ export const productsService = {
       {
         showSuccessToast: true,
         successMessage: 'Xóa sản phẩm thành công!',
+      },
+    );
+    return response.data!;
+  },
+
+  /**
+   * Get product audit logs
+   */
+  getAudit: async (id: string, page = 1, limit = 20) => {
+    const response = await http.get<ProductAuditListResponse>(
+      ENDPOINTS.ADMIN.PRODUCTS.AUDIT(id),
+      {
+        params: { page, limit },
       },
     );
     return response.data!;

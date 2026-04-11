@@ -21,6 +21,9 @@ export const productKeys = {
     [...productKeys.lists(), params] as const,
   details: () => [...productKeys.all, 'detail'] as const,
   detail: (id: string) => [...productKeys.details(), id] as const,
+  audits: () => [...productKeys.all, 'audit'] as const,
+  audit: (id: string, page: number, limit: number) =>
+    [...productKeys.audits(), id, page, limit] as const,
 };
 
 /**
@@ -85,5 +88,16 @@ export function useDeleteProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
     },
+  });
+}
+
+/**
+ * Hook to fetch product audit logs
+ */
+export function useProductAudit(id: string, page = 1, limit = 20) {
+  return useQuery({
+    queryKey: productKeys.audit(id, page, limit),
+    queryFn: () => productsService.getAudit(id, page, limit),
+    enabled: !!id,
   });
 }

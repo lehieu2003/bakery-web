@@ -12,6 +12,27 @@ import type {
   OrderStatus,
 } from '@/types/api.types';
 
+type AuditListResponse = {
+  logs: Array<{
+    id: string;
+    mutationType: string;
+    actorRole: string | null;
+    createdAt: string;
+    metadata: unknown;
+    actor: {
+      id: string;
+      name: string | null;
+      role: string;
+    } | null;
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
 export const ordersService = {
   /**
    * Get all orders with pagination and filters
@@ -62,6 +83,19 @@ export const ordersService = {
       },
     );
     return response.data!.order;
+  },
+
+  /**
+   * Get order audit logs
+   */
+  getAudit: async (id: string, page = 1, limit = 20) => {
+    const response = await http.get<AuditListResponse>(
+      ENDPOINTS.ADMIN.ORDERS.AUDIT(id),
+      {
+        params: { page, limit },
+      },
+    );
+    return response.data!;
   },
 };
 

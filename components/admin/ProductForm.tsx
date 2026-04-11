@@ -32,12 +32,14 @@ import { cn } from '@/lib/utils';
 import { slugify } from '@/lib/slug';
 import {
   useCreateProduct,
+  useProductAudit,
   useUpdateProduct,
   useProduct,
 } from '@/hooks/admin/use-products';
 import { useCategories } from '@/hooks/admin/use-categories';
 import { useProductAttributes } from '@/hooks/admin/use-product-attributes';
 import { useToast } from '@/hooks/use-toast';
+import AuditLogList from '@/components/admin/AuditLogList';
 
 // Validation schema
 const productSchema = z.object({
@@ -83,6 +85,11 @@ export default function ProductForm({ productId }: { productId?: string }) {
     error: productError,
   } = useProduct(productId || '');
   const existingProduct = productData;
+  const {
+    data: productAudit,
+    isLoading: productAuditLoading,
+    error: productAuditError,
+  } = useProductAudit(productId || '', 1, 10);
 
   const initialType = existingProduct?.categories?.length
     ? 'CAKE' // Default, since we don't have type in Product model
@@ -905,6 +912,16 @@ export default function ProductForm({ productId }: { productId?: string }) {
               />
             </div>
           </div>
+
+          {isEdit && productId ? (
+            <AuditLogList
+              title='Product Audit History'
+              logs={productAudit?.logs}
+              isLoading={productAuditLoading}
+              error={!!productAuditError}
+              emptyText='No product audit entries yet.'
+            />
+          ) : null}
         </div>
 
         {/* Sticky action bar */}

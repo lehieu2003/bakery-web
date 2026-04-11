@@ -28,9 +28,10 @@ import {
   ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
 } from '@/lib/admin-data';
-import { useOrder, useUpdateOrder } from '@/hooks/admin/use-orders';
+import { useOrder, useOrderAudit, useUpdateOrder } from '@/hooks/admin/use-orders';
 import type { OrderStatus } from '@/types/api.types';
 import { getProductImage } from '@/lib/utils';
+import AuditLogList from '@/components/admin/AuditLogList';
 
 const NEXT_STATUSES: Partial<Record<OrderStatus, OrderStatus[]>> = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
@@ -46,6 +47,11 @@ export default function OrderDetailPage({
 }) {
   const { id } = use(params);
   const { data: order, isLoading, error } = useOrder(id);
+  const {
+    data: orderAudit,
+    isLoading: auditLoading,
+    error: auditError,
+  } = useOrderAudit(id, 1, 10);
   const updateMutation = useUpdateOrder();
 
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('');
@@ -390,6 +396,16 @@ export default function OrderDetailPage({
             </div>
           )}
         </div>
+      </div>
+
+      <div className='mt-4'>
+        <AuditLogList
+          title='Order Audit History'
+          logs={orderAudit?.logs}
+          isLoading={auditLoading}
+          error={!!auditError}
+          emptyText='No order audit entries yet.'
+        />
       </div>
 
       {/* Print template (hidden) */}

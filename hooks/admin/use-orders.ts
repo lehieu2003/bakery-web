@@ -20,6 +20,9 @@ export const orderKeys = {
   list: (params?: OrdersQueryParams) => [...orderKeys.lists(), params] as const,
   details: () => [...orderKeys.all, 'detail'] as const,
   detail: (id: string) => [...orderKeys.details(), id] as const,
+  audits: () => [...orderKeys.all, 'audit'] as const,
+  audit: (id: string, page: number, limit: number) =>
+    [...orderKeys.audits(), id, page, limit] as const,
 };
 
 /**
@@ -72,5 +75,16 @@ export function useUpdateOrderStatus() {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: orderKeys.detail(id) });
     },
+  });
+}
+
+/**
+ * Hook to fetch order audit logs
+ */
+export function useOrderAudit(id: string, page = 1, limit = 20) {
+  return useQuery({
+    queryKey: orderKeys.audit(id, page, limit),
+    queryFn: () => ordersService.getAudit(id, page, limit),
+    enabled: !!id,
   });
 }
