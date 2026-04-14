@@ -11,8 +11,10 @@ export const dashboardService = {
   /**
    * Get dashboard statistics
    */
-  getStats: async () => {
-    const response = await http.get<DashboardStats>(ENDPOINTS.ADMIN.DASHBOARD);
+  getStats: async (windowDays: 7 | 14 | 30 = 7) => {
+    const response = await http.get<DashboardStats>(
+      `${ENDPOINTS.ADMIN.DASHBOARD}?windowDays=${windowDays}`,
+    );
     return response.data!;
   },
 };

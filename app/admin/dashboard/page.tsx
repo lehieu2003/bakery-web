@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
 import {
   ShoppingCart,
@@ -33,7 +34,8 @@ import { useDashboard } from '@/hooks/admin/use-dashboard';
 const formatRevenue = (val: number) => `₫${(val / 1000000).toFixed(1)}M`;
 
 export default function DashboardPage() {
-  const { data, isLoading, error } = useDashboard();
+  const [windowDays, setWindowDays] = useState<7 | 14 | 30>(7);
+  const { data, isLoading, error } = useDashboard(windowDays);
 
   if (isLoading) {
     return (
@@ -55,7 +57,13 @@ export default function DashboardPage() {
     );
   }
 
-  const { kpi, chartData, topProducts, recentOrders } = data;
+  const { kpi, chartData, recentOrders } = data;
+  const pending =
+    data.orderStates.find((item) => item.status === 'PENDING')?.count ?? 0;
+  const completed =
+    data.orderStates.find((item) => item.status === 'COMPLETED')?.count ?? 0;
+  const cancelled =
+    data.orderStates.find((item) => item.status === 'CANCELLED')?.count ?? 0;
 
   const kpiCards = [
     {
@@ -75,19 +83,17 @@ export default function DashboardPage() {
       bg: 'bg-emerald-50',
     },
     {
-      label: 'Total Customers',
-      value: kpi.totalCustomers.toString(),
-      sub: 'Registered users',
+      label: `Conversion (${windowDays}d)`,
+      value: `${kpi.conversionRate.toFixed(2)}%`,
+      sub: `${kpi.periodCompletedOrders}/${kpi.periodOrders} completed`,
       icon: <Users size={18} />,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
     },
     {
-      label: 'Active Products',
-      value: kpi.totalProducts.toString(),
-      sub: topProducts[0]?.product?.name
-        ? `Top: ${topProducts[0].product.name}`
-        : 'In catalog',
+      label: `Order States (${windowDays}d)`,
+      value: `${pending}`,
+      sub: `${completed} completed • ${cancelled} cancelled`,
       icon: <Package size={18} />,
       color: 'text-pink-600',
       bg: 'bg-pink-50',
@@ -105,10 +111,26 @@ export default function DashboardPage() {
             Dashboard
           </h1>
           <p className='text-xs text-muted-foreground mt-0.5'>
-            Sunday, March 2, 2026
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+            })}
           </p>
         </div>
         <div className='flex items-center gap-2'>
+          <select
+            value={windowDays}
+            onChange={(event) =>
+              setWindowDays(Number(event.target.value) as 7 | 14 | 30)
+            }
+            className='h-8 rounded-md border border-input bg-background px-2 text-xs'
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={14}>Last 14 days</option>
+            <option value={30}>Last 30 days</option>
+          </select>
           <Link href='/admin/products/new'>
             <Button size='sm' className='h-8 text-xs gap-1.5'>
               <Plus size={13} />
@@ -154,7 +176,7 @@ export default function DashboardPage() {
           <div className='flex items-center justify-between mb-4'>
             <div>
               <p className='text-sm font-semibold text-foreground'>
-                Orders (Last 7 days)
+                Orders (Last {windowDays} days)
               </p>
               <p className='text-[10px] text-muted-foreground'>
                 Total: {totalWeekOrders} orders
@@ -219,7 +241,7 @@ export default function DashboardPage() {
           <div className='flex items-center justify-between mb-4'>
             <div>
               <p className='text-sm font-semibold text-foreground'>
-                Revenue (Last 7 days)
+                Revenue (Last {windowDays} days)
               </p>
               <p className='text-[10px] text-muted-foreground'>
                 Total: {formatRevenue(totalWeekRevenue)}

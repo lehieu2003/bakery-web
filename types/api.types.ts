@@ -389,16 +389,21 @@ export interface DashboardStats {
     pendingOrders: number;
     totalCustomers: number;
     totalProducts: number;
+    periodOrders: number;
+    periodCompletedOrders: number;
+    periodCancelledOrders: number;
+    conversionRate: number;
   };
   chartData: Array<{
     day: string;
     orders: number;
     revenue: number;
+    completedOrders: number;
+    cancelledOrders: number;
   }>;
-  topProducts: Array<{
-    productId: string;
-    _sum: { quantity: number };
-    product?: { id: string; name: string };
+  orderStates: Array<{
+    status: OrderStatus;
+    count: number;
   }>;
   recentOrders: Array<{
     id: string;
@@ -409,6 +414,17 @@ export interface DashboardStats {
     createdAt: string;
     itemsCount: number;
   }>;
+  meta: {
+    windowDays: number;
+    generatedAt: string;
+    refreshIntervalSeconds: number;
+    businessTimezone: string;
+    queryDurationMs: number;
+    metricDefinitions: {
+      todayRevenue: string;
+      conversionRate: string;
+    };
+  };
 }
 
 // ============================================================================
