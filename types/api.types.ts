@@ -421,10 +421,11 @@ export interface StoreSettings {
   store_phone: string;
   store_address: string;
   opening_hours: string;
-  pickup_slots: string;
-  allow_delivery: string;
-  delivery_fee: string;
-  min_order_delivery: string;
+  pickup_slots: string[];
+  allow_delivery: boolean;
+  min_order_amount: number;
+  delivery_fee: number;
+  free_delivery_threshold: number;
 }
 
 export interface MembershipConfig {

@@ -25,7 +25,7 @@ export const membershipService = {
    * Update membership configuration
    */
   update: async (data: UpdateMembershipRequest) => {
-    const response = await http.put<{ message: string }>(
+    const response = await http.put<MembershipConfig>(
       ENDPOINTS.ADMIN.MEMBERSHIP,
       data,
       {

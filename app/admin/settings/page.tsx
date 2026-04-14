@@ -9,19 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useSettings, useUpdateSettings } from '@/hooks/admin/use-settings';
+import type { StoreSettings } from '@/types/api.types';
 
 interface SettingsFormProps {
-  initialSettings: {
-    store_name?: string;
-    store_email?: string;
-    store_phone?: string;
-    store_address?: string;
-    opening_hours?: string;
-    pickup_slots?: string;
-    allow_delivery?: string;
-    delivery_fee?: string;
-    min_order_delivery?: string;
-  };
+  initialSettings: Partial<StoreSettings>;
 }
 
 function SettingsForm({ initialSettings }: SettingsFormProps) {
@@ -37,19 +28,18 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
     initialSettings.opening_hours || '',
   );
   const [pickupSlots, setPickupSlots] = useState<string[]>(
-    initialSettings.pickup_slots
-      ? initialSettings.pickup_slots.split(',').map((s) => s.trim())
-      : [],
+    initialSettings.pickup_slots || [],
   );
   const [newSlot, setNewSlot] = useState('');
   const [allowDelivery, setAllowDelivery] = useState(
-    initialSettings.allow_delivery === 'true',
+    initialSettings.allow_delivery ?? true,
   );
-  const [deliveryFee, setDeliveryFee] = useState(
-    initialSettings.delivery_fee || '',
+  const [deliveryFee, setDeliveryFee] = useState(initialSettings.delivery_fee ?? 0);
+  const [minOrderAmount, setMinOrderAmount] = useState(
+    initialSettings.min_order_amount ?? 0,
   );
-  const [minOrderDelivery, setMinOrderDelivery] = useState(
-    initialSettings.min_order_delivery || '',
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(
+    initialSettings.free_delivery_threshold ?? 0,
   );
 
   const updateMutation = useUpdateSettings();
@@ -62,10 +52,11 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
         store_phone: storePhone,
         store_address: address,
         opening_hours: openHours,
-        pickup_slots: pickupSlots.join(', '),
-        allow_delivery: allowDelivery ? 'true' : 'false',
+        pickup_slots: pickupSlots,
+        allow_delivery: allowDelivery,
+        min_order_amount: minOrderAmount,
         delivery_fee: deliveryFee,
-        min_order_delivery: minOrderDelivery,
+        free_delivery_threshold: freeDeliveryThreshold,
       });
     } catch {
       // Error handled by mutation/toast
@@ -197,9 +188,10 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
             <div>
               <Label className='text-xs font-medium'>Delivery Fee (VND)</Label>
               <Input
+                type='number'
                 className='h-9 text-sm mt-1.5'
                 value={deliveryFee}
-                onChange={(e) => setDeliveryFee(e.target.value)}
+                onChange={(e) => setDeliveryFee(Number(e.target.value) || 0)}
                 placeholder='30000'
               />
             </div>
@@ -208,10 +200,25 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
                 Min Order for Delivery (VND)
               </Label>
               <Input
+                type='number'
                 className='h-9 text-sm mt-1.5'
-                value={minOrderDelivery}
-                onChange={(e) => setMinOrderDelivery(e.target.value)}
+                value={minOrderAmount}
+                onChange={(e) => setMinOrderAmount(Number(e.target.value) || 0)}
                 placeholder='200000'
+              />
+            </div>
+            <div>
+              <Label className='text-xs font-medium'>
+                Free Delivery Threshold (VND)
+              </Label>
+              <Input
+                type='number'
+                className='h-9 text-sm mt-1.5'
+                value={freeDeliveryThreshold}
+                onChange={(e) =>
+                  setFreeDeliveryThreshold(Number(e.target.value) || 0)
+                }
+                placeholder='500000'
               />
             </div>
           </div>

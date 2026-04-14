@@ -532,11 +532,15 @@ async function main() {
       value: '123 Nguyen Hue, District 1, Ho Chi Minh City',
     },
     { key: 'delivery_fee', value: '30000' },
-    { key: 'min_order_free_delivery', value: '500000' },
-    { key: 'points_per_order', value: '10' }, // Points per 100k spent
-    { key: 'silver_threshold', value: '0' },
-    { key: 'gold_threshold', value: '5000000' },
-    { key: 'platinum_threshold', value: '15000000' },
+    { key: 'min_order_amount', value: '0' },
+    { key: 'free_delivery_threshold', value: '500000' },
+    { key: 'membership_points_per_order', value: '10000' }, // 1 point per 10,000 VND
+    { key: 'membership_silver_min_points', value: '0' },
+    { key: 'membership_silver_discount', value: '3' },
+    { key: 'membership_gold_min_points', value: '300' },
+    { key: 'membership_gold_discount', value: '7' },
+    { key: 'membership_platinum_min_points', value: '900' },
+    { key: 'membership_platinum_discount', value: '12' },
   ];
 
   for (const setting of settingsData) {

@@ -139,6 +139,7 @@ model User {
   couponAuditLogs      CouponAuditLog[]   @relation("CouponAuditActor")
   productAuditLogs     ProductAuditLog[]  @relation("ProductAuditActor")
   orderAuditLogs       OrderAuditLog[]    @relation("OrderAuditActor")
+  settingAuditLogs     SettingAuditLog[]  @relation("SettingAuditActor")
 
   cart Cart?
 
@@ -979,5 +980,29 @@ model Setting {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
+
+  auditLogs SettingAuditLog[]
+}
+
+model SettingAuditLog {
+  id String @id @default(cuid())
+
+  settingKey String
+
+  actorUserId String?
+  actorRole   UserRole?
+
+  mutationType String
+  beforeValue  String?
+  afterValue   String?
+  metadata     Json?
+
+  createdAt DateTime @default(now())
+
+  setting Setting @relation(fields: [settingKey], references: [key], onDelete: Cascade)
+  actor   User?   @relation("SettingAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([settingKey, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
 }
 

@@ -1,0 +1,1320 @@
+diff --git a/app/admin/membership/page.tsx b/app/admin/membership/page.tsx
+index 0c1b3dd..e9e419f 100644
+--- a/app/admin/membership/page.tsx
++++ b/app/admin/membership/page.tsx
+@@ -332,8 +332,7 @@ export default function MembershipPage() {
+           </h1>
+           <p className='text-xs text-muted-foreground mt-0.5'>
+             Configure membership levels and benefits •{' '}
+-            {data?.levels.reduce((sum, level) => sum + level.memberCount, 0) ||
+-              0}{' '}
++            {data?.totalMembers ?? 0}{' '}
+             total members
+           </p>
+         </div>
+diff --git a/app/admin/settings/page.tsx b/app/admin/settings/page.tsx
+index e248607..af9f67c 100644
+--- a/app/admin/settings/page.tsx
++++ b/app/admin/settings/page.tsx
+@@ -9,19 +9,10 @@ import { Label } from '@/components/ui/label';
+ import { Textarea } from '@/components/ui/textarea';
+ import { Switch } from '@/components/ui/switch';
+ import { useSettings, useUpdateSettings } from '@/hooks/admin/use-settings';
++import type { StoreSettings } from '@/types/api.types';
+ 
+ interface SettingsFormProps {
+-  initialSettings: {
+-    store_name?: string;
+-    store_email?: string;
+-    store_phone?: string;
+-    store_address?: string;
+-    opening_hours?: string;
+-    pickup_slots?: string;
+-    allow_delivery?: string;
+-    delivery_fee?: string;
+-    min_order_delivery?: string;
+-  };
++  initialSettings: Partial<StoreSettings>;
+ }
+ 
+ function SettingsForm({ initialSettings }: SettingsFormProps) {
+@@ -37,19 +28,18 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
+     initialSettings.opening_hours || '',
+   );
+   const [pickupSlots, setPickupSlots] = useState<string[]>(
+-    initialSettings.pickup_slots
+-      ? initialSettings.pickup_slots.split(',').map((s) => s.trim())
+-      : [],
++    initialSettings.pickup_slots || [],
+   );
+   const [newSlot, setNewSlot] = useState('');
+   const [allowDelivery, setAllowDelivery] = useState(
+-    initialSettings.allow_delivery === 'true',
++    initialSettings.allow_delivery ?? true,
+   );
+-  const [deliveryFee, setDeliveryFee] = useState(
+-    initialSettings.delivery_fee || '',
++  const [deliveryFee, setDeliveryFee] = useState(initialSettings.delivery_fee ?? 0);
++  const [minOrderAmount, setMinOrderAmount] = useState(
++    initialSettings.min_order_amount ?? 0,
+   );
+-  const [minOrderDelivery, setMinOrderDelivery] = useState(
+-    initialSettings.min_order_delivery || '',
++  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(
++    initialSettings.free_delivery_threshold ?? 0,
+   );
+ 
+   const updateMutation = useUpdateSettings();
+@@ -62,10 +52,11 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
+         store_phone: storePhone,
+         store_address: address,
+         opening_hours: openHours,
+-        pickup_slots: pickupSlots.join(', '),
+-        allow_delivery: allowDelivery ? 'true' : 'false',
++        pickup_slots: pickupSlots,
++        allow_delivery: allowDelivery,
++        min_order_amount: minOrderAmount,
+         delivery_fee: deliveryFee,
+-        min_order_delivery: minOrderDelivery,
++        free_delivery_threshold: freeDeliveryThreshold,
+       });
+     } catch {
+       // Error handled by mutation/toast
+@@ -197,9 +188,10 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
+             <div>
+               <Label className='text-xs font-medium'>Delivery Fee (VND)</Label>
+               <Input
++                type='number'
+                 className='h-9 text-sm mt-1.5'
+                 value={deliveryFee}
+-                onChange={(e) => setDeliveryFee(e.target.value)}
++                onChange={(e) => setDeliveryFee(Number(e.target.value) || 0)}
+                 placeholder='30000'
+               />
+             </div>
+@@ -208,12 +200,27 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
+                 Min Order for Delivery (VND)
+               </Label>
+               <Input
++                type='number'
+                 className='h-9 text-sm mt-1.5'
+-                value={minOrderDelivery}
+-                onChange={(e) => setMinOrderDelivery(e.target.value)}
++                value={minOrderAmount}
++                onChange={(e) => setMinOrderAmount(Number(e.target.value) || 0)}
+                 placeholder='200000'
+               />
+             </div>
++            <div>
++              <Label className='text-xs font-medium'>
++                Free Delivery Threshold (VND)
++              </Label>
++              <Input
++                type='number'
++                className='h-9 text-sm mt-1.5'
++                value={freeDeliveryThreshold}
++                onChange={(e) =>
++                  setFreeDeliveryThreshold(Number(e.target.value) || 0)
++                }
++                placeholder='500000'
++              />
++            </div>
+           </div>
+         )}
+       </div>
+diff --git a/app/api/admin/membership/route.ts b/app/api/admin/membership/route.ts
+index 99eee00..5d95a68 100644
+--- a/app/api/admin/membership/route.ts
++++ b/app/api/admin/membership/route.ts
+@@ -1,175 +1,391 @@
+ import { NextRequest, NextResponse } from 'next/server';
++import type { MemberLevel, UserRole } from '@prisma/client';
++
+ import { prisma } from '@/lib/prisma';
+-import { getSession } from '@/lib/session';
+-
+-// Membership level configuration is stored in settings
+-const MEMBERSHIP_KEYS = {
+-  SILVER_MIN_POINTS: 'membership_silver_min_points',
+-  SILVER_DISCOUNT: 'membership_silver_discount',
+-  GOLD_MIN_POINTS: 'membership_gold_min_points',
+-  GOLD_DISCOUNT: 'membership_gold_discount',
+-  PLATINUM_MIN_POINTS: 'membership_platinum_min_points',
+-  PLATINUM_DISCOUNT: 'membership_platinum_discount',
+-  POINTS_PER_ORDER: 'membership_points_per_order', // Points earned per VND spent
++import { requireAdmin } from '@/lib/session';
++import {
++  DEFAULT_MEMBERSHIP_RULES,
++  MEMBERSHIP_SETTING_KEYS,
++  getMembershipRulesConfig,
++} from '@/lib/membership/rules';
++import { writeSettingAuditLogWithClient } from '@/lib/setting-audit';
++
++const MEMBERSHIP_LEVELS: MemberLevel[] = ['SILVER', 'GOLD', 'PLATINUM'];
++
++const LEVEL_LABELS: Record<MemberLevel, string> = {
++  SILVER: 'Silver',
++  GOLD: 'Gold',
++  PLATINUM: 'Platinum',
+ };
+ 
+-const DEFAULT_CONFIG = {
+-  [MEMBERSHIP_KEYS.SILVER_MIN_POINTS]: '0',
+-  [MEMBERSHIP_KEYS.SILVER_DISCOUNT]: '3',
+-  [MEMBERSHIP_KEYS.GOLD_MIN_POINTS]: '300',
+-  [MEMBERSHIP_KEYS.GOLD_DISCOUNT]: '7',
+-  [MEMBERSHIP_KEYS.PLATINUM_MIN_POINTS]: '900',
+-  [MEMBERSHIP_KEYS.PLATINUM_DISCOUNT]: '12',
+-  [MEMBERSHIP_KEYS.POINTS_PER_ORDER]: '10000', // 1 point per 10,000 VND
++type AdminUser = {
++  id: string;
++  role: UserRole;
+ };
+ 
+-// GET: Get membership configuration
+-export async function GET() {
+-  try {
+-    const session = await getSession();
+-    if (!session || session.user.role !== 'ADMIN') {
+-      return NextResponse.json(
+-        { success: false, error: 'Unauthorized' },
+-        { status: 401 },
+-      );
+-    }
++type MembershipLevelConfig = {
++  level: MemberLevel;
++  minPoints: number;
++  discountPercent: number;
++};
+ 
+-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-    const settings = await (prisma as any).setting.findMany({
+-      where: {
+-        key: { in: Object.values(MEMBERSHIP_KEYS) },
+-      },
+-    });
++type MembershipUpdatePayload = {
++  levels?: MembershipLevelConfig[];
++  pointsPerOrder?: number;
++};
+ 
+-    const settingsMap: Record<string, string> = {};
+-    settings.forEach((s: { key: string; value: string }) => {
+-      settingsMap[s.key] = s.value;
+-    });
++type MembershipHandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++    message?: string;
++  };
++};
++
++type MembershipSettingRow = {
++  key: string;
++  value: string;
++};
++
++type MembershipDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  findSettings: (keys: string[]) => Promise<MembershipSettingRow[]>;
++  countMembersByLevel: (level: MemberLevel) => Promise<number>;
++  updateSettingsAndWriteAudit: (args: {
++    actor: AdminUser;
++    updates: Array<{ key: string; value: string }>;
++    beforeValuesByKey: Record<string, string | undefined>;
++  }) => Promise<void>;
++};
+ 
+-    // Apply defaults
+-    const config = { ...DEFAULT_CONFIG, ...settingsMap };
++const membershipSettingKeyByLevel: Record<
++  MemberLevel,
++  { minPoints: string; discount: string }
++> = {
++  SILVER: {
++    minPoints: MEMBERSHIP_SETTING_KEYS.SILVER_MIN_POINTS,
++    discount: MEMBERSHIP_SETTING_KEYS.SILVER_DISCOUNT,
++  },
++  GOLD: {
++    minPoints: MEMBERSHIP_SETTING_KEYS.GOLD_MIN_POINTS,
++    discount: MEMBERSHIP_SETTING_KEYS.GOLD_DISCOUNT,
++  },
++  PLATINUM: {
++    minPoints: MEMBERSHIP_SETTING_KEYS.PLATINUM_MIN_POINTS,
++    discount: MEMBERSHIP_SETTING_KEYS.PLATINUM_DISCOUNT,
++  },
++};
+ 
+-    // Format response
+-    const levels = [
+-      {
+-        level: 'SILVER',
+-        label: 'Silver',
+-        minPoints: parseInt(config[MEMBERSHIP_KEYS.SILVER_MIN_POINTS]),
+-        discountPercent: parseInt(config[MEMBERSHIP_KEYS.SILVER_DISCOUNT]),
++const defaultDeps: MembershipDeps = {
++  requireAdmin,
++  findSettings: (keys) =>
++    prisma.setting.findMany({
++      where: {
++        key: { in: keys },
+       },
+-      {
+-        level: 'GOLD',
+-        label: 'Gold',
+-        minPoints: parseInt(config[MEMBERSHIP_KEYS.GOLD_MIN_POINTS]),
+-        discountPercent: parseInt(config[MEMBERSHIP_KEYS.GOLD_DISCOUNT]),
++      select: {
++        key: true,
++        value: true,
+       },
+-      {
+-        level: 'PLATINUM',
+-        label: 'Platinum',
+-        minPoints: parseInt(config[MEMBERSHIP_KEYS.PLATINUM_MIN_POINTS]),
+-        discountPercent: parseInt(config[MEMBERSHIP_KEYS.PLATINUM_DISCOUNT]),
++    }),
++  countMembersByLevel: (level) =>
++    prisma.user.count({
++      where: {
++        role: 'CUSTOMER',
++        memberLevel: level,
+       },
+-    ];
+-
+-    // Get member counts per level
+-    const [silverCount, goldCount, platinumCount] = await Promise.all([
+-      prisma.user.count({ where: { role: 'CUSTOMER', memberLevel: 'SILVER' } }),
+-      prisma.user.count({ where: { role: 'CUSTOMER', memberLevel: 'GOLD' } }),
+-      prisma.user.count({
+-        where: { role: 'CUSTOMER', memberLevel: 'PLATINUM' },
+-      }),
+-    ]);
+-
+-    const memberCountMap: Record<string, number> = {
+-      SILVER: silverCount,
+-      GOLD: goldCount,
+-      PLATINUM: platinumCount,
+-    };
+-
+-    const levelsWithCounts = levels.map((l) => ({
+-      ...l,
+-      memberCount: memberCountMap[l.level] || 0,
+-    }));
++    }),
++  updateSettingsAndWriteAudit: async ({ actor, updates, beforeValuesByKey }) => {
++    await prisma.$transaction(async (tx) => {
++      for (const update of updates) {
++        await tx.setting.upsert({
++          where: { key: update.key },
++          update: { value: update.value },
++          create: {
++            key: update.key,
++            value: update.value,
++          },
++        });
+ 
+-    return NextResponse.json({
+-      success: true,
+-      data: {
+-        levels: levelsWithCounts,
+-        pointsPerOrder: parseInt(config[MEMBERSHIP_KEYS.POINTS_PER_ORDER]),
+-      },
++        await writeSettingAuditLogWithClient(tx, {
++          settingKey: update.key,
++          mutationType: 'UPSERT',
++          actorUserId: actor.id,
++          actorRole: actor.role,
++          beforeValue: beforeValuesByKey[update.key] ?? null,
++          afterValue: update.value,
++          metadata: {
++            domain: 'membership',
++          },
++        });
++      }
+     });
+-  } catch (error) {
+-    console.error('Get membership config error:', error);
+-    return NextResponse.json(
+-      { success: false, error: 'Failed to fetch membership config' },
+-      { status: 500 },
+-    );
+-  }
++  },
++};
++
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
+ }
+ 
+-// PUT: Update membership configuration
+-export async function PUT(request: NextRequest) {
+-  try {
+-    const session = await getSession();
+-    if (!session || session.user.role !== 'ADMIN') {
+-      return NextResponse.json(
+-        { success: false, error: 'Unauthorized' },
+-        { status: 401 },
+-      );
++function getCurrentMembershipKeys() {
++  return [
++    MEMBERSHIP_SETTING_KEYS.SILVER_MIN_POINTS,
++    MEMBERSHIP_SETTING_KEYS.SILVER_DISCOUNT,
++    MEMBERSHIP_SETTING_KEYS.GOLD_MIN_POINTS,
++    MEMBERSHIP_SETTING_KEYS.GOLD_DISCOUNT,
++    MEMBERSHIP_SETTING_KEYS.PLATINUM_MIN_POINTS,
++    MEMBERSHIP_SETTING_KEYS.PLATINUM_DISCOUNT,
++    MEMBERSHIP_SETTING_KEYS.POINTS_PER_ORDER,
++  ];
++}
++
++function parseMembershipUpdatePayload(raw: unknown) {
++  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
++    return { error: 'Invalid payload' } as const;
++  }
++
++  const body = raw as Record<string, unknown>;
++  const allowedKeys = new Set(['levels', 'pointsPerOrder']);
++  const hasUnknownKey = Object.keys(body).some((key) => !allowedKeys.has(key));
++  if (hasUnknownKey) {
++    return { error: 'Invalid payload fields' } as const;
++  }
++
++  const parsed: MembershipUpdatePayload = {};
++
++  if (body.levels !== undefined) {
++    if (!Array.isArray(body.levels)) {
++      return { error: 'levels must be an array' } as const;
++    }
++    if (body.levels.length !== MEMBERSHIP_LEVELS.length) {
++      return { error: 'levels must include exactly SILVER, GOLD, and PLATINUM' } as const;
+     }
+ 
+-    const body = await request.json();
+-    const { levels, pointsPerOrder } = body;
++    const levelMap = new Map<MemberLevel, MembershipLevelConfig>();
++    for (const row of body.levels) {
++      if (!row || typeof row !== 'object' || Array.isArray(row)) {
++        return { error: 'Each level must be an object' } as const;
++      }
+ 
+-    // Update levels
+-    if (Array.isArray(levels)) {
+-      for (const level of levels) {
+-        const keyPrefix = `membership_${level.level.toLowerCase()}`;
++      const item = row as Record<string, unknown>;
++      const levelRaw = item.level;
++      if (
++        typeof levelRaw !== 'string' ||
++        !MEMBERSHIP_LEVELS.includes(levelRaw as MemberLevel)
++      ) {
++        return { error: 'Invalid membership level' } as const;
++      }
++      const level = levelRaw as MemberLevel;
+ 
+-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-        await (prisma as any).setting.upsert({
+-          where: { key: `${keyPrefix}_min_points` },
+-          update: { value: String(level.minPoints) },
+-          create: {
+-            key: `${keyPrefix}_min_points`,
+-            value: String(level.minPoints),
+-          },
+-        });
++      if (!Number.isInteger(item.minPoints) || (item.minPoints as number) < 0) {
++        return { error: `minPoints for ${level} must be a non-negative integer` } as const;
++      }
+ 
+-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-        await (prisma as any).setting.upsert({
+-          where: { key: `${keyPrefix}_discount` },
+-          update: { value: String(level.discountPercent) },
+-          create: {
+-            key: `${keyPrefix}_discount`,
+-            value: String(level.discountPercent),
+-          },
+-        });
++      if (
++        !Number.isInteger(item.discountPercent) ||
++        (item.discountPercent as number) < 0 ||
++        (item.discountPercent as number) > 100
++      ) {
++        return { error: `discountPercent for ${level} must be an integer between 0 and 100` } as const;
+       }
++
++      levelMap.set(level, {
++        level,
++        minPoints: item.minPoints as number,
++        discountPercent: item.discountPercent as number,
++      });
++    }
++
++    if (levelMap.size !== MEMBERSHIP_LEVELS.length) {
++      return { error: 'levels must not contain duplicates' } as const;
++    }
++
++    const ordered = MEMBERSHIP_LEVELS.map((level) => levelMap.get(level)!);
++    if (
++      !(ordered[0].minPoints < ordered[1].minPoints) ||
++      !(ordered[1].minPoints < ordered[2].minPoints)
++    ) {
++      return {
++        error: 'Membership thresholds must be strictly increasing from SILVER to PLATINUM',
++      } as const;
++    }
++
++    parsed.levels = ordered;
++  }
++
++  if (body.pointsPerOrder !== undefined) {
++    if (!Number.isInteger(body.pointsPerOrder) || (body.pointsPerOrder as number) <= 0) {
++      return { error: 'pointsPerOrder must be a positive integer' } as const;
+     }
++    parsed.pointsPerOrder = body.pointsPerOrder as number;
++  }
++
++  if (!parsed.levels && parsed.pointsPerOrder === undefined) {
++    return { error: 'Payload must include levels or pointsPerOrder' } as const;
++  }
++
++  return { payload: parsed } as const;
++}
+ 
+-    // Update points per order
+-    if (pointsPerOrder !== undefined) {
+-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-      await (prisma as any).setting.upsert({
+-        where: { key: MEMBERSHIP_KEYS.POINTS_PER_ORDER },
+-        update: { value: String(pointsPerOrder) },
+-        create: {
+-          key: MEMBERSHIP_KEYS.POINTS_PER_ORDER,
+-          value: String(pointsPerOrder),
+-        },
++function toMembershipUpdates(payload: MembershipUpdatePayload) {
++  const updates: Array<{ key: string; value: string }> = [];
++
++  if (payload.levels) {
++    for (const level of payload.levels) {
++      const keyMap = membershipSettingKeyByLevel[level.level];
++      updates.push({
++        key: keyMap.minPoints,
++        value: String(level.minPoints),
++      });
++      updates.push({
++        key: keyMap.discount,
++        value: String(level.discountPercent),
+       });
+     }
++  }
++
++  if (payload.pointsPerOrder !== undefined) {
++    updates.push({
++      key: MEMBERSHIP_SETTING_KEYS.POINTS_PER_ORDER,
++      value: String(payload.pointsPerOrder),
++    });
++  }
++
++  return updates;
++}
++
++async function buildMembershipResponse(deps: MembershipDeps) {
++  const config = await getMembershipRulesConfig({
++    findSettings: deps.findSettings,
++  });
++
++  const [silverCount, goldCount, platinumCount] = await Promise.all([
++    deps.countMembersByLevel('SILVER'),
++    deps.countMembersByLevel('GOLD'),
++    deps.countMembersByLevel('PLATINUM'),
++  ]);
++
++  const countsByLevel: Record<MemberLevel, number> = {
++    SILVER: silverCount,
++    GOLD: goldCount,
++    PLATINUM: platinumCount,
++  };
++
++  const levels = MEMBERSHIP_LEVELS.map((level, index) => ({
++    level,
++    label: LEVEL_LABELS[level],
++    minPoints: config.levels[index]?.minPoints ?? DEFAULT_MEMBERSHIP_RULES.levels[index].minPoints,
++    discountPercent:
++      config.levels[index]?.discountPercent ??
++      DEFAULT_MEMBERSHIP_RULES.levels[index].discountPercent,
++    memberCount: countsByLevel[level],
++  }));
++
++  return {
++    levels,
++    pointsPerOrder: config.pointsPerOrder,
++    totalMembers: levels.reduce((sum, item) => sum + item.memberCount, 0),
++  };
++}
+ 
+-    return NextResponse.json({
++export async function handleAdminMembershipGetRequest(
++  deps: MembershipDeps = defaultDeps,
++): Promise<MembershipHandlerResult> {
++  await deps.requireAdmin();
++
++  const data = await buildMembershipResponse(deps);
++  return {
++    status: 200,
++    body: {
+       success: true,
+-      message: 'Membership configuration updated',
++      data,
++    },
++  };
++}
++
++export async function handleAdminMembershipPutRequest(
++  request: Pick<NextRequest, 'json'>,
++  deps: MembershipDeps = defaultDeps,
++): Promise<MembershipHandlerResult> {
++  const admin = await deps.requireAdmin();
++
++  let rawBody: unknown;
++  try {
++    rawBody = await request.json();
++  } catch {
++    return {
++      status: 400,
++      body: { success: false, error: 'Invalid JSON payload' },
++    };
++  }
++
++  const parsed = parseMembershipUpdatePayload(rawBody);
++  if ('error' in parsed) {
++    return {
++      status: 400,
++      body: { success: false, error: parsed.error },
++    };
++  }
++
++  const updates = toMembershipUpdates(parsed.payload);
++  const settings = await deps.findSettings(getCurrentMembershipKeys());
++  const beforeValuesByKey = Object.fromEntries(settings.map((row) => [row.key, row.value]));
++
++  const changedUpdates = updates.filter((update) => beforeValuesByKey[update.key] !== update.value);
++  if (changedUpdates.length > 0) {
++    await deps.updateSettingsAndWriteAudit({
++      actor: admin,
++      updates: changedUpdates,
++      beforeValuesByKey,
+     });
+-  } catch (error) {
++  }
++
++  const data = await buildMembershipResponse(deps);
++  return {
++    status: 200,
++    body: {
++      success: true,
++      data,
++      message:
++        changedUpdates.length > 0
++          ? 'Membership configuration updated'
++          : 'No membership configuration changes detected',
++    },
++  };
++}
++
++// GET /api/admin/membership
++export async function GET() {
++  try {
++    const result = await handleAdminMembershipGetRequest();
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
++    console.error('Get membership config error:', error);
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
++  }
++}
++
++// PUT /api/admin/membership
++export async function PUT(request: NextRequest) {
++  try {
++    const result = await handleAdminMembershipPutRequest(request);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Update membership config error:', error);
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
+     return NextResponse.json(
+-      { success: false, error: 'Failed to update membership config' },
+-      { status: 500 },
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
+     );
+   }
+ }
+diff --git a/app/api/admin/settings/route.ts b/app/api/admin/settings/route.ts
+index cb8febe..d5c427e 100644
+--- a/app/api/admin/settings/route.ts
++++ b/app/api/admin/settings/route.ts
+@@ -1,8 +1,15 @@
+ import { NextRequest, NextResponse } from 'next/server';
++import type { UserRole } from '@prisma/client';
++
+ import { prisma } from '@/lib/prisma';
+-import { getSession } from '@/lib/session';
++import { requireAdmin } from '@/lib/session';
++import { writeSettingAuditLogWithClient } from '@/lib/setting-audit';
++
++const LEGACY_SETTINGS_KEY_MAP = {
++  min_order_delivery: 'min_order_amount',
++  min_order_free_delivery: 'free_delivery_threshold',
++} as const;
+ 
+-// Settings key constants
+ const SETTINGS_KEYS = {
+   STORE_NAME: 'store_name',
+   STORE_EMAIL: 'store_email',
+@@ -14,114 +21,431 @@ const SETTINGS_KEYS = {
+   MIN_ORDER_AMOUNT: 'min_order_amount',
+   DELIVERY_FEE: 'delivery_fee',
+   FREE_DELIVERY_THRESHOLD: 'free_delivery_threshold',
++} as const;
++
++const SETTINGS_DEFAULTS = {
++  [SETTINGS_KEYS.STORE_NAME]: 'Bakery Shop',
++  [SETTINGS_KEYS.STORE_EMAIL]: 'hello@bakeryshop.com',
++  [SETTINGS_KEYS.STORE_PHONE]: '028 3820 1234',
++  [SETTINGS_KEYS.STORE_ADDRESS]: '12 Nguyen Thi Minh Khai, Dist 1, HCMC',
++  [SETTINGS_KEYS.OPENING_HOURS]: 'Mon - Sat: 8:00 AM - 7:00 PM\nSun: 9:00 AM - 5:00 PM',
++  [SETTINGS_KEYS.PICKUP_SLOTS]: JSON.stringify([
++    '09:00',
++    '10:00',
++    '11:00',
++    '13:00',
++    '14:00',
++    '15:00',
++    '16:00',
++  ]),
++  [SETTINGS_KEYS.ALLOW_DELIVERY]: 'true',
++  [SETTINGS_KEYS.MIN_ORDER_AMOUNT]: '0',
++  [SETTINGS_KEYS.DELIVERY_FEE]: '30000',
++  [SETTINGS_KEYS.FREE_DELIVERY_THRESHOLD]: '500000',
++} as const;
++
++const CANONICAL_SETTING_KEYS = Object.values(SETTINGS_KEYS);
++
++type AdminUser = {
++  id: string;
++  role: UserRole;
+ };
+ 
+-// GET: Get all settings
+-export async function GET() {
+-  try {
+-    const session = await getSession();
+-    if (!session || session.user.role !== 'ADMIN') {
+-      return NextResponse.json(
+-        { success: false, error: 'Unauthorized' },
+-        { status: 401 },
+-      );
+-    }
++type SettingsHandlerResult = {
++  status: number;
++  body: {
++    success: boolean;
++    data?: unknown;
++    error?: string;
++    message?: string;
++  };
++};
+ 
+-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-    const settings = await (prisma as any).setting.findMany();
++type SettingsRow = {
++  key: string;
++  value: string;
++};
+ 
+-    // Convert to key-value object
+-    const settingsObject: Record<string, string> = {};
+-    settings.forEach((s: { key: string; value: string }) => {
+-      settingsObject[s.key] = s.value;
+-    });
++type SettingsDeps = {
++  requireAdmin: () => Promise<AdminUser>;
++  findSettings: (keys?: string[]) => Promise<SettingsRow[]>;
++  updateSettingsAndWriteAudit: (args: {
++    actor: AdminUser;
++    updates: Array<{ key: string; value: string }>;
++    beforeValuesByKey: Record<string, string | undefined>;
++  }) => Promise<void>;
++};
+ 
+-    // Apply defaults for missing settings
+-    const defaultSettings = {
+-      [SETTINGS_KEYS.STORE_NAME]: 'Bakery Shop',
+-      [SETTINGS_KEYS.STORE_EMAIL]: 'hello@bakeryshop.com',
+-      [SETTINGS_KEYS.STORE_PHONE]: '028 3820 1234',
+-      [SETTINGS_KEYS.STORE_ADDRESS]: '12 Nguyen Thi Minh Khai, Dist 1, HCMC',
+-      [SETTINGS_KEYS.OPENING_HOURS]:
+-        'Mon – Sat: 8:00 AM – 7:00 PM\nSun: 9:00 AM – 5:00 PM',
+-      [SETTINGS_KEYS.PICKUP_SLOTS]: JSON.stringify([
+-        '09:00',
+-        '10:00',
+-        '11:00',
+-        '13:00',
+-        '14:00',
+-        '15:00',
+-        '16:00',
+-      ]),
+-      [SETTINGS_KEYS.ALLOW_DELIVERY]: 'true',
+-      [SETTINGS_KEYS.MIN_ORDER_AMOUNT]: '0',
+-      [SETTINGS_KEYS.DELIVERY_FEE]: '30000',
+-      [SETTINGS_KEYS.FREE_DELIVERY_THRESHOLD]: '500000',
+-    };
++type NormalizedStoreSettings = {
++  store_name: string;
++  store_email: string;
++  store_phone: string;
++  store_address: string;
++  opening_hours: string;
++  pickup_slots: string[];
++  allow_delivery: boolean;
++  min_order_amount: number;
++  delivery_fee: number;
++  free_delivery_threshold: number;
++};
+ 
+-    return NextResponse.json({
+-      success: true,
+-      data: { ...defaultSettings, ...settingsObject },
++type StoreSettingsUpdatePayload = Partial<NormalizedStoreSettings>;
++
++const defaultDeps: SettingsDeps = {
++  requireAdmin,
++  findSettings: (keys) =>
++    prisma.setting.findMany({
++      where: keys?.length
++        ? {
++            key: { in: keys },
++          }
++        : undefined,
++      select: {
++        key: true,
++        value: true,
++      },
++    }),
++  updateSettingsAndWriteAudit: async ({ actor, updates, beforeValuesByKey }) => {
++    await prisma.$transaction(async (tx) => {
++      for (const update of updates) {
++        await tx.setting.upsert({
++          where: { key: update.key },
++          update: { value: update.value },
++          create: {
++            key: update.key,
++            value: update.value,
++          },
++        });
++
++        await writeSettingAuditLogWithClient(tx, {
++          settingKey: update.key,
++          mutationType: 'UPSERT',
++          actorUserId: actor.id,
++          actorRole: actor.role,
++          beforeValue: beforeValuesByKey[update.key] ?? null,
++          afterValue: update.value,
++          metadata: {
++            domain: 'store-settings',
++          },
++        });
++      }
+     });
+-  } catch (error) {
+-    console.error('Get settings error:', error);
+-    return NextResponse.json(
+-      { success: false, error: 'Failed to fetch settings' },
+-      { status: 500 },
+-    );
+-  }
++  },
++};
++
++function mapErrorToStatus(message: string) {
++  if (message === 'Unauthorized') return 401;
++  if (message === 'Forbidden: Admin access required') return 403;
++  return 500;
+ }
+ 
+-// PUT: Update settings
+-export async function PUT(request: NextRequest) {
++function normalizeInt(value: string, fallback: number, min = 0) {
++  const parsed = Number.parseInt(value, 10);
++  if (!Number.isFinite(parsed)) return fallback;
++  if (parsed < min) return min;
++  return parsed;
++}
++
++function parsePickupSlots(raw: string) {
++  const text = raw.trim();
++  if (!text) return [];
++
+   try {
+-    const session = await getSession();
+-    if (!session || session.user.role !== 'ADMIN') {
+-      return NextResponse.json(
+-        { success: false, error: 'Unauthorized' },
+-        { status: 401 },
+-      );
++    const parsed = JSON.parse(text);
++    if (!Array.isArray(parsed)) return [];
++    const slots = parsed
++      .filter((item): item is string => typeof item === 'string')
++      .map((item) => item.trim())
++      .filter((item) => item.length > 0);
++    return Array.from(new Set(slots));
++  } catch {
++    const slots = text
++      .split(',')
++      .map((item) => item.trim())
++      .filter((item) => item.length > 0);
++    return Array.from(new Set(slots));
++  }
++}
++
++function normalizeSettingsValueMap(rows: SettingsRow[]) {
++  const map: Record<string, string> = { ...SETTINGS_DEFAULTS };
++
++  for (const row of rows) {
++    const canonicalKey =
++      LEGACY_SETTINGS_KEY_MAP[row.key as keyof typeof LEGACY_SETTINGS_KEY_MAP] ?? row.key;
++
++    if (!CANONICAL_SETTING_KEYS.includes(canonicalKey)) {
++      continue;
+     }
+ 
+-    const body = await request.json();
++    map[canonicalKey] = row.value;
++  }
+ 
+-    // Valid settings keys
+-    const validKeys = Object.values(SETTINGS_KEYS);
++  return map;
++}
+ 
+-    // Update each setting
+-    const updates = Object.entries(body).filter(([key]) =>
+-      validKeys.includes(key),
+-    );
++function toStoreSettingsData(rows: SettingsRow[]): NormalizedStoreSettings {
++  const valueMap = normalizeSettingsValueMap(rows);
++
++  return {
++    store_name: valueMap[SETTINGS_KEYS.STORE_NAME] ?? SETTINGS_DEFAULTS.store_name,
++    store_email: valueMap[SETTINGS_KEYS.STORE_EMAIL] ?? SETTINGS_DEFAULTS.store_email,
++    store_phone: valueMap[SETTINGS_KEYS.STORE_PHONE] ?? SETTINGS_DEFAULTS.store_phone,
++    store_address: valueMap[SETTINGS_KEYS.STORE_ADDRESS] ?? SETTINGS_DEFAULTS.store_address,
++    opening_hours:
++      valueMap[SETTINGS_KEYS.OPENING_HOURS] ?? SETTINGS_DEFAULTS.opening_hours,
++    pickup_slots: parsePickupSlots(
++      valueMap[SETTINGS_KEYS.PICKUP_SLOTS] ?? SETTINGS_DEFAULTS.pickup_slots,
++    ),
++    allow_delivery:
++      (valueMap[SETTINGS_KEYS.ALLOW_DELIVERY] ?? SETTINGS_DEFAULTS.allow_delivery) ===
++      'true',
++    min_order_amount: normalizeInt(
++      valueMap[SETTINGS_KEYS.MIN_ORDER_AMOUNT] ?? SETTINGS_DEFAULTS.min_order_amount,
++      normalizeInt(SETTINGS_DEFAULTS.min_order_amount, 0),
++      0,
++    ),
++    delivery_fee: normalizeInt(
++      valueMap[SETTINGS_KEYS.DELIVERY_FEE] ?? SETTINGS_DEFAULTS.delivery_fee,
++      normalizeInt(SETTINGS_DEFAULTS.delivery_fee, 30000),
++      0,
++    ),
++    free_delivery_threshold: normalizeInt(
++      valueMap[SETTINGS_KEYS.FREE_DELIVERY_THRESHOLD] ??
++        SETTINGS_DEFAULTS.free_delivery_threshold,
++      normalizeInt(SETTINGS_DEFAULTS.free_delivery_threshold, 500000),
++      0,
++    ),
++  };
++}
+ 
+-    for (const [key, value] of updates) {
+-      const stringValue =
+-        typeof value === 'object' ? JSON.stringify(value) : String(value);
++function stringifySettingValue(
++  key: keyof NormalizedStoreSettings,
++  value: NormalizedStoreSettings[keyof NormalizedStoreSettings],
++) {
++  if (key === 'pickup_slots') {
++    return JSON.stringify(value);
++  }
++  if (typeof value === 'boolean') {
++    return value ? 'true' : 'false';
++  }
++  return String(value);
++}
++
++function parseStoreSettingsUpdatePayload(raw: unknown) {
++  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
++    return { error: 'Invalid payload' } as const;
++  }
+ 
+-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-      await (prisma as any).setting.upsert({
+-        where: { key },
+-        update: { value: stringValue },
+-        create: { key, value: stringValue },
+-      });
++  const body = raw as Record<string, unknown>;
++  const allowedKeys = new Set([
++    ...Object.keys(SETTINGS_DEFAULTS),
++    ...Object.keys(LEGACY_SETTINGS_KEY_MAP),
++  ]);
++
++  const hasUnknownKey = Object.keys(body).some((key) => !allowedKeys.has(key));
++  if (hasUnknownKey) {
++    return { error: 'Invalid payload fields' } as const;
++  }
++
++  const parsed: StoreSettingsUpdatePayload = {};
++
++  for (const [rawKey, value] of Object.entries(body)) {
++    const key = Object.prototype.hasOwnProperty.call(LEGACY_SETTINGS_KEY_MAP, rawKey)
++      ? LEGACY_SETTINGS_KEY_MAP[rawKey as keyof typeof LEGACY_SETTINGS_KEY_MAP]
++      : rawKey;
++
++    switch (key) {
++      case SETTINGS_KEYS.STORE_NAME:
++        if (typeof value !== 'string') {
++          return { error: `${key} must be a string` } as const;
++        }
++        parsed.store_name = value.trim();
++        break;
++      case SETTINGS_KEYS.STORE_EMAIL:
++        if (typeof value !== 'string') {
++          return { error: `${key} must be a string` } as const;
++        }
++        parsed.store_email = value.trim();
++        break;
++      case SETTINGS_KEYS.STORE_PHONE:
++        if (typeof value !== 'string') {
++          return { error: `${key} must be a string` } as const;
++        }
++        parsed.store_phone = value.trim();
++        break;
++      case SETTINGS_KEYS.STORE_ADDRESS:
++        if (typeof value !== 'string') {
++          return { error: `${key} must be a string` } as const;
++        }
++        parsed.store_address = value.trim();
++        break;
++      case SETTINGS_KEYS.OPENING_HOURS:
++        if (typeof value !== 'string') {
++          return { error: `${key} must be a string` } as const;
++        }
++        parsed.opening_hours = value.trim();
++        break;
++      case SETTINGS_KEYS.ALLOW_DELIVERY:
++        if (typeof value !== 'boolean') {
++          return { error: 'allow_delivery must be a boolean' } as const;
++        }
++        parsed.allow_delivery = value;
++        break;
++      case SETTINGS_KEYS.PICKUP_SLOTS: {
++        if (!Array.isArray(value)) {
++          return { error: 'pickup_slots must be an array of HH:mm values' } as const;
++        }
++        const normalizedSlots = value
++          .map((item) => (typeof item === 'string' ? item.trim() : ''))
++          .filter((item) => item.length > 0);
++        if (normalizedSlots.some((item) => !/^\d{2}:\d{2}$/.test(item))) {
++          return { error: 'pickup_slots must use HH:mm format' } as const;
++        }
++        parsed.pickup_slots = Array.from(new Set(normalizedSlots));
++        break;
++      }
++      case SETTINGS_KEYS.MIN_ORDER_AMOUNT:
++        if (!Number.isInteger(value) || (value as number) < 0) {
++          return { error: `${key} must be a non-negative integer` } as const;
++        }
++        parsed.min_order_amount = value as number;
++        break;
++      case SETTINGS_KEYS.DELIVERY_FEE:
++        if (!Number.isInteger(value) || (value as number) < 0) {
++          return { error: `${key} must be a non-negative integer` } as const;
++        }
++        parsed.delivery_fee = value as number;
++        break;
++      case SETTINGS_KEYS.FREE_DELIVERY_THRESHOLD:
++        if (!Number.isInteger(value) || (value as number) < 0) {
++          return { error: `${key} must be a non-negative integer` } as const;
++        }
++        parsed.free_delivery_threshold = value as number;
++        break;
++      default:
++        break;
+     }
++  }
++
++  if (Object.keys(parsed).length === 0) {
++    return { error: 'Payload must include at least one updatable setting' } as const;
++  }
++
++  return { payload: parsed } as const;
++}
++
++function toSettingsUpdates(payload: StoreSettingsUpdatePayload) {
++  const updates: Array<{ key: string; value: string }> = [];
+ 
+-    // Fetch updated settings
+-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+-    const settings = await (prisma as any).setting.findMany();
+-    const settingsObject: Record<string, string> = {};
+-    settings.forEach((s: { key: string; value: string }) => {
+-      settingsObject[s.key] = s.value;
++  for (const [key, value] of Object.entries(payload)) {
++    const typedKey = key as keyof NormalizedStoreSettings;
++    updates.push({
++      key: typedKey,
++      value: stringifySettingValue(typedKey, value),
+     });
++  }
++
++  return updates;
++}
+ 
+-    return NextResponse.json({
++export async function handleAdminSettingsGetRequest(
++  deps: SettingsDeps = defaultDeps,
++): Promise<SettingsHandlerResult> {
++  await deps.requireAdmin();
++  const settings = await deps.findSettings();
++
++  return {
++    status: 200,
++    body: {
+       success: true,
+-      data: settingsObject,
++      data: toStoreSettingsData(settings),
++    },
++  };
++}
++
++export async function handleAdminSettingsPutRequest(
++  request: Pick<NextRequest, 'json'>,
++  deps: SettingsDeps = defaultDeps,
++): Promise<SettingsHandlerResult> {
++  const admin = await deps.requireAdmin();
++
++  let rawBody: unknown;
++  try {
++    rawBody = await request.json();
++  } catch {
++    return {
++      status: 400,
++      body: { success: false, error: 'Invalid JSON payload' },
++    };
++  }
++
++  const parsed = parseStoreSettingsUpdatePayload(rawBody);
++  if ('error' in parsed) {
++    return {
++      status: 400,
++      body: { success: false, error: parsed.error },
++    };
++  }
++
++  const updates = toSettingsUpdates(parsed.payload);
++  const keys = updates.map((update) => update.key);
++  const beforeRows = await deps.findSettings(keys);
++  const beforeValuesByKey = Object.fromEntries(beforeRows.map((row) => [row.key, row.value]));
++
++  const changedUpdates = updates.filter(
++    (update) => beforeValuesByKey[update.key] !== update.value,
++  );
++  if (changedUpdates.length > 0) {
++    await deps.updateSettingsAndWriteAudit({
++      actor: admin,
++      updates: changedUpdates,
++      beforeValuesByKey,
+     });
+-  } catch (error) {
++  }
++
++  const latestSettings = await deps.findSettings();
++  return {
++    status: 200,
++    body: {
++      success: true,
++      data: toStoreSettingsData(latestSettings),
++      message:
++        changedUpdates.length > 0
++          ? 'Settings updated'
++          : 'No settings changes detected',
++    },
++  };
++}
++
++// GET /api/admin/settings
++export async function GET() {
++  try {
++    const result = await handleAdminSettingsGetRequest();
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
++    console.error('Get settings error:', error);
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
++    return NextResponse.json(
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
++    );
++  }
++}
++
++// PUT /api/admin/settings
++export async function PUT(request: NextRequest) {
++  try {
++    const result = await handleAdminSettingsPutRequest(request);
++    return NextResponse.json(result.body, { status: result.status });
++  } catch (error: unknown) {
+     console.error('Update settings error:', error);
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    const status = mapErrorToStatus(message);
+     return NextResponse.json(
+-      { success: false, error: 'Failed to update settings' },
+-      { status: 500 },
++      { success: false, error: status === 500 ? 'Internal server error' : message },
++      { status },
+     );
+   }
+ }
+diff --git a/lib/membership/rules.ts b/lib/membership/rules.ts
+index e96c180..ee23ad2 100644
+--- a/lib/membership/rules.ts
++++ b/lib/membership/rules.ts
+@@ -13,7 +13,7 @@ export type MembershipRulesConfig = {
+   pointsPerOrder: number;
+ };
+ 
+-const MEMBERSHIP_SETTING_KEYS = {
++export const MEMBERSHIP_SETTING_KEYS = {
+   SILVER_MIN_POINTS: 'membership_silver_min_points',
+   SILVER_DISCOUNT: 'membership_silver_discount',
+   GOLD_MIN_POINTS: 'membership_gold_min_points',
+@@ -23,7 +23,7 @@ const MEMBERSHIP_SETTING_KEYS = {
+   POINTS_PER_ORDER: 'membership_points_per_order',
+ } as const;
+ 
+-const DEFAULT_MEMBERSHIP_RULES: MembershipRulesConfig = {
++export const DEFAULT_MEMBERSHIP_RULES: MembershipRulesConfig = {
+   levels: [
+     {
+       level: 'SILVER',
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index f0b3c0c..5db407b 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -139,6 +139,7 @@ model User {
+   couponAuditLogs      CouponAuditLog[]   @relation("CouponAuditActor")
+   productAuditLogs     ProductAuditLog[]  @relation("ProductAuditActor")
+   orderAuditLogs       OrderAuditLog[]    @relation("OrderAuditActor")
++  settingAuditLogs     SettingAuditLog[]  @relation("SettingAuditActor")
+ 
+   cart Cart?
+ 
+@@ -979,5 +980,29 @@ model Setting {
+ 
+   createdAt DateTime @default(now())
+   updatedAt DateTime @default(now()) @updatedAt
++
++  auditLogs SettingAuditLog[]
++}
++
++model SettingAuditLog {
++  id String @id @default(cuid())
++
++  settingKey String
++
++  actorUserId String?
++  actorRole   UserRole?
++
++  mutationType String
++  beforeValue  String?
++  afterValue   String?
++  metadata     Json?
++
++  createdAt DateTime @default(now())
++
++  setting Setting @relation(fields: [settingKey], references: [key], onDelete: Cascade)
++  actor   User?   @relation("SettingAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
++
++  @@index([settingKey, createdAt(sort: Desc)])
++  @@index([actorUserId, createdAt(sort: Desc)])
+ }
+ 
+diff --git a/prisma/seed.ts b/prisma/seed.ts
+index 686a331..64232ef 100644
+--- a/prisma/seed.ts
++++ b/prisma/seed.ts
+@@ -532,11 +532,15 @@ async function main() {
+       value: '123 Nguyen Hue, District 1, Ho Chi Minh City',
+     },
+     { key: 'delivery_fee', value: '30000' },
+-    { key: 'min_order_free_delivery', value: '500000' },
+-    { key: 'points_per_order', value: '10' }, // Points per 100k spent
+-    { key: 'silver_threshold', value: '0' },
+-    { key: 'gold_threshold', value: '5000000' },
+-    { key: 'platinum_threshold', value: '15000000' },
++    { key: 'min_order_amount', value: '0' },
++    { key: 'free_delivery_threshold', value: '500000' },
++    { key: 'membership_points_per_order', value: '10000' }, // 1 point per 10,000 VND
++    { key: 'membership_silver_min_points', value: '0' },
++    { key: 'membership_silver_discount', value: '3' },
++    { key: 'membership_gold_min_points', value: '300' },
++    { key: 'membership_gold_discount', value: '7' },
++    { key: 'membership_platinum_min_points', value: '900' },
++    { key: 'membership_platinum_discount', value: '12' },
+   ];
+ 
+   for (const setting of settingsData) {
+diff --git a/services/admin/membership.service.ts b/services/admin/membership.service.ts
+index 66328da..75725e1 100644
+--- a/services/admin/membership.service.ts
++++ b/services/admin/membership.service.ts
+@@ -25,7 +25,7 @@ export const membershipService = {
+    * Update membership configuration
+    */
+   update: async (data: UpdateMembershipRequest) => {
+-    const response = await http.put<{ message: string }>(
++    const response = await http.put<MembershipConfig>(
+       ENDPOINTS.ADMIN.MEMBERSHIP,
+       data,
+       {
+diff --git a/types/api.types.ts b/types/api.types.ts
+index 702c713..4e05ff5 100644
+--- a/types/api.types.ts
++++ b/types/api.types.ts
+@@ -421,10 +421,11 @@ export interface StoreSettings {
+   store_phone: string;
+   store_address: string;
+   opening_hours: string;
+-  pickup_slots: string;
+-  allow_delivery: string;
+-  delivery_fee: string;
+-  min_order_delivery: string;
++  pickup_slots: string[];
++  allow_delivery: boolean;
++  min_order_amount: number;
++  delivery_fee: number;
++  free_delivery_threshold: number;
+ }
+ 
+ export interface MembershipConfig {

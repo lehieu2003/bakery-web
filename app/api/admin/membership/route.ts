@@ -1,175 +1,399 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { MemberLevel, UserRole } from '@prisma/client';
+
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/session';
+import { requireAdmin } from '@/lib/session';
+import {
+  DEFAULT_MEMBERSHIP_RULES,
+  MEMBERSHIP_SETTING_KEYS,
+  getMembershipRulesConfig,
+} from '@/lib/membership/rules';
+import { writeSettingAuditLogWithClient } from '@/lib/setting-audit';
 
-// Membership level configuration is stored in settings
-const MEMBERSHIP_KEYS = {
-  SILVER_MIN_POINTS: 'membership_silver_min_points',
-  SILVER_DISCOUNT: 'membership_silver_discount',
-  GOLD_MIN_POINTS: 'membership_gold_min_points',
-  GOLD_DISCOUNT: 'membership_gold_discount',
-  PLATINUM_MIN_POINTS: 'membership_platinum_min_points',
-  PLATINUM_DISCOUNT: 'membership_platinum_discount',
-  POINTS_PER_ORDER: 'membership_points_per_order', // Points earned per VND spent
+const MEMBERSHIP_LEVELS: MemberLevel[] = ['SILVER', 'GOLD', 'PLATINUM'];
+
+const LEVEL_LABELS: Record<MemberLevel, string> = {
+  SILVER: 'Silver',
+  GOLD: 'Gold',
+  PLATINUM: 'Platinum',
 };
 
-const DEFAULT_CONFIG = {
-  [MEMBERSHIP_KEYS.SILVER_MIN_POINTS]: '0',
-  [MEMBERSHIP_KEYS.SILVER_DISCOUNT]: '3',
-  [MEMBERSHIP_KEYS.GOLD_MIN_POINTS]: '300',
-  [MEMBERSHIP_KEYS.GOLD_DISCOUNT]: '7',
-  [MEMBERSHIP_KEYS.PLATINUM_MIN_POINTS]: '900',
-  [MEMBERSHIP_KEYS.PLATINUM_DISCOUNT]: '12',
-  [MEMBERSHIP_KEYS.POINTS_PER_ORDER]: '10000', // 1 point per 10,000 VND
+type AdminUser = {
+  id: string;
+  role: UserRole;
 };
 
-// GET: Get membership configuration
-export async function GET() {
-  try {
-    const session = await getSession();
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
+type MembershipLevelConfig = {
+  level: MemberLevel;
+  minPoints: number;
+  discountPercent: number;
+};
+
+type MembershipUpdatePayload = {
+  levels?: MembershipLevelConfig[];
+  pointsPerOrder?: number;
+};
+
+type MembershipHandlerResult = {
+  status: number;
+  body: {
+    success: boolean;
+    data?: unknown;
+    error?: string;
+    message?: string;
+  };
+};
+
+type MembershipSettingRow = {
+  key: string;
+  value: string;
+};
+
+type MembershipDeps = {
+  requireAdmin: () => Promise<AdminUser>;
+  findSettings: (keys: string[]) => Promise<MembershipSettingRow[]>;
+  countMembersByLevel: (level: MemberLevel) => Promise<number>;
+  updateSettingsAndWriteAudit: (args: {
+    actor: AdminUser;
+    updates: Array<{ key: string; value: string }>;
+    beforeValuesByKey: Record<string, string | undefined>;
+  }) => Promise<void>;
+};
+
+const membershipSettingKeyByLevel: Record<
+  MemberLevel,
+  { minPoints: string; discount: string }
+> = {
+  SILVER: {
+    minPoints: MEMBERSHIP_SETTING_KEYS.SILVER_MIN_POINTS,
+    discount: MEMBERSHIP_SETTING_KEYS.SILVER_DISCOUNT,
+  },
+  GOLD: {
+    minPoints: MEMBERSHIP_SETTING_KEYS.GOLD_MIN_POINTS,
+    discount: MEMBERSHIP_SETTING_KEYS.GOLD_DISCOUNT,
+  },
+  PLATINUM: {
+    minPoints: MEMBERSHIP_SETTING_KEYS.PLATINUM_MIN_POINTS,
+    discount: MEMBERSHIP_SETTING_KEYS.PLATINUM_DISCOUNT,
+  },
+};
+
+const defaultDeps: MembershipDeps = {
+  requireAdmin,
+  findSettings: (keys) =>
+    prisma.setting.findMany({
+      where: {
+        key: { in: keys },
+      },
+      select: {
+        key: true,
+        value: true,
+      },
+    }),
+  countMembersByLevel: (level) =>
+    prisma.user.count({
+      where: {
+        role: 'CUSTOMER',
+        memberLevel: level,
+      },
+    }),
+  updateSettingsAndWriteAudit: async ({ actor, updates, beforeValuesByKey }) => {
+    await prisma.$transaction(async (tx) => {
+      for (const update of updates) {
+        await tx.setting.upsert({
+          where: { key: update.key },
+          update: { value: update.value },
+          create: {
+            key: update.key,
+            value: update.value,
+          },
+        });
+
+        await writeSettingAuditLogWithClient(tx, {
+          settingKey: update.key,
+          mutationType: 'UPSERT',
+          actorUserId: actor.id,
+          actorRole: actor.role,
+          beforeValue: beforeValuesByKey[update.key] ?? null,
+          afterValue: update.value,
+          metadata: {
+            domain: 'membership',
+          },
+        });
+      }
+    });
+  },
+};
+
+function mapErrorToStatus(message: string) {
+  if (message === 'Unauthorized') return 401;
+  if (message === 'Forbidden: Admin access required') return 403;
+  return 500;
+}
+
+function getCurrentMembershipKeys() {
+  return [
+    MEMBERSHIP_SETTING_KEYS.SILVER_MIN_POINTS,
+    MEMBERSHIP_SETTING_KEYS.SILVER_DISCOUNT,
+    MEMBERSHIP_SETTING_KEYS.GOLD_MIN_POINTS,
+    MEMBERSHIP_SETTING_KEYS.GOLD_DISCOUNT,
+    MEMBERSHIP_SETTING_KEYS.PLATINUM_MIN_POINTS,
+    MEMBERSHIP_SETTING_KEYS.PLATINUM_DISCOUNT,
+    MEMBERSHIP_SETTING_KEYS.POINTS_PER_ORDER,
+  ];
+}
+
+function parseMembershipUpdatePayload(raw: unknown) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { error: 'Invalid payload' } as const;
+  }
+
+  const body = raw as Record<string, unknown>;
+  const allowedKeys = new Set(['levels', 'pointsPerOrder']);
+  const hasUnknownKey = Object.keys(body).some((key) => !allowedKeys.has(key));
+  if (hasUnknownKey) {
+    return { error: 'Invalid payload fields' } as const;
+  }
+
+  const parsed: MembershipUpdatePayload = {};
+
+  if (body.levels !== undefined) {
+    if (!Array.isArray(body.levels)) {
+      return { error: 'levels must be an array' } as const;
+    }
+    if (body.levels.length !== MEMBERSHIP_LEVELS.length) {
+      return { error: 'levels must include exactly SILVER, GOLD, and PLATINUM' } as const;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const settings = await (prisma as any).setting.findMany({
-      where: {
-        key: { in: Object.values(MEMBERSHIP_KEYS) },
-      },
+    const levelMap = new Map<MemberLevel, MembershipLevelConfig>();
+    for (const row of body.levels) {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
+        return { error: 'Each level must be an object' } as const;
+      }
+
+      const item = row as Record<string, unknown>;
+      const levelRaw = item.level;
+      if (
+        typeof levelRaw !== 'string' ||
+        !MEMBERSHIP_LEVELS.includes(levelRaw as MemberLevel)
+      ) {
+        return { error: 'Invalid membership level' } as const;
+      }
+      const level = levelRaw as MemberLevel;
+
+      if (!Number.isInteger(item.minPoints) || (item.minPoints as number) < 0) {
+        return { error: `minPoints for ${level} must be a non-negative integer` } as const;
+      }
+
+      if (
+        !Number.isInteger(item.discountPercent) ||
+        (item.discountPercent as number) < 0 ||
+        (item.discountPercent as number) > 100
+      ) {
+        return { error: `discountPercent for ${level} must be an integer between 0 and 100` } as const;
+      }
+
+      levelMap.set(level, {
+        level,
+        minPoints: item.minPoints as number,
+        discountPercent: item.discountPercent as number,
+      });
+    }
+
+    if (levelMap.size !== MEMBERSHIP_LEVELS.length) {
+      return { error: 'levels must not contain duplicates' } as const;
+    }
+
+    const ordered = MEMBERSHIP_LEVELS.map((level) => levelMap.get(level)!);
+    if (
+      !(ordered[0].minPoints < ordered[1].minPoints) ||
+      !(ordered[1].minPoints < ordered[2].minPoints)
+    ) {
+      return {
+        error: 'Membership thresholds must be strictly increasing from SILVER to PLATINUM',
+      } as const;
+    }
+
+    parsed.levels = ordered;
+  }
+
+  if (body.pointsPerOrder !== undefined) {
+    if (!Number.isInteger(body.pointsPerOrder) || (body.pointsPerOrder as number) <= 0) {
+      return { error: 'pointsPerOrder must be a positive integer' } as const;
+    }
+    parsed.pointsPerOrder = body.pointsPerOrder as number;
+  }
+
+  if (!parsed.levels && parsed.pointsPerOrder === undefined) {
+    return { error: 'Payload must include levels or pointsPerOrder' } as const;
+  }
+
+  return { payload: parsed } as const;
+}
+
+function toMembershipUpdates(payload: MembershipUpdatePayload) {
+  const updates: Array<{ key: string; value: string }> = [];
+
+  if (payload.levels) {
+    for (const level of payload.levels) {
+      const keyMap = membershipSettingKeyByLevel[level.level];
+      updates.push({
+        key: keyMap.minPoints,
+        value: String(level.minPoints),
+      });
+      updates.push({
+        key: keyMap.discount,
+        value: String(level.discountPercent),
+      });
+    }
+  }
+
+  if (payload.pointsPerOrder !== undefined) {
+    updates.push({
+      key: MEMBERSHIP_SETTING_KEYS.POINTS_PER_ORDER,
+      value: String(payload.pointsPerOrder),
     });
+  }
 
-    const settingsMap: Record<string, string> = {};
-    settings.forEach((s: { key: string; value: string }) => {
-      settingsMap[s.key] = s.value;
-    });
+  return updates;
+}
 
-    // Apply defaults
-    const config = { ...DEFAULT_CONFIG, ...settingsMap };
+async function buildMembershipResponse(deps: MembershipDeps) {
+  const config = await getMembershipRulesConfig({
+    findSettings: deps.findSettings,
+  });
+  const levelConfigMap = new Map(config.levels.map((item) => [item.level, item]));
+  const defaultLevelMap = new Map(
+    DEFAULT_MEMBERSHIP_RULES.levels.map((item) => [item.level, item]),
+  );
 
-    // Format response
-    const levels = [
-      {
-        level: 'SILVER',
-        label: 'Silver',
-        minPoints: parseInt(config[MEMBERSHIP_KEYS.SILVER_MIN_POINTS]),
-        discountPercent: parseInt(config[MEMBERSHIP_KEYS.SILVER_DISCOUNT]),
-      },
-      {
-        level: 'GOLD',
-        label: 'Gold',
-        minPoints: parseInt(config[MEMBERSHIP_KEYS.GOLD_MIN_POINTS]),
-        discountPercent: parseInt(config[MEMBERSHIP_KEYS.GOLD_DISCOUNT]),
-      },
-      {
-        level: 'PLATINUM',
-        label: 'Platinum',
-        minPoints: parseInt(config[MEMBERSHIP_KEYS.PLATINUM_MIN_POINTS]),
-        discountPercent: parseInt(config[MEMBERSHIP_KEYS.PLATINUM_DISCOUNT]),
-      },
-    ];
+  const [silverCount, goldCount, platinumCount] = await Promise.all([
+    deps.countMembersByLevel('SILVER'),
+    deps.countMembersByLevel('GOLD'),
+    deps.countMembersByLevel('PLATINUM'),
+  ]);
 
-    // Get member counts per level
-    const [silverCount, goldCount, platinumCount] = await Promise.all([
-      prisma.user.count({ where: { role: 'CUSTOMER', memberLevel: 'SILVER' } }),
-      prisma.user.count({ where: { role: 'CUSTOMER', memberLevel: 'GOLD' } }),
-      prisma.user.count({
-        where: { role: 'CUSTOMER', memberLevel: 'PLATINUM' },
-      }),
-    ]);
+  const countsByLevel: Record<MemberLevel, number> = {
+    SILVER: silverCount,
+    GOLD: goldCount,
+    PLATINUM: platinumCount,
+  };
 
-    const memberCountMap: Record<string, number> = {
-      SILVER: silverCount,
-      GOLD: goldCount,
-      PLATINUM: platinumCount,
-    };
+  const levels = MEMBERSHIP_LEVELS.map((level, index) => ({
+    level,
+    label: LEVEL_LABELS[level],
+    minPoints:
+      levelConfigMap.get(level)?.minPoints ??
+      defaultLevelMap.get(level)?.minPoints ??
+      DEFAULT_MEMBERSHIP_RULES.levels[index].minPoints,
+    discountPercent:
+      levelConfigMap.get(level)?.discountPercent ??
+      defaultLevelMap.get(level)?.discountPercent ??
+      DEFAULT_MEMBERSHIP_RULES.levels[index].discountPercent,
+    memberCount: countsByLevel[level],
+  }));
 
-    const levelsWithCounts = levels.map((l) => ({
-      ...l,
-      memberCount: memberCountMap[l.level] || 0,
-    }));
+  return {
+    levels,
+    pointsPerOrder: config.pointsPerOrder,
+    totalMembers: levels.reduce((sum, item) => sum + item.memberCount, 0),
+  };
+}
 
-    return NextResponse.json({
+export async function handleAdminMembershipGetRequest(
+  deps: MembershipDeps = defaultDeps,
+): Promise<MembershipHandlerResult> {
+  await deps.requireAdmin();
+
+  const data = await buildMembershipResponse(deps);
+  return {
+    status: 200,
+    body: {
       success: true,
-      data: {
-        levels: levelsWithCounts,
-        pointsPerOrder: parseInt(config[MEMBERSHIP_KEYS.POINTS_PER_ORDER]),
-      },
+      data,
+    },
+  };
+}
+
+export async function handleAdminMembershipPutRequest(
+  request: Pick<NextRequest, 'json'>,
+  deps: MembershipDeps = defaultDeps,
+): Promise<MembershipHandlerResult> {
+  const admin = await deps.requireAdmin();
+
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return {
+      status: 400,
+      body: { success: false, error: 'Invalid JSON payload' },
+    };
+  }
+
+  const parsed = parseMembershipUpdatePayload(rawBody);
+  if ('error' in parsed) {
+    return {
+      status: 400,
+      body: { success: false, error: parsed.error },
+    };
+  }
+
+  const updates = toMembershipUpdates(parsed.payload);
+  const settings = await deps.findSettings(getCurrentMembershipKeys());
+  const beforeValuesByKey = Object.fromEntries(settings.map((row) => [row.key, row.value]));
+
+  const changedUpdates = updates.filter((update) => beforeValuesByKey[update.key] !== update.value);
+  if (changedUpdates.length > 0) {
+    await deps.updateSettingsAndWriteAudit({
+      actor: admin,
+      updates: changedUpdates,
+      beforeValuesByKey,
     });
-  } catch (error) {
+  }
+
+  const data = await buildMembershipResponse(deps);
+  return {
+    status: 200,
+    body: {
+      success: true,
+      data,
+      message:
+        changedUpdates.length > 0
+          ? 'Membership configuration updated'
+          : 'No membership configuration changes detected',
+    },
+  };
+}
+
+// GET /api/admin/membership
+export async function GET() {
+  try {
+    const result = await handleAdminMembershipGetRequest();
+    return NextResponse.json(result.body, { status: result.status });
+  } catch (error: unknown) {
     console.error('Get membership config error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = mapErrorToStatus(message);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch membership config' },
-      { status: 500 },
+      { success: false, error: status === 500 ? 'Internal server error' : message },
+      { status },
     );
   }
 }
 
-// PUT: Update membership configuration
+// PUT /api/admin/membership
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
-
-    const body = await request.json();
-    const { levels, pointsPerOrder } = body;
-
-    // Update levels
-    if (Array.isArray(levels)) {
-      for (const level of levels) {
-        const keyPrefix = `membership_${level.level.toLowerCase()}`;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (prisma as any).setting.upsert({
-          where: { key: `${keyPrefix}_min_points` },
-          update: { value: String(level.minPoints) },
-          create: {
-            key: `${keyPrefix}_min_points`,
-            value: String(level.minPoints),
-          },
-        });
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (prisma as any).setting.upsert({
-          where: { key: `${keyPrefix}_discount` },
-          update: { value: String(level.discountPercent) },
-          create: {
-            key: `${keyPrefix}_discount`,
-            value: String(level.discountPercent),
-          },
-        });
-      }
-    }
-
-    // Update points per order
-    if (pointsPerOrder !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (prisma as any).setting.upsert({
-        where: { key: MEMBERSHIP_KEYS.POINTS_PER_ORDER },
-        update: { value: String(pointsPerOrder) },
-        create: {
-          key: MEMBERSHIP_KEYS.POINTS_PER_ORDER,
-          value: String(pointsPerOrder),
-        },
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Membership configuration updated',
-    });
-  } catch (error) {
+    const result = await handleAdminMembershipPutRequest(request);
+    return NextResponse.json(result.body, { status: result.status });
+  } catch (error: unknown) {
     console.error('Update membership config error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = mapErrorToStatus(message);
     return NextResponse.json(
-      { success: false, error: 'Failed to update membership config' },
-      { status: 500 },
+      { success: false, error: status === 500 ? 'Internal server error' : message },
+      { status },
     );
   }
 }

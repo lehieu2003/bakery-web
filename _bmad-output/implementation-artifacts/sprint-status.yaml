@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-04 13:43:39+07:00
-last_updated: 2026-04-10 16:58:40+07:00
+last_updated: 2026-04-14 09:25:00+07:00
 project: bakery-web
 project_key: NOKEY
 tracking_system: file-system
@@ -81,7 +81,7 @@ development_status:
   epic-7: in-progress
   7-1-order-lifecycle-operations: done
   7-2-customer-operational-view: done
-  7-3-membership-and-store-settings-administration: backlog
+  7-3-membership-and-store-settings-administration: done
   7-4-dashboard-metrics-and-kpi-views: backlog
   epic-7-retrospective: optional
   epic-8: backlog

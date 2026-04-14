@@ -13,7 +13,7 @@ export type MembershipRulesConfig = {
   pointsPerOrder: number;
 };
 
-const MEMBERSHIP_SETTING_KEYS = {
+export const MEMBERSHIP_SETTING_KEYS = {
   SILVER_MIN_POINTS: 'membership_silver_min_points',
   SILVER_DISCOUNT: 'membership_silver_discount',
   GOLD_MIN_POINTS: 'membership_gold_min_points',
@@ -23,7 +23,7 @@ const MEMBERSHIP_SETTING_KEYS = {
   POINTS_PER_ORDER: 'membership_points_per_order',
 } as const;
 
-const DEFAULT_MEMBERSHIP_RULES: MembershipRulesConfig = {
+export const DEFAULT_MEMBERSHIP_RULES: MembershipRulesConfig = {
   levels: [
     {
       level: 'SILVER',
