@@ -5,11 +5,10 @@ import { http } from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { dashboardService } from '@/services/admin/dashboard.service';
 
-test('dashboardService.getStats appends windowDays query param', async () => {
-  const originalGet = http.get;
+test('dashboardService.getStats appends windowDays query param', async (t) => {
   let capturedUrl = '';
 
-  (http as { get: typeof http.get }).get = async (url) => {
+  t.mock.method(http, 'get', async (url: string) => {
     capturedUrl = url;
     return {
       success: true,
@@ -42,17 +41,10 @@ test('dashboardService.getStats appends windowDays query param', async () => {
         },
       } as never,
     };
-  };
+  });
 
-  try {
-    const data = await dashboardService.getStats(14);
-    assert.equal(
-      capturedUrl,
-      `${ENDPOINTS.ADMIN.DASHBOARD}?windowDays=14`,
-    );
-    assert.equal(data.meta.windowDays, 14);
-    assert.equal(data.meta.businessTimezone, 'Asia/Ho_Chi_Minh');
-  } finally {
-    (http as { get: typeof http.get }).get = originalGet;
-  }
+  const data = await dashboardService.getStats(14);
+  assert.equal(capturedUrl, `${ENDPOINTS.ADMIN.DASHBOARD}?windowDays=14`);
+  assert.equal(data.meta.windowDays, 14);
+  assert.equal(data.meta.businessTimezone, 'Asia/Ho_Chi_Minh');
 });

@@ -1,6 +1,6 @@
 # Story 7.4: Dashboard Metrics and KPI Views
 
-Status: review
+Status: done
 
 ## Story
 
@@ -119,6 +119,7 @@ GPT-5 Codex
 - Added focused route-level regression suite `tests/admin/admin-dashboard-routes.test.ts` covering auth failures, query validation, deterministic serialization, and empty-dataset behavior.
 - Removed unused `topProducts` dashboard payload computation to avoid unnecessary groupBy/product lookup overhead.
 - Added `tests/admin/admin-dashboard-service.test.ts` to verify dashboard service contract compatibility for `windowDays` query-based fetching.
+- Added NFR2 measurement artifact `_bmad-output/implementation-artifacts/7-4-dashboard-performance-notes.md` with p50/p95 benchmark results for `windowDays=7/30`.
 - Validation runs completed: `npm run test:node -- tests/admin/admin-dashboard-routes.test.ts`, `npx tsc --noEmit -p tsconfig.json`, targeted `eslint`.
 - Full `npm test` still fails in existing Vitest worker bootstrap (`ERR_REQUIRE_ASYNC_MODULE` via jsdom/css-color), unrelated to Story 7.4 changes.
 - `npm run build` blocked in this environment by existing Prisma engine file lock (`EPERM rename ... query_engine-windows.dll.node`).
@@ -130,6 +131,7 @@ GPT-5 Codex
 - Added explicit refresh policy through hook options (`staleTime`, `refetchInterval`, `refetchOnWindowFocus`) and window selector on dashboard page.
 - Synced dashboard API contract across backend and frontend types/services/hooks/page without introducing parallel modules.
 - Added regression tests for dashboard route edge cases and deterministic payload behavior, including 403, all-cancelled windows, and timezone boundary coverage.
+- Recorded practical local p95 measurements for dashboard read path and flagged current environment gap vs NFR2 target for follow-up performance hardening.
 - Verified node test suite, typecheck, and lint for touched code; documented existing unrelated Vitest and build-environment blockers.
 
 ### File List
@@ -143,13 +145,15 @@ GPT-5 Codex
 - tests/admin/admin-dashboard-routes.test.ts
 - tests/admin/admin-dashboard-service.test.ts
 - types/api.types.ts
+- _bmad-output/implementation-artifacts/7-4-dashboard-performance-notes.md
 
 ## Change Log
 
 - 2026-04-14: Created Story 7.4 context file with implementation guardrails for dashboard metrics and KPI views.
 - 2026-04-14: Implemented Story 7.4 dashboard API/UI contract hardening, deterministic KPI aggregation, and focused admin regression tests; moved story to `review`.
 - 2026-04-14: Applied CR follow-up patch set for business-timezone window boundaries, DB-level aggregation, removal of unused top-products query, and additional coverage gaps (403/timezone/all-cancelled/service contract).
+- 2026-04-14: Applied CR round-2 patch set for revenue semantic consistency and shared aggregate source consistency; added local NFR2 benchmark artifact.
 
 ## Story Context Status
 
-- Development implementation completed and ready for code review (`review`).
+- Development implementation and review follow-ups completed (`done`).

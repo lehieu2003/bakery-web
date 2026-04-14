@@ -1,6 +1,6 @@
 # Story 7.3: Membership and Store Settings Administration
 
-Status: review
+Status: done
 
 ## Story
 
@@ -178,4 +178,4 @@ GPT-5 Codex
 
 ## Story Context Status
 
-- Development implementation completed and ready for code review (`review`).
+- Development implementation and review follow-ups completed (`done`).

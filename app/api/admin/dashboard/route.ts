@@ -40,24 +40,23 @@ type DailyBucket = {
   cancelledOrders: number;
 };
 
-type OrderStateCount = {
+type WindowStatusBucket = {
+  dayKey: string;
   status: OrderStatus;
-  count: number;
+  orders: number;
+  completedRevenue: number;
 };
 
 type DashboardDeps = {
   requireAdmin: () => Promise<AdminUser>;
   now: () => Date;
-  countTodayOrders: (todayStartUtc: Date, tomorrowStartUtc: Date) => Promise<number>;
-  sumTodayRevenue: (todayStartUtc: Date, tomorrowStartUtc: Date) => Promise<number>;
   countPendingOrders: () => Promise<number>;
   countTotalCustomers: () => Promise<number>;
   countTotalProducts: () => Promise<number>;
-  findDailyBuckets: (windowStartUtc: Date, tomorrowStartUtc: Date) => Promise<DailyBucket[]>;
-  findOrderStateCounts: (
+  findWindowStatusBuckets: (
     windowStartUtc: Date,
     tomorrowStartUtc: Date,
-  ) => Promise<OrderStateCount[]>;
+  ) => Promise<WindowStatusBucket[]>;
   findRecentOrders: () => Promise<
     Array<{
       id: string;
@@ -123,11 +122,7 @@ function parseWindowDays(request: Pick<NextRequest, 'nextUrl'>) {
   return { value: parsed } as const;
 }
 
-function buildChartData(
-  dailyBuckets: DailyBucket[],
-  windowStartUtc: Date,
-  windowDays: number,
-) {
+function buildChartData(dailyBuckets: DailyBucket[], windowStartUtc: Date, windowDays: number) {
   const buckets = new Map<string, DailyBucket>();
 
   for (let i = 0; i < windowDays; i += 1) {
@@ -165,9 +160,11 @@ function buildChartData(
   }));
 }
 
-function buildOrderStateStats(stateCounts: OrderStateCount[]) {
+function buildOrderStateStats(windowStatusBuckets: WindowStatusBucket[]) {
   const countMap = new Map<OrderStatus, number>();
-  stateCounts.forEach((item) => countMap.set(item.status, item.count));
+  windowStatusBuckets.forEach((item) => {
+    countMap.set(item.status, (countMap.get(item.status) ?? 0) + item.orders);
+  });
 
   return ORDER_STATUSES.map((status) => ({
     status,
@@ -175,73 +172,67 @@ function buildOrderStateStats(stateCounts: OrderStateCount[]) {
   }));
 }
 
+function buildDailyBucketsFromStatusBuckets(windowStatusBuckets: WindowStatusBucket[]) {
+  const dayMap = new Map<string, DailyBucket>();
+
+  for (const item of windowStatusBuckets) {
+    const existing = dayMap.get(item.dayKey) ?? {
+      dayKey: item.dayKey,
+      orders: 0,
+      revenue: 0,
+      completedOrders: 0,
+      cancelledOrders: 0,
+    };
+
+    existing.orders += item.orders;
+
+    if (item.status === 'COMPLETED') {
+      existing.revenue += item.completedRevenue;
+      existing.completedOrders += item.orders;
+    }
+
+    if (item.status === 'CANCELLED') {
+      existing.cancelledOrders += item.orders;
+    }
+
+    dayMap.set(item.dayKey, existing);
+  }
+
+  return [...dayMap.values()].sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+}
+
 const defaultDeps: DashboardDeps = {
   requireAdmin,
   now: () => new Date(),
-  countTodayOrders: async (todayStartUtc, tomorrowStartUtc) =>
-    prisma.order.count({
-      where: {
-        createdAt: { gte: todayStartUtc, lt: tomorrowStartUtc },
-      },
-    }),
-  sumTodayRevenue: async (todayStartUtc, tomorrowStartUtc) => {
-    const aggregate = await prisma.order.aggregate({
-      where: {
-        createdAt: { gte: todayStartUtc, lt: tomorrowStartUtc },
-        status: 'COMPLETED',
-      },
-      _sum: { total: true },
-    });
-    return Number(aggregate._sum.total ?? 0);
-  },
   countPendingOrders: () => prisma.order.count({ where: { status: 'PENDING' } }),
   countTotalCustomers: () => prisma.user.count({ where: { role: 'CUSTOMER' } }),
   countTotalProducts: () => prisma.product.count({ where: { isActive: true } }),
-  findDailyBuckets: async (windowStartUtc, tomorrowStartUtc) => {
+  findWindowStatusBuckets: async (windowStartUtc, tomorrowStartUtc) => {
     const rows = await prisma.$queryRaw<
       Array<{
         day_key: string;
+        status: OrderStatus;
         orders_count: bigint;
-        revenue_sum: unknown;
-        completed_orders: bigint;
-        cancelled_orders: bigint;
+        completed_revenue: unknown;
       }>
     >(Prisma.sql`
       SELECT
         TO_CHAR(("createdAt" AT TIME ZONE ${BUSINESS_TIMEZONE})::date, 'YYYY-MM-DD') AS day_key,
+        "status",
         COUNT(*)::bigint AS orders_count,
-        COALESCE(SUM("total"), 0) AS revenue_sum,
-        SUM(CASE WHEN "status" = 'COMPLETED' THEN 1 ELSE 0 END)::bigint AS completed_orders,
-        SUM(CASE WHEN "status" = 'CANCELLED' THEN 1 ELSE 0 END)::bigint AS cancelled_orders
+        COALESCE(SUM(CASE WHEN "status" = 'COMPLETED' THEN "total" ELSE 0 END), 0) AS completed_revenue
       FROM "Order"
       WHERE "createdAt" >= ${windowStartUtc}
         AND "createdAt" < ${tomorrowStartUtc}
-      GROUP BY 1
-      ORDER BY 1 ASC
+      GROUP BY 1, 2
+      ORDER BY 1 ASC, 2 ASC
     `);
 
     return rows.map((row) => ({
       dayKey: row.day_key,
-      orders: Number(row.orders_count),
-      revenue: Number(row.revenue_sum ?? 0),
-      completedOrders: Number(row.completed_orders),
-      cancelledOrders: Number(row.cancelled_orders),
-    }));
-  },
-  findOrderStateCounts: async (windowStartUtc, tomorrowStartUtc) => {
-    const rows = await prisma.order.groupBy({
-      by: ['status'],
-      where: {
-        createdAt: { gte: windowStartUtc, lt: tomorrowStartUtc },
-      },
-      _count: {
-        _all: true,
-      },
-    });
-
-    return rows.map((row) => ({
       status: row.status,
-      count: row._count._all,
+      orders: Number(row.orders_count),
+      completedRevenue: Number(row.completed_revenue ?? 0),
     }));
   },
   findRecentOrders: async () => {
@@ -297,24 +288,25 @@ export async function handleAdminDashboardGetRequest(
     const windowStartUtc = addUtcDays(todayStartUtc, -(windowDays - 1));
 
     const [
-      todayOrders,
-      todayRevenue,
       pendingOrders,
       totalCustomers,
       totalProducts,
-      dailyBuckets,
-      orderStateCounts,
+      windowStatusBuckets,
       recentOrders,
     ] = await Promise.all([
-      deps.countTodayOrders(todayStartUtc, tomorrowStartUtc),
-      deps.sumTodayRevenue(todayStartUtc, tomorrowStartUtc),
       deps.countPendingOrders(),
       deps.countTotalCustomers(),
       deps.countTotalProducts(),
-      deps.findDailyBuckets(windowStartUtc, tomorrowStartUtc),
-      deps.findOrderStateCounts(windowStartUtc, tomorrowStartUtc),
+      deps.findWindowStatusBuckets(windowStartUtc, tomorrowStartUtc),
       deps.findRecentOrders(),
     ]);
+
+    const dailyBuckets = buildDailyBucketsFromStatusBuckets(windowStatusBuckets);
+    const todayDayKey = toBusinessDayKey(now);
+    const todayBucket = dailyBuckets.find((item) => item.dayKey === todayDayKey);
+    const todayOrders = todayBucket?.orders ?? 0;
+    const todayRevenue = round2(todayBucket?.revenue ?? 0);
+    const orderStates = buildOrderStateStats(windowStatusBuckets);
 
     const periodOrders = dailyBuckets.reduce((sum, item) => sum + item.orders, 0);
     const periodCompletedOrders = dailyBuckets.reduce(
@@ -348,7 +340,7 @@ export async function handleAdminDashboardGetRequest(
             conversionRate,
           },
           chartData: buildChartData(dailyBuckets, windowStartUtc, windowDays),
-          orderStates: buildOrderStateStats(orderStateCounts),
+          orderStates,
           recentOrders: recentOrders.map((order) => ({
             id: order.id,
             orderNumber: order.orderNumber,

@@ -12,13 +12,10 @@ function makeDashboardRequest(url: string) {
 const baseDeps = {
   requireAdmin: async () => ({ id: 'admin-1', role: 'ADMIN' as const }),
   now: () => new Date('2026-04-14T08:00:00.000Z'),
-  countTodayOrders: async () => 0,
-  sumTodayRevenue: async () => 0,
   countPendingOrders: async () => 0,
   countTotalCustomers: async () => 0,
   countTotalProducts: async () => 0,
-  findDailyBuckets: async () => [],
-  findOrderStateCounts: async () => [],
+  findWindowStatusBuckets: async () => [],
   findRecentOrders: async () => [],
 };
 
@@ -81,31 +78,28 @@ test('admin dashboard GET returns deterministic KPI, chart, and order state data
     makeDashboardRequest('http://localhost/api/admin/dashboard?windowDays=7'),
     {
       ...baseDeps,
-      countTodayOrders: async () => 3,
-      sumTodayRevenue: async () => 450000,
       countPendingOrders: async () => 2,
       countTotalCustomers: async () => 100,
       countTotalProducts: async () => 42,
-      findDailyBuckets: async () => [
+      findWindowStatusBuckets: async () => [
         {
           dayKey: '2026-04-10',
-          orders: 2,
-          revenue: 220000,
-          completedOrders: 1,
-          cancelledOrders: 1,
+          status: 'COMPLETED',
+          orders: 1,
+          completedRevenue: 100000,
+        },
+        {
+          dayKey: '2026-04-10',
+          status: 'CANCELLED',
+          orders: 1,
+          completedRevenue: 0,
         },
         {
           dayKey: '2026-04-14',
+          status: 'PENDING',
           orders: 1,
-          revenue: 230000,
-          completedOrders: 0,
-          cancelledOrders: 0,
+          completedRevenue: 0,
         },
-      ],
-      findOrderStateCounts: async () => [
-        { status: 'PENDING', count: 1 },
-        { status: 'COMPLETED', count: 1 },
-        { status: 'CANCELLED', count: 1 },
       ],
       findRecentOrders: async () => [
         {
@@ -191,16 +185,14 @@ test('admin dashboard GET handles all-cancelled window with zero conversion', as
     makeDashboardRequest('http://localhost/api/admin/dashboard?windowDays=7'),
     {
       ...baseDeps,
-      findDailyBuckets: async () => [
+      findWindowStatusBuckets: async () => [
         {
           dayKey: '2026-04-12',
+          status: 'CANCELLED',
           orders: 4,
-          revenue: 300000,
-          completedOrders: 0,
-          cancelledOrders: 4,
+          completedRevenue: 0,
         },
       ],
-      findOrderStateCounts: async () => [{ status: 'CANCELLED', count: 4 }],
     },
   );
 
@@ -227,16 +219,14 @@ test('admin dashboard GET uses business-day labels at timezone boundary', async 
     {
       ...baseDeps,
       now: () => new Date('2026-04-14T17:30:00.000Z'),
-      findDailyBuckets: async () => [
+      findWindowStatusBuckets: async () => [
         {
           dayKey: '2026-04-15',
+          status: 'COMPLETED',
           orders: 1,
-          revenue: 120000,
-          completedOrders: 1,
-          cancelledOrders: 0,
+          completedRevenue: 120000,
         },
       ],
-      findOrderStateCounts: async () => [{ status: 'COMPLETED', count: 1 }],
     },
   );
 
