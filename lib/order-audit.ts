@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 type OrderAuditPayload = {
   orderId: string;
-  mutationType: 'STATUS_UPDATE';
+  mutationType: 'STATUS_UPDATE' | 'PAYMENT_CALLBACK';
   actorUserId?: string | null;
   actorRole?: UserRole | null;
   beforeData?: unknown;
@@ -21,7 +21,7 @@ function toNullableJsonInput(
   return value as Prisma.InputJsonValue;
 }
 
-function isMissingAuditTableError(error: unknown) {
+function isSkippableAuditWriteError(error: unknown) {
   return (
     typeof error === 'object' &&
     error !== null &&
@@ -29,6 +29,41 @@ function isMissingAuditTableError(error: unknown) {
     (error as { code?: string }).code === 'P2021'
   );
 }
+
+function sanitizeCallbackMetadata(metadata: Record<string, unknown>) {
+  const safeMetadata = { ...metadata };
+  for (const blockedKey of [
+    'mac',
+    'signature',
+    'secret',
+    'rawPayload',
+    'payload',
+  ]) {
+    delete safeMetadata[blockedKey];
+  }
+
+  return safeMetadata;
+}
+
+export type PaymentCallbackAuditPayload = {
+  orderId: string;
+  provider: 'MOMO' | 'ZALOPAY';
+  event:
+    | 'received'
+    | 'processed'
+    | 'replay_ignored'
+    | 'conflict'
+    | 'verification_failed'
+    | 'invalid_payload';
+  incomingStatus?: string | null;
+  existingStatus?: string | null;
+  transactionId?: string | null;
+  existingTransactionId?: string | null;
+  incomingTransactionId?: string | null;
+  outcome?: string | null;
+  reason?: string | null;
+  rawResultCode?: number | null;
+};
 
 export async function writeOrderAuditLog(payload: OrderAuditPayload) {
   try {
@@ -44,8 +79,10 @@ export async function writeOrderAuditLog(payload: OrderAuditPayload) {
       },
     });
   } catch (error: unknown) {
-    if (!isMissingAuditTableError(error)) throw error;
-    console.warn('OrderAuditLog table is missing; skip writing audit log.');
+    if (!isSkippableAuditWriteError(error)) throw error;
+    console.warn(
+      'OrderAuditLog write skipped due to missing table or relation.',
+    );
   }
 }
 
@@ -68,7 +105,35 @@ export async function writeOrderAuditLogWithClient(
       },
     });
   } catch (error: unknown) {
-    if (!isMissingAuditTableError(error)) throw error;
-    console.warn('OrderAuditLog table is missing; skip writing audit log.');
+    if (!isSkippableAuditWriteError(error)) throw error;
+    console.warn(
+      'OrderAuditLog write skipped due to missing table or relation.',
+    );
   }
+}
+
+export async function writePaymentCallbackAuditLog(
+  payload: PaymentCallbackAuditPayload,
+) {
+  const metadata = sanitizeCallbackMetadata({
+    source: 'payment_callback',
+    provider: payload.provider,
+    event: payload.event,
+    incomingStatus: payload.incomingStatus ?? null,
+    existingStatus: payload.existingStatus ?? null,
+    transactionId: payload.transactionId ?? null,
+    existingTransactionId: payload.existingTransactionId ?? null,
+    incomingTransactionId: payload.incomingTransactionId ?? null,
+    outcome: payload.outcome ?? null,
+    reason: payload.reason ?? null,
+    rawResultCode: payload.rawResultCode ?? null,
+  });
+
+  await writeOrderAuditLog({
+    orderId: payload.orderId,
+    mutationType: 'PAYMENT_CALLBACK',
+    actorUserId: null,
+    actorRole: null,
+    metadata,
+  });
 }

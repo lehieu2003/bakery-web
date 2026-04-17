@@ -8,6 +8,10 @@ import { prisma } from '@/lib/prisma';
 import { verifyMoMoCallback } from '@/lib/payment/momo';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
+import {
+  writePaymentCallbackAuditLog,
+  type PaymentCallbackAuditPayload,
+} from '@/lib/order-audit';
 
 type PaymentSnapshot = {
   orderId: string;
@@ -36,6 +40,9 @@ type MomoCallbackDeps = {
     payload?: Record<string, unknown>;
   }) => Promise<unknown>;
   logEvent: (event: string, payload: Record<string, unknown>) => void;
+  writeCallbackAuditLog?: (
+    payload: PaymentCallbackAuditPayload,
+  ) => Promise<void>;
 };
 
 const defaultDeps: MomoCallbackDeps = {
@@ -125,6 +132,7 @@ const defaultDeps: MomoCallbackDeps = {
     });
   },
   dispatchNotificationEvent,
+  writeCallbackAuditLog: writePaymentCallbackAuditLog,
   logEvent: (event, payload) => {
     console.info(
       JSON.stringify({
@@ -135,6 +143,23 @@ const defaultDeps: MomoCallbackDeps = {
     );
   },
 };
+
+async function safeWriteCallbackAudit(
+  deps: MomoCallbackDeps,
+  payload: PaymentCallbackAuditPayload,
+) {
+  if (!deps.writeCallbackAuditLog) return;
+  try {
+    await deps.writeCallbackAuditLog(payload);
+  } catch (error) {
+    deps.logEvent('payment.callback.audit_write_failed', {
+      orderId: payload.orderId,
+      provider: payload.provider,
+      event: payload.event,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 function normalizeAsRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -189,6 +214,12 @@ export async function handleMoMoCallbackRequest(
     deps.logEvent('payment.callback.verification_failed', {
       reason: 'invalid_signature',
     });
+    await safeWriteCallbackAudit(deps, {
+      orderId: normalizeText(payload.orderId),
+      provider: 'MOMO',
+      event: 'verification_failed',
+      reason: 'invalid_signature',
+    });
     return {
       status: 400,
       body: { resultCode: 1, message: 'Invalid signature' },
@@ -204,6 +235,13 @@ export async function handleMoMoCallbackRequest(
       orderId,
       resultCode,
     });
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'MOMO',
+      event: 'invalid_payload',
+      reason: 'missing_orderId_or_resultCode',
+      rawResultCode: resultCode,
+    });
     return {
       status: 400,
       body: { resultCode: 1, message: 'Invalid payload' },
@@ -217,12 +255,29 @@ export async function handleMoMoCallbackRequest(
     incomingStatus,
     rawResultCode: resultCode,
   });
+  await safeWriteCallbackAudit(deps, {
+    orderId,
+    provider: 'MOMO',
+    event: 'received',
+    incomingStatus,
+    transactionId,
+    rawResultCode: resultCode,
+  });
 
   const payment = await deps.findPaymentByOrderId(orderId);
   if (!payment) {
     deps.logEvent('payment.callback.processed', {
       orderId,
       outcome: 'missing_payment',
+    });
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'MOMO',
+      event: 'processed',
+      incomingStatus,
+      transactionId,
+      outcome: 'missing_payment',
+      rawResultCode: resultCode,
     });
     return {
       status: 200,
@@ -247,6 +302,17 @@ export async function handleMoMoCallbackRequest(
         incomingTransactionId: transactionId,
       },
     );
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'MOMO',
+      event: conflict ? 'conflict' : 'replay_ignored',
+      incomingStatus,
+      existingStatus: payment.status,
+      transactionId,
+      existingTransactionId: payment.transactionId,
+      incomingTransactionId: transactionId,
+      rawResultCode: resultCode,
+    });
 
     return {
       status: 200,
@@ -272,6 +338,17 @@ export async function handleMoMoCallbackRequest(
         incomingTransactionId: transactionId,
       },
     );
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'MOMO',
+      event: transitionResult.conflict ? 'conflict' : 'replay_ignored',
+      incomingStatus,
+      existingStatus: payment.status,
+      transactionId,
+      existingTransactionId: payment.transactionId,
+      incomingTransactionId: transactionId,
+      rawResultCode: resultCode,
+    });
 
     return {
       status: 200,
@@ -310,6 +387,15 @@ export async function handleMoMoCallbackRequest(
     outcome: 'state_updated',
     paymentStatus: incomingStatus,
     transactionId,
+  });
+  await safeWriteCallbackAudit(deps, {
+    orderId,
+    provider: 'MOMO',
+    event: 'processed',
+    incomingStatus,
+    transactionId,
+    outcome: 'state_updated',
+    rawResultCode: resultCode,
   });
 
   // MoMo expects this exact response format

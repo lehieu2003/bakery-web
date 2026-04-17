@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleMoMoCallbackRequest } from '@/app/api/payment/momo/callback/route';
+import type { PaymentCallbackAuditPayload } from '@/lib/order-audit';
 
 type PaymentSnapshot = {
   orderId: string;
@@ -29,6 +30,7 @@ type TestDeps = {
     payload?: Record<string, unknown>;
   }) => Promise<unknown>;
   logEvent: (event: string, payload: Record<string, unknown>) => void;
+  writeCallbackAuditLog?: (payload: PaymentCallbackAuditPayload) => Promise<void>;
 };
 
 function createDeps() {
@@ -40,6 +42,7 @@ function createDeps() {
   }> = [];
   const orderFinalizations: Array<{ orderId: string; orderStatus: string }> = [];
   const notificationEvents: Array<Record<string, unknown>> = [];
+  const callbackAuditEvents: PaymentCallbackAuditPayload[] = [];
 
   const deps: TestDeps = {
     verifyCallback: () => true,
@@ -67,9 +70,19 @@ function createDeps() {
     logEvent: (event, payload) => {
       logs.push({ event, payload });
     },
+    writeCallbackAuditLog: async (payload) => {
+      callbackAuditEvents.push(payload);
+    },
   };
 
-  return { deps, logs, transitions, orderFinalizations, notificationEvents };
+  return {
+    deps,
+    logs,
+    transitions,
+    orderFinalizations,
+    notificationEvents,
+    callbackAuditEvents,
+  };
 }
 
 test('MoMo callback rejects non-object payload', async () => {
@@ -81,7 +94,7 @@ test('MoMo callback rejects non-object payload', async () => {
 });
 
 test('MoMo callback rejects invalid signature', async () => {
-  const { deps, logs } = createDeps();
+  const { deps, logs, callbackAuditEvents } = createDeps();
   deps.verifyCallback = () => false;
 
   const result = await handleMoMoCallbackRequest(
@@ -92,6 +105,16 @@ test('MoMo callback rejects invalid signature', async () => {
   assert.equal(result.status, 400);
   assert.equal(result.body.message, 'Invalid signature');
   assert.equal(logs[0]?.event, 'payment.callback.verification_failed');
+  assert.equal(callbackAuditEvents[0]?.event, 'verification_failed');
+});
+
+test('MoMo callback writes invalid_payload audit for malformed callback payload', async () => {
+  const { deps, callbackAuditEvents } = createDeps();
+  const result = await handleMoMoCallbackRequest({ orderId: 'order-1' }, deps);
+
+  assert.equal(result.status, 400);
+  assert.equal(result.body.message, 'Invalid payload');
+  assert.equal(callbackAuditEvents[0]?.event, 'invalid_payload');
 });
 
 test('MoMo callback returns already processed when payment is missing', async () => {

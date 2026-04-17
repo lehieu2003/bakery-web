@@ -28,7 +28,12 @@ import {
   ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
 } from '@/lib/admin-data';
-import { useOrder, useOrderAudit, useUpdateOrder } from '@/hooks/admin/use-orders';
+import {
+  useOrder,
+  useOrderAudit,
+  useOrderInvestigation,
+  useUpdateOrder,
+} from '@/hooks/admin/use-orders';
 import type { OrderStatus } from '@/types/api.types';
 import { getProductImage } from '@/lib/utils';
 import AuditLogList from '@/components/admin/AuditLogList';
@@ -52,6 +57,11 @@ export default function OrderDetailPage({
     isLoading: auditLoading,
     error: auditError,
   } = useOrderAudit(id, 1, 10);
+  const {
+    data: investigation,
+    isLoading: investigationLoading,
+    error: investigationError,
+  } = useOrderInvestigation(id);
   const updateMutation = useUpdateOrder();
 
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('');
@@ -406,6 +416,106 @@ export default function OrderDetailPage({
           error={!!auditError}
           emptyText='No order audit entries yet.'
         />
+      </div>
+
+      <div className='mt-4 bg-card rounded-xl border border-border shadow-sm p-5'>
+        <h2 className='text-sm font-semibold text-foreground mb-3 pb-2 border-b border-border'>
+          Discrepancy Investigation
+        </h2>
+        {investigationLoading ? (
+          <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+            <Loader2 className='w-3 h-3 animate-spin' />
+            Loading investigation timeline...
+          </div>
+        ) : investigationError ? (
+          <p className='text-xs text-destructive'>
+            Unable to load investigation context.
+          </p>
+        ) : (
+          <div className='space-y-4'>
+            <div className='grid sm:grid-cols-2 gap-3'>
+              <div className='rounded-lg border border-border p-3'>
+                <p className='text-[10px] text-muted-foreground uppercase tracking-wide mb-1'>
+                  Current Order State
+                </p>
+                <p className='text-xs font-medium text-foreground'>
+                  {investigation?.order.status ?? 'N/A'}
+                </p>
+              </div>
+              <div className='rounded-lg border border-border p-3'>
+                <p className='text-[10px] text-muted-foreground uppercase tracking-wide mb-1'>
+                  Current Payment State
+                </p>
+                <p className='text-xs font-medium text-foreground'>
+                  {investigation?.payment?.status ?? 'N/A'}
+                </p>
+                <p className='text-[10px] text-muted-foreground mt-0.5'>
+                  {investigation?.payment?.provider ?? 'Unknown provider'}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className='text-xs font-semibold text-foreground mb-2'>
+                Callback Timeline
+              </p>
+              {investigation?.callbackTimeline?.length ? (
+                <div className='space-y-2'>
+                  {investigation.callbackTimeline.slice(0, 10).map((event) => (
+                    <div
+                      key={event.id}
+                      className='rounded-lg border border-border px-3 py-2'
+                    >
+                      <div className='flex items-center justify-between gap-2'>
+                        <p className='text-xs font-medium text-foreground'>
+                          {event.provider} · {event.event}
+                        </p>
+                        <p className='text-[10px] text-muted-foreground'>
+                          {new Date(event.createdAt).toLocaleString('vi-VN')}
+                        </p>
+                      </div>
+                      <p className='text-[11px] text-muted-foreground mt-1'>
+                        Status: {event.incomingStatus ?? 'N/A'} · Outcome:{' '}
+                        {event.outcome ?? 'N/A'} · Tx:{' '}
+                        {event.transactionId ?? 'N/A'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className='text-xs text-muted-foreground'>
+                  No callback timeline records yet.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <p className='text-xs font-semibold text-foreground mb-2'>
+                Reconciliation Attempts
+              </p>
+              {investigation?.reconciliationAttempts?.length ? (
+                <div className='space-y-1.5'>
+                  {investigation.reconciliationAttempts
+                    .slice(0, 10)
+                    .map((attempt) => (
+                      <div
+                        key={attempt.callbackEventId}
+                        className='text-[11px] text-muted-foreground'
+                      >
+                        {new Date(attempt.createdAt).toLocaleString('vi-VN')} ·{' '}
+                        {attempt.provider} · {attempt.outcome} · incoming:{' '}
+                        {attempt.incomingStatus ?? 'N/A'}
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className='text-xs text-muted-foreground'>
+                  No reconciliation attempts detected.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Print template (hidden) */}

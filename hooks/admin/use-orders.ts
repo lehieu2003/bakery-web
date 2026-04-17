@@ -23,6 +23,8 @@ export const orderKeys = {
   audits: () => [...orderKeys.all, 'audit'] as const,
   audit: (id: string, page: number, limit: number) =>
     [...orderKeys.audits(), id, page, limit] as const,
+  investigations: () => [...orderKeys.all, 'investigation'] as const,
+  investigation: (id: string) => [...orderKeys.investigations(), id] as const,
 };
 
 /**
@@ -85,6 +87,17 @@ export function useOrderAudit(id: string, page = 1, limit = 20) {
   return useQuery({
     queryKey: orderKeys.audit(id, page, limit),
     queryFn: () => ordersService.getAudit(id, page, limit),
+    enabled: !!id,
+  });
+}
+
+/**
+ * Hook to fetch investigation context for payment/order discrepancies
+ */
+export function useOrderInvestigation(id: string) {
+  return useQuery({
+    queryKey: orderKeys.investigation(id),
+    queryFn: () => ordersService.getInvestigation(id),
     enabled: !!id,
   });
 }

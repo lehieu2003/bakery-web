@@ -8,6 +8,10 @@ import { prisma } from '@/lib/prisma';
 import { verifyZaloPayCallback } from '@/lib/payment/zalopay';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
+import {
+  writePaymentCallbackAuditLog,
+  type PaymentCallbackAuditPayload,
+} from '@/lib/order-audit';
 
 type PaymentSnapshot = {
   orderId: string;
@@ -36,6 +40,9 @@ type ZaloCallbackDeps = {
     payload?: Record<string, unknown>;
   }) => Promise<unknown>;
   logEvent: (event: string, payload: Record<string, unknown>) => void;
+  writeCallbackAuditLog?: (
+    payload: PaymentCallbackAuditPayload,
+  ) => Promise<void>;
 };
 
 const defaultDeps: ZaloCallbackDeps = {
@@ -125,6 +132,7 @@ const defaultDeps: ZaloCallbackDeps = {
     });
   },
   dispatchNotificationEvent,
+  writeCallbackAuditLog: writePaymentCallbackAuditLog,
   logEvent: (event, payload) => {
     console.info(
       JSON.stringify({
@@ -135,6 +143,23 @@ const defaultDeps: ZaloCallbackDeps = {
     );
   },
 };
+
+async function safeWriteCallbackAudit(
+  deps: ZaloCallbackDeps,
+  payload: PaymentCallbackAuditPayload,
+) {
+  if (!deps.writeCallbackAuditLog) return;
+  try {
+    await deps.writeCallbackAuditLog(payload);
+  } catch (error) {
+    deps.logEvent('payment.callback.audit_write_failed', {
+      orderId: payload.orderId,
+      provider: payload.provider,
+      event: payload.event,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 function normalizeAsRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -201,6 +226,12 @@ export async function handleZaloPayCallbackRequest(
     deps.logEvent('payment.callback.invalid_payload', {
       reason: 'missing_data_or_mac',
     });
+    await safeWriteCallbackAudit(deps, {
+      orderId: 'unknown',
+      provider: 'ZALOPAY',
+      event: 'invalid_payload',
+      reason: 'missing_data_or_mac',
+    });
     return {
       status: 400,
       body: { return_code: 0, return_message: 'invalid payload' },
@@ -209,6 +240,12 @@ export async function handleZaloPayCallbackRequest(
 
   if (!safeVerifyZaloSignature(deps.verifyCallback, dataStr, mac)) {
     deps.logEvent('payment.callback.verification_failed', {
+      reason: 'invalid_mac',
+    });
+    await safeWriteCallbackAudit(deps, {
+      orderId: 'unknown',
+      provider: 'ZALOPAY',
+      event: 'verification_failed',
       reason: 'invalid_mac',
     });
     return {
@@ -222,6 +259,12 @@ export async function handleZaloPayCallbackRequest(
     parsedData = JSON.parse(dataStr) as Record<string, unknown>;
   } catch {
     deps.logEvent('payment.callback.invalid_payload', {
+      reason: 'data_json_parse_failed',
+    });
+    await safeWriteCallbackAudit(deps, {
+      orderId: 'unknown',
+      provider: 'ZALOPAY',
+      event: 'invalid_payload',
       reason: 'data_json_parse_failed',
     });
     return {
@@ -241,6 +284,17 @@ export async function handleZaloPayCallbackRequest(
       appTransId,
       incomingStatus,
     });
+    await safeWriteCallbackAudit(deps, {
+      orderId: orderId || 'unknown',
+      provider: 'ZALOPAY',
+      event: 'invalid_payload',
+      reason: !appTransId
+        ? 'missing_app_trans_id'
+        : incomingStatus === 'UNKNOWN'
+          ? 'unknown_status'
+          : 'invalid_payload',
+      incomingStatus,
+    });
     return {
       status: 400,
       body: { return_code: 0, return_message: 'invalid payload' },
@@ -253,11 +307,26 @@ export async function handleZaloPayCallbackRequest(
     incomingStatus,
     transactionId,
   });
+  await safeWriteCallbackAudit(deps, {
+    orderId,
+    provider: 'ZALOPAY',
+    event: 'received',
+    incomingStatus,
+    transactionId,
+  });
 
   const payment = await deps.findPaymentByOrderId(orderId);
   if (!payment) {
     deps.logEvent('payment.callback.processed', {
       orderId,
+      outcome: 'missing_payment',
+    });
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'ZALOPAY',
+      event: 'processed',
+      incomingStatus,
+      transactionId,
       outcome: 'missing_payment',
     });
     return {
@@ -283,6 +352,16 @@ export async function handleZaloPayCallbackRequest(
         incomingTransactionId: transactionId,
       },
     );
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'ZALOPAY',
+      event: conflict ? 'conflict' : 'replay_ignored',
+      incomingStatus,
+      existingStatus: payment.status,
+      transactionId,
+      existingTransactionId: payment.transactionId,
+      incomingTransactionId: transactionId,
+    });
 
     return {
       status: 200,
@@ -308,6 +387,16 @@ export async function handleZaloPayCallbackRequest(
         incomingTransactionId: transactionId,
       },
     );
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'ZALOPAY',
+      event: transitionResult.conflict ? 'conflict' : 'replay_ignored',
+      incomingStatus,
+      existingStatus: payment.status,
+      transactionId,
+      existingTransactionId: payment.transactionId,
+      incomingTransactionId: transactionId,
+    });
 
     return {
       status: 200,
@@ -346,6 +435,14 @@ export async function handleZaloPayCallbackRequest(
     outcome: 'state_updated',
     paymentStatus: incomingStatus,
     transactionId,
+  });
+  await safeWriteCallbackAudit(deps, {
+    orderId,
+    provider: 'ZALOPAY',
+    event: 'processed',
+    incomingStatus,
+    transactionId,
+    outcome: 'state_updated',
   });
 
   return { status: 200, body: { return_code: 1, return_message: 'success' } };

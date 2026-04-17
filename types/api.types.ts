@@ -214,6 +214,69 @@ export interface Payment {
   createdAt: string;
 }
 
+export interface OrderAuditLogEntry {
+  id: string;
+  mutationType: string;
+  actorUserId: string | null;
+  actorRole: UserRole | null;
+  actor: {
+    id: string;
+    name: string | null;
+    role: UserRole;
+  } | null;
+  metadata: unknown;
+  createdAt: string;
+}
+
+export interface OrderInvestigationCallbackEvent {
+  id: string;
+  provider: string;
+  event:
+    | 'received'
+    | 'processed'
+    | 'replay_ignored'
+    | 'conflict'
+    | 'verification_failed'
+    | 'invalid_payload';
+  incomingStatus: string | null;
+  existingStatus: string | null;
+  transactionId: string | null;
+  existingTransactionId: string | null;
+  incomingTransactionId: string | null;
+  outcome: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface OrderInvestigationAttempt {
+  callbackEventId: string;
+  provider: string;
+  outcome: string;
+  incomingStatus: string | null;
+  createdAt: string;
+}
+
+export interface OrderInvestigationData {
+  order: Pick<
+    Order,
+    | 'id'
+    | 'orderNumber'
+    | 'status'
+    | 'customerName'
+    | 'customerPhone'
+    | 'customerEmail'
+    | 'createdAt'
+    | 'updatedAt'
+  >;
+  payment: Pick<
+    Payment,
+    'provider' | 'status' | 'transactionId' | 'amount' | 'createdAt'
+  > | null;
+  callbackTimeline: OrderInvestigationCallbackEvent[];
+  reconciliationAttempts: OrderInvestigationAttempt[];
+  auditTrail: OrderAuditLogEntry[];
+}
+
 export interface Banner {
   id: string;
   title: string;

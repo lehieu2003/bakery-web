@@ -10,21 +10,12 @@ import type {
   OrdersQueryParams,
   UpdateOrderRequest,
   OrderStatus,
+  OrderAuditLogEntry,
+  OrderInvestigationData,
 } from '@/types/api.types';
 
 type AuditListResponse = {
-  logs: Array<{
-    id: string;
-    mutationType: string;
-    actorRole: string | null;
-    createdAt: string;
-    metadata: unknown;
-    actor: {
-      id: string;
-      name: string | null;
-      role: string;
-    } | null;
-  }>;
+  logs: OrderAuditLogEntry[];
   pagination: {
     page: number;
     limit: number;
@@ -94,6 +85,16 @@ export const ordersService = {
       {
         params: { page, limit },
       },
+    );
+    return response.data!;
+  },
+
+  /**
+   * Get discrepancy investigation context for an order
+   */
+  getInvestigation: async (id: string) => {
+    const response = await http.get<OrderInvestigationData>(
+      ENDPOINTS.ADMIN.ORDERS.INVESTIGATION(id),
     );
     return response.data!;
   },

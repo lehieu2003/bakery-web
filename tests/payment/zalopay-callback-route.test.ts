@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleZaloPayCallbackRequest } from '@/app/api/payment/zalopay/callback/route';
+import type { PaymentCallbackAuditPayload } from '@/lib/order-audit';
 
 type PaymentSnapshot = {
   orderId: string;
@@ -29,6 +30,7 @@ type TestDeps = {
     payload?: Record<string, unknown>;
   }) => Promise<unknown>;
   logEvent: (event: string, payload: Record<string, unknown>) => void;
+  writeCallbackAuditLog?: (payload: PaymentCallbackAuditPayload) => Promise<void>;
 };
 
 function createDeps() {
@@ -39,6 +41,7 @@ function createDeps() {
     transactionId: string | null;
   }> = [];
   const notificationEvents: Array<Record<string, unknown>> = [];
+  const callbackAuditEvents: PaymentCallbackAuditPayload[] = [];
 
   const deps: TestDeps = {
     verifyCallback: () => true,
@@ -61,21 +64,25 @@ function createDeps() {
     logEvent: (event, payload) => {
       logs.push({ event, payload });
     },
+    writeCallbackAuditLog: async (payload) => {
+      callbackAuditEvents.push(payload);
+    },
   };
 
-  return { deps, logs, transitions, notificationEvents };
+  return { deps, logs, transitions, notificationEvents, callbackAuditEvents };
 }
 
 test('ZaloPay callback rejects missing data/mac payload', async () => {
-  const { deps } = createDeps();
+  const { deps, callbackAuditEvents } = createDeps();
   const result = await handleZaloPayCallbackRequest({}, deps);
 
   assert.equal(result.status, 400);
   assert.equal(result.body.return_code, 0);
+  assert.equal(callbackAuditEvents[0]?.event, 'invalid_payload');
 });
 
 test('ZaloPay callback returns provider-compatible invalid MAC response', async () => {
-  const { deps } = createDeps();
+  const { deps, callbackAuditEvents } = createDeps();
   deps.verifyCallback = () => false;
 
   const result = await handleZaloPayCallbackRequest(
@@ -85,6 +92,7 @@ test('ZaloPay callback returns provider-compatible invalid MAC response', async 
 
   assert.equal(result.status, 200);
   assert.equal(result.body.return_code, -1);
+  assert.equal(callbackAuditEvents[0]?.event, 'verification_failed');
 });
 
 test('ZaloPay callback rejects malformed data json', async () => {
