@@ -16,6 +16,7 @@ import {
   FileText,
   Menu,
   Bell,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
@@ -52,6 +53,11 @@ const navItems: NavItem[] = [
     label: 'Orders',
     href: '/admin/orders',
     icon: <ShoppingCart size={16} />,
+  },
+  {
+    label: 'Audit Logs',
+    href: '/admin/audit',
+    icon: <ShieldCheck size={16} />,
   },
   {
     label: 'Banners',

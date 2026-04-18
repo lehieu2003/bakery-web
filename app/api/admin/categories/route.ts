@@ -3,6 +3,10 @@ import type { UserRole } from '@prisma/client';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type AdminUser = {
   id: string;
@@ -26,6 +30,24 @@ type CategoriesRouteDeps = {
   findCategoryBySlug: (slug: string) => Promise<{ id: string } | null>;
   findCategoryById: (id: string) => Promise<{ id: string; level: number } | null>;
   createCategory: (payload: CategoryPayload & { level: number }) => Promise<unknown>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 type HandlerResult = {
@@ -79,6 +101,7 @@ const defaultDeps: CategoriesRouteDeps = {
         _count: { select: { products: true } },
       },
     }),
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function normalizeCreatePayload(raw: unknown) {
@@ -161,7 +184,7 @@ export async function handleAdminCategoriesPostRequest(
   request: NextRequest,
   deps: CategoriesRouteDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const body = await request.json();
   const parsed = normalizeCreatePayload(body);
 
@@ -197,6 +220,32 @@ export async function handleAdminCategoriesPostRequest(
     parentId: parsed.payload.parentId ?? null,
     level: parsed.payload.parentId ? parentLevel + 1 : 1,
   });
+
+  const headers =
+    typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+      ? (request as unknown as { headers: Headers }).headers
+      : new Headers();
+  const method =
+    typeof (request as unknown as { method?: string }).method === 'string'
+      ? (request as unknown as { method: string }).method
+      : 'POST';
+
+  if (deps.writeAdminAudit && typeof category === 'object' && category !== null) {
+    const categoryId =
+      typeof (category as { id?: unknown }).id === 'string'
+        ? (category as { id: string }).id
+        : 'unknown';
+    await deps.writeAdminAudit({
+      module: 'catalog',
+      entity: 'category',
+      entityId: categoryId,
+      mutationType: 'CREATE',
+      summary: `Created category ${parsed.payload.name}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation({ headers, method }, '/api/admin/categories'),
+    });
+  }
 
   return {
     status: 200,

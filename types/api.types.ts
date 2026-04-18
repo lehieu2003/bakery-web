@@ -277,6 +277,34 @@ export interface OrderInvestigationData {
   auditTrail: OrderAuditLogEntry[];
 }
 
+export interface AdminActionAuditCorrelation {
+  requestId: string | null;
+  route: string | null;
+  httpMethod: string | null;
+  orderId: string | null;
+  paymentId: string | null;
+  transactionId: string | null;
+  attempt: number | null;
+}
+
+export interface AdminActionAuditEntry {
+  id: string;
+  module: string;
+  entity: string;
+  entityId: string;
+  summary: string;
+  mutationType: string;
+  actorUserId: string | null;
+  actorRole: UserRole | null;
+  actor: {
+    id: string;
+    name: string | null;
+    role: UserRole;
+  } | null;
+  correlation: AdminActionAuditCorrelation;
+  createdAt: string;
+}
+
 export interface Banner {
   id: string;
   title: string;
@@ -802,6 +830,15 @@ export interface AdminNotificationsQueryParams extends PaginationParams {
 
 export interface UserNotificationsQueryParams extends PaginationParams {
   unreadOnly?: boolean;
+}
+
+export interface AdminAuditQueryParams extends PaginationParams {
+  module?: string;
+  entity?: string;
+  actorUserId?: string;
+  mutationType?: string;
+  from?: string;
+  to?: string;
 }
 
 // Enum

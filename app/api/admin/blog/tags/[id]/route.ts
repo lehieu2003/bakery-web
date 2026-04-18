@@ -3,6 +3,10 @@ import type { UserRole } from '@prisma/client';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -33,6 +37,24 @@ type AdminBlogTagByIdDeps = {
   updateTagById: (id: string, payload: BlogTagUpdatePayload) => Promise<unknown>;
   deleteTagRelationsByTagId: (id: string) => Promise<void>;
   deleteTagById: (id: string) => Promise<void>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 const defaultDeps: AdminBlogTagByIdDeps = {
@@ -64,6 +86,7 @@ const defaultDeps: AdminBlogTagByIdDeps = {
   deleteTagById: async (id) => {
     await prisma.blogTag.delete({ where: { id } });
   },
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -113,7 +136,7 @@ export async function handleAdminBlogTagPutRequest(
   params: Promise<{ id: string }>,
   deps: AdminBlogTagByIdDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const existing = await deps.findTagById(id);
   if (!existing) {
@@ -133,14 +156,40 @@ export async function handleAdminBlogTagPutRequest(
   }
 
   const tag = await deps.updateTagById(id, parsed.payload);
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'PUT';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_tag',
+      entityId: id,
+      mutationType: 'UPDATE',
+      summary: `Updated blog tag ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/tags/[id]',
+      ),
+    });
+  }
+
   return { status: 200, body: { success: true, data: tag } };
 }
 
 export async function handleAdminBlogTagDeleteRequest(
+  request: NextRequest,
   params: Promise<{ id: string }>,
   deps: AdminBlogTagByIdDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const existing = await deps.findTagById(id);
   if (!existing) {
@@ -149,6 +198,30 @@ export async function handleAdminBlogTagDeleteRequest(
 
   await deps.deleteTagRelationsByTagId(id);
   await deps.deleteTagById(id);
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'DELETE';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_tag',
+      entityId: id,
+      mutationType: 'DELETE',
+      summary: `Deleted blog tag ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/tags/[id]',
+      ),
+    });
+  }
 
   return {
     status: 200,
@@ -194,7 +267,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 // DELETE /api/admin/blog/tags/[id]
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const result = await handleAdminBlogTagDeleteRequest(params);
+    const result = await handleAdminBlogTagDeleteRequest(_request, params);
     return NextResponse.json(result.body, { status: result.status });
   } catch (error: unknown) {
     console.error('Admin delete blog tag error:', error);

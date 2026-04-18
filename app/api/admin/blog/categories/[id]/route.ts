@@ -3,6 +3,10 @@ import type { UserRole } from '@prisma/client';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,6 +41,24 @@ type AdminBlogCategoryByIdDeps = {
   updateCategoryById: (id: string, payload: BlogCategoryUpdatePayload) => Promise<unknown>;
   countPostsByCategoryId: (id: string) => Promise<number>;
   deleteCategoryById: (id: string) => Promise<void>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 const defaultDeps: AdminBlogCategoryByIdDeps = {
@@ -66,6 +88,7 @@ const defaultDeps: AdminBlogCategoryByIdDeps = {
   deleteCategoryById: async (id) => {
     await prisma.blogCategory.delete({ where: { id } });
   },
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -149,7 +172,7 @@ export async function handleAdminBlogCategoryPutRequest(
   params: Promise<{ id: string }>,
   deps: AdminBlogCategoryByIdDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const existing = await deps.findCategoryById(id);
   if (!existing) {
@@ -169,14 +192,40 @@ export async function handleAdminBlogCategoryPutRequest(
   }
 
   const category = await deps.updateCategoryById(id, parsed.payload);
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'PUT';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_category',
+      entityId: id,
+      mutationType: 'UPDATE',
+      summary: `Updated blog category ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/categories/[id]',
+      ),
+    });
+  }
+
   return { status: 200, body: { success: true, data: category } };
 }
 
 export async function handleAdminBlogCategoryDeleteRequest(
+  request: NextRequest,
   params: Promise<{ id: string }>,
   deps: AdminBlogCategoryByIdDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const existing = await deps.findCategoryById(id);
   if (!existing) {
@@ -192,6 +241,31 @@ export async function handleAdminBlogCategoryDeleteRequest(
   }
 
   await deps.deleteCategoryById(id);
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'DELETE';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_category',
+      entityId: id,
+      mutationType: 'DELETE',
+      summary: `Deleted blog category ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/categories/[id]',
+      ),
+    });
+  }
+
   return {
     status: 200,
     body: { success: true, data: { message: 'Blog category deleted successfully' } },
@@ -233,7 +307,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 // DELETE /api/admin/blog/categories/[id]
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const result = await handleAdminBlogCategoryDeleteRequest(params);
+    const result = await handleAdminBlogCategoryDeleteRequest(_request, params);
     return NextResponse.json(result.body, { status: result.status });
   } catch (error: unknown) {
     console.error('Admin delete blog category error:', error);

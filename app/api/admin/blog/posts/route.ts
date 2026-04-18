@@ -3,6 +3,10 @@ import type { BlogPostStatus, UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type AdminUser = {
   id: string;
@@ -63,6 +67,24 @@ type AdminBlogPostsDeps = {
     adminId: string;
     payload: BlogPostCreatePayload;
   }) => Promise<BlogPostRow>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 const ALLOWED_STATUSES = new Set<BlogPostStatus>([
@@ -123,6 +145,7 @@ const defaultDeps: AdminBlogPostsDeps = {
       },
       include: includeFields,
     }),
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -355,6 +378,34 @@ export async function handleAdminBlogPostsPostRequest(
     adminId: admin.id,
     payload: parsed.payload,
   });
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'POST';
+    const postId =
+      typeof ((post as unknown) as { id?: unknown }).id === 'string'
+        ? ((post as unknown) as { id: string }).id
+        : 'unknown';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_post',
+      entityId: postId,
+      mutationType: 'CREATE',
+      summary: `Created blog post ${parsed.payload.title}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/posts',
+      ),
+    });
+  }
 
   return {
     status: 200,

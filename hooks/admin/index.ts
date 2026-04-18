@@ -72,3 +72,6 @@ export {
   useDeleteNotification,
   notificationKeys,
 } from './use-notifications';
+
+// Audit
+export { useAdminAuditLogs, adminAuditKeys } from './use-audit';

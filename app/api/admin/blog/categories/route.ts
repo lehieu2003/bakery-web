@@ -3,6 +3,10 @@ import type { UserRole } from '@prisma/client';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type AdminUser = {
   id: string;
@@ -32,6 +36,24 @@ type AdminBlogCategoriesDeps = {
   listCategories: () => Promise<unknown[]>;
   findCategoryBySlug: (slug: string) => Promise<{ id: string } | null>;
   createCategory: (payload: BlogCategoryPayload) => Promise<unknown>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 const defaultDeps: AdminBlogCategoriesDeps = {
@@ -51,6 +73,7 @@ const defaultDeps: AdminBlogCategoriesDeps = {
       data: payload,
       include: { _count: { select: { posts: true } } },
     }),
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -113,7 +136,7 @@ export async function handleAdminBlogCategoriesPostRequest(
   request: NextRequest,
   deps: AdminBlogCategoriesDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const parsed = parseCategoryPayload(await request.json());
   if ('error' in parsed) {
     return { status: 400, body: { success: false, error: parsed.error } };
@@ -125,6 +148,35 @@ export async function handleAdminBlogCategoriesPostRequest(
   }
 
   const category = await deps.createCategory(parsed.payload);
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'POST';
+    const categoryId =
+      typeof (category as { id?: unknown }).id === 'string'
+        ? (category as { id: string }).id
+        : 'unknown';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_category',
+      entityId: categoryId,
+      mutationType: 'CREATE',
+      summary: `Created blog category ${parsed.payload.name}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/categories',
+      ),
+    });
+  }
+
   return { status: 200, body: { success: true, data: category } };
 }
 

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type AdminUser = {
   id: string;
@@ -21,6 +25,24 @@ type BannersRouteDeps = {
   requireAdmin: () => Promise<AdminUser>;
   findBanners: (activeOnly: boolean) => Promise<unknown[]>;
   createBanner: (payload: BannerCreatePayload) => Promise<unknown>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 type HandlerResult = {
@@ -43,6 +65,7 @@ const defaultDeps: BannersRouteDeps = {
     prisma.banner.create({
       data: payload,
     }),
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -138,7 +161,7 @@ export async function handleAdminBannersPostRequest(
   request: NextRequest,
   deps: BannersRouteDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
 
   const parsed = parseBannerCreatePayload(await request.json());
   if ('error' in parsed) {
@@ -149,6 +172,32 @@ export async function handleAdminBannersPostRequest(
   }
 
   const banner = await deps.createBanner(parsed.payload);
+
+  const headers =
+    typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+      ? (request as unknown as { headers: Headers }).headers
+      : new Headers();
+  const method =
+    typeof (request as unknown as { method?: string }).method === 'string'
+      ? (request as unknown as { method: string }).method
+      : 'POST';
+  if (deps.writeAdminAudit && typeof banner === 'object' && banner !== null) {
+    const bannerId =
+      typeof (banner as { id?: unknown }).id === 'string'
+        ? (banner as { id: string }).id
+        : 'unknown';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'banner',
+      entityId: bannerId,
+      mutationType: 'CREATE',
+      summary: `Created banner ${parsed.payload.title}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation({ headers, method }, '/api/admin/banners'),
+    });
+  }
+
   return {
     status: 200,
     body: {

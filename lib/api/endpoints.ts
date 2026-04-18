@@ -27,6 +27,11 @@ export const ENDPOINTS = {
     // Dashboard
     DASHBOARD: `${ADMIN_BASE}/dashboard`,
 
+    // Audit
+    AUDIT: {
+      LIST: `${ADMIN_BASE}/audit`,
+    },
+
     // Products
     PRODUCTS: {
       LIST: `${ADMIN_BASE}/products`,

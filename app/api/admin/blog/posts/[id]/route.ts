@@ -3,6 +3,10 @@ import type { BlogPostStatus, UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -65,6 +69,24 @@ type AdminBlogPostByIdDeps = {
     tagIds?: string[];
   }) => Promise<BlogPostRow>;
   deletePostById: (id: string) => Promise<void>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 const ALLOWED_STATUSES = new Set<BlogPostStatus>([
@@ -137,6 +159,7 @@ const defaultDeps: AdminBlogPostByIdDeps = {
   deletePostById: async (id) => {
     await prisma.blogPost.delete({ where: { id } });
   },
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -297,7 +320,7 @@ export async function handleAdminBlogPostPutRequest(
   params: Promise<{ id: string }>,
   deps: AdminBlogPostByIdDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
 
   const existing = await deps.findPostById(id);
@@ -342,6 +365,31 @@ export async function handleAdminBlogPostPutRequest(
     payload: parsed.payload,
     tagIds: requestedTagIds,
   });
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'PUT';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_post',
+      entityId: id,
+      mutationType: 'UPDATE',
+      summary: `Updated blog post ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/posts/[id]',
+      ),
+    });
+  }
+
   return {
     status: 200,
     body: {
@@ -352,10 +400,11 @@ export async function handleAdminBlogPostPutRequest(
 }
 
 export async function handleAdminBlogPostDeleteRequest(
+  request: NextRequest,
   params: Promise<{ id: string }>,
   deps: AdminBlogPostByIdDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const existing = await deps.findPostById(id);
 
@@ -364,6 +413,30 @@ export async function handleAdminBlogPostDeleteRequest(
   }
 
   await deps.deletePostById(id);
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'DELETE';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_post',
+      entityId: id,
+      mutationType: 'DELETE',
+      summary: `Deleted blog post ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/posts/[id]',
+      ),
+    });
+  }
   return {
     status: 200,
     body: {
@@ -408,7 +481,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 // DELETE /api/admin/blog/posts/[id]
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const result = await handleAdminBlogPostDeleteRequest(params);
+    const result = await handleAdminBlogPostDeleteRequest(_request, params);
     return NextResponse.json(result.body, { status: result.status });
   } catch (error: unknown) {
     console.error('Admin delete blog post error:', error);

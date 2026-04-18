@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { BlogPostStatus, UserRole } from '@prisma/client';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,6 +22,24 @@ type AdminBlogPostStatusDeps = {
     status: BlogPostStatus;
     publishedAt: Date | null;
   }) => Promise<{ tags: Array<{ tag: unknown }>; [key: string]: unknown }>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 type HandlerResult = {
@@ -54,6 +76,7 @@ const defaultDeps: AdminBlogPostStatusDeps = {
       data: { status, publishedAt },
       include: includeFields,
     }),
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -67,7 +90,7 @@ export async function handleAdminBlogPostStatusPatchRequest(
   params: Promise<{ id: string }>,
   deps: AdminBlogPostStatusDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const body = await request.json();
   const statusRaw = (body as Record<string, unknown>).status;
@@ -88,6 +111,31 @@ export async function handleAdminBlogPostStatusPatchRequest(
       : null;
 
   const post = await deps.updatePostStatusById({ id, status, publishedAt });
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'PATCH';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'blog_post',
+      entityId: id,
+      mutationType: 'STATUS_UPDATE',
+      summary: `Updated blog post status to ${status}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/blog/posts/[id]/status',
+      ),
+    });
+  }
+
   return {
     status: 200,
     body: {

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
@@ -52,7 +56,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const { id } = await params;
     const body = (await request.json()) as Record<string, unknown>;
 
@@ -103,6 +107,20 @@ export async function PUT(
       },
     });
 
+    await writeAdminActionAuditLog({
+      module: 'content',
+      entity: 'page',
+      entityId: id,
+      mutationType: 'UPDATE',
+      summary: `Updated page ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers: request.headers, method: request.method },
+        '/api/admin/pages/[id]',
+      ),
+    });
+
     return NextResponse.json({
       success: true,
       data: page,
@@ -120,11 +138,11 @@ export async function PUT(
 
 // DELETE /api/admin/pages/[id]
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const { id } = await params;
 
     const existing = await prisma.page.findUnique({ where: { id } });
@@ -136,6 +154,20 @@ export async function DELETE(
     }
 
     await prisma.page.delete({ where: { id } });
+
+    await writeAdminActionAuditLog({
+      module: 'content',
+      entity: 'page',
+      entityId: id,
+      mutationType: 'DELETE',
+      summary: `Deleted page ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers: request.headers, method: request.method },
+        '/api/admin/pages/[id]',
+      ),
+    });
 
     return NextResponse.json({
       success: true,

@@ -4,6 +4,10 @@ import type { Prisma, UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 type AdminUser = {
   id: string;
@@ -47,6 +51,24 @@ type CategoryDetailDeps = {
   countCategoryChildren: (id: string) => Promise<number>;
   deleteCategory: (id: string) => Promise<void>;
   withTransaction: <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => Promise<T>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 type HandlerResult = {
@@ -126,6 +148,7 @@ const defaultDeps: CategoryDetailDeps = {
     await prisma.category.delete({ where: { id } });
   },
   withTransaction: (fn) => prisma.$transaction((tx) => fn(tx)),
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -273,7 +296,7 @@ export async function handleAdminCategoryUpdateRequest(
   params: Promise<{ id: string }>,
   deps: CategoryDetailDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const parsed = parseUpdatePayload(await request.json());
 
@@ -391,6 +414,30 @@ export async function handleAdminCategoryUpdateRequest(
     };
   }
 
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'PUT';
+    await deps.writeAdminAudit({
+      module: 'catalog',
+      entity: 'category',
+      entityId: id,
+      mutationType: 'UPDATE',
+      summary: `Updated category ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/categories/[id]',
+      ),
+    });
+  }
+
   return {
     status: 200,
     body: { success: true, data: { category: updatedCategory } },
@@ -398,10 +445,11 @@ export async function handleAdminCategoryUpdateRequest(
 }
 
 export async function handleAdminCategoryDeleteRequest(
+  request: NextRequest,
   params: Promise<{ id: string }>,
   deps: CategoryDetailDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
 
   const category = await deps.findCategoryNodeById(id);
@@ -438,6 +486,30 @@ export async function handleAdminCategoryDeleteRequest(
   }
 
   await deps.deleteCategory(id);
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'DELETE';
+    await deps.writeAdminAudit({
+      module: 'catalog',
+      entity: 'category',
+      entityId: id,
+      mutationType: 'DELETE',
+      summary: `Deleted category ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/categories/[id]',
+      ),
+    });
+  }
 
   return {
     status: 200,
@@ -487,7 +559,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const result = await handleAdminCategoryDeleteRequest(params);
+    const result = await handleAdminCategoryDeleteRequest(request, params);
     return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Delete category error:', error);

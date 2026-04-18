@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 import { slugify } from '@/lib/slug';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
@@ -40,7 +44,7 @@ export async function GET() {
 // POST /api/admin/pages - Create page
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
 
     const body = (await request.json()) as Record<string, unknown>;
     const title = typeof body.title === 'string' ? body.title : '';
@@ -78,6 +82,20 @@ export async function POST(request: NextRequest) {
         content,
         isPublished: body.isPublished ?? false,
       },
+    });
+
+    await writeAdminActionAuditLog({
+      module: 'content',
+      entity: 'page',
+      entityId: page.id,
+      mutationType: 'CREATE',
+      summary: `Created page ${title}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers: request.headers, method: request.method },
+        '/api/admin/pages',
+      ),
     });
 
     return NextResponse.json({

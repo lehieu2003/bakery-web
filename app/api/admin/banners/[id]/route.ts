@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
+import {
+  buildRequestCorrelation,
+  writeAdminActionAuditLog,
+} from '@/lib/admin-action-audit';
+
+type AdminUser = {
+  id: string;
+  role: UserRole;
+};
 
 type BannerByIdDeps = {
-  requireAdmin: typeof requireAdmin;
+  requireAdmin: () => Promise<AdminUser>;
   findBannerById: (id: string) => Promise<{
     id: string;
     title: string;
@@ -25,6 +35,24 @@ type BannerByIdDeps = {
     }>,
   ) => Promise<unknown>;
   deleteBannerById: (id: string) => Promise<void>;
+  writeAdminAudit?: (payload: {
+    module: string;
+    entity: string;
+    entityId: string;
+    mutationType: string;
+    summary: string;
+    actorUserId?: string | null;
+    actorRole?: UserRole | null;
+    correlation: {
+      requestId: string;
+      route: string;
+      httpMethod: string;
+      orderId?: string | null;
+      paymentId?: string | null;
+      transactionId?: string | null;
+      attempt?: number | null;
+    };
+  }) => Promise<void>;
 };
 
 type HandlerResult = {
@@ -59,6 +87,7 @@ const defaultDeps: BannerByIdDeps = {
   deleteBannerById: async (id) => {
     await prisma.banner.delete({ where: { id } });
   },
+  writeAdminAudit: writeAdminActionAuditLog,
 };
 
 function mapErrorToStatus(message: string) {
@@ -163,7 +192,7 @@ export async function handleAdminBannerUpdateRequest(
   params: Promise<{ id: string }>,
   deps: BannerByIdDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const existing = await deps.findBannerById(id);
 
@@ -183,6 +212,31 @@ export async function handleAdminBannerUpdateRequest(
   }
 
   const banner = await deps.updateBannerById(id, parsed.payload);
+
+  const headers =
+    typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+      ? (request as unknown as { headers: Headers }).headers
+      : new Headers();
+  const method =
+    typeof (request as unknown as { method?: string }).method === 'string'
+      ? (request as unknown as { method: string }).method
+      : 'PUT';
+  if (deps.writeAdminAudit) {
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'banner',
+      entityId: id,
+      mutationType: 'UPDATE',
+      summary: `Updated banner ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/banners/[id]',
+      ),
+    });
+  }
+
   return {
     status: 200,
     body: {
@@ -193,10 +247,11 @@ export async function handleAdminBannerUpdateRequest(
 }
 
 export async function handleAdminBannerDeleteRequest(
+  request: NextRequest,
   params: Promise<{ id: string }>,
   deps: BannerByIdDeps = defaultDeps,
 ): Promise<HandlerResult> {
-  await deps.requireAdmin();
+  const admin = await deps.requireAdmin();
   const { id } = await params;
   const existing = await deps.findBannerById(id);
 
@@ -208,6 +263,30 @@ export async function handleAdminBannerDeleteRequest(
   }
 
   await deps.deleteBannerById(id);
+
+  if (deps.writeAdminAudit) {
+    const headers =
+      typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'
+        ? (request as unknown as { headers: Headers }).headers
+        : new Headers();
+    const method =
+      typeof (request as unknown as { method?: string }).method === 'string'
+        ? (request as unknown as { method: string }).method
+        : 'DELETE';
+    await deps.writeAdminAudit({
+      module: 'content',
+      entity: 'banner',
+      entityId: id,
+      mutationType: 'DELETE',
+      summary: `Deleted banner ${id}`,
+      actorUserId: admin.id,
+      actorRole: admin.role,
+      correlation: buildRequestCorrelation(
+        { headers, method },
+        '/api/admin/banners/[id]',
+      ),
+    });
+  }
 
   return {
     status: 200,
@@ -260,7 +339,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const result = await handleAdminBannerDeleteRequest(params);
+    const result = await handleAdminBannerDeleteRequest(_request, params);
     return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Delete banner error:', error);
