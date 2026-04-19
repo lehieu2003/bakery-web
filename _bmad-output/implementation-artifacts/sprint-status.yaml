@@ -84,7 +84,7 @@ development_status:
   7-3-membership-and-store-settings-administration: done
   7-4-dashboard-metrics-and-kpi-views: done
   epic-7-retrospective: done
-  epic-8: in-progress
+  epic-8: done
   8-1-payment-and-order-discrepancy-investigation-workspace: done
   8-2-audit-trail-for-critical-admin-actions: done
   8-3-rbac-boundary-enforcement-at-api-surface: done
