@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { MemberLevel, Prisma, UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
-
 const MEMBER_LEVELS: MemberLevel[] = ['SILVER', 'GOLD', 'PLATINUM'];
 
 type Params = { params: Promise<{ id: string }> };
@@ -171,11 +171,6 @@ const defaultDeps: CustomerByIdDeps = {
     }) as Promise<CustomerDetailRow>,
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function toCustomerDetail(
   row: CustomerDetailRow,
@@ -444,7 +439,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     console.error('Get customer error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
@@ -460,10 +455,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     console.error('Update customer error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

@@ -4,6 +4,7 @@ import type { Prisma, UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { buildProductAttributeAssignmentRows } from '@/lib/product-attributes';
 import { writeProductAuditLogWithClient } from '@/lib/product-audit';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import { slugify } from '@/lib/slug';
 import type { CreateProductRequest } from '@/types/api.types';
@@ -362,12 +363,7 @@ export async function GET(request: NextRequest) {
     console.error('Admin products list error:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    const status =
-      errorMessage === 'Unauthorized'
-        ? 401
-        : errorMessage === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const status = mapAuthErrorToStatus(errorMessage);
     return NextResponse.json(
       { success: false, error: errorMessage || 'Đã có lỗi xảy ra' },
       { status },
@@ -550,12 +546,7 @@ export async function POST(request: NextRequest) {
 
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    const status =
-      errorMessage === 'Unauthorized'
-        ? 401
-        : errorMessage === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const status = mapAuthErrorToStatus(errorMessage);
     return NextResponse.json(
       { success: false, error: errorMessage || 'Đã có lỗi xảy ra' },
       { status },

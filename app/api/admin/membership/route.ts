@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { MemberLevel, UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import {
   DEFAULT_MEMBERSHIP_RULES,
@@ -125,11 +126,6 @@ const defaultDeps: MembershipDeps = {
   },
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function getCurrentMembershipKeys() {
   return [
@@ -374,7 +370,7 @@ export async function GET() {
   } catch (error: unknown) {
     console.error('Get membership config error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
@@ -390,10 +386,12 @@ export async function PUT(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Update membership config error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

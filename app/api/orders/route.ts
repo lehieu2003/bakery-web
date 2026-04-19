@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUserFromRequest } from '@/lib/session';
+import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 import { createMoMoPayment } from '@/lib/payment/momo';
 import { createZaloPayPayment } from '@/lib/payment/zalopay';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
@@ -412,7 +413,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
 };
 
 const getOrdersDeps: GetOrdersRouteDeps = {
-  getCurrentUser: getCurrentUserFromRequest,
+  getCurrentUser: requireUserFromRequest,
   findOrdersByUserId: async (userId) =>
     prisma.order.findMany({
       where: {
@@ -967,6 +968,14 @@ export async function handleGetOrdersRequest(
       },
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch orders';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return {
+        status,
+        body: { success: false, error: message },
+      };
+    }
     console.error('Get orders error:', error);
     return {
       status: 500,

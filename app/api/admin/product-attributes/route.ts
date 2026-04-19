@@ -3,6 +3,7 @@ import type { ProductAttributeType, UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
 import { slugifyProductAttribute } from '@/lib/product-attributes';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import type {
   CreateProductAttributeRequest,
@@ -124,11 +125,6 @@ const defaultDeps: ProductAttributesRouteDeps = {
     }),
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 export function normalizeAttributeValues(values: unknown): ParseError | ParseValuesSuccess {
   if (values === undefined) return { values: [] };
@@ -342,7 +338,7 @@ export async function GET() {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Đã có lỗi xảy ra' },
-      { status: mapErrorToStatus(message) },
+      { status: mapAuthErrorToStatus(message) },
     );
   }
 }
@@ -357,7 +353,9 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Đã có lỗi xảy ra' },
-      { status: mapErrorToStatus(message) },
+      { status: mapAuthErrorToStatus(message) },
     );
   }
 }
+
+

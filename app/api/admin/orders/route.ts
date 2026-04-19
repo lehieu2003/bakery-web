@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { Prisma, OrderStatus, UserRole } from '@prisma/client';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 
@@ -80,11 +81,6 @@ const defaultDeps: OrderListDeps = {
   countOrders: (where) => prisma.order.count({ where }),
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function normalizePositiveInt(value: string | null, fallback: number, max?: number) {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -170,10 +166,12 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Admin orders error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

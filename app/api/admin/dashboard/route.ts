@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OrderStatus, Prisma, UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
-
 const ALLOWED_WINDOW_DAYS = [7, 14, 30] as const;
 const DEFAULT_WINDOW_DAYS = 7;
 const DASHBOARD_REFRESH_SECONDS = 300;
@@ -71,11 +71,6 @@ type DashboardDeps = {
   >;
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function addUtcDays(date: Date, days: number) {
   const result = new Date(date);
@@ -368,7 +363,7 @@ export async function handleAdminDashboardGetRequest(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch dashboard data';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return {
       status,
       body: {
@@ -383,3 +378,5 @@ export async function GET(request: NextRequest) {
   const result = await handleAdminDashboardGetRequest(request);
   return NextResponse.json(result.body, { status: result.status });
 }
+
+

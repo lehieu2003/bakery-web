@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { releaseStaleCouponReservations } from '@/lib/incentives/redemption-lifecycle';
+import {
+  AuthError,
+  mapAuthErrorToStatus,
+  requireRequestToken,
+} from '@/lib/rbac';
 
 type ReconcileConfig = {
   token: string | null;
@@ -36,19 +41,6 @@ function parsePositiveInt(value: string | null | undefined): number | null {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed < 1) return null;
   return parsed;
-}
-
-function resolveToken(request: NextRequest): string | null {
-  const headerToken = request.headers.get('x-reconcile-token')?.trim();
-  if (headerToken) return headerToken;
-
-  const authHeader = request.headers.get('authorization')?.trim() ?? '';
-  if (authHeader.startsWith('Bearer ')) {
-    const bearer = authHeader.slice(7).trim();
-    return bearer || null;
-  }
-
-  return null;
 }
 
 async function parseBody(request: NextRequest): Promise<{
@@ -108,13 +100,30 @@ export async function handleIncentivesReconcileRequest(
     };
   }
 
-  const token = resolveToken(request);
-  if (!token || token !== config.token) {
+  try {
+    requireRequestToken(request, config.token, {
+      headerName: 'x-reconcile-token',
+      allowBearer: true,
+    });
+  } catch (error) {
+    const status = mapAuthErrorToStatus(error);
+    const fallbackMessage = status === 401 ? 'Unauthorized' : 'Forbidden';
+
+    if (error instanceof AuthError && error.code === 'TOKEN_NOT_CONFIGURED') {
+      return {
+        status: 503,
+        body: {
+          success: false,
+          error: 'Reconcile token is not configured',
+        },
+      };
+    }
+
     return {
-      status: 401,
+      status,
       body: {
         success: false,
-        error: 'Unauthorized',
+        error: fallbackMessage,
       },
     };
   }

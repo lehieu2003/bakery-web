@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
-
 type AdminUser = {
   id: string;
   role: UserRole;
@@ -123,11 +123,6 @@ type SafeAuditEntry = {
   createdAt: string;
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function normalizePage(value: string | null) {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -305,10 +300,12 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Admin audit list error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

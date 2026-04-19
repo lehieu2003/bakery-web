@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Prisma, UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import { slugify } from '@/lib/slug';
 import {
@@ -151,11 +152,6 @@ const defaultDeps: CategoryDetailDeps = {
   writeAdminAudit: writeAdminActionAuditLog,
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function parseUpdatePayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
@@ -532,7 +528,7 @@ export async function GET(
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Failed to fetch category' },
-      { status: mapErrorToStatus(message) },
+      { status: mapAuthErrorToStatus(message) },
     );
   }
 }
@@ -549,7 +545,7 @@ export async function PUT(
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Failed to update category' },
-      { status: mapErrorToStatus(message) },
+      { status: mapAuthErrorToStatus(message) },
     );
   }
 }
@@ -566,7 +562,9 @@ export async function DELETE(
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Failed to delete category' },
-      { status: mapErrorToStatus(message) },
+      { status: mapAuthErrorToStatus(message) },
     );
   }
 }
+
+

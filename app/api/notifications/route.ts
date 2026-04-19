@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUserFromRequest } from '@/lib/session';
+import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 
 type NotificationWithReads = {
   id: string;
@@ -29,7 +29,7 @@ type GetNotificationsDeps = {
 };
 
 const defaultDeps: GetNotificationsDeps = {
-  getCurrentUser: getCurrentUserFromRequest,
+  getCurrentUser: requireUserFromRequest,
   getNotifications: async ({ userId, unreadOnly, skip, take }) => {
     const where: Record<string, unknown> = {
       status: 'PUBLISHED',
@@ -74,63 +74,74 @@ export async function handleGetNotificationsRequest(
   request: NextRequest,
   deps: GetNotificationsDeps = defaultDeps,
 ) {
-  const user = await deps.getCurrentUser(request);
+  try {
+    const user = await deps.getCurrentUser(request);
+    if (!user) {
+      return {
+        status: 401,
+        body: { success: false, error: 'Unauthorized' },
+      };
+    }
 
-  if (!user) {
+    const { searchParams } = new URL(request.url);
+    const rawPage = Number.parseInt(searchParams.get('page') || '1', 10);
+    const rawLimit = Number.parseInt(searchParams.get('limit') || '20', 10);
+    const page = Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1;
+    const limit = Number.isFinite(rawLimit)
+      ? Math.min(50, Math.max(1, rawLimit))
+      : 20;
+    const unreadOnly = searchParams.get('unreadOnly') === 'true';
+    const skip = (page - 1) * limit;
+
+    const { notifications, total } = await deps.getNotifications({
+      userId: user.id,
+      unreadOnly,
+      skip,
+      take: limit,
+    });
+
     return {
-      status: 401,
-      body: { success: false, error: 'Unauthorized' },
-    };
-  }
-
-  const { searchParams } = new URL(request.url);
-  const rawPage = Number.parseInt(searchParams.get('page') || '1', 10);
-  const rawLimit = Number.parseInt(searchParams.get('limit') || '20', 10);
-  const page = Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1;
-  const limit = Number.isFinite(rawLimit)
-    ? Math.min(50, Math.max(1, rawLimit))
-    : 20;
-  const unreadOnly = searchParams.get('unreadOnly') === 'true';
-  const skip = (page - 1) * limit;
-
-  const { notifications, total } = await deps.getNotifications({
-    userId: user.id,
-    unreadOnly,
-    skip,
-    take: limit,
-  });
-
-  return {
-    status: 200,
-    body: {
-      success: true,
-      data: {
-        notifications: notifications.map((item) => {
-          const userRead = item.reads[0] || null;
-          return {
-            id: item.id,
-            title: item.title,
-            content: item.content,
-            imageUrl: item.imageUrl,
-            linkUrl: item.linkUrl,
-            status: item.status,
-            publishedAt: item.publishedAt,
-            createdById: item.createdById,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-            isRead: !!userRead,
-            readAt: userRead?.readAt || null,
-          };
-        }),
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+      status: 200,
+      body: {
+        success: true,
+        data: {
+          notifications: notifications.map((item) => {
+            const userRead = item.reads[0] || null;
+            return {
+              id: item.id,
+              title: item.title,
+              content: item.content,
+              imageUrl: item.imageUrl,
+              linkUrl: item.linkUrl,
+              status: item.status,
+              publishedAt: item.publishedAt,
+              createdById: item.createdById,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt,
+              isRead: !!userRead,
+              readAt: userRead?.readAt || null,
+            };
+          }),
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
         },
       },
-    },
-  };
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch notifications';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return {
+        status,
+        body: { success: false, error: message },
+      };
+    }
+    throw error;
+  }
 }
 
 // GET /api/notifications - Get current user's published notifications

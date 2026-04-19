@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { MemberLevel, Prisma, UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
-
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -100,11 +100,6 @@ const defaultDeps: CustomerListDeps = {
   },
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function normalizePositiveInt(value: string | null, fallback: number, max?: number) {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -213,10 +208,12 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Get customers error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

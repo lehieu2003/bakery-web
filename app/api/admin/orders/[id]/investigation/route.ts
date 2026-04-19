@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { OrderStatus, UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
-
 type Params = { params: Promise<{ id: string }> };
 
 type AdminUser = {
@@ -115,11 +115,6 @@ const defaultDeps: InvestigationDeps = {
     }),
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -249,7 +244,7 @@ export async function handleAdminOrderInvestigationGetRequest(
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return {
       status,
       body: {
@@ -267,10 +262,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     console.error('Admin order investigation error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

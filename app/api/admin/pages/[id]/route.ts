@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 import { slugify } from '@/lib/slug';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import {
   buildRequestCorrelation,
   writeAdminActionAuditLog,
@@ -9,12 +10,6 @@ import {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
-}
-
-function getErrorStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
 }
 
 // GET /api/admin/pages/[id]
@@ -42,7 +37,7 @@ export async function GET(
   } catch (error: unknown) {
     console.error('Get page error:', error);
     const message = getErrorMessage(error);
-    const status = getErrorStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: message },
       { status },
@@ -128,7 +123,7 @@ export async function PUT(
   } catch (error: unknown) {
     console.error('Update page error:', error);
     const message = getErrorMessage(error);
-    const status = getErrorStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: message },
       { status },
@@ -176,7 +171,7 @@ export async function DELETE(
   } catch (error: unknown) {
     console.error('Delete page error:', error);
     const message = getErrorMessage(error);
-    const status = getErrorStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: message },
       { status },

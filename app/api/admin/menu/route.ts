@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
-
 type MenuTargetType = 'LINK' | 'CATEGORY' | 'PAGE';
 type AdminUser = {
   id: string;
@@ -79,11 +79,6 @@ const defaultDeps: AdminMenuDeps = {
     }),
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function normalizeMenuPayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
@@ -231,7 +226,7 @@ export async function GET() {
   } catch (error: unknown) {
     console.error('Admin menu error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
@@ -247,10 +242,12 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Create menu item error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

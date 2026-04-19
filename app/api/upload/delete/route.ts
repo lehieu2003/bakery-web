@@ -1,50 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { deleteFromCloudinary } from '@/lib/cloudinary';
-import { getSession } from '@/lib/session';
+import {
+  mapAuthErrorToStatus,
+  requirePolicyFromRequest,
+  RBAC_POLICY_KEYS,
+} from '@/lib/rbac';
+
+type UploadDeleteDeps = {
+  requireUploader: (request: NextRequest) => Promise<unknown>;
+  deleteImage: typeof deleteFromCloudinary;
+};
+
+const defaultDeps: UploadDeleteDeps = {
+  requireUploader: (request) =>
+    requirePolicyFromRequest(request, RBAC_POLICY_KEYS.AUTHENTICATED_USER),
+  deleteImage: deleteFromCloudinary,
+};
+
+export async function handleUploadDeleteRequest(
+  request: NextRequest,
+  deps: UploadDeleteDeps = defaultDeps,
+) {
+  await deps.requireUploader(request);
+
+  const body = await request.json();
+  const { publicId } = body;
+
+  if (!publicId) {
+    return {
+      status: 400,
+      body: { success: false, error: 'Public ID is required' },
+    };
+  }
+
+  const result = await deps.deleteImage(publicId);
+  if (!result.success) {
+    return {
+      status: 500,
+      body: { success: false, error: result.error || 'Delete failed' },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      message: 'Image deleted successfully',
+    },
+  };
+}
+
+export async function handleUploadDeleteRouteRequest(
+  request: NextRequest,
+  deps: UploadDeleteDeps = defaultDeps,
+) {
+  try {
+    return await handleUploadDeleteRequest(request, deps);
+  } catch (error) {
+    const status = mapAuthErrorToStatus(error);
+    const message = error instanceof Error ? error.message : 'Delete failed';
+    if (status === 500) {
+      console.error('Delete API error:', error);
+    }
+
+    return {
+      status,
+      body: {
+        success: false,
+        error: status === 500 ? 'Delete failed' : message,
+      },
+    };
+  }
+}
 
 // DELETE /api/upload/delete - Delete an image from Cloudinary
 export async function DELETE(request: NextRequest) {
-  try {
-    // Check authentication
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
-
-    const body = await request.json();
-    const { publicId } = body;
-
-    if (!publicId) {
-      return NextResponse.json(
-        { success: false, error: 'Public ID is required' },
-        { status: 400 },
-      );
-    }
-
-    const result = await deleteFromCloudinary(publicId);
-
-    if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error || 'Delete failed' },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Image deleted successfully',
-    });
-  } catch (error) {
-    console.error('Delete API error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Delete failed',
-      },
-      { status: 500 },
-    );
-  }
+  const result = await handleUploadDeleteRouteRequest(request);
+  return NextResponse.json(result.body, { status: result.status });
 }

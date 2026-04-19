@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUserFromRequest } from '@/lib/session';
+import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 
 type ReorderUnavailableReason =
   | 'PRODUCT_UNAVAILABLE'
@@ -82,7 +82,7 @@ type PreparedOrderItem = {
 };
 
 const reorderDeps: ReorderRouteDeps = {
-  getCurrentUser: getCurrentUserFromRequest,
+  getCurrentUser: requireUserFromRequest,
   findOrderByIdForUser: (orderId, userId) =>
     prisma.order.findFirst({
       where: {
@@ -329,7 +329,24 @@ export async function handlePrepareReorderRequest(
     };
   }
 
-  const user = await deps.getCurrentUser(request);
+  let user: { id: string } | null = null;
+  try {
+    user = await deps.getCurrentUser(request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unauthorized';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return {
+        status,
+        body: {
+          success: false,
+          error: message,
+        },
+      };
+    }
+    throw error;
+  }
+
   if (!user) {
     return {
       status: 401,

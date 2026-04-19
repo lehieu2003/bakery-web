@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUserFromRequest } from '@/lib/session';
+import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 
 function getProductIdFromBody(body: unknown): string | null {
   if (!body || typeof body !== 'object') return null;
@@ -14,14 +14,7 @@ function getProductIdFromBody(body: unknown): string | null {
 // GET /api/wishlist - Get current user's favorite products
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUserFromRequest(request);
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
+    const user = await requireUserFromRequest(request);
 
     const wishlist = await prisma.wishlist.findMany({
       where: { userId: user.id },
@@ -48,6 +41,11 @@ export async function GET(request: NextRequest) {
       data: { wishlist },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch wishlist';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return NextResponse.json({ success: false, error: message }, { status });
+    }
     console.error('Get wishlist error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch wishlist' },
@@ -59,14 +57,7 @@ export async function GET(request: NextRequest) {
 // POST /api/wishlist - Add product to favorite list
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUserFromRequest(request);
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
+    const user = await requireUserFromRequest(request);
 
     const body = await request.json();
     const productId = getProductIdFromBody(body);
@@ -124,6 +115,11 @@ export async function POST(request: NextRequest) {
       data: { item, isFavorite: true },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to add product to wishlist';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return NextResponse.json({ success: false, error: message }, { status });
+    }
     console.error('Add wishlist error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to add product to wishlist' },
@@ -135,14 +131,7 @@ export async function POST(request: NextRequest) {
 // DELETE /api/wishlist - Remove product from favorite list
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await getCurrentUserFromRequest(request);
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
+    const user = await requireUserFromRequest(request);
 
     const body = await request.json();
     const productId = getProductIdFromBody(body);
@@ -166,6 +155,11 @@ export async function DELETE(request: NextRequest) {
       data: { productId, removed: true, isFavorite: false },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to remove product from wishlist';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return NextResponse.json({ success: false, error: message }, { status });
+    }
     console.error('Remove wishlist error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to remove product from wishlist' },

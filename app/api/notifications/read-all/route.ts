@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUserFromRequest } from '@/lib/session';
+import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 
 type MarkAllNotificationsReadDeps = {
   getCurrentUser: (
@@ -16,7 +16,7 @@ type MarkAllNotificationsReadDeps = {
 };
 
 const defaultDeps: MarkAllNotificationsReadDeps = {
-  getCurrentUser: getCurrentUserFromRequest,
+  getCurrentUser: requireUserFromRequest,
   findUnreadNotificationIds: ({ userId }) =>
     prisma.notification.findMany({
       where: {
@@ -45,40 +45,52 @@ export async function handleMarkAllNotificationsAsReadRequest(
   request: NextRequest,
   deps: MarkAllNotificationsReadDeps = defaultDeps,
 ) {
-  const user = await deps.getCurrentUser(request);
-  if (!user) {
-    return {
-      status: 401,
-      body: { success: false, error: 'Unauthorized' },
-    };
-  }
+  try {
+    const user = await deps.getCurrentUser(request);
+    if (!user) {
+      return {
+        status: 401,
+        body: { success: false, error: 'Unauthorized' },
+      };
+    }
 
-  const unreadNotifications = await deps.findUnreadNotificationIds({
-    userId: user.id,
-  });
+    const unreadNotifications = await deps.findUnreadNotificationIds({
+      userId: user.id,
+    });
 
-  if (unreadNotifications.length === 0) {
+    if (unreadNotifications.length === 0) {
+      return {
+        status: 200,
+        body: {
+          success: true,
+          data: { count: 0 },
+        },
+      };
+    }
+
+    const result = await deps.markAllAsRead({
+      userId: user.id,
+      notificationIds: unreadNotifications.map((item) => item.id),
+    });
+
     return {
       status: 200,
       body: {
         success: true,
-        data: { count: 0 },
+        data: { count: result.count },
       },
     };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to mark notifications as read';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return {
+        status,
+        body: { success: false, error: message },
+      };
+    }
+    throw error;
   }
-
-  const result = await deps.markAllAsRead({
-    userId: user.id,
-    notificationIds: unreadNotifications.map((item) => item.id),
-  });
-
-  return {
-    status: 200,
-    body: {
-      success: true,
-      data: { count: result.count },
-    },
-  };
 }
 
 // POST /api/notifications/read-all - Mark all published notifications as read

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
-
 type ReorderItem = { id: string; displayOrder: number };
 type AdminUser = {
   id: string;
@@ -43,11 +43,6 @@ const defaultDeps: BannersReorderDeps = {
   },
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function parseReorderPayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
@@ -137,7 +132,9 @@ export async function PATCH(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Failed to reorder banners' },
-      { status: mapErrorToStatus(message) },
+      { status: mapAuthErrorToStatus(message) },
     );
   }
 }
+
+

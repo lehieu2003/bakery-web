@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/slug';
@@ -154,11 +155,6 @@ function normalizeCreatePayload(raw: unknown) {
   } as const;
 }
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 export async function handleAdminCategoriesGetRequest(
   deps: CategoriesRouteDeps = defaultDeps,
@@ -266,7 +262,7 @@ export async function GET() {
       error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: errorMessage || 'Đã có lỗi xảy ra' },
-      { status: mapErrorToStatus(errorMessage) },
+      { status: mapAuthErrorToStatus(errorMessage) },
     );
   }
 }
@@ -282,7 +278,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { success: false, error: errorMessage || 'Đã có lỗi xảy ra' },
-      { status: mapErrorToStatus(errorMessage) },
+      { status: mapAuthErrorToStatus(errorMessage) },
     );
   }
 }
+
+

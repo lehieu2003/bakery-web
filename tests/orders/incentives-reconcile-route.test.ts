@@ -68,6 +68,19 @@ test('reconcile endpoint returns 401 when token is missing', async () => {
   assert.equal(result.status, 401);
   assert.equal(result.body.success, false);
   assert.equal(result.body.error, 'Unauthorized');
+  assert.equal('data' in result.body, false);
+});
+
+test('reconcile endpoint returns 403 when token is invalid', async () => {
+  const result = await handleIncentivesReconcileRequest(
+    createRequest({ headers: { 'x-reconcile-token': 'wrong-token' } }),
+    createDeps(),
+  );
+
+  assert.equal(result.status, 403);
+  assert.equal(result.body.success, false);
+  assert.equal(result.body.error, 'Forbidden');
+  assert.equal('data' in result.body, false);
 });
 
 test('reconcile endpoint accepts bearer token and query overrides', async () => {

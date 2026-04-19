@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { canUseAuthenticatedSession, isSessionExpired } from './auth/session-utils';
+import { hasPolicyAccess } from './authorization-policy';
 
 const SESSION_COOKIE_NAME = 'bakery_session';
 const SESSION_EXPIRY_DAYS = 30;
@@ -169,7 +170,7 @@ export async function requireAuth() {
 export async function requireAdmin() {
   const user = await requireAuth();
 
-  if (user.role !== 'ADMIN') {
+  if (!hasPolicyAccess(user.role, 'ADMIN_ONLY')) {
     throw new Error('Forbidden: Admin access required');
   }
 

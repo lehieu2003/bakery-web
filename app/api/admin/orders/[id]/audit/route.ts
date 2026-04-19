@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
-
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -124,11 +124,6 @@ export async function handleAdminOrderAuditGetRequest(
   };
 }
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 // GET /api/admin/orders/[id]/audit
 export async function GET(
@@ -141,10 +136,12 @@ export async function GET(
   } catch (error: unknown) {
     console.error('Admin order audit list error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

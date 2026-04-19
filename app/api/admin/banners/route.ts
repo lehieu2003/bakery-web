@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import {
   buildRequestCorrelation,
@@ -68,11 +69,6 @@ const defaultDeps: BannersRouteDeps = {
   writeAdminAudit: writeAdminActionAuditLog,
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function parseBannerCreatePayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
@@ -217,7 +213,7 @@ export async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Failed to fetch banners' },
-      { status: mapErrorToStatus(message) },
+      { status: mapAuthErrorToStatus(message) },
     );
   }
 }
@@ -232,7 +228,9 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: message || 'Failed to create banner' },
-      { status: mapErrorToStatus(message) },
+      { status: mapAuthErrorToStatus(message) },
     );
   }
 }
+
+

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { OrderStatus, UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
 import { writeOrderAuditLogWithClient } from '@/lib/order-audit';
@@ -171,11 +172,6 @@ const defaultDeps: OrderByIdDeps = {
     }),
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 type OptionalStringParseResult =
   | { kind: 'skipped' }
@@ -329,7 +325,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     console.error('Get order error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
@@ -345,10 +341,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     console.error('Update order error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

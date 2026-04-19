@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 
 const DEFAULT_PAGE = 1;
@@ -136,12 +137,7 @@ export async function GET(
     console.error('Admin product audit list error:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    const status =
-      errorMessage === 'Unauthorized'
-        ? 401
-        : errorMessage === 'Forbidden: Admin access required'
-          ? 403
-          : 500;
+    const status = mapAuthErrorToStatus(errorMessage);
     return NextResponse.json(
       { success: false, error: errorMessage || 'Đã có lỗi xảy ra' },
       { status },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/slug';
@@ -89,11 +90,6 @@ const defaultDeps: AdminBlogTagByIdDeps = {
   writeAdminAudit: writeAdminActionAuditLog,
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function parseTagUpdatePayload(raw: unknown, existingName: string) {
   if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
@@ -240,7 +236,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     console.error('Admin blog tag detail error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
@@ -256,7 +252,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     console.error('Admin update blog tag error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
@@ -272,10 +268,12 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     console.error('Admin delete blog tag error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+

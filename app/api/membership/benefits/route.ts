@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUserFromRequest } from '@/lib/session';
+import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 import {
   buildMembershipBenefitsView,
   getMembershipRulesConfig,
@@ -17,7 +17,7 @@ type MembershipBenefitsRouteDeps = {
 };
 
 const defaultDeps: MembershipBenefitsRouteDeps = {
-  getCurrentUser: getCurrentUserFromRequest,
+  getCurrentUser: requireUserFromRequest,
   getMembershipConfig: getMembershipRulesConfig,
 };
 
@@ -25,44 +25,56 @@ export async function handleGetMembershipBenefitsRequest(
   request: NextRequest,
   deps: MembershipBenefitsRouteDeps = defaultDeps,
 ) {
-  const user = await deps.getCurrentUser(request);
+  try {
+    const user = await deps.getCurrentUser(request);
 
-  if (!user) {
+    if (!user) {
+      return {
+        status: 401,
+        body: { success: false, error: 'Unauthorized' },
+      };
+    }
+
+    const config = await deps.getMembershipConfig();
+    const points = Number.isFinite(user.points) && (user.points ?? 0) > 0
+      ? Number(user.points)
+      : 0;
+
+    const benefits = buildMembershipBenefitsView({
+      config,
+      memberLevel: user.memberLevel,
+      points,
+    });
+
     return {
-      status: 401,
-      body: { success: false, error: 'Unauthorized' },
-    };
-  }
-
-  const config = await deps.getMembershipConfig();
-  const points = Number.isFinite(user.points) && (user.points ?? 0) > 0
-    ? Number(user.points)
-    : 0;
-
-  const benefits = buildMembershipBenefitsView({
-    config,
-    memberLevel: user.memberLevel,
-    points,
-  });
-
-  return {
-    status: 200,
-    body: {
-      success: true,
-      data: {
-        user: {
-          id: user.id,
-          memberLevel:
-            normalizeMembershipLevel(user.memberLevel) ?? benefits.currentTier.level,
-          points,
-        },
-        benefits: {
-          ...benefits,
-          pointsPerOrder: config.pointsPerOrder,
+      status: 200,
+      body: {
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            memberLevel:
+              normalizeMembershipLevel(user.memberLevel) ?? benefits.currentTier.level,
+            points,
+          },
+          benefits: {
+            ...benefits,
+            pointsPerOrder: config.pointsPerOrder,
+          },
         },
       },
-    },
-  };
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch membership benefits';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return {
+        status,
+        body: { success: false, error: message },
+      };
+    }
+    throw error;
+  }
 }
 
 export async function GET(request: NextRequest) {

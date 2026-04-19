@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUserFromRequest } from '@/lib/session';
+import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 
 type MarkNotificationReadDeps = {
   getCurrentUser: (
@@ -17,7 +17,7 @@ type MarkNotificationReadDeps = {
 };
 
 const defaultDeps: MarkNotificationReadDeps = {
-  getCurrentUser: getCurrentUserFromRequest,
+  getCurrentUser: requireUserFromRequest,
   findAccessibleNotification: ({ id, userId }) =>
     prisma.notification.findFirst({
       where: {
@@ -51,43 +51,55 @@ export async function handleMarkNotificationAsReadRequest(
   params: Promise<{ id: string }>,
   deps: MarkNotificationReadDeps = defaultDeps,
 ) {
-  const user = await deps.getCurrentUser(request);
-  if (!user) {
+  try {
+    const user = await deps.getCurrentUser(request);
+    if (!user) {
+      return {
+        status: 401,
+        body: { success: false, error: 'Unauthorized' },
+      };
+    }
+
+    const { id } = await params;
+
+    const notification = await deps.findAccessibleNotification({
+      id,
+      userId: user.id,
+    });
+
+    if (!notification) {
+      return {
+        status: 404,
+        body: { success: false, error: 'Notification not found' },
+      };
+    }
+
+    const read = await deps.upsertReadState({
+      notificationId: id,
+      userId: user.id,
+    });
+
     return {
-      status: 401,
-      body: { success: false, error: 'Unauthorized' },
-    };
-  }
-
-  const { id } = await params;
-
-  const notification = await deps.findAccessibleNotification({
-    id,
-    userId: user.id,
-  });
-
-  if (!notification) {
-    return {
-      status: 404,
-      body: { success: false, error: 'Notification not found' },
-    };
-  }
-
-  const read = await deps.upsertReadState({
-    notificationId: id,
-    userId: user.id,
-  });
-
-  return {
-    status: 200,
-    body: {
-      success: true,
-      data: {
-        notificationId: read.notificationId,
-        readAt: read.readAt,
+      status: 200,
+      body: {
+        success: true,
+        data: {
+          notificationId: read.notificationId,
+          readAt: read.readAt,
+        },
       },
-    },
-  };
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to mark notification as read';
+    const status = mapAuthErrorToStatus(message);
+    if (status !== 500) {
+      return {
+        status,
+        body: { success: false, error: message },
+      };
+    }
+    throw error;
+  }
 }
 
 // POST /api/notifications/[id]/read - Mark notification as read for current user

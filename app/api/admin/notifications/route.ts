@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { NotificationStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 
 const VALID_STATUSES: NotificationStatus[] = ['DRAFT', 'PUBLISHED', 'ARCHIVED'];
@@ -21,12 +22,7 @@ function parseDateValue(value: unknown): Date | null {
 
 function adminErrorResponse(error: unknown) {
   const message = error instanceof Error ? error.message : 'Đã có lỗi xảy ra';
-  const status =
-    message === 'Unauthorized'
-      ? 401
-      : message === 'Forbidden: Admin access required'
-        ? 403
-        : 500;
+  const status = mapAuthErrorToStatus(message);
 
   return NextResponse.json({ success: false, error: message }, { status });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import { writeSettingAuditLogWithClient } from '@/lib/setting-audit';
 
@@ -134,11 +135,6 @@ const defaultDeps: SettingsDeps = {
   },
 };
 
-function mapErrorToStatus(message: string) {
-  if (message === 'Unauthorized') return 401;
-  if (message === 'Forbidden: Admin access required') return 403;
-  return 500;
-}
 
 function normalizeInt(value: string, fallback: number, min = 0) {
   const parsed = Number.parseInt(value, 10);
@@ -524,7 +520,7 @@ export async function GET() {
   } catch (error: unknown) {
     console.error('Get settings error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
@@ -540,10 +536,12 @@ export async function PUT(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Update settings error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = mapErrorToStatus(message);
+    const status = mapAuthErrorToStatus(message);
     return NextResponse.json(
       { success: false, error: status === 500 ? 'Internal server error' : message },
       { status },
     );
   }
 }
+
+
