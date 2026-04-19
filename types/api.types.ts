@@ -28,6 +28,18 @@ export type ProductAttributeType =
   | 'NUMBER'
   | 'BOOLEAN';
 
+export type ApiSuccessResponse<T> = {
+  success: true;
+  data: T;
+};
+
+export type ApiErrorResponse = {
+  success: false;
+  error: string;
+};
+
+export type ApiResponseEnvelope<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+
 // ============================================================================
 // Base Models
 // ============================================================================

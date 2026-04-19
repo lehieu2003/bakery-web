@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError, apiSuccess, toApiJson } from '@/lib/api-response';
 import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 
 type NotificationWithReads = {
@@ -79,7 +80,7 @@ export async function handleGetNotificationsRequest(
     if (!user) {
       return {
         status: 401,
-        body: { success: false, error: 'Unauthorized' },
+        body: apiError('Unauthorized'),
       };
     }
 
@@ -103,8 +104,7 @@ export async function handleGetNotificationsRequest(
     return {
       status: 200,
       body: {
-        success: true,
-        data: {
+        ...apiSuccess({
           notifications: notifications.map((item) => {
             const userRead = item.reads[0] || null;
             return {
@@ -128,7 +128,7 @@ export async function handleGetNotificationsRequest(
             total,
             totalPages: Math.ceil(total / limit),
           },
-        },
+        }),
       },
     };
   } catch (error) {
@@ -137,7 +137,7 @@ export async function handleGetNotificationsRequest(
     if (status !== 500) {
       return {
         status,
-        body: { success: false, error: message },
+        body: apiError(message),
       };
     }
     throw error;
@@ -148,12 +148,9 @@ export async function handleGetNotificationsRequest(
 export async function GET(request: NextRequest) {
   try {
     const result = await handleGetNotificationsRequest(request, defaultDeps);
-    return NextResponse.json(result.body, { status: result.status });
+    return toApiJson(result.body, result.status);
   } catch (error) {
     console.error('Get notifications error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch notifications' },
-      { status: 500 },
-    );
+    return toApiJson(apiError('Failed to fetch notifications'), 500);
   }
 }

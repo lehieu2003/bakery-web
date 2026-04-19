@@ -23,7 +23,10 @@ export const auditService = {
         params: params as Record<string, string | number | boolean | undefined>,
       },
     );
-    return response.data!;
+    if (!response.success) {
+      throw new Error(response.error || 'Failed to fetch audit logs');
+    }
+    return response.data;
   },
 };
 

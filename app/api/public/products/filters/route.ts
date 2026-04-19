@@ -76,8 +76,7 @@ export async function GET(request: NextRequest) {
           }))
           .filter((value) => value.productCount > 0)
           .map((value) => {
-            const sanitizedValue = { ...value };
-            delete sanitizedValue.assignments;
+            const { assignments: _assignments, ...sanitizedValue } = value;
             return sanitizedValue;
           }),
       }))

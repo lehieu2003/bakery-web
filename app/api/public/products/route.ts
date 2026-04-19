@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { apiError, apiSuccess, toApiJson } from '@/lib/api-response';
 import {
   buildProductAttributeWhere,
   parseAttributeFilters,
@@ -130,9 +131,7 @@ export async function handleGetPublicProductsRequest(
 
   return {
     status: 200,
-    body: {
-      success: true,
-      data: {
+    body: apiSuccess({
         products,
         pagination: {
           page,
@@ -140,8 +139,7 @@ export async function handleGetPublicProductsRequest(
           total,
           totalPages: Math.ceil(total / limit),
         },
-      },
-    },
+      }),
   };
 }
 
@@ -149,12 +147,9 @@ export async function handleGetPublicProductsRequest(
 export async function GET(request: NextRequest) {
   try {
     const result = await handleGetPublicProductsRequest(request.url);
-    return NextResponse.json(result.body, { status: result.status });
+    return toApiJson(result.body, result.status);
   } catch (error) {
     console.error('Get public products error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch products' },
-      { status: 500 },
-    );
+    return toApiJson(apiError('Failed to fetch products'), 500);
   }
 }

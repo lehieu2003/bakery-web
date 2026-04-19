@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import type { UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { apiError, apiSuccess, toApiJson } from '@/lib/api-response';
 import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
+import type { ApiResponseEnvelope } from '@/types/api.types';
 type AdminUser = {
   id: string;
   role: UserRole;
@@ -38,11 +40,7 @@ type AuditListDeps = {
 
 type AuditListResult = {
   status: number;
-  body: {
-    success: boolean;
-    data?: unknown;
-    error?: string;
-  };
+  body: ApiResponseEnvelope<unknown>;
 };
 
 const DEFAULT_PAGE = 1;
@@ -240,7 +238,7 @@ export async function handleAdminAuditListGetRequest(
   if ('error' in parsed) {
     return {
       status: 400,
-      body: { success: false, error: parsed.error },
+      body: apiError(parsed.error ?? 'Invalid query parameters'),
     };
   }
   const query = parsed.value;
@@ -279,8 +277,7 @@ export async function handleAdminAuditListGetRequest(
   return {
     status: 200,
     body: {
-      success: true,
-      data: {
+      ...apiSuccess({
         logs,
         pagination: {
           page: query.page,
@@ -288,7 +285,7 @@ export async function handleAdminAuditListGetRequest(
           total,
           totalPages: Math.ceil(total / query.limit),
         },
-      },
+      }),
     },
   };
 }
@@ -296,14 +293,14 @@ export async function handleAdminAuditListGetRequest(
 export async function GET(request: NextRequest) {
   try {
     const result = await handleAdminAuditListGetRequest(request);
-    return NextResponse.json(result.body, { status: result.status });
+    return toApiJson(result.body, result.status);
   } catch (error: unknown) {
     console.error('Admin audit list error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     const status = mapAuthErrorToStatus(message);
-    return NextResponse.json(
-      { success: false, error: status === 500 ? 'Internal server error' : message },
-      { status },
+    return toApiJson(
+      apiError(status === 500 ? 'Internal server error' : message),
+      status,
     );
   }
 }
