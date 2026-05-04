@@ -153,34 +153,42 @@ FR40: Epic 8 - Consistent API response contracts.
 ## Epic List
 
 ### Epic 1: Account & Membership Foundation
+
 Users can register, authenticate, manage profile, and see membership status to unlock personalized experiences.
 **FRs covered:** FR1, FR2, FR3, FR4, FR5
 
 ### Epic 2: Product Discovery & Content Browsing
+
 Visitors can discover products and supporting content through category, search, filters, recommendations, featured sets, and CMS/blog pages.
 **FRs covered:** FR6, FR7, FR8, FR9, FR10, FR11, FR23, FR24
 
 ### Epic 3: Cart, Checkout & Order Lifecycle
+
 Customers can build cart, place orders, pay, receive confirmation, and track order progression with payment integrity handling.
 **FRs covered:** FR12, FR13, FR14, FR15, FR16, FR17, FR18
 
 ### Epic 4: Loyalty, Incentives & Reorder
+
 Returning customers can apply member benefits, receive personalized suggestions, and reorder faster.
 **FRs covered:** FR19, FR20, FR21, FR22
 
 ### Epic 5: Customer Notifications & Read State
+
 Users receive relevant notifications and can manage read status.
 **FRs covered:** FR25, FR26
 
 ### Epic 6: Admin Catalog & Content Management
+
 Admin can manage products, categories, banners, pages, blog, and product attributes for storefront operations.
 **FRs covered:** FR27, FR28, FR29, FR30, FR31, FR32
 
 ### Epic 7: Admin Operations & Business Visibility
+
 Admin can manage order lifecycle, customer operational views, membership/store settings, and business dashboards.
 **FRs covered:** FR33, FR34, FR35, FR36
 
 ### Epic 8: Support, Governance & API Reliability
+
 Support/admin can investigate discrepancies, maintain audit visibility, enforce RBAC boundaries, and keep API contracts consistent.
 **FRs covered:** FR37, FR38, FR39, FR40
 
@@ -606,3 +614,45 @@ So that client behavior remains predictable across releases.
 **Then** payloads follow the `success/data/error` contract with version-safe schema evolution
 **And** compatibility checks exist for planned MVP and post-MVP changes.
 
+## Epic 9: Transactional Push Notification (Firebase MVP)
+
+Deliver Firebase-powered transactional push notifications for critical order/payment events with resilient token management and operational safety controls.
+
+### Story 9.1: Device Token Registry and Schema
+
+As an authenticated customer,
+I want my device push token registered and revocable,
+So that the system can target my active devices reliably.
+
+**Acceptance Criteria:**
+
+**Given** I am an authenticated user on a supported client
+**When** I register a device token
+**Then** the system stores or updates token metadata idempotently per user/device
+**And** revocation removes or deactivates only the targeted token without affecting others.
+
+### Story 9.2: Transactional Firebase Push Dispatch
+
+As the platform,
+I want to dispatch transactional push notifications for order/payment events,
+So that customers receive timely, device-level updates.
+
+**Acceptance Criteria:**
+
+**Given** a supported transactional event occurs
+**When** dispatch is triggered
+**Then** Firebase FCM is called for all active tokens of the target user
+**And** duplicate event delivery is prevented by idempotency controls.
+
+### Story 9.3: Push Reliability, Logs, and QA Gate
+
+As an operations and QA stakeholder,
+I want push delivery attempts fully logged and validated,
+So that release risk is controlled and failures are diagnosable.
+
+**Acceptance Criteria:**
+
+**Given** push delivery attempts are processed
+**When** success, partial failure, or provider errors occur
+**Then** attempt outcomes are persisted with actionable diagnostics
+**And** release gates include automated tests and staging smoke validation for multi-device and replay scenarios.

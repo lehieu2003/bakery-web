@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-04 13:43:39+07:00
-last_updated: 2026-04-19 09:57:47+07:00
+last_updated: 2026-05-04 19:30:00+07:00
 project: bakery-web
 project_key: NOKEY
 tracking_system: file-system
@@ -90,9 +90,8 @@ development_status:
   8-3-rbac-boundary-enforcement-at-api-surface: done
   8-4-api-contract-consistency-and-version-safety: done
   epic-8-retrospective: done
-
-
-
-
-
-
+  epic-9: in-progress
+  9-1-device-token-registry-and-schema: review
+  9-2-transactional-firebase-push-dispatch: backlog
+  9-3-push-reliability-logs-and-qa-gate: backlog
+  epic-9-retrospective: optional
