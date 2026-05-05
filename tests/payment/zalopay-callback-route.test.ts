@@ -138,6 +138,10 @@ test('ZaloPay callback applies PAID transition on success status', async () => {
   assert.equal(notificationEvents.length, 1);
   assert.equal(notificationEvents[0].eventType, 'ORDER_STATUS_CHANGED');
   assert.equal(notificationEvents[0].entityId, 'order-1');
+  assert.equal(
+    (notificationEvents[0].payload as Record<string, unknown>).linkUrl,
+    'http://localhost:3000/orders',
+  );
 });
 
 test('ZaloPay callback applies FAILED transition on explicit failed status', async () => {

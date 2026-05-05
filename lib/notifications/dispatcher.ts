@@ -1,6 +1,7 @@
 import { Prisma, type NotificationDispatchStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { emailService } from '@/lib/email';
+import { sendTransactionalPushNotification } from '@/lib/notifications/firebase';
 
 export type NotificationEventType =
   | 'ORDER_STATUS_CHANGED'
@@ -55,6 +56,38 @@ type NotificationDispatchDeps = {
     subject: string;
     html: string;
   }) => Promise<boolean>;
+  isPushEnabled: () => boolean;
+  findActiveDeviceTokens: (userId: string) => Promise<string[]>;
+  sendPush: (args: {
+    tokens: string[];
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+    linkUrl?: string | null;
+  }) => Promise<{
+    attempted: number;
+    successCount: number;
+    failureCount: number;
+    successfulTokens: string[];
+    permanentFailureTokens: string[];
+    retryableFailureTokens: string[];
+  }>;
+  deactivateDeviceTokens: (tokens: string[], now: Date) => Promise<void>;
+  createPushLogs: (args: {
+    userId: string | null;
+    eventType: string;
+    correlationKey: string;
+    orderId: string | null;
+    transactionId: string | null;
+    attempt: string | null;
+    providerResponseClass: 'SUCCESS' | 'PARTIAL_FAILURE' | 'TOTAL_FAILURE' | 'SKIPPED';
+    retryable: boolean;
+    successfulTokens: string[];
+    permanentFailureTokens: string[];
+    retryableFailureTokens: string[];
+    attemptedAt: Date;
+    errorSummary: string | null;
+  }) => Promise<void>;
 };
 
 type DispatchOptions = {
@@ -178,6 +211,29 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function isRetryablePushError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  if (
+    message.includes('credentials are missing') ||
+    message.includes('invalid-registration-token') ||
+    message.includes('registration-token-not-registered')
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function classifyPushProviderResponse(args: {
+  attempted: number;
+  successCount: number;
+  failureCount: number;
+}): 'SUCCESS' | 'PARTIAL_FAILURE' | 'TOTAL_FAILURE' | 'SKIPPED' {
+  if (args.attempted === 0) return 'SKIPPED';
+  if (args.failureCount === 0) return 'SUCCESS';
+  if (args.successCount > 0) return 'PARTIAL_FAILURE';
+  return 'TOTAL_FAILURE';
+}
+
 const defaultDeps: NotificationDispatchDeps = {
   now: () => new Date(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -253,6 +309,127 @@ const defaultDeps: NotificationDispatchDeps = {
     });
   },
   sendEmail: (args) => emailService.send(args.to, args.subject, args.html),
+  isPushEnabled: () => process.env.PUSH_TX_ENABLED === 'true',
+  findActiveDeviceTokens: async (userId) => {
+    const records = await prisma.deviceToken.findMany({
+      where: { userId, isActive: true },
+      select: { token: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return records.map((record) => record.token);
+  },
+  sendPush: sendTransactionalPushNotification,
+  deactivateDeviceTokens: async (tokens, now) => {
+    if (tokens.length === 0) return;
+    await prisma.deviceToken.updateMany({
+      where: { token: { in: tokens }, isActive: true },
+      data: {
+        isActive: false,
+        deactivatedAt: now,
+      },
+    });
+  },
+  createPushLogs: async ({
+    userId,
+    eventType,
+    correlationKey,
+    orderId,
+    transactionId,
+    attempt,
+    providerResponseClass,
+    retryable,
+    successfulTokens,
+    permanentFailureTokens,
+    retryableFailureTokens,
+    attemptedAt,
+    errorSummary,
+  }) => {
+    const rows: Array<{
+      userId: string | null;
+      token: string | null;
+      eventType: string;
+      correlationKey: string;
+      status: string;
+      error: string | null;
+      metadata: Record<string, string | null>;
+    }> = [
+      ...successfulTokens.map((token) => ({
+        userId,
+        token,
+        eventType,
+        correlationKey,
+        status: 'SUCCESS',
+        error: null,
+        metadata: {
+          failureType: null,
+          providerResponseClass,
+          retryable: String(retryable),
+          orderId,
+          transactionId,
+          attempt,
+          loggedAt: attemptedAt.toISOString(),
+        },
+      })),
+      ...permanentFailureTokens.map((token) => ({
+        userId,
+        token,
+        eventType,
+        correlationKey,
+        status: 'FAILED',
+        error: 'permanent_token_error',
+        metadata: {
+          failureType: 'permanent',
+          providerResponseClass,
+          retryable: 'false',
+          orderId,
+          transactionId,
+          attempt,
+          loggedAt: attemptedAt.toISOString(),
+        },
+      })),
+      ...retryableFailureTokens.map((token) => ({
+        userId,
+        token,
+        eventType,
+        correlationKey,
+        status: 'FAILED',
+        error: 'retryable_provider_error',
+        metadata: {
+          failureType: 'retryable',
+          providerResponseClass,
+          retryable: 'true',
+          orderId,
+          transactionId,
+          attempt,
+          loggedAt: attemptedAt.toISOString(),
+        },
+      })),
+    ];
+
+    if (rows.length === 0 && errorSummary) {
+      rows.push({
+        userId,
+        token: null,
+        eventType,
+        correlationKey,
+        status: 'FAILED',
+        error: errorSummary,
+        metadata: {
+          failureType: 'dispatch_setup',
+          providerResponseClass,
+          retryable: String(retryable),
+          orderId,
+          transactionId,
+          attempt,
+          loggedAt: attemptedAt.toISOString(),
+        },
+      });
+    }
+
+    if (rows.length > 0) {
+      await prisma.pushNotificationLog.createMany({ data: rows });
+    }
+  },
 };
 
 export async function processNotificationDispatch(
@@ -287,6 +464,16 @@ export async function processNotificationDispatch(
   let emailDelivered = false;
   let emailError: string | null = null;
   let inAppDelivered = false;
+  let pushDelivered = false;
+  let pushError: string | null = null;
+  let pushAttemptedTokens: string[] = [];
+  let pushSuccessfulTokens: string[] = [];
+  let pushPermanentFailureTokens: string[] = [];
+  let pushRetryableFailureTokens: string[] = [];
+  let pushRequested = false;
+  let pushProviderResponseClass: 'SUCCESS' | 'PARTIAL_FAILURE' | 'TOTAL_FAILURE' | 'SKIPPED' =
+    'SKIPPED';
+  let pushRetryable = false;
 
   try {
     if (shouldUseExistingCampaignNotification) {
@@ -350,17 +537,68 @@ export async function processNotificationDispatch(
       }
     }
 
+    pushRequested =
+      deps.isPushEnabled() &&
+      event.eventType === 'ORDER_STATUS_CHANGED' &&
+      !!event.targetUserId;
+    if (pushRequested && event.targetUserId) {
+      try {
+        const tokens = await deps.findActiveDeviceTokens(event.targetUserId);
+        pushAttemptedTokens = tokens;
+        if (tokens.length > 0) {
+          const result = await deps.sendPush({
+            tokens,
+            title: message.title,
+            body: message.content,
+            linkUrl: message.linkUrl,
+            data: {
+              eventType: event.eventType,
+              entityId: event.entityId,
+              correlationKey: event.correlationKey,
+            },
+          });
+          pushSuccessfulTokens = result.successfulTokens;
+          pushPermanentFailureTokens = result.permanentFailureTokens;
+          pushRetryableFailureTokens = result.retryableFailureTokens;
+          pushProviderResponseClass = classifyPushProviderResponse({
+            attempted: result.attempted,
+            successCount: result.successCount,
+            failureCount: result.failureCount,
+          });
+          pushRetryable =
+            result.retryableFailureTokens.length > 0;
+
+          if (pushPermanentFailureTokens.length > 0) {
+            await deps.deactivateDeviceTokens(pushPermanentFailureTokens, deps.now());
+          }
+          pushDelivered = result.failureCount === 0 || result.successCount > 0;
+          if (!pushDelivered) {
+            pushError = 'push_delivery_failed';
+          }
+        } else {
+          pushDelivered = true;
+          pushProviderResponseClass = 'SKIPPED';
+        }
+      } catch (error) {
+        pushError = getErrorMessage(error);
+        pushProviderResponseClass = 'TOTAL_FAILURE';
+        pushRetryable = isRetryablePushError(error);
+      }
+    } else {
+      pushDelivered = true;
+    }
+
     const deliveredInApp = inAppRequested ? inAppDelivered : true;
     const deliveredEmail = emailRequested ? emailDelivered : true;
-    const delivered = deliveredInApp && deliveredEmail;
+    const delivered = deliveredInApp && deliveredEmail && pushDelivered;
     const channel =
-      createdNotificationId && emailDelivered
-        ? 'IN_APP+EMAIL'
-        : createdNotificationId || inAppDelivered
-          ? 'IN_APP'
-        : emailDelivered
-            ? 'EMAIL'
-            : null;
+      [
+        createdNotificationId || inAppDelivered ? 'IN_APP' : null,
+        emailDelivered ? 'EMAIL' : null,
+        pushAttemptedTokens.length > 0 && pushDelivered ? 'PUSH' : null,
+      ]
+        .filter(Boolean)
+        .join('+') || null;
     const failureReasons: string[] = [];
     if (!deliveredInApp) {
       failureReasons.push('in_app_delivery_failed');
@@ -368,8 +606,34 @@ export async function processNotificationDispatch(
     if (!deliveredEmail) {
       failureReasons.push(emailError ?? 'email_delivery_failed');
     }
+    if (!pushDelivered) {
+      failureReasons.push(pushError ?? 'push_delivery_failed');
+    }
     const errorValue =
       failureReasons.length > 0 ? failureReasons.join(';') : null;
+
+    if (pushRequested && (pushAttemptedTokens.length > 0 || pushError || pushProviderResponseClass === 'SKIPPED')) {
+      await deps.createPushLogs({
+        userId: event.targetUserId ?? null,
+        eventType: event.eventType,
+        correlationKey: event.correlationKey,
+        orderId:
+          typeof event.payload?.orderId === 'string' ? event.payload.orderId : null,
+        transactionId:
+          typeof event.payload?.transactionId === 'string'
+            ? event.payload.transactionId
+            : null,
+        attempt:
+          typeof event.payload?.attempt === 'string' ? event.payload.attempt : null,
+        providerResponseClass: pushProviderResponseClass,
+        retryable: pushRetryable,
+        successfulTokens: pushSuccessfulTokens,
+        permanentFailureTokens: pushPermanentFailureTokens,
+        retryableFailureTokens: pushRetryableFailureTokens,
+        attemptedAt: deps.now(),
+        errorSummary: pushError,
+      });
+    }
 
     await deps.finalizeDispatch(event.correlationKey, {
       status: delivered ? 'SUCCESS' : 'FAILED',
@@ -385,7 +649,7 @@ export async function processNotificationDispatch(
         correlationKey: event.correlationKey,
         eventType: event.eventType,
         entityId: event.entityId,
-        error: emailError ?? 'no_delivery_channel_succeeded',
+        error: emailError ?? pushError ?? 'no_delivery_channel_succeeded',
       });
     } else {
       deps.logEvent('notification.dispatch.processed', {

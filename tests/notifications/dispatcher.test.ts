@@ -16,11 +16,30 @@ function createFakeDeps(args?: {
   failEmailAttempts?: number;
   neverDeliverEmail?: boolean;
   noCreator?: boolean;
+  pushEnabled?: boolean;
+  pushTokens?: string[];
+  pushFailureMode?: 'all-fail' | 'partial';
 }) {
   const logs: Array<{ event: string; payload: Record<string, unknown> }> = [];
   const dispatches = new Map<string, FakeDispatchRecord>();
   const notifications: Array<{ id: string; title: string; content: string }> = [];
   const emailCalls: Array<{ to: string; subject: string; html: string }> = [];
+  const pushCalls: Array<{ tokens: string[]; title: string; body: string }> = [];
+  const deactivatedTokens: Array<{ tokens: string[]; at: Date }> = [];
+  const pushLogs: Array<{
+    userId: string | null;
+    eventType: string;
+    correlationKey: string;
+    orderId: string | null;
+    transactionId: string | null;
+    attempt: string | null;
+    providerResponseClass: string;
+    retryable: boolean;
+    successfulTokens: string[];
+    permanentFailureTokens: string[];
+    retryableFailureTokens: string[];
+    errorSummary: string | null;
+  }> = [];
   let notifId = 0;
 
   return {
@@ -95,8 +114,67 @@ function createFakeDeps(args?: {
         const failAttempts = args?.failEmailAttempts ?? 0;
         return emailCalls.length > failAttempts;
       },
+      isPushEnabled: () => args?.pushEnabled === true,
+      findActiveDeviceTokens: async () => args?.pushTokens ?? [],
+      sendPush: async (input: {
+        tokens: string[];
+        title: string;
+        body: string;
+      }) => {
+        pushCalls.push(input);
+        if (args?.pushFailureMode === 'all-fail') {
+          return {
+            attempted: input.tokens.length,
+            successCount: 0,
+            failureCount: input.tokens.length,
+            successfulTokens: [],
+            permanentFailureTokens: input.tokens,
+            retryableFailureTokens: [],
+          };
+        }
+        if (args?.pushFailureMode === 'partial') {
+          return {
+            attempted: input.tokens.length,
+            successCount: 1,
+            failureCount: Math.max(0, input.tokens.length - 1),
+            successfulTokens: input.tokens.slice(0, 1),
+            permanentFailureTokens: input.tokens.slice(1, 2),
+            retryableFailureTokens: input.tokens.slice(2),
+          };
+        }
+        return {
+          attempted: input.tokens.length,
+          successCount: input.tokens.length,
+          failureCount: 0,
+          successfulTokens: input.tokens,
+          permanentFailureTokens: [],
+          retryableFailureTokens: [],
+        };
+      },
+      deactivateDeviceTokens: async (tokens: string[], at: Date) => {
+        deactivatedTokens.push({ tokens, at });
+      },
+      createPushLogs: async (input) => {
+        pushLogs.push({
+          userId: input.userId,
+          eventType: input.eventType,
+          correlationKey: input.correlationKey,
+          orderId: input.orderId,
+          transactionId: input.transactionId,
+          attempt: input.attempt,
+          providerResponseClass: input.providerResponseClass,
+          retryable: input.retryable,
+          successfulTokens: input.successfulTokens,
+          permanentFailureTokens: input.permanentFailureTokens,
+          retryableFailureTokens: input.retryableFailureTokens,
+          errorSummary: input.errorSummary,
+        });
+      },
     },
     getDispatch: (key: string) => dispatches.get(key),
+    pushCalls,
+    deactivatedTokens,
+    pushLogs,
   };
 }
 
@@ -203,6 +281,160 @@ test('dispatcher marks failed when email channel fails even if in-app succeeds',
   assert.equal(dispatch?.channel, 'IN_APP');
   assert.equal(dispatch?.attempts, 2);
   assert.equal(dispatch?.error?.includes('email_provider_returned_false'), true);
+});
+
+test('dispatcher sends push for transactional event to all active tokens', async () => {
+  const ctx = createFakeDeps({
+    pushEnabled: true,
+    pushTokens: ['t1', 't2', 't3'],
+  });
+
+  await processNotificationDispatch(
+    {
+      eventType: 'ORDER_STATUS_CHANGED',
+      entityId: 'order-push-1',
+      correlationKey: 'order:push:1',
+      targetUserId: 'user-1',
+      payload: { orderStatus: 'CONFIRMED' },
+    },
+    {},
+    ctx.deps,
+  );
+
+  assert.equal(ctx.pushCalls.length, 1);
+  assert.deepEqual(ctx.pushCalls[0].tokens, ['t1', 't2', 't3']);
+  const dispatch = ctx.getDispatch('order:push:1');
+  assert.equal(dispatch?.status, 'SUCCESS');
+  assert.equal(dispatch?.channel, 'IN_APP+PUSH');
+});
+
+test('dispatcher handles partial push failure and deactivates permanently invalid tokens', async () => {
+  const ctx = createFakeDeps({
+    pushEnabled: true,
+    pushTokens: ['ok-token', 'dead-token', 'retry-token'],
+    pushFailureMode: 'partial',
+  });
+
+  await processNotificationDispatch(
+    {
+      eventType: 'ORDER_STATUS_CHANGED',
+      entityId: 'order-push-2',
+      correlationKey: 'order:push:2',
+      targetUserId: 'user-2',
+      payload: {
+        orderId: 'order-push-2',
+        transactionId: 'tx-partial-1',
+        attempt: '1',
+        orderStatus: 'CONFIRMED',
+      },
+    },
+    {},
+    ctx.deps,
+  );
+
+  const dispatch = ctx.getDispatch('order:push:2');
+  assert.equal(dispatch?.status, 'SUCCESS');
+  assert.equal(ctx.deactivatedTokens.length, 1);
+  assert.deepEqual(ctx.deactivatedTokens[0].tokens, ['dead-token']);
+  assert.equal(ctx.pushLogs.length, 1);
+  assert.equal(ctx.pushLogs[0].providerResponseClass, 'PARTIAL_FAILURE');
+  assert.equal(ctx.pushLogs[0].retryable, true);
+  assert.equal(ctx.pushLogs[0].eventType, 'ORDER_STATUS_CHANGED');
+  assert.equal(ctx.pushLogs[0].correlationKey, 'order:push:2');
+  assert.equal(ctx.pushLogs[0].orderId, 'order-push-2');
+  assert.equal(ctx.pushLogs[0].transactionId, 'tx-partial-1');
+  assert.equal(ctx.pushLogs[0].attempt, '1');
+  assert.deepEqual(ctx.pushLogs[0].successfulTokens, ['ok-token']);
+  assert.deepEqual(ctx.pushLogs[0].permanentFailureTokens, ['dead-token']);
+  assert.deepEqual(ctx.pushLogs[0].retryableFailureTokens, ['retry-token']);
+});
+
+test('dispatcher marks failure when push channel fully fails for transactional event', async () => {
+  const ctx = createFakeDeps({
+    pushEnabled: true,
+    pushTokens: ['bad-token'],
+    pushFailureMode: 'all-fail',
+  });
+
+  await processNotificationDispatch(
+    {
+      eventType: 'ORDER_STATUS_CHANGED',
+      entityId: 'order-push-3',
+      correlationKey: 'order:push:3',
+      targetUserId: 'user-3',
+      payload: { orderStatus: 'CONFIRMED' },
+    },
+    {},
+    ctx.deps,
+  );
+
+  const dispatch = ctx.getDispatch('order:push:3');
+  assert.equal(dispatch?.status, 'FAILED');
+  assert.equal(dispatch?.channel, 'IN_APP');
+  assert.equal(dispatch?.error?.includes('push_delivery_failed'), true);
+  assert.equal(ctx.pushLogs.length, 1);
+  assert.equal(ctx.pushLogs[0].providerResponseClass, 'TOTAL_FAILURE');
+  assert.equal(ctx.pushLogs[0].retryable, false);
+  assert.equal(ctx.pushLogs[0].errorSummary, 'push_delivery_failed');
+  const failedLog = ctx.logs.find(
+    (entry) => entry.event === 'notification.dispatch.failed',
+  );
+  assert.equal(
+    String(failedLog?.payload.error).includes('push_delivery_failed'),
+    true,
+  );
+});
+
+test('dispatcher marks push setup credential errors as non-retryable', async () => {
+  const ctx = createFakeDeps({
+    pushEnabled: true,
+    pushTokens: ['token-1'],
+  });
+  ctx.deps.sendPush = async () => {
+    throw new Error(
+      'Firebase push is enabled but credentials are missing (FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY)',
+    );
+  };
+
+  await processNotificationDispatch(
+    {
+      eventType: 'ORDER_STATUS_CHANGED',
+      entityId: 'order-push-4',
+      correlationKey: 'order:push:4',
+      targetUserId: 'user-4',
+      payload: { orderStatus: 'CONFIRMED' },
+    },
+    {},
+    ctx.deps,
+  );
+
+  assert.equal(ctx.pushLogs.length, 1);
+  assert.equal(ctx.pushLogs[0].providerResponseClass, 'TOTAL_FAILURE');
+  assert.equal(ctx.pushLogs[0].retryable, false);
+});
+
+test('dispatcher logs SKIPPED push diagnostics when no active tokens exist', async () => {
+  const ctx = createFakeDeps({
+    pushEnabled: true,
+    pushTokens: [],
+  });
+
+  await processNotificationDispatch(
+    {
+      eventType: 'ORDER_STATUS_CHANGED',
+      entityId: 'order-push-5',
+      correlationKey: 'order:push:5',
+      targetUserId: 'user-5',
+      payload: { orderStatus: 'CONFIRMED' },
+    },
+    {},
+    ctx.deps,
+  );
+
+  assert.equal(ctx.pushLogs.length, 1);
+  assert.equal(ctx.pushLogs[0].providerResponseClass, 'SKIPPED');
+  assert.equal(ctx.pushLogs[0].retryable, false);
+  assert.equal(ctx.pushLogs[0].errorSummary, null);
 });
 
 test('dispatcher reuses existing campaign notification instead of creating duplicate', async () => {

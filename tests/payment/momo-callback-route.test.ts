@@ -154,6 +154,22 @@ test('MoMo callback applies PAID transition for successful resultCode', async ()
   assert.equal(notificationEvents.length, 1);
   assert.equal(notificationEvents[0].eventType, 'ORDER_STATUS_CHANGED');
   assert.equal(notificationEvents[0].entityId, 'order-1');
+  assert.equal(
+    notificationEvents[0].correlationKey,
+    'order:order-1:status:CONFIRMED:momo-tx-1',
+  );
+  assert.equal(
+    (notificationEvents[0].payload as Record<string, unknown>).provider,
+    'MOMO',
+  );
+  assert.equal(
+    typeof (notificationEvents[0].payload as Record<string, unknown>).occurredAt,
+    'string',
+  );
+  assert.equal(
+    (notificationEvents[0].payload as Record<string, unknown>).linkUrl,
+    'http://localhost:3000/orders',
+  );
 });
 
 test('MoMo callback finalizes order as CANCELLED when payment fails', async () => {

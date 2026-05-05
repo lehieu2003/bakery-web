@@ -406,6 +406,7 @@ export async function handleZaloPayCallbackRequest(
 
   if (deps.dispatchNotificationEvent) {
     const orderStatus = incomingStatus === 'PAID' ? 'CONFIRMED' : 'CANCELLED';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     void deps
       .dispatchNotificationEvent({
         eventType: 'ORDER_STATUS_CHANGED',
@@ -419,6 +420,8 @@ export async function handleZaloPayCallbackRequest(
           orderStatus,
           provider: 'ZALOPAY',
           transactionId,
+          occurredAt: new Date().toISOString(),
+          linkUrl: `${appUrl}/orders`,
         },
       })
       .catch((error) => {

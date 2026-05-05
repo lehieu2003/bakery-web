@@ -4,7 +4,10 @@ import Image from 'next/image';
 import BannerCarousel from '@/components/ui-custom/BannerCarousel';
 import { useBanners } from '@/hooks/use-banners';
 import BestSellersSection from '@/components/screens/BestSellersSection';
+import FaqSection from '@/components/screens/FaqSection';
 import PersonalizedSuggestionsSection from '@/components/screens/PersonalizedSuggestionsSection';
+import PricingComparisonSection from '@/components/screens/PricingComparisonSection';
+import TestimonialsSection from '@/components/screens/TestimonialsSection';
 import CategoriesSection from './CategoriesSection';
 
 export default function HomeScreen() {
@@ -206,37 +209,14 @@ export default function HomeScreen() {
         </div>
       </section>
 
-      <div className='px-4 lg:px-8'>
-        {/* Value strip */}
-        <section className='bg-card border border-border rounded-2xl my-8'>
-          <div className='px-6 py-10 grid grid-cols-1 md:grid-cols-3 gap-8'>
-            {[
-              {
-                heading: 'Made to Order',
-                body: 'Every cake is baked fresh specifically for your celebration, never off the shelf.',
-              },
-              {
-                heading: 'Premium Ingredients',
-                body: 'We source only the finest couverture chocolate, French butter, and organic eggs.',
-              },
-              {
-                heading: 'Loyalty Rewards',
-                body: 'Earn points on every order and unlock exclusive discounts at Gold and Platinum level.',
-              },
-            ].map(({ heading, body }) => (
-              <div key={heading} className='flex flex-col gap-2'>
-                <h3 className='font-serif text-base font-semibold text-foreground'>
-                  {heading}
-                </h3>
-                <p className='text-sm text-muted-foreground leading-relaxed'>
-                  {body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      {/* ── Testimonials Masonry ── */}
+      <TestimonialsSection />
+
+      {/* ── Membership Pricing Comparison ── */}
+      <PricingComparisonSection />
+
+      {/* ── FAQ Accordion ── */}
+      <FaqSection />
     </div>
   );
 }
-
