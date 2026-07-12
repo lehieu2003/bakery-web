@@ -1,39 +1,105 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import BannerCarousel from '@/components/ui-custom/BannerCarousel';
 import { useBanners } from '@/hooks/use-banners';
 import BestSellersSection from '@/components/screens/BestSellersSection';
 import FaqSection from '@/components/screens/FaqSection';
+import HomeMotion from '@/components/screens/HomeMotion';
 import PersonalizedSuggestionsSection from '@/components/screens/PersonalizedSuggestionsSection';
 import PricingComparisonSection from '@/components/screens/PricingComparisonSection';
 import TestimonialsSection from '@/components/screens/TestimonialsSection';
 import CategoriesSection from './CategoriesSection';
 
+function HomeHeroFallback() {
+  return (
+    <section className='relative isolate min-h-[560px] overflow-hidden bg-[#3a211b] text-white'>
+      <Image
+        src='/images/hero-cake.jpg'
+        alt='Bánh kem La Douceur được trang trí tinh tế trên bàn tiệc'
+        fill
+        priority
+        className='object-cover opacity-70'
+        sizes='100vw'
+      />
+      <div className='absolute inset-0 bg-[linear-gradient(90deg,rgba(31,14,10,0.88),rgba(31,14,10,0.48)_48%,rgba(31,14,10,0.18))]' />
+      <div
+        data-home-float
+        className='absolute right-[8%] top-24 hidden h-40 w-40 rounded-full border border-white/25 bg-white/10 backdrop-blur-md lg:block'
+        aria-hidden='true'
+      />
+      <div className='relative z-10 mx-auto flex min-h-[560px] max-w-7xl items-center px-5 py-20 lg:px-8'>
+        <div className='max-w-2xl'>
+          <p
+            data-home-intro
+            className='mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-[#f3cfa8]'
+          >
+            Baked fresh daily in Saigon
+          </p>
+          <h1
+            data-home-intro
+            className='font-serif text-4xl font-semibold leading-[1.05] text-balance md:text-6xl'
+          >
+            La Douceur, tiệm bánh cho những dịp cần thật chỉn chu
+          </h1>
+          <p
+            data-home-intro
+            className='mt-6 max-w-xl text-base leading-8 text-white/82 md:text-lg'
+          >
+            Bánh phô mai tan chảy, cookies bơ thơm và không gian ngồi lại ấm áp
+            cho những cuộc gặp cuối tuần.
+          </p>
+          <div data-home-intro className='mt-8 flex flex-wrap gap-3'>
+            <Link
+              href='/store'
+              className='inline-flex items-center justify-center rounded-full bg-[#f3cfa8] px-6 py-3 text-sm font-bold text-[#3a211b] shadow-lg shadow-black/20 transition-transform hover:-translate-y-0.5'
+            >
+              Khám phá menu
+            </Link>
+            <Link
+              href='/ve-chung-toi'
+              className='inline-flex items-center justify-center rounded-full border border-white/35 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/18'
+            >
+              Về La Douceur
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function HomeScreen() {
   const { data: banners, isLoading: bannersLoading } = useBanners();
+  const activeBanners = banners?.filter((b) => b.isActive) ?? [];
 
   return (
-    <div className='bg-background mx-4 lg:-mx-8'>
-      {/* Banner Carousel - full width, breaks out of parent padding */}
-      {!bannersLoading && banners && banners.length > 0 && (
-        <BannerCarousel
-          banners={banners.filter((b) => b.isActive)}
-          clickable={false}
-        />
-      )}
+    <HomeMotion>
+      <div className='bg-background mx-4 lg:-mx-8'>
+        {/* Banner Carousel - full width, breaks out of parent padding */}
+        {!bannersLoading &&
+          (activeBanners.length > 0 ? (
+            <div data-home-intro>
+              <BannerCarousel banners={activeBanners} clickable={false} />
+            </div>
+          ) : (
+            <HomeHeroFallback />
+          ))}
 
-      {/* ── Best Sellers ── */}
-      <BestSellersSection />
+        {/* ── Best Sellers ── */}
+        <BestSellersSection />
 
-      {/* ── Personalized Suggestions ── */}
-      <PersonalizedSuggestionsSection />
+        {/* ── Personalized Suggestions ── */}
+        <div data-home-reveal>
+          <PersonalizedSuggestionsSection />
+        </div>
 
-      {/* ── Categories ── */}
-      <CategoriesSection />
+        {/* ── Categories ── */}
+        <CategoriesSection />
 
-      {/* ── La Douceur – About section ── */}
-      <section className='px-4 lg:px-8 py-16 bg-[#faf8f5]'>
+        {/* ── La Douceur – About section ── */}
+        <section data-home-reveal className='px-4 lg:px-8 py-16 bg-[#faf8f5]'>
         <div className='max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center'>
           {/* Text side */}
           <div className='order-2 lg:order-1'>
@@ -71,7 +137,10 @@ export default function HomeScreen() {
             </div>
           </div>
           {/* Image side */}
-          <div className='order-1 lg:order-2 relative aspect-[4/3] rounded-2xl overflow-hidden'>
+          <div
+            data-home-float
+            className='order-1 lg:order-2 relative aspect-[4/3] overflow-hidden rounded-[28px] shadow-2xl shadow-primary/10 ring-1 ring-primary/10'
+          >
             <Image
               src='/images/bakery-kitchen.jpg'
               alt='Đội ngũ thợ làm bánh La Douceur đang làm việc trong bếp bánh chuyên nghiệp'
@@ -85,6 +154,7 @@ export default function HomeScreen() {
 
       {/* ── Parallax Stats Banner ── */}
       <section
+        data-home-reveal
         className='relative w-full py-20 overflow-hidden'
         style={{
           backgroundImage: "url('/images/stats-bg.jpg')",
@@ -98,7 +168,7 @@ export default function HomeScreen() {
         <div className='relative z-10 max-w-4xl mx-auto px-4 lg:px-8'>
           <div className='grid grid-cols-1 md:grid-cols-3 gap-10 text-center text-white'>
             {/* Stat 1 */}
-            <div className='flex flex-col items-center gap-3'>
+            <div data-home-card className='flex flex-col items-center gap-3'>
               <svg
                 width='56'
                 height='56'
@@ -137,7 +207,7 @@ export default function HomeScreen() {
               </div>
             </div>
             {/* Stat 2 */}
-            <div className='flex flex-col items-center gap-3'>
+            <div data-home-card className='flex flex-col items-center gap-3'>
               <svg
                 width='56'
                 height='56'
@@ -169,7 +239,7 @@ export default function HomeScreen() {
               </div>
             </div>
             {/* Stat 3 */}
-            <div className='flex flex-col items-center gap-3'>
+            <div data-home-card className='flex flex-col items-center gap-3'>
               <svg
                 width='56'
                 height='56'
@@ -210,13 +280,18 @@ export default function HomeScreen() {
       </section>
 
       {/* ── Testimonials Masonry ── */}
-      <TestimonialsSection />
+        <TestimonialsSection />
 
-      {/* ── Membership Pricing Comparison ── */}
-      <PricingComparisonSection />
+        {/* ── Membership Pricing Comparison ── */}
+        <div data-home-reveal>
+          <PricingComparisonSection />
+        </div>
 
-      {/* ── FAQ Accordion ── */}
-      <FaqSection />
-    </div>
+        {/* ── FAQ Accordion ── */}
+        <div data-home-reveal>
+          <FaqSection />
+        </div>
+      </div>
+    </HomeMotion>
   );
 }

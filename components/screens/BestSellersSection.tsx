@@ -57,6 +57,7 @@ function BestSellerCard({
   return (
     <div
       ref={cardRef}
+      data-home-card
       className='flex-shrink-0 w-56 md:w-64 rounded-2xl overflow-hidden border border-border/40 bg-card shadow-sm hover:shadow-md transition-shadow group'
     >
       {/* Product image */}
@@ -142,6 +143,7 @@ export default function BestSellersSection({
 
   return (
     <section
+      data-home-reveal
       className='py-14 px-4 lg:px-8'
       aria-labelledby='best-sellers-heading'
     >

@@ -14,7 +14,10 @@ const PLACEHOLDER_BLUR =
 
 function CategoryCard({ category }: { category: Category }) {
   return (
-    <div className='flex-shrink-0 w-56 md:w-64 rounded-2xl overflow-hidden border border-border/40 bg-card shadow-sm hover:shadow-md transition-shadow group'>
+    <div
+      data-home-card
+      className='flex-shrink-0 w-56 md:w-64 rounded-2xl overflow-hidden border border-border/40 bg-card shadow-sm hover:shadow-md transition-shadow group'
+    >
       {/* Product image */}
       <Link href={categoryHrefFromTrail([category])} className='block'>
         <div className='relative h-48 md:h-56 bg-secondary overflow-hidden'>
@@ -86,12 +89,13 @@ export default function CategoriesSection() {
 
   return (
     <section
+      data-home-reveal
       className='py-14 px-4 lg:px-8'
-      aria-labelledby='best-sellers-heading'
+      aria-labelledby='categories-heading'
     >
       {/* Heading */}
       <h2
-        id='best-sellers-heading'
+        id='categories-heading'
         className='font-serif text-3xl md:text-4xl font-bold text-primary text-center tracking-wide mb-10 text-balance'
       >
         Danh Mục Sản Phẩm

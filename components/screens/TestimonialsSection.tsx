@@ -76,6 +76,7 @@ function RatingStars({ rating }: { rating: number }) {
 export default function TestimonialsSection() {
   return (
     <section
+      data-home-reveal
       className='bg-[#faf8f5] px-4 py-16 lg:px-8'
       aria-labelledby='testimonials-heading'
     >
@@ -100,6 +101,7 @@ export default function TestimonialsSection() {
           {testimonials.map((testimonial) => (
             <article
               key={`${testimonial.name}-${testimonial.context}`}
+              data-home-card
               className='mb-4 break-inside-avoid rounded-2xl border border-border/40 bg-card p-6 shadow-sm transition-shadow hover:shadow-md'
               role='listitem'
             >
