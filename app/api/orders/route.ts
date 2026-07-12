@@ -36,6 +36,7 @@ type CreateOrderPayload = {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
+  customerAddress?: string;
   paymentMethod?: PaymentMethod;
   incentiveCode?: string;
   incentiveCodes?: string[];
@@ -88,6 +89,7 @@ type CreateOrderRouteDeps = {
     customerName: string;
     customerPhone: string;
     customerEmail: string | null;
+    customerAddress: string | null;
     subtotal: number;
     discount: number;
     total: number;
@@ -325,6 +327,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
             customerName: args.customerName,
             customerPhone: args.customerPhone,
             customerEmail: args.customerEmail,
+            customerAddress: args.customerAddress,
             subtotal: args.subtotal,
             deliveryFee: 0,
             discount: args.discount,
@@ -504,6 +507,7 @@ export async function handleCreateOrderRequest(
     customerName,
     customerPhone,
     customerEmail,
+    customerAddress,
     paymentMethod,
     items,
     incentiveCode: incentiveCodeInput,
@@ -718,6 +722,7 @@ export async function handleCreateOrderRequest(
       customerName,
       customerPhone,
       customerEmail: customerEmail || user?.email || null,
+      customerAddress: customerAddress?.trim() || null,
       subtotal,
       discount: finalDiscount,
       total,

@@ -64,6 +64,10 @@ export function verifyMoMoCallback(params: Record<string, string>): boolean {
   ].join('&');
 
   const expectedSignature = createMoMoSignature(rawSignature);
+  if (signature.length !== expectedSignature.length) {
+    return false;
+  }
+
   return crypto.timingSafeEqual(
     Buffer.from(signature),
     Buffer.from(expectedSignature),

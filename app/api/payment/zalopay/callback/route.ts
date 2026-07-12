@@ -17,6 +17,7 @@ type PaymentSnapshot = {
   orderId: string;
   status: string;
   transactionId: string | null;
+  amount: number;
   userId: string | null;
   customerEmail: string | null;
   userEmail: string | null;
@@ -54,6 +55,7 @@ const defaultDeps: ZaloCallbackDeps = {
         orderId: true,
         status: true,
         transactionId: true,
+        amount: true,
         order: {
           select: {
             userId: true,
@@ -73,6 +75,7 @@ const defaultDeps: ZaloCallbackDeps = {
         orderId: payment.orderId,
         status: payment.status,
         transactionId: payment.transactionId,
+        amount: Number(payment.amount),
         userId: payment.order.userId,
         customerEmail: payment.order.customerEmail,
         userEmail: payment.order.user?.email ?? null,
@@ -207,6 +210,15 @@ function resolveTransactionId(payload: Record<string, unknown>): string | null {
   return transactionId || null;
 }
 
+function normalizeNumericAmount(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 export async function handleZaloPayCallbackRequest(
   body: unknown,
   deps: ZaloCallbackDeps = defaultDeps,
@@ -277,12 +289,14 @@ export async function handleZaloPayCallbackRequest(
   const orderId = parseOrderIdFromAppTransId(appTransId);
   const incomingStatus = resolveIncomingStatus(parsedData);
   const transactionId = resolveTransactionId(parsedData);
+  const amount = normalizeNumericAmount(parsedData.amount);
 
-  if (!appTransId || !orderId || incomingStatus === 'UNKNOWN') {
+  if (!appTransId || !orderId || incomingStatus === 'UNKNOWN' || amount === null) {
     deps.logEvent('payment.callback.invalid_payload', {
       reason: 'missing_app_trans_id',
       appTransId,
       incomingStatus,
+      amount,
     });
     await safeWriteCallbackAudit(deps, {
       orderId: orderId || 'unknown',
@@ -292,6 +306,8 @@ export async function handleZaloPayCallbackRequest(
         ? 'missing_app_trans_id'
         : incomingStatus === 'UNKNOWN'
           ? 'unknown_status'
+          : amount === null
+            ? 'missing_amount'
           : 'invalid_payload',
       incomingStatus,
     });
@@ -332,6 +348,27 @@ export async function handleZaloPayCallbackRequest(
     return {
       status: 200,
       body: { return_code: 1, return_message: 'already processed' },
+    };
+  }
+
+  if (Math.round(payment.amount) !== Math.round(amount)) {
+    deps.logEvent('payment.callback.verification_failed', {
+      orderId,
+      reason: 'amount_mismatch',
+      expectedAmount: payment.amount,
+      incomingAmount: amount,
+    });
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'ZALOPAY',
+      event: 'verification_failed',
+      reason: 'amount_mismatch',
+      incomingStatus,
+      transactionId,
+    });
+    return {
+      status: 400,
+      body: { return_code: 0, return_message: 'invalid amount' },
     };
   }
 

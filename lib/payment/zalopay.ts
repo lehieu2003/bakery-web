@@ -51,6 +51,10 @@ export function verifyZaloPayCallback(
     .update(dataStr)
     .digest('hex');
 
+  if (reqMac.length !== mac.length) {
+    return false;
+  }
+
   return crypto.timingSafeEqual(Buffer.from(reqMac), Buffer.from(mac));
 }
 

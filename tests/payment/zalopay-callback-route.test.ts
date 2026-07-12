@@ -7,6 +7,7 @@ type PaymentSnapshot = {
   orderId: string;
   status: string;
   transactionId: string | null;
+  amount: number;
   userId: string | null;
   customerEmail: string | null;
   userEmail: string | null;
@@ -49,6 +50,7 @@ function createDeps() {
       orderId: 'order-1',
       status: 'PENDING',
       transactionId: null,
+      amount: 200000,
       userId: 'user-1',
       customerEmail: 'lan@example.com',
       userEmail: 'user@example.com',
@@ -111,7 +113,11 @@ test('ZaloPay callback returns already processed when payment is missing', async
   const { deps } = createDeps();
   deps.findPaymentByOrderId = async () => null;
 
-  const data = JSON.stringify({ app_trans_id: '260405_order-1', status: 1 });
+  const data = JSON.stringify({
+    app_trans_id: '260405_order-1',
+    status: 1,
+    amount: 200000,
+  });
   const result = await handleZaloPayCallbackRequest({ data, mac: 'ok' }, deps);
 
   assert.equal(result.status, 200);
@@ -123,6 +129,7 @@ test('ZaloPay callback applies PAID transition on success status', async () => {
   const data = JSON.stringify({
     app_trans_id: '260405_order-1',
     status: 1,
+    amount: 200000,
     zp_trans_id: 'zp-tx-1',
   });
 
@@ -149,6 +156,7 @@ test('ZaloPay callback applies FAILED transition on explicit failed status', asy
   const data = JSON.stringify({
     app_trans_id: '260405_order-1',
     status: -1,
+    amount: 200000,
     zp_trans_id: 'zp-tx-failed',
   });
 
@@ -168,6 +176,7 @@ test('ZaloPay callback rejects payload when status cannot be resolved', async ()
   const data = JSON.stringify({
     app_trans_id: '260405_order-1',
     status: 'abc',
+    amount: 200000,
   });
 
   const result = await handleZaloPayCallbackRequest({ data, mac: 'ok' }, deps);
@@ -187,6 +196,7 @@ test('ZaloPay callback logs conflict and avoids mutation on conflicting duplicat
     orderId: 'order-1',
     status: 'PAID',
     transactionId: 'zp-tx-1',
+    amount: 200000,
     userId: 'user-1',
     customerEmail: 'lan@example.com',
     userEmail: 'user@example.com',
@@ -196,6 +206,7 @@ test('ZaloPay callback logs conflict and avoids mutation on conflicting duplicat
   const data = JSON.stringify({
     app_trans_id: '260405_order-1',
     status: -1,
+    amount: 200000,
     zp_trans_id: 'zp-tx-2',
   });
 
@@ -216,6 +227,7 @@ test('ZaloPay callback treats atomic-transition miss as replay and skips notific
   const data = JSON.stringify({
     app_trans_id: '260405_order-1',
     status: 1,
+    amount: 200000,
     zp_trans_id: 'zp-tx-1',
   });
 
@@ -228,4 +240,25 @@ test('ZaloPay callback treats atomic-transition miss as replay and skips notific
     logs.some((entry) => entry.event === 'payment.callback.replay_ignored'),
     true,
   );
+});
+
+test('ZaloPay callback rejects amount mismatch before applying transition', async () => {
+  const { deps, transitions, logs, callbackAuditEvents } = createDeps();
+  const data = JSON.stringify({
+    app_trans_id: '260405_order-1',
+    status: 1,
+    amount: 199000,
+    zp_trans_id: 'zp-tx-1',
+  });
+
+  const result = await handleZaloPayCallbackRequest({ data, mac: 'ok' }, deps);
+
+  assert.equal(result.status, 400);
+  assert.equal(result.body.return_message, 'invalid amount');
+  assert.equal(transitions.length, 0);
+  assert.equal(
+    logs.some((entry) => entry.event === 'payment.callback.verification_failed'),
+    true,
+  );
+  assert.equal(callbackAuditEvents.at(-1)?.reason, 'amount_mismatch');
 });

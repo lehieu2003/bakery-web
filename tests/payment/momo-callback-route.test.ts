@@ -7,6 +7,7 @@ type PaymentSnapshot = {
   orderId: string;
   status: string;
   transactionId: string | null;
+  amount: number;
   userId: string | null;
   customerEmail: string | null;
   userEmail: string | null;
@@ -50,6 +51,7 @@ function createDeps() {
       orderId: 'order-1',
       status: 'PENDING',
       transactionId: null,
+      amount: 200000,
       userId: 'user-1',
       customerEmail: 'lan@example.com',
       userEmail: 'user@example.com',
@@ -98,7 +100,7 @@ test('MoMo callback rejects invalid signature', async () => {
   deps.verifyCallback = () => false;
 
   const result = await handleMoMoCallbackRequest(
-    { orderId: 'order-1', resultCode: 0 },
+    { orderId: 'order-1', resultCode: 0, amount: 200000 },
     deps,
   );
 
@@ -122,7 +124,7 @@ test('MoMo callback returns already processed when payment is missing', async ()
   deps.findPaymentByOrderId = async () => null;
 
   const result = await handleMoMoCallbackRequest(
-    { orderId: 'order-1', resultCode: 0 },
+    { orderId: 'order-1', resultCode: 0, amount: 200000 },
     deps,
   );
 
@@ -135,7 +137,7 @@ test('MoMo callback applies PAID transition for successful resultCode', async ()
     createDeps();
 
   const result = await handleMoMoCallbackRequest(
-    { orderId: 'order-1', resultCode: 0, transId: 'momo-tx-1' },
+    { orderId: 'order-1', resultCode: 0, amount: 200000, transId: 'momo-tx-1' },
     deps,
   );
 
@@ -176,7 +178,12 @@ test('MoMo callback finalizes order as CANCELLED when payment fails', async () =
   const { deps, transitions, orderFinalizations } = createDeps();
 
   const result = await handleMoMoCallbackRequest(
-    { orderId: 'order-1', resultCode: 1006, transId: 'momo-tx-failed' },
+    {
+      orderId: 'order-1',
+      resultCode: 1006,
+      amount: 200000,
+      transId: 'momo-tx-failed',
+    },
     deps,
   );
 
@@ -199,6 +206,7 @@ test('MoMo callback ignores replay when payment already finalized with same outc
     orderId: 'order-1',
     status: 'PAID',
     transactionId: 'momo-tx-1',
+    amount: 200000,
     userId: 'user-1',
     customerEmail: 'lan@example.com',
     userEmail: 'user@example.com',
@@ -206,7 +214,7 @@ test('MoMo callback ignores replay when payment already finalized with same outc
   });
 
   const result = await handleMoMoCallbackRequest(
-    { orderId: 'order-1', resultCode: 0, transId: 'momo-tx-1' },
+    { orderId: 'order-1', resultCode: 0, amount: 200000, transId: 'momo-tx-1' },
     deps,
   );
 
@@ -225,6 +233,7 @@ test('MoMo callback logs conflict and does not mutate finalized state on conflic
     orderId: 'order-1',
     status: 'PAID',
     transactionId: 'momo-tx-1',
+    amount: 200000,
     userId: 'user-1',
     customerEmail: 'lan@example.com',
     userEmail: 'user@example.com',
@@ -232,7 +241,7 @@ test('MoMo callback logs conflict and does not mutate finalized state on conflic
   });
 
   const result = await handleMoMoCallbackRequest(
-    { orderId: 'order-1', resultCode: 1006, transId: 'momo-tx-2' },
+    { orderId: 'order-1', resultCode: 1006, amount: 200000, transId: 'momo-tx-2' },
     deps,
   );
 
@@ -250,7 +259,7 @@ test('MoMo callback treats atomic-transition miss as replay and skips notificati
   deps.applyPaymentTransition = async () => ({ applied: false, conflict: false });
 
   const result = await handleMoMoCallbackRequest(
-    { orderId: 'order-1', resultCode: 0, transId: 'momo-tx-1' },
+    { orderId: 'order-1', resultCode: 0, amount: 200000, transId: 'momo-tx-1' },
     deps,
   );
 
@@ -261,4 +270,23 @@ test('MoMo callback treats atomic-transition miss as replay and skips notificati
     logs.some((entry) => entry.event === 'payment.callback.replay_ignored'),
     true,
   );
+});
+
+test('MoMo callback rejects amount mismatch before applying transition', async () => {
+  const { deps, transitions, logs, callbackAuditEvents } = createDeps();
+
+  const result = await handleMoMoCallbackRequest(
+    { orderId: 'order-1', resultCode: 0, amount: 199000, transId: 'momo-tx-1' },
+    deps,
+  );
+
+  assert.equal(result.status, 400);
+  assert.equal(result.body.message, 'Invalid amount');
+  assert.equal(transitions.length, 0);
+  assert.equal(logs[0]?.event, 'payment.callback.received');
+  assert.equal(
+    logs.some((entry) => entry.event === 'payment.callback.verification_failed'),
+    true,
+  );
+  assert.equal(callbackAuditEvents.at(-1)?.reason, 'amount_mismatch');
 });

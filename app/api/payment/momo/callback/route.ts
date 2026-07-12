@@ -17,6 +17,7 @@ type PaymentSnapshot = {
   orderId: string;
   status: string;
   transactionId: string | null;
+  amount: number;
   userId: string | null;
   customerEmail: string | null;
   userEmail: string | null;
@@ -54,6 +55,7 @@ const defaultDeps: MomoCallbackDeps = {
         orderId: true,
         status: true,
         transactionId: true,
+        amount: true,
         order: {
           select: {
             userId: true,
@@ -73,6 +75,7 @@ const defaultDeps: MomoCallbackDeps = {
         orderId: payment.orderId,
         status: payment.status,
         transactionId: payment.transactionId,
+        amount: Number(payment.amount),
         userId: payment.order.userId,
         customerEmail: payment.order.customerEmail,
         userEmail: payment.order.user?.email ?? null,
@@ -228,18 +231,20 @@ export async function handleMoMoCallbackRequest(
 
   const orderId = normalizeText(payload.orderId);
   const resultCode = normalizeNumericCode(payload.resultCode);
+  const amount = normalizeNumericCode(payload.amount);
   const transactionId = normalizeNullableText(payload.transId);
 
-  if (!orderId || resultCode === null) {
+  if (!orderId || resultCode === null || amount === null) {
     deps.logEvent('payment.callback.invalid_payload', {
       orderId,
       resultCode,
+      amount,
     });
     await safeWriteCallbackAudit(deps, {
       orderId,
       provider: 'MOMO',
       event: 'invalid_payload',
-      reason: 'missing_orderId_or_resultCode',
+      reason: 'missing_orderId_resultCode_or_amount',
       rawResultCode: resultCode,
     });
     return {
@@ -282,6 +287,27 @@ export async function handleMoMoCallbackRequest(
     return {
       status: 200,
       body: { resultCode: 0, message: 'already processed' },
+    };
+  }
+
+  if (Math.round(payment.amount) !== Math.round(amount)) {
+    deps.logEvent('payment.callback.verification_failed', {
+      orderId,
+      reason: 'amount_mismatch',
+      expectedAmount: payment.amount,
+      incomingAmount: amount,
+    });
+    await safeWriteCallbackAudit(deps, {
+      orderId,
+      provider: 'MOMO',
+      event: 'verification_failed',
+      reason: 'amount_mismatch',
+      incomingStatus,
+      rawResultCode: resultCode,
+    });
+    return {
+      status: 400,
+      body: { resultCode: 1, message: 'Invalid amount' },
     };
   }
 

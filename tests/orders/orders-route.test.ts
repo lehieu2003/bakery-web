@@ -88,6 +88,7 @@ function buildPayload(method: 'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER') {
     customerName: 'Lan',
     customerPhone: '0909123456',
     customerEmail: 'lan@example.com',
+    customerAddress: '12 Nguyen Trai, District 1, HCMC',
     paymentMethod: method,
     items: [
       {
@@ -173,6 +174,25 @@ test('POST /api/orders returns success envelope with paymentUrl=null for COD', a
   assert.equal(result.body.success, true);
   assert.equal(result.body.data?.paymentUrl, null);
   assert.equal(result.body.data?.paymentError, undefined);
+});
+
+test('POST /api/orders persists checkout delivery address', async () => {
+  const deps = createDeps();
+  let capturedAddress: string | null | undefined;
+
+  deps.createOrderWithItems = async (args: CreateOrderWithItemsArgs) => {
+    capturedAddress = args.customerAddress;
+    return {
+      id: 'o-address',
+      orderNumber: 'BK260406ADDR',
+      orderItems: [],
+    };
+  };
+
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
+
+  assert.equal(result.status, 200);
+  assert.equal(capturedAddress, '12 Nguyen Trai, District 1, HCMC');
 });
 
 test('POST /api/orders returns success envelope with paymentUrl=null for BANK_TRANSFER', async () => {
