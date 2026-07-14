@@ -350,53 +350,19 @@ export default function WebNavbar() {
 
   return (
     <header className='bg-white shadow-sm'>
-      {/* Top bar */}
-      <div className='bg-white border-b border-gray-100'>
-        <div className='max-w-7xl mx-auto px-4 lg:px-8 h-9 flex items-center justify-between text-xs text-gray-500'>
-          <div className='flex items-center gap-1'>
-            <MapPin size={12} className='text-primary' />
-            <span>Khu vực của bạn:</span>
-            <a
-              href='#'
-              className='text-primary font-medium hover:underline ml-1'
-            >
-              Nội thành TP. HCM
-            </a>
-          </div>
-          <div className='flex items-center gap-4'>
-            <span>Giao hàng từ:</span>
-            <a href='#' className='text-primary font-semibold hover:underline'>
-              Chọn ngay
-            </a>
-          </div>
-          <div className='hidden md:flex items-center gap-4'>
-            <Link href='/blog' className='hover:text-primary transition-colors'>
-              Blog
-            </Link>
-            <span className='text-gray-300'>|</span>
-            <a href='#' className='hover:text-primary transition-colors'>
-              Địa chỉ
-            </a>
-          </div>
-        </div>
-      </div>
-
       {/* Main header */}
       <div className='bg-white border-b border-gray-100'>
         <div className='max-w-7xl mx-auto px-4 lg:px-8 py-3 flex items-center gap-6'>
           {/* Logo */}
           <Link href='/' className='flex-shrink-0' aria-label='Go to home'>
-            <div className='flex flex-col items-center leading-none'>
-              <span
-                className='font-serif text-3xl font-bold text-primary tracking-tight'
-                style={{ fontFamily: 'Georgia, serif' }}
-              >
-                La Douceur
-              </span>
-              <span className='text-[8px] tracking-widest text-gray-400 uppercase font-light -mt-0.5'>
-                Make something different
-              </span>
-            </div>
+            <Image
+              src='/images/bakery-log.svg'
+              alt='La Douceur'
+              width={156}
+              height={52}
+              priority
+              className='h-13 w-auto'
+            />
           </Link>
 
           {/* Phone (desktop) */}
@@ -634,7 +600,9 @@ export default function WebNavbar() {
                                     {primaryImage ? (
                                       <Image
                                         src={primaryImage.url}
-                                        alt={primaryImage.altText ?? product.name}
+                                        alt={
+                                          primaryImage.altText ?? product.name
+                                        }
                                         width={48}
                                         height={48}
                                         className='w-full h-full object-cover'

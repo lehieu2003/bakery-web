@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -135,10 +136,15 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
     <div className='flex flex-col h-full bg-sidebar text-sidebar-foreground'>
       {/* Logo */}
       <div className='flex items-center justify-between px-5 py-5 border-b border-sidebar-border'>
-        <div>
-          <p className='font-serif text-base font-semibold tracking-wide text-sidebar-foreground'>
-            La Douceur
-          </p>
+        <div className='min-w-0'>
+          <Image
+            src='/images/bakery-log.svg'
+            alt='La Douceur'
+            width={118}
+            height={40}
+            className='h-10 w-auto'
+            priority
+          />
           <p className='text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5'>
             Admin Panel
           </p>
