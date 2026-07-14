@@ -1,5 +1,6 @@
 import WebNavbar from '@/components/web/navbar';
 import WebFooter from '@/components/web/footer';
+import WebMain from '@/components/web/WebMain';
 import ChatbotBubble from '@/components/ui-custom/ChatbotBubble';
 import ZaloPhoneBubble from '@/components/ui-custom/ZaloPhoneBubble';
 import { prisma } from '@/lib/prisma';
@@ -51,9 +52,7 @@ export default async function WebLayout({ children }: { children: React.ReactNod
       <Suspense fallback={null}>
         <WebNavbar />
       </Suspense>
-      <main className='min-h-screen bg-background max-w-7xl mx-auto w-full px-4 lg:px-8'>
-        {children}
-      </main>
+      <WebMain>{children}</WebMain>
       <WebFooter />
       <ZaloPhoneBubble />
       <ChatbotBubble />

@@ -24,6 +24,9 @@ export default function HomeMotion({ children }: HomeMotionProps) {
     const revealElements = Array.from(
       rootElement.querySelectorAll<HTMLElement>('[data-home-reveal]'),
     );
+    const storySections = Array.from(
+      rootElement.querySelectorAll<HTMLElement>('[data-scroll-story]'),
+    );
 
     revealElements.forEach((element) => {
       element.style.opacity = '0';
@@ -52,6 +55,49 @@ export default function HomeMotion({ children }: HomeMotionProps) {
     );
 
     revealElements.forEach((element) => revealObserver.observe(element));
+
+    const storyObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+
+          const step = entry.target as HTMLElement;
+          const story = step.closest<HTMLElement>('[data-scroll-story]');
+          const index = step.dataset.storyStep;
+          if (!story || !index) return;
+
+          story
+            .querySelectorAll<HTMLElement>('[data-story-step]')
+            .forEach((item) => {
+              item.dataset.active = item === step ? 'true' : 'false';
+            });
+
+          story
+            .querySelectorAll<HTMLElement>('[data-story-visual]')
+            .forEach((item) => {
+              item.dataset.active =
+                item.dataset.storyVisual === index ? 'true' : 'false';
+            });
+        });
+      },
+      {
+        rootMargin: '-42% 0px -42% 0px',
+        threshold: 0,
+      },
+    );
+
+    storySections.forEach((story) => {
+      const firstStep = story.querySelector<HTMLElement>('[data-story-step]');
+      const firstVisual = story.querySelector<HTMLElement>(
+        '[data-story-visual]',
+      );
+      if (firstStep) firstStep.dataset.active = 'true';
+      if (firstVisual) firstVisual.dataset.active = 'true';
+
+      story
+        .querySelectorAll<HTMLElement>('[data-story-step]')
+        .forEach((step) => storyObserver.observe(step));
+    });
 
     scope.current = createScope({ root }).add(() => {
       animate('[data-home-intro]', {
@@ -85,6 +131,7 @@ export default function HomeMotion({ children }: HomeMotionProps) {
 
     return () => {
       revealObserver.disconnect();
+      storyObserver.disconnect();
       scope.current?.revert();
     };
   }, []);
