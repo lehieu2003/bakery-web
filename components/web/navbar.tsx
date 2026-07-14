@@ -6,7 +6,6 @@ import {
   Heart,
   Search,
   Phone,
-  MapPin,
   User,
   Menu,
   X,
@@ -68,9 +67,14 @@ export default function WebNavbar() {
   const dropdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const navSlotRef = useRef<HTMLDivElement>(null);
+  const navBarRef = useRef<HTMLDivElement>(null);
+  const navOffsetTopRef = useRef(0);
   const notificationListRef = useRef<HTMLDivElement>(null);
   const notificationLoadMoreRef = useRef<HTMLDivElement>(null);
   const readingNotificationIdsRef = useRef<Set<string>>(new Set());
+  const [isNavFixed, setIsNavFixed] = useState(false);
+  const [navHeight, setNavHeight] = useState(0);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
@@ -178,6 +182,34 @@ export default function WebNavbar() {
       };
     });
   }, [categoriesData]);
+  const activeMegaMenu = navLinks.find(
+    (link) => link.href === activeDropdown && link.children.length > 0,
+  );
+
+  useEffect(() => {
+    const updateMeasurements = () => {
+      const slot = navSlotRef.current;
+      const nav = navBarRef.current;
+      if (!slot || !nav) return;
+
+      navOffsetTopRef.current = slot.getBoundingClientRect().top + window.scrollY;
+      setNavHeight(nav.offsetHeight);
+      setIsNavFixed(window.scrollY >= navOffsetTopRef.current);
+    };
+
+    const handleScroll = () => {
+      setIsNavFixed(window.scrollY >= navOffsetTopRef.current);
+    };
+
+    updateMeasurements();
+    window.addEventListener('resize', updateMeasurements);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('resize', updateMeasurements);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [navLinks.length]);
 
   const handleMouseEnter = (href: string) => {
     if (dropdownTimerRef.current) clearTimeout(dropdownTimerRef.current);
@@ -695,131 +727,159 @@ export default function WebNavbar() {
       </div>
 
       {/* Navigation bar + mega-menu container */}
-      <div className='bg-white border-b border-gray-100 hidden md:block'>
-        <div className='mx-auto px-4 lg:px-8'>
-          <nav
-            className='flex items-center justify-center overflow-x-auto scrollbar-hide'
-            aria-label='Category navigation'
-          >
-            {navLinks.map((link) => (
-              <div
-                key={link.href}
-                className='relative'
-                onMouseEnter={() => handleMouseEnter(link.href)}
-                onMouseLeave={handleMouseLeave}
-              >
-                {/* Top-level nav item */}
-                <Link
-                  href={link.href}
-                  className={`flex items-center gap-1 px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
-                    isActive(link.href)
-                      ? 'text-primary border-primary'
-                      : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
-                  }`}
+      <div
+        ref={navSlotRef}
+        className='hidden md:block'
+        style={{ height: isNavFixed ? navHeight : undefined }}
+      >
+        <div
+          ref={navBarRef}
+          className={`bg-white border-b border-gray-100 shadow-sm ${
+            isNavFixed ? 'fixed left-0 right-0 top-0 z-50' : 'relative z-40'
+          }`}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className='mx-auto flex items-center px-4 lg:px-8'>
+            <Link
+              href='/'
+              className={`mr-4 flex h-12 w-32 flex-shrink-0 items-center transition-all duration-200 ${
+                isNavFixed
+                  ? 'translate-x-0 opacity-100'
+                  : 'pointer-events-none -translate-x-2 opacity-0'
+              }`}
+              aria-label='Go to home'
+              tabIndex={isNavFixed ? 0 : -1}
+            >
+              <Image
+                src='/images/bakery-log.svg'
+                alt='La Douceur'
+                width={104}
+                height={36}
+                className='h-9 w-auto'
+              />
+            </Link>
+            <nav
+              className='flex flex-1 items-center justify-center overflow-x-auto scrollbar-hide'
+              aria-label='Category navigation'
+            >
+              {navLinks.map((link) => (
+                <div
+                  key={link.href}
+                  className='relative'
+                  onMouseEnter={() => handleMouseEnter(link.href)}
                 >
-                  {link.label}
-                  {link.children.length > 0 && (
-                    <ChevronDown
-                      size={13}
-                      className={`transition-transform duration-200 flex-shrink-0 ${
-                        activeDropdown === link.href
-                          ? 'rotate-180 text-primary'
-                          : 'text-gray-400'
-                      }`}
-                    />
-                  )}
-                </Link>
-
-                {/* Mega-menu panel */}
-                {link.children.length > 0 && activeDropdown === link.href && (
-                  <div
-                    className='fixed left-0 right-0 top-auto z-50 bg-white border-t border-gray-200 shadow-xl'
-                    style={{ marginTop: 0 }}
-                    onMouseEnter={() => handleMouseEnter(link.href)}
-                    onMouseLeave={handleMouseLeave}
+                  {/* Top-level nav item */}
+                  <Link
+                    href={link.href}
+                    className={`flex items-center gap-1 px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                      isActive(link.href)
+                        ? 'text-primary border-primary'
+                        : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
+                    }`}
                   >
-                    <div className='max-w-7xl mx-auto px-4 lg:px-8 py-6'>
-                      {/* Columns: each child is a column */}
-                      <div
-                        className='grid gap-x-8 gap-y-2'
-                        style={{
-                          gridTemplateColumns: `repeat(${Math.min(link.children.length, 5)}, minmax(0, 1fr))`,
-                        }}
-                      >
-                        {link.children.map((child) => (
-                          <div key={child.href} className='min-w-0'>
-                            {/* Column header → link to child category */}
-                            <Link
-                              href={child.href}
-                              className={`block text-sm font-semibold mb-3 pb-1.5 border-b border-gray-100 transition-colors ${
-                                isActive(child.href)
-                                  ? 'text-primary'
-                                  : 'text-gray-800 hover:text-primary'
-                              }`}
-                              onClick={() => setActiveDropdown(null)}
-                            >
-                              {child.label}
-                            </Link>
+                    {link.label}
+                    {link.children.length > 0 && (
+                      <ChevronDown
+                        size={13}
+                        className={`transition-transform duration-200 flex-shrink-0 ${
+                          activeDropdown === link.href
+                            ? 'rotate-180 text-primary'
+                            : 'text-gray-400'
+                        }`}
+                      />
+                    )}
+                  </Link>
+                </div>
+              ))}
+              <Link
+                href='/blog'
+                className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                  isActive('/blog')
+                    ? 'text-primary border-primary'
+                    : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
+                }`}
+              >
+                Blog
+              </Link>
+              <Link
+                href='/thanh-vien'
+                className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                  isActive('/thanh-vien')
+                    ? 'text-primary border-primary'
+                    : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
+                }`}
+              >
+                Thành viên
+              </Link>
+              <Link
+                href='/store'
+                className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                  isActive('/store')
+                    ? 'text-primary border-primary'
+                    : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
+                }`}
+              >
+                Cửa hàng
+              </Link>
+            </nav>
+            <div className='ml-4 hidden h-12 w-32 flex-shrink-0 lg:block' />
+          </div>
 
-                            {/* Grandchildren list */}
-                            <ul className='space-y-1.5'>
-                              {child.children.length > 0
-                                ? child.children.map((grand) => (
-                                    <li key={grand.href}>
-                                      <Link
-                                        href={grand.href}
-                                        className={`block text-sm leading-snug transition-colors ${
-                                          isActive(grand.href)
-                                            ? 'text-primary font-medium'
-                                            : 'text-gray-600 hover:text-primary'
-                                        }`}
-                                        onClick={() => setActiveDropdown(null)}
-                                      >
-                                        {grand.label}
-                                      </Link>
-                                    </li>
-                                  ))
-                                : null}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
+          {/* Mega-menu panel */}
+          {activeMegaMenu && (
+            <div
+              className='absolute left-0 right-0 top-full z-50 bg-white border-t border-gray-200 shadow-xl'
+              onMouseEnter={() => handleMouseEnter(activeMegaMenu.href)}
+            >
+              <div className='max-w-7xl mx-auto px-4 lg:px-8 py-6'>
+                {/* Columns: each child is a column */}
+                <div
+                  className='grid gap-x-8 gap-y-2'
+                  style={{
+                    gridTemplateColumns: `repeat(${Math.min(activeMegaMenu.children.length, 5)}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {activeMegaMenu.children.map((child) => (
+                    <div key={child.href} className='min-w-0'>
+                      {/* Column header -> link to child category */}
+                      <Link
+                        href={child.href}
+                        className={`block text-sm font-semibold mb-3 pb-1.5 border-b border-gray-100 transition-colors ${
+                          isActive(child.href)
+                            ? 'text-primary'
+                            : 'text-gray-800 hover:text-primary'
+                        }`}
+                        onClick={() => setActiveDropdown(null)}
+                      >
+                        {child.label}
+                      </Link>
+
+                      {/* Grandchildren list */}
+                      <ul className='space-y-1.5'>
+                        {child.children.length > 0
+                          ? child.children.map((grand) => (
+                              <li key={grand.href}>
+                                <Link
+                                  href={grand.href}
+                                  className={`block text-sm leading-snug transition-colors ${
+                                    isActive(grand.href)
+                                      ? 'text-primary font-medium'
+                                      : 'text-gray-600 hover:text-primary'
+                                  }`}
+                                  onClick={() => setActiveDropdown(null)}
+                                >
+                                  {grand.label}
+                                </Link>
+                              </li>
+                            ))
+                          : null}
+                      </ul>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
-            ))}
-            <Link
-              href='/blog'
-              className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
-                isActive('/blog')
-                  ? 'text-primary border-primary'
-                  : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
-              }`}
-            >
-              Blog
-            </Link>
-            <Link
-              href='/thanh-vien'
-              className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
-                isActive('/thanh-vien')
-                  ? 'text-primary border-primary'
-                  : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
-              }`}
-            >
-              Thành viên
-            </Link>
-            <Link
-              href='/store'
-              className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
-                isActive('/store')
-                  ? 'text-primary border-primary'
-                  : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
-              }`}
-            >
-              Cửa hàng
-            </Link>
-          </nav>
+            </div>
+          )}
         </div>
       </div>
 
