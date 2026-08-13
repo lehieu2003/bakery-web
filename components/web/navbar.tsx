@@ -192,7 +192,8 @@ export default function WebNavbar() {
       const nav = navBarRef.current;
       if (!slot || !nav) return;
 
-      navOffsetTopRef.current = slot.getBoundingClientRect().top + window.scrollY;
+      navOffsetTopRef.current =
+        slot.getBoundingClientRect().top + window.scrollY;
       setNavHeight(nav.offsetHeight);
       setIsNavFixed(window.scrollY >= navOffsetTopRef.current);
     };
@@ -384,27 +385,28 @@ export default function WebNavbar() {
     <header className='bg-white shadow-sm'>
       {/* Main header */}
       <div className='bg-white border-b border-gray-100'>
-        <div className='max-w-7xl mx-auto px-4 lg:px-8 py-3 flex items-center gap-6'>
+        <div className='max-w-7xl mx-auto px-4 lg:px-8 py-3 flex flex-wrap items-center gap-x-4 gap-y-3 md:flex-nowrap lg:gap-6'>
           {/* Logo */}
-          <Link href='/' className='flex-shrink-0' aria-label='Go to home'>
+          <Link
+            href='/'
+            className='order-1 flex-shrink-0'
+            aria-label='Go to home'
+          >
             <Image
               src='/images/bakery-log.svg'
               alt='La Douceur'
               width={156}
               height={52}
               priority
-              className='h-13 w-auto'
+              className='h-10 w-auto md:h-13'
             />
           </Link>
 
-          {/* Phone (desktop) */}
-          <div className='hidden md:flex items-center gap-1.5 text-sm text-gray-600 flex-shrink-0'>
-            <Phone size={14} className='text-primary' />
-            <span className='font-medium'>1900 779907</span>
-          </div>
-
           {/* Search bar */}
-          <div className='flex-1 relative' ref={searchContainerRef}>
+          <div
+            className='order-3 w-full flex-none relative md:order-2 md:flex-1'
+            ref={searchContainerRef}
+          >
             <form onSubmit={handleSearchSubmit}>
               <input
                 type='text'
@@ -496,7 +498,7 @@ export default function WebNavbar() {
           </div>
 
           {/* Right actions */}
-          <div className='flex items-center gap-3 flex-shrink-0'>
+          <div className='order-2 ml-auto flex items-center gap-3 flex-shrink-0 md:order-3 md:ml-0'>
             {/* Notifications */}
             {mounted && user && (
               <Popover
@@ -505,7 +507,7 @@ export default function WebNavbar() {
               >
                 <PopoverTrigger asChild>
                   <button
-                    className='relative flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors'
+                    className='relative hidden items-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:flex'
                     aria-label='Notifications'
                   >
                     <div className='relative'>
@@ -570,7 +572,7 @@ export default function WebNavbar() {
               <Popover open={wishlistOpen} onOpenChange={setWishlistOpen}>
                 <PopoverTrigger asChild>
                   <button
-                    className='relative flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors'
+                    className='relative hidden items-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:flex'
                     aria-label='Favorite products'
                   >
                     <div className='relative'>
@@ -669,7 +671,7 @@ export default function WebNavbar() {
 
             <Link
               href='/cart'
-              className='relative flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors'
+              className='relative hidden items-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:flex'
               aria-label={`Shopping cart, ${cartCount} items`}
             >
               <div className='relative'>
@@ -689,7 +691,7 @@ export default function WebNavbar() {
             {mounted && user ? (
               <Link
                 href='/profile'
-                className='flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 hover:border-primary/50 transition-colors'
+                className='hidden items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 hover:border-primary/50 transition-colors md:flex'
                 aria-label='Profile'
               >
                 <div className='w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-xs flex-shrink-0'>
