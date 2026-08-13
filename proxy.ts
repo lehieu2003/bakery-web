@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const protectedUserRoutes = ['/profile'];
-const authRoutes = ['/auth', '/admin'];
+const authRoutes = ['/auth', '/admin/login'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -10,15 +10,16 @@ export function proxy(request: NextRequest) {
   const sessionToken = request.cookies.get('bakery_session')?.value;
   const userRole = request.cookies.get('bakery_role')?.value;
 
-  const isAdminRoute = pathname.startsWith('/admin/') && pathname !== '/admin';
+  const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
+  const isAdminLoginRoute = pathname === '/admin/login';
   const isProtectedUserRoute = protectedUserRoutes.some((route) =>
     pathname.startsWith(route),
   );
   const isAuthRoute = authRoutes.includes(pathname);
 
-  if (isAdminRoute) {
+  if (isAdminRoute && !isAdminLoginRoute) {
     if (!sessionToken) {
-      const url = new URL('/admin', request.url);
+      const url = new URL('/admin/login', request.url);
       url.searchParams.set('redirect', pathname);
       return NextResponse.redirect(url);
     }
@@ -35,7 +36,7 @@ export function proxy(request: NextRequest) {
   }
 
   if (isAuthRoute && sessionToken) {
-    if (pathname === '/admin' && userRole === 'ADMIN') {
+    if (isAdminLoginRoute && userRole === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
     }
 
@@ -45,6 +46,6 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-export const proxyConfig = {
+export const config = {
   matcher: ['/admin/:path*', '/profile/:path*', '/auth'],
 };
