@@ -1,7 +1,6 @@
 'use client';
 
 import { type ReactNode, useEffect, useRef } from 'react';
-import { animate, createScope, stagger } from 'animejs';
 
 type HomeMotionProps = {
   children: ReactNode;
@@ -9,7 +8,6 @@ type HomeMotionProps = {
 
 export default function HomeMotion({ children }: HomeMotionProps) {
   const root = useRef<HTMLDivElement>(null);
-  const scope = useRef<ReturnType<typeof createScope> | null>(null);
 
   useEffect(() => {
     const rootElement = root.current;
@@ -38,12 +36,7 @@ export default function HomeMotion({ children }: HomeMotionProps) {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
 
-          animate(entry.target, {
-            opacity: [0, 1],
-            y: [28, 0],
-            duration: 850,
-            ease: 'out(4)',
-          });
+          entry.target.classList.add('home-motion-visible');
 
           revealObserver.unobserve(entry.target);
         });
@@ -99,42 +92,50 @@ export default function HomeMotion({ children }: HomeMotionProps) {
         .forEach((step) => storyObserver.observe(step));
     });
 
-    scope.current = createScope({ root }).add(() => {
-      animate('[data-home-intro]', {
-        opacity: [0, 1],
-        y: [22, 0],
-        duration: 900,
-        delay: stagger(95, { start: 160 }),
-        ease: 'out(4)',
+    rootElement
+      .querySelectorAll<HTMLElement>('[data-home-intro], [data-home-card]')
+      .forEach((element, index) => {
+        element.style.opacity = '1';
+        element.style.transform = 'translateY(0)';
+        element.style.transition =
+          'opacity 650ms ease, transform 650ms ease';
+        element.style.transitionDelay = `${Math.min(index * 45, 220)}ms`;
       });
 
-      animate('[data-home-card]', {
-        opacity: [0, 1],
-        y: [18, 0],
-        duration: 650,
-        delay: stagger(55, { start: 220 }),
-        ease: 'out(3)',
+    rootElement
+      .querySelectorAll<HTMLElement>('[data-home-float]')
+      .forEach((element) => {
+        element.style.animation = 'homeFloat 3.6s ease-in-out infinite';
       });
-
-      animate('[data-home-float]', {
-        y: [
-          { to: -10, duration: 1800, ease: 'inOut(2)' },
-          { to: 0, duration: 1800, ease: 'inOut(2)' },
-        ],
-        rotate: [
-          { to: -1.5, duration: 1800, ease: 'inOut(2)' },
-          { to: 0.8, duration: 1800, ease: 'inOut(2)' },
-        ],
-        loop: true,
-      });
-    });
 
     return () => {
       revealObserver.disconnect();
       storyObserver.disconnect();
-      scope.current?.revert();
     };
   }, []);
 
-  return <div ref={root}>{children}</div>;
+  return (
+    <div ref={root}>
+      <style jsx global>{`
+        .home-motion-visible {
+          opacity: 1 !important;
+          transform: translateY(0) !important;
+          transition:
+            opacity 850ms ease,
+            transform 850ms ease;
+        }
+
+        @keyframes homeFloat {
+          0%,
+          100% {
+            transform: translateY(0) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-10px) rotate(-1deg);
+          }
+        }
+      `}</style>
+      {children}
+    </div>
+  );
 }

@@ -40,7 +40,6 @@ export default function BannerCarousel({
 
   useEffect(() => {
     if (!emblaApi) return;
-    onSelect();
     emblaApi.on('select', onSelect);
     emblaApi.on('reInit', onSelect);
 
@@ -61,7 +60,7 @@ export default function BannerCarousel({
           {banners.map((banner) => (
             <div
               key={banner.id}
-              className='flex-[0_0_100%] min-w-0 relative h-[300px] md:h-[400px] lg:h-[500px]'
+              className='flex-[0_0_100%] min-w-0 relative h-[560px]'
             >
               {clickable && banner.linkUrl ? (
                 <Link href={banner.linkUrl} className='block w-full h-full'>
@@ -105,6 +104,7 @@ function BannerContent({ banner }: { banner: Banner }) {
         fill
         className='object-cover'
         priority
+        sizes='100vw'
       />
       {(banner.title || banner.description) && (
         <div className='absolute inset-0 bg-gradient-to-r from-foreground/65 via-foreground/30 to-transparent'>
