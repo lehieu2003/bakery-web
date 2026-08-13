@@ -135,8 +135,8 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   return (
     <div className='flex flex-col h-full bg-sidebar text-sidebar-foreground'>
       {/* Logo */}
-      <div className='flex items-center justify-between px-5 py-5 border-b border-sidebar-border'>
-        <div className='min-w-0'>
+      <div className='relative flex items-center justify-center px-5 py-5 border-b border-sidebar-border'>
+        <div className='flex flex-col items-center text-center'>
           <Image
             src='/images/bakery-log.svg'
             alt='La Douceur'
@@ -149,12 +149,14 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
             Admin Panel
           </p>
         </div>
+
         {onClose && (
           <button
             onClick={onClose}
-            className='lg:hidden p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground'
+            className='absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
+            aria-label='Close menu'
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         )}
       </div>

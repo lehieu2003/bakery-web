@@ -1,6 +1,8 @@
+// AdminShell.tsx
 'use client';
 
 import { useState } from 'react';
+import { PanelLeftOpen } from 'lucide-react';
 import AdminSidebar from './AdminSidebar';
 import AdminTopbar from './AdminTopbar';
 import { cn } from '@/lib/utils';
@@ -11,14 +13,17 @@ interface AdminShellProps {
 }
 
 export default function AdminShell({ children, title }: AdminShellProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // dùng cho mobile drawer
+  const [sidebarVisible, setSidebarVisible] = useState(true); // dùng cho desktop
 
   return (
     <div className='min-h-screen bg-background flex'>
       {/* Desktop sidebar */}
-      <aside className='hidden lg:flex lg:flex-col w-56 shrink-0 border-r border-border'>
-        <AdminSidebar />
-      </aside>
+      {sidebarVisible && (
+        <aside className='hidden lg:flex lg:flex-col w-56 shrink-0 border-r border-border'>
+          <AdminSidebar onClose={() => setSidebarVisible(false)} />
+        </aside>
+      )}
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -40,10 +45,19 @@ export default function AdminShell({ children, title }: AdminShellProps) {
 
       {/* Main content */}
       <div className='flex-1 flex flex-col min-w-0'>
-        <AdminTopbar
-          onMenuClick={() => setSidebarOpen(true)}
-          title={title}
-        />
+        <AdminTopbar onMenuClick={() => setSidebarOpen(true)} title={title} />
+
+        {/* Nút mở lại sidebar khi đã đóng trên desktop */}
+        {!sidebarVisible && (
+          <button
+            onClick={() => setSidebarVisible(true)}
+            className='hidden lg:flex items-center gap-1.5 mx-6 mt-3 w-fit px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
+          >
+            <PanelLeftOpen size={14} />
+            Show sidebar
+          </button>
+        )}
+
         <main className='flex-1 overflow-y-auto'>
           <div className='p-4 md:p-6 max-w-7xl mx-auto'>{children}</div>
         </main>
