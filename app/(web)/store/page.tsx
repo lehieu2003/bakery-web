@@ -2,7 +2,7 @@ import { MapPin, Phone, Clock, Navigation } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Cửa hàng | La Douceur',
+  title: 'Cửa hàng',
   description:
     'Thông tin địa chỉ, giờ mở cửa và bản đồ cửa hàng bánh Bánh Kem Phương Loan.',
 };

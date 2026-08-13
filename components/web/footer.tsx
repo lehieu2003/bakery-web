@@ -37,7 +37,7 @@ export default function WebFooter() {
           { label: 'Bánh sinh nhật', href: '/categories/banh-sinh-nhat' },
           { label: 'Bánh cưới', href: '/categories/banh-cuoi' },
           { label: 'Bánh mousse', href: '/categories/banh-mousse' },
-          { label: 'Tất cả sản phẩm', href: '/cakes' },
+          { label: 'Tất cả sản phẩm', href: '/search' },
         ];
 
   return (
@@ -111,7 +111,7 @@ export default function WebFooter() {
             ))}
             <li>
               <Link
-                href='/cakes'
+                href='/search'
                 className='text-sm text-primary hover:text-primary/80 transition-colors font-medium'
               >
                 Tất cả sản phẩm →

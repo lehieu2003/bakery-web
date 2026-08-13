@@ -5,13 +5,7 @@ const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 const routes = [
   '/',
-  '/auth',
   '/search',
-  '/cart',
-  '/checkout/info',
-  '/checkout/payment',
-  '/checkout/success',
-  '/profile',
   '/blog',
   '/ingredients',
   '/thanh-vien',
@@ -28,13 +22,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let dynamicRoutes: Array<{ path: string; lastModified: Date }> = [];
 
   try {
-    const [pages, blogPosts] = await Promise.all([
+    const [pages, blogPosts, categories, products] = await Promise.all([
       prisma.page.findMany({
         where: { isPublished: true },
         select: { slug: true, updatedAt: true },
       }),
       prisma.blogPost.findMany({
         where: { status: 'PUBLISHED' },
+        select: { slug: true, updatedAt: true },
+      }),
+      prisma.category.findMany({
+        where: { isActive: true },
+        select: { slug: true, updatedAt: true },
+      }),
+      prisma.product.findMany({
+        where: { isActive: true },
         select: { slug: true, updatedAt: true },
       }),
     ]);
@@ -47,6 +49,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...blogPosts.map((post) => ({
         path: `/blog/${post.slug}`,
         lastModified: post.updatedAt,
+      })),
+      ...categories.map((category) => ({
+        path: `/categories/${category.slug}`,
+        lastModified: category.updatedAt,
+      })),
+      ...products.map((product) => ({
+        path: `/products/${product.slug}`,
+        lastModified: product.updatedAt,
       })),
     ];
   } catch (error) {
@@ -64,7 +74,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${siteUrl}${route.path}`,
       lastModified: route.lastModified,
       changeFrequency: 'weekly' as const,
-      priority: route.path.startsWith('/blog/') ? 0.6 : 0.65,
+      priority: route.path.startsWith('/products/')
+        ? 0.8
+        : route.path.startsWith('/categories/')
+          ? 0.75
+          : route.path.startsWith('/blog/')
+            ? 0.6
+            : 0.65,
     })),
   ];
 
