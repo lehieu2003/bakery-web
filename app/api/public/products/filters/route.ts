@@ -71,15 +71,22 @@ export async function GET(request: NextRequest) {
         ...attribute,
         values: attribute.values
           .map((value) => ({
-            ...value,
-            productCount: new Set(value.assignments.map((assignment) => assignment.productId)).size,
+            id: value.id,
+            attributeId: value.attributeId,
+            value: value.value,
+            slug: value.slug,
+            label: value.label,
+            colorHex: value.colorHex,
+            imageUrl: value.imageUrl,
+            displayOrder: value.displayOrder,
+            isActive: value.isActive,
+            createdAt: value.createdAt,
+            updatedAt: value.updatedAt,
+            productCount: new Set(
+              value.assignments.map((assignment) => assignment.productId),
+            ).size,
           }))
-          .filter((value) => value.productCount > 0)
-          .map((value) => {
-            const copy = { ...value } as typeof value & { assignments?: unknown };
-            delete copy.assignments;
-            return copy;
-          }),
+          .filter((value) => value.productCount > 0),
       }))
       .filter((attribute) => attribute.values.length > 0);
 
