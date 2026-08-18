@@ -143,6 +143,9 @@ dependencies:
   next-themes:
     specifier: ^0.4.6
     version: 0.4.6(react-dom@19.2.3)(react@19.2.3)
+  nodemailer:
+    specifier: ^9.0.5
+    version: 9.0.5
   openai:
     specifier: ^6.27.0
     version: 6.49.0(zod@3.25.76)
@@ -199,6 +202,9 @@ devDependencies:
   '@types/node':
     specifier: ^20.19.37
     version: 20.19.43
+  '@types/nodemailer':
+    specifier: ^8.0.1
+    version: 8.0.1
   '@types/react':
     specifier: ^19
     version: 19.2.18
@@ -224,7 +230,7 @@ devDependencies:
     specifier: ^4.21.0
     version: 4.23.12
   typescript:
-    specifier: ^5.9.3
+    specifier: ^5
     version: 5.9.3
   vitest:
     specifier: ^4.1.2
@@ -3508,6 +3514,12 @@ packages:
     resolution: {integrity: sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==}
     dependencies:
       undici-types: 6.21.0
+
+  /@types/nodemailer@8.0.1:
+    resolution: {integrity: sha512-PxpaInm8V1JQDd4j0ds5HfvWQk8JupS1C0Picb96QJsrrRDjBH+DlK7L4ZdNSqNULhiZRQHc40nLVShaGxXAMw==}
+    dependencies:
+      '@types/node': 20.19.43
+    dev: true
 
   /@types/react-dom@19.2.4(@types/react@19.2.18):
     resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
@@ -6855,6 +6867,11 @@ packages:
   /node-releases@2.0.53:
     resolution: {integrity: sha512-D9UOmYG3UH1V+ENW56t5QXBwJw1YEY18ruVeus89Rw+SyIgjPkCO84bRzO3uNIYosJbNwiabWVn48o3uJLjxFQ==}
     engines: {node: '>=18'}
+
+  /nodemailer@9.0.5:
+    resolution: {integrity: sha512-wvjiKvjczmsN7U/8006JOdXubgBk2XFAbioDMbT+sM7cPs0QrhJTa6KBRX7P5REGGkDcLUz/EarWidb8G8C1jQ==}
+    engines: {node: '>=6.0.0'}
+    dev: false
 
   /nypm@0.6.9:
     resolution: {integrity: sha512-zxlE2yvSWZWmHcNdT3+5zV2lrCogeE9YOklHrR3dFjqutq5wO7GFDYLFDRXLsYnJzwvy/im9fYoxePvS0VTW0w==}
