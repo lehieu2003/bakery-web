@@ -333,7 +333,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
             deliveryFee: 0,
             discount: args.discount,
             total: args.total,
-            paymentMethod: args.paymentMethod,
+            paymentMethod: args.paymentMethod as never,
             status: 'PENDING',
             orderItems: {
               create: args.orderItems,
@@ -359,10 +359,11 @@ const createOrderDeps: CreateOrderRouteDeps = {
           });
         }
 
+        const rawItems = (created as { orderItems?: Array<{ productId: string; name: string; price: unknown; quantity: number; subtotal: unknown }> }).orderItems || [];
         return {
           id: created.id,
           orderNumber: created.orderNumber,
-          orderItems: created.orderItems.map((item) => ({
+          orderItems: rawItems.map((item) => ({
             productId: item.productId,
             name: item.name,
             price: Number(item.price),

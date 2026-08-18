@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const protectedUserRoutes = ['/profile'];
-const authRoutes = ['/auth', '/admin/login'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -15,7 +14,6 @@ export function proxy(request: NextRequest) {
   const isProtectedUserRoute = protectedUserRoutes.some((route) =>
     pathname.startsWith(route),
   );
-  const isAuthRoute = authRoutes.includes(pathname);
 
   if (isAdminRoute && !isAdminLoginRoute) {
     if (!sessionToken) {
