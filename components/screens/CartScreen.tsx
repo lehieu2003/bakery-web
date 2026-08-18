@@ -25,8 +25,8 @@ export default function CartScreen() {
     membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
   const eligibilityMessage = membershipBenefitsQuery.isLoading
     ? 'Checking membership benefit eligibility...'
-    : membershipBenefitsQuery.data?.benefits.eligibility.message ??
-      'Membership eligibility details are unavailable right now.';
+    : (membershipBenefitsQuery.data?.benefits.eligibility.message ??
+      'Membership eligibility details are unavailable right now.');
   const discountRate = user ? discountPercent / 100 : 0;
   const discount = Math.round(subtotal * discountRate);
   const total = subtotal - discount;
@@ -174,8 +174,7 @@ export default function CartScreen() {
                     {user && discount > 0 && (
                       <div className='flex justify-between'>
                         <span className='text-sm text-primary capitalize'>
-                          {memberLabel} Member ({discountPercent}%
-                          off)
+                          {memberLabel} Member ({discountPercent}% off)
                         </span>
                         <span className='text-sm text-primary font-semibold'>
                           -{discount.toLocaleString('vi-VN')}đ
@@ -183,7 +182,10 @@ export default function CartScreen() {
                       </div>
                     )}
                     {user && (
-                      <div className='rounded-xl bg-secondary/70 px-3 py-2' aria-live='polite'>
+                      <div
+                        className='rounded-xl bg-secondary/70 px-3 py-2'
+                        aria-live='polite'
+                      >
                         <p className='text-xs text-muted-foreground'>
                           Current points:{' '}
                           {membershipPoints.toLocaleString('vi-VN')}
@@ -220,7 +222,7 @@ export default function CartScreen() {
                     onClick={() => router.push('/checkout/info')}
                     className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors'
                   >
-                    Proceed to Checkout
+                    Thanh toán ngày
                   </button>
                 </div>
               </div>
@@ -231,7 +233,3 @@ export default function CartScreen() {
     </div>
   );
 }
-
-
-
-

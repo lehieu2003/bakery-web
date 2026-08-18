@@ -6,6 +6,7 @@ import { AuthProvider } from '@/providers/auth-provider';
 import { CartProvider } from '@/lib/cart-store';
 import { Toaster } from 'sonner';
 import '../styles/globals.css';
+import { FloatingOrderSummary } from '@/components/screens/FloatingOrderSummary';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -95,6 +96,7 @@ export default function RootLayout({
           <AuthProvider>
             <CartProvider>
               {children}
+              <FloatingOrderSummary />
               <Toaster position='top-right' richColors closeButton />
             </CartProvider>
           </AuthProvider>
