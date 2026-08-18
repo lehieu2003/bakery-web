@@ -59,7 +59,7 @@ enum PaymentMethod {
   COD
   BANK_TRANSFER
   MOMO
-  ZALOPAY
+  VNPAY
 }
 
 enum MenuType {

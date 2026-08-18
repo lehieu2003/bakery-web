@@ -47,7 +47,7 @@ function sanitizeCallbackMetadata(metadata: Record<string, unknown>) {
 
 export type PaymentCallbackAuditPayload = {
   orderId: string;
-  provider: 'MOMO' | 'ZALOPAY';
+  provider: 'MOMO' | 'VNPAY';
   event:
     | 'received'
     | 'processed'

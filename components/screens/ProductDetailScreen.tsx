@@ -522,7 +522,7 @@ export default function ProductDetailScreen({
                 }`}
               >
                 <ShoppingBag size={17} />
-                {added ? 'Added to Cart!' : 'Thêm'}
+                {added ? 'Đã thêm vào giỏ hàng!' : 'Thêm'}
               </button>
 
               <button

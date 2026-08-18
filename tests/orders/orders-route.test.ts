@@ -65,7 +65,7 @@ function createDeps(): CreateOrderDeps {
     createPaymentRecord: async () => undefined,
     handlePaymentInitFailure: async () => undefined,
     createMoMoPayment: async () => ({ payUrl: 'https://pay.example/momo' }),
-    createZaloPayPayment: async () => ({ payUrl: 'https://pay.example/zalo' }),
+    createVNPayPayment: async () => ({ payUrl: 'https://pay.example/vnpay' }),
     getAppUrl: () => 'http://localhost:3000',
     getMembershipConfig: async () => ({
       pointsPerOrder: 10000,
@@ -83,7 +83,7 @@ function createDeps(): CreateOrderDeps {
   };
 }
 
-function buildPayload(method: 'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER') {
+function buildPayload(method: 'COD' | 'MOMO' | 'VNPAY' | 'BANK_TRANSFER') {
   return {
     customerName: 'Lan',
     customerPhone: '0909123456',
@@ -214,12 +214,12 @@ test('POST /api/orders returns paymentUrl for MOMO on gateway success', async ()
   assert.equal(result.body.data?.paymentUrl, 'https://pay.example/momo');
 });
 
-test('POST /api/orders returns paymentError for ZALOPAY gateway failures', async () => {
+test('POST /api/orders returns paymentError for VNPAY gateway failures', async () => {
   const deps = createDeps();
-  deps.createZaloPayPayment = async () =>
+  deps.createVNPayPayment = async () =>
     ({ error: 'gateway unavailable' }) as never;
 
-  const result = await handleCreateOrderRequest(buildPayload('ZALOPAY'), deps);
+  const result = await handleCreateOrderRequest(buildPayload('VNPAY'), deps);
 
   assert.equal(result.status, 200);
   assert.equal(result.body.success, true);
@@ -762,7 +762,7 @@ test('POST /api/orders clamps negative membership discounts to avoid surcharges'
 
 test('POST /api/orders cancels order and releases reserved coupon when MoMo init fails', async () => {
   const deps = createDeps();
-  const cleanupCalls: Array<{ orderId: string; provider: 'MOMO' | 'ZALOPAY'; reason: string }> = [];
+  const cleanupCalls: Array<{ orderId: string; provider: 'MOMO' | 'VNPAY'; reason: string }> = [];
   deps.createMoMoPayment = async () =>
     ({ error: 'momo init failed' }) as never;
   deps.handlePaymentInitFailure = async (args) => {
@@ -780,22 +780,22 @@ test('POST /api/orders cancels order and releases reserved coupon when MoMo init
     },
   ]);
 });
-test('POST /api/orders cancels order and releases reserved coupon when ZaloPay init fails', async () => {
+test('POST /api/orders cancels order and releases reserved coupon when VNPay init fails', async () => {
   const deps = createDeps();
-  const cleanupCalls: Array<{ orderId: string; provider: 'MOMO' | 'ZALOPAY'; reason: string }> = [];
-  deps.createZaloPayPayment = async () =>
-    ({ error: 'zalo init failed' }) as never;
+  const cleanupCalls: Array<{ orderId: string; provider: 'MOMO' | 'VNPAY'; reason: string }> = [];
+  deps.createVNPayPayment = async () =>
+    ({ error: 'vnpay init failed' }) as never;
   deps.handlePaymentInitFailure = async (args) => {
     cleanupCalls.push(args);
   };
-  const result = await handleCreateOrderRequest(buildPayload('ZALOPAY'), deps);
+  const result = await handleCreateOrderRequest(buildPayload('VNPAY'), deps);
   assert.equal(result.status, 200);
   assert.equal(result.body.success, true);
-  assert.equal(result.body.data?.paymentError, 'zalo init failed');
+  assert.equal(result.body.data?.paymentError, 'vnpay init failed');
   assert.deepEqual(cleanupCalls, [
     {
       orderId: 'o1',
-      provider: 'ZALOPAY',
+      provider: 'VNPAY',
       reason: 'PAYMENT_INIT_FAILED',
     },
   ]);

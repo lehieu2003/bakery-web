@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, Banknote, Wallet, Loader2, TicketPercent } from 'lucide-react';
+import { ChevronLeft, Banknote, Wallet, CreditCard, Loader2, TicketPercent } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
@@ -28,11 +28,10 @@ const PAYMENT_METHODS = [
     logo: '/images/momo-logo.png',
   },
   {
-    id: 'ZALOPAY' as const,
-    label: 'ZaloPay',
-    icon: Wallet,
-    desc: 'Pay with ZaloPay e-wallet',
-    logo: '/images/zalopay-logo.png',
+    id: 'VNPAY' as const,
+    label: 'VNPAY',
+    icon: CreditCard,
+    desc: 'Pay with VNPAY (QR Code, ATM Cards, Visa, MasterCard)',
   },
   {
     id: 'BANK_TRANSFER' as const,
@@ -61,7 +60,7 @@ export default function CheckoutPaymentScreen() {
     : membershipBenefitsQuery.data?.benefits.eligibility.message ??
       'Membership eligibility details are unavailable right now.';
   const [payMethod, setPayMethod] = useState<
-    'COD' | 'MOMO' | 'ZALOPAY' | 'BANK_TRANSFER'
+    'COD' | 'MOMO' | 'VNPAY' | 'BANK_TRANSFER'
   >('COD');
   const [incentiveCodeInput, setIncentiveCodeInput] = useState('');
   const [selectedIncentiveCodes, setSelectedIncentiveCodes] = useState<string[]>([]);
@@ -231,7 +230,7 @@ export default function CheckoutPaymentScreen() {
         return;
       }
 
-      // If payment gateway failed (e.g. MoMo/ZaloPay config issue)
+      // If payment gateway failed (e.g. MoMo/VNPay config issue)
       if (result.paymentError) {
         setError(result.paymentError);
         return;

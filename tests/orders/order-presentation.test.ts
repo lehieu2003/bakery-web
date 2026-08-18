@@ -26,7 +26,7 @@ test('getPaymentStatusPresentation maps provider statuses and methods', () => {
     label: 'Paid',
     tone: 'success',
   });
-  assert.deepEqual(getPaymentStatusPresentation('FAILED', 'ZALOPAY'), {
+  assert.deepEqual(getPaymentStatusPresentation('FAILED', 'VNPAY'), {
     label: 'Payment failed',
     tone: 'danger',
   });

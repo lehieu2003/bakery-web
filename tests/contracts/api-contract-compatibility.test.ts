@@ -5,7 +5,7 @@ import { handleAdminAuditListGetRequest } from '@/app/api/admin/audit/route';
 import { handleGetNotificationsRequest } from '@/app/api/notifications/route';
 import { handleGetPublicProductsRequest } from '@/app/api/public/products/route';
 import { handleMoMoCallbackRequest } from '@/app/api/payment/momo/callback/route';
-import { handleZaloPayCallbackRequest } from '@/app/api/payment/zalopay/callback/route';
+import { handleVNPayCallbackRequest } from '@/app/api/payment/vnpay/callback/route';
 
 test('admin audit route returns success/data envelope for success responses', async () => {
   const result = await handleAdminAuditListGetRequest(
@@ -90,11 +90,19 @@ test('momo callback contract remains provider-compatible (compatibility guard)',
   assert.equal(typeof (result.body as { message: unknown }).message, 'string');
 });
 
-test('zalopay callback contract remains provider-compatible (compatibility guard)', async () => {
-  const result = await handleZaloPayCallbackRequest(
-    { data: '{}', mac: 'invalid' },
+test('vnpay callback contract remains provider-compatible (compatibility guard)', async () => {
+  const result = await handleVNPayCallbackRequest(
+    { vnp_TxnRef: 'order-1', vnp_SecureHash: 'invalid' },
     {
-      verifyCallback: () => false,
+      verifyCallback: () => ({
+        isValid: false,
+        orderId: 'order-1',
+        amount: 200000,
+        transactionId: null,
+        responseCode: '97',
+        transactionStatus: '97',
+        isSuccess: false,
+      }),
       findPaymentByOrderId: async () => null,
       applyPaymentTransition: async () => ({ applied: false, conflict: false }),
       logEvent: () => undefined,
@@ -103,9 +111,9 @@ test('zalopay callback contract remains provider-compatible (compatibility guard
   );
 
   assert.equal(result.status, 200);
-  assert.equal(typeof (result.body as { return_code: unknown }).return_code, 'number');
+  assert.equal(typeof (result.body as { RspCode: unknown }).RspCode, 'string');
   assert.equal(
-    typeof (result.body as { return_message: unknown }).return_message,
+    typeof (result.body as { Message: unknown }).Message,
     'string',
   );
 });

@@ -1,11 +1,11 @@
 /**
- * ZaloPay Callback
- * Called by ZaloPay server after payment completion
+ * VNPay Callback / IPN Route
+ * Called by VNPay server or redirected from customer after payment completion
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyZaloPayCallback } from '@/lib/payment/zalopay';
+import { verifyVNPayCallback, type VNPayVerifyResult } from '@/lib/payment/vnpay';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 import {
@@ -24,8 +24,8 @@ type PaymentSnapshot = {
   orderNumber: string | null;
 };
 
-type ZaloCallbackDeps = {
-  verifyCallback: (dataStr: string, mac: string) => boolean;
+export type VNPayCallbackDeps = {
+  verifyCallback: (params: Record<string, unknown>) => VNPayVerifyResult;
   findPaymentByOrderId: (orderId: string) => Promise<PaymentSnapshot | null>;
   applyPaymentTransition: (args: {
     orderId: string;
@@ -46,8 +46,8 @@ type ZaloCallbackDeps = {
   ) => Promise<void>;
 };
 
-const defaultDeps: ZaloCallbackDeps = {
-  verifyCallback: verifyZaloPayCallback,
+const defaultDeps: VNPayCallbackDeps = {
+  verifyCallback: verifyVNPayCallback,
   findPaymentByOrderId: async (orderId) =>
     prisma.payment.findUnique({
       where: { orderId },
@@ -140,7 +140,7 @@ const defaultDeps: ZaloCallbackDeps = {
     console.info(
       JSON.stringify({
         event,
-        provider: 'ZALOPAY',
+        provider: 'VNPAY',
         ...payload,
       }),
     );
@@ -148,7 +148,7 @@ const defaultDeps: ZaloCallbackDeps = {
 };
 
 async function safeWriteCallbackAudit(
-  deps: ZaloCallbackDeps,
+  deps: VNPayCallbackDeps,
   payload: PaymentCallbackAuditPayload,
 ) {
   if (!deps.writeCallbackAuditLog) return;
@@ -164,168 +164,72 @@ async function safeWriteCallbackAudit(
   }
 }
 
-function normalizeAsRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
-
-function normalizeText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function parseOrderIdFromAppTransId(appTransId: string): string {
-  return appTransId.split('_').slice(1).join('_').trim();
-}
-
-function safeVerifyZaloSignature(
-  verify: ZaloCallbackDeps['verifyCallback'],
-  dataStr: string,
-  mac: string,
+export async function handleVNPayCallbackRequest(
+  queryParams: Record<string, unknown>,
+  deps: VNPayCallbackDeps = defaultDeps,
 ) {
-  try {
-    return verify(dataStr, mac);
-  } catch {
-    return false;
-  }
-}
-
-function resolveIncomingStatus(payload: Record<string, unknown>): string {
-  const candidates = [
-    payload.status,
-    payload.return_code,
-    payload.sub_return_code,
-  ];
-
-  for (const value of candidates) {
-    const normalized = typeof value === 'string' ? Number(value) : value;
-    if (normalized === 1) return 'PAID';
-    if (normalized === -1 || normalized === 0) return 'FAILED';
-  }
-
-  return 'UNKNOWN';
-}
-
-function resolveTransactionId(payload: Record<string, unknown>): string | null {
-  const transactionId = normalizeText(payload.zp_trans_id ?? payload.trans_id);
-  return transactionId || null;
-}
-
-function normalizeNumericAmount(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-export async function handleZaloPayCallbackRequest(
-  body: unknown,
-  deps: ZaloCallbackDeps = defaultDeps,
-) {
-  const payload = normalizeAsRecord(body);
-  if (!payload) {
-    return {
-      status: 400,
-      body: { return_code: 0, return_message: 'invalid payload' },
-    };
-  }
-
-  const dataStr = normalizeText(payload.data);
-  const mac = normalizeText(payload.mac);
-
-  if (!dataStr || !mac) {
+  if (!queryParams || typeof queryParams !== 'object' || Object.keys(queryParams).length === 0) {
     deps.logEvent('payment.callback.invalid_payload', {
-      reason: 'missing_data_or_mac',
+      reason: 'empty_query_parameters',
     });
     await safeWriteCallbackAudit(deps, {
       orderId: 'unknown',
-      provider: 'ZALOPAY',
+      provider: 'VNPAY',
       event: 'invalid_payload',
-      reason: 'missing_data_or_mac',
+      reason: 'empty_query_parameters',
     });
     return {
       status: 400,
-      body: { return_code: 0, return_message: 'invalid payload' },
+      body: { RspCode: '99', Message: 'Invalid payload' },
     };
   }
 
-  if (!safeVerifyZaloSignature(deps.verifyCallback, dataStr, mac)) {
+  const verifyResult = deps.verifyCallback(queryParams);
+
+  if (!verifyResult.isValid) {
     deps.logEvent('payment.callback.verification_failed', {
-      reason: 'invalid_mac',
+      reason: 'invalid_checksum',
     });
     await safeWriteCallbackAudit(deps, {
-      orderId: 'unknown',
-      provider: 'ZALOPAY',
+      orderId: verifyResult.orderId || 'unknown',
+      provider: 'VNPAY',
       event: 'verification_failed',
-      reason: 'invalid_mac',
+      reason: 'invalid_checksum',
     });
     return {
       status: 200,
-      body: { return_code: -1, return_message: 'mac not equal' },
+      body: { RspCode: '97', Message: 'Invalid Checksum' },
     };
   }
 
-  let parsedData: Record<string, unknown>;
-  try {
-    parsedData = JSON.parse(dataStr) as Record<string, unknown>;
-  } catch {
+  const { orderId, amount, transactionId, isSuccess } = verifyResult;
+  const incomingStatus = isSuccess ? 'PAID' : 'FAILED';
+
+  if (!orderId) {
     deps.logEvent('payment.callback.invalid_payload', {
-      reason: 'data_json_parse_failed',
+      reason: 'missing_txn_ref',
     });
     await safeWriteCallbackAudit(deps, {
       orderId: 'unknown',
-      provider: 'ZALOPAY',
+      provider: 'VNPAY',
       event: 'invalid_payload',
-      reason: 'data_json_parse_failed',
+      reason: 'missing_txn_ref',
     });
     return {
       status: 400,
-      body: { return_code: 0, return_message: 'invalid payload' },
-    };
-  }
-
-  const appTransId = normalizeText(parsedData.app_trans_id);
-  const orderId = parseOrderIdFromAppTransId(appTransId);
-  const incomingStatus = resolveIncomingStatus(parsedData);
-  const transactionId = resolveTransactionId(parsedData);
-  const amount = normalizeNumericAmount(parsedData.amount);
-
-  if (!appTransId || !orderId || incomingStatus === 'UNKNOWN' || amount === null) {
-    deps.logEvent('payment.callback.invalid_payload', {
-      reason: 'missing_app_trans_id',
-      appTransId,
-      incomingStatus,
-      amount,
-    });
-    await safeWriteCallbackAudit(deps, {
-      orderId: orderId || 'unknown',
-      provider: 'ZALOPAY',
-      event: 'invalid_payload',
-      reason: !appTransId
-        ? 'missing_app_trans_id'
-        : incomingStatus === 'UNKNOWN'
-          ? 'unknown_status'
-          : amount === null
-            ? 'missing_amount'
-          : 'invalid_payload',
-      incomingStatus,
-    });
-    return {
-      status: 400,
-      body: { return_code: 0, return_message: 'invalid payload' },
+      body: { RspCode: '01', Message: 'Order not found' },
     };
   }
 
   deps.logEvent('payment.callback.received', {
     orderId,
-    appTransId,
     incomingStatus,
     transactionId,
+    amount,
   });
   await safeWriteCallbackAudit(deps, {
     orderId,
-    provider: 'ZALOPAY',
+    provider: 'VNPAY',
     event: 'received',
     incomingStatus,
     transactionId,
@@ -339,7 +243,7 @@ export async function handleZaloPayCallbackRequest(
     });
     await safeWriteCallbackAudit(deps, {
       orderId,
-      provider: 'ZALOPAY',
+      provider: 'VNPAY',
       event: 'processed',
       incomingStatus,
       transactionId,
@@ -347,7 +251,7 @@ export async function handleZaloPayCallbackRequest(
     });
     return {
       status: 200,
-      body: { return_code: 1, return_message: 'already processed' },
+      body: { RspCode: '01', Message: 'Order not found' },
     };
   }
 
@@ -360,7 +264,7 @@ export async function handleZaloPayCallbackRequest(
     });
     await safeWriteCallbackAudit(deps, {
       orderId,
-      provider: 'ZALOPAY',
+      provider: 'VNPAY',
       event: 'verification_failed',
       reason: 'amount_mismatch',
       incomingStatus,
@@ -368,7 +272,7 @@ export async function handleZaloPayCallbackRequest(
     });
     return {
       status: 400,
-      body: { return_code: 0, return_message: 'invalid amount' },
+      body: { RspCode: '04', Message: 'Invalid amount' },
     };
   }
 
@@ -391,7 +295,7 @@ export async function handleZaloPayCallbackRequest(
     );
     await safeWriteCallbackAudit(deps, {
       orderId,
-      provider: 'ZALOPAY',
+      provider: 'VNPAY',
       event: conflict ? 'conflict' : 'replay_ignored',
       incomingStatus,
       existingStatus: payment.status,
@@ -402,7 +306,7 @@ export async function handleZaloPayCallbackRequest(
 
     return {
       status: 200,
-      body: { return_code: 1, return_message: 'already processed' },
+      body: { RspCode: '02', Message: 'Order already confirmed' },
     };
   }
 
@@ -426,7 +330,7 @@ export async function handleZaloPayCallbackRequest(
     );
     await safeWriteCallbackAudit(deps, {
       orderId,
-      provider: 'ZALOPAY',
+      provider: 'VNPAY',
       event: transitionResult.conflict ? 'conflict' : 'replay_ignored',
       incomingStatus,
       existingStatus: payment.status,
@@ -437,7 +341,7 @@ export async function handleZaloPayCallbackRequest(
 
     return {
       status: 200,
-      body: { return_code: 1, return_message: 'already processed' },
+      body: { RspCode: '02', Message: 'Order already confirmed' },
     };
   }
 
@@ -455,7 +359,7 @@ export async function handleZaloPayCallbackRequest(
           orderId,
           orderNumber: payment.orderNumber,
           orderStatus,
-          provider: 'ZALOPAY',
+          provider: 'VNPAY',
           transactionId,
           occurredAt: new Date().toISOString(),
           linkUrl: `${appUrl}/orders`,
@@ -464,7 +368,7 @@ export async function handleZaloPayCallbackRequest(
       .catch((error) => {
         deps.logEvent('notification.dispatch.failed', {
           orderId,
-          provider: 'ZALOPAY',
+          provider: 'VNPAY',
           error: error instanceof Error ? error.message : String(error),
         });
       });
@@ -478,28 +382,56 @@ export async function handleZaloPayCallbackRequest(
   });
   await safeWriteCallbackAudit(deps, {
     orderId,
-    provider: 'ZALOPAY',
+    provider: 'VNPAY',
     event: 'processed',
     incomingStatus,
     transactionId,
     outcome: 'state_updated',
   });
 
-  return { status: 200, body: { return_code: 1, return_message: 'success' } };
+  return { status: 200, body: { RspCode: '00', Message: 'Confirm Success' } };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const queryParams: Record<string, string> = {};
+    searchParams.forEach((val, key) => {
+      queryParams[key] = val;
+    });
+
+    const result = await handleVNPayCallbackRequest(queryParams, defaultDeps);
+
+    // If redirected user from browser, redirect them to checkout success/failure page
+    const acceptHeader = request.headers.get('accept') || '';
+    if (acceptHeader.includes('text/html')) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const orderId = queryParams.vnp_TxnRef;
+      const isSuccess = queryParams.vnp_ResponseCode === '00';
+      return NextResponse.redirect(
+        `${appUrl}/checkout/success?orderId=${orderId}&paymentStatus=${isSuccess ? 'PAID' : 'FAILED'}`,
+      );
+    }
+
+    return NextResponse.json(result.body, { status: result.status });
+  } catch (error) {
+    console.error('VNPay callback GET error:', error);
+    return NextResponse.json(
+      { RspCode: '99', Message: 'Server error' },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const result = await handleZaloPayCallbackRequest(body, defaultDeps);
+    const body = await request.json().catch(() => ({}));
+    const result = await handleVNPayCallbackRequest(body, defaultDeps);
     return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
-    console.error('ZaloPay callback error:', error);
+    console.error('VNPay callback POST error:', error);
     return NextResponse.json(
-      {
-        return_code: 0,
-        return_message: 'server error',
-      },
+      { RspCode: '99', Message: 'Server error' },
       { status: 500 },
     );
   }

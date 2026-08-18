@@ -22,7 +22,7 @@ const sections = [
     title: 'Đặt hàng và thanh toán',
     paragraphs: [
       'Tất cả đơn hàng được xác nhận qua email sau khi thanh toán thành công. Giá sản phẩm hiển thị trên Website đã bao gồm VAT.',
-      'Chúng tôi chấp nhận thanh toán qua MoMo, ZaloPay, chuyển khoản ngân hàng và tiền mặt khi nhận hàng. Đơn hàng chỉ được xử lý sau khi xác nhận thanh toán.',
+      'Chúng tôi chấp nhận thanh toán qua MoMo, VNPAY, chuyển khoản ngân hàng và tiền mặt khi nhận hàng. Đơn hàng chỉ được xử lý sau khi xác nhận thanh toán.',
       'Phương Loan Bakery có quyền từ chối hoặc hủy đơn hàng trong trường hợp sản phẩm hết hàng, thông tin đặt hàng không hợp lệ hoặc nghi ngờ gian lận.',
     ],
   },

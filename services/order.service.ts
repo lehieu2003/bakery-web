@@ -7,7 +7,7 @@ export interface CreateOrderPayload {
   customerPhone: string;
   customerEmail?: string;
   customerAddress?: string;
-  paymentMethod: 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
+  paymentMethod: 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'VNPAY';
   incentiveCode?: string;
   incentiveCodes?: string[];
   items: Array<{

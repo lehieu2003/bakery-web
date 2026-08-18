@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUserFromRequest } from '@/lib/session';
 import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 import { createMoMoPayment } from '@/lib/payment/momo';
-import { createZaloPayPayment } from '@/lib/payment/zalopay';
+import { createVNPayPayment } from '@/lib/payment/vnpay';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 import {
   getDiscountPercentForLevel,
@@ -22,13 +22,14 @@ import {
   applyCouponLifecycleForOrderStatus,
   reserveCouponRedemption,
 } from '@/lib/incentives/redemption-lifecycle';
-import { PaymentMethod, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PaymentMethod } from '@/types/api.types';
 
 const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'COD',
   'BANK_TRANSFER',
   'MOMO',
-  'ZALOPAY',
+  'VNPAY',
 ];
 const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
 
@@ -116,16 +117,16 @@ type CreateOrderRouteDeps = {
   }>;
   createPaymentRecord: (args: {
     orderId: string;
-    provider: 'MOMO' | 'ZALOPAY';
+    provider: 'MOMO' | 'VNPAY';
     amount: number;
   }) => Promise<void>;
   handlePaymentInitFailure: (args: {
     orderId: string;
-    provider: 'MOMO' | 'ZALOPAY';
+    provider: 'MOMO' | 'VNPAY';
     reason: string;
   }) => Promise<void>;
   createMoMoPayment: typeof createMoMoPayment;
-  createZaloPayPayment: typeof createZaloPayPayment;
+  createVNPayPayment: typeof createVNPayPayment;
   dispatchNotificationEvent?: (event: {
     eventType: 'ORDER_STATUS_CHANGED';
     entityId: string;
@@ -409,7 +410,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
     });
   },
   createMoMoPayment,
-  createZaloPayPayment,
+  createVNPayPayment,
   dispatchNotificationEvent,
   getAppUrl: () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   getMembershipConfig: getMembershipRulesConfig,
@@ -845,37 +846,31 @@ export async function handleCreateOrderRequest(
     };
   }
 
-  if (paymentMethod === 'ZALOPAY') {
+  if (paymentMethod === 'VNPAY') {
     await deps.createPaymentRecord({
       orderId: order.id,
-      provider: 'ZALOPAY',
+      provider: 'VNPAY',
       amount: totalInt,
     });
 
-    const result = await deps.createZaloPayPayment({
+    const result = await deps.createVNPayPayment({
       orderId: order.id,
       orderNumber,
       amount: totalInt,
       description: `Thanh toán đơn hàng #${orderNumber}`,
-      redirectUrl: successUrl,
-      callbackUrl: `${appUrl}/api/payment/zalopay/callback`,
-      items: orderItems.map((i) => ({
-        name: i.name,
-        quantity: i.quantity,
-        price: i.price,
-      })),
+      redirectUrl: `${appUrl}/api/payment/vnpay/callback`,
     });
 
     if ('error' in result) {
       try {
         await deps.handlePaymentInitFailure({
           orderId: order.id,
-          provider: 'ZALOPAY',
+          provider: 'VNPAY',
           reason: 'PAYMENT_INIT_FAILED',
         });
       } catch (cleanupError) {
         console.error(
-          'ZaloPay payment init failure cleanup error:',
+          'VNPay payment init failure cleanup error:',
           cleanupError,
         );
       }

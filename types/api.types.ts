@@ -17,7 +17,7 @@ export type OrderStatus =
   | 'CANCELLED';
 export type MemberLevel = 'SILVER' | 'GOLD' | 'PLATINUM';
 export type DiscountType = 'PERCENTAGE' | 'FIXED';
-export type PaymentMethod = 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'ZALOPAY';
+export type PaymentMethod = 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'VNPAY';
 export type MenuType = 'CATEGORY' | 'PAGE' | 'LINK';
 export type NotificationStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 export type NotificationAudience = 'GLOBAL' | 'USER';
