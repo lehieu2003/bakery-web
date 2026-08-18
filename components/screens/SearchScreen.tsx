@@ -256,7 +256,7 @@ export default function SearchScreen() {
                           });
                         }}
                       />
-                      <span className='text-sm'>{value.label}</span>
+                      <span className='text-sm'>{value.label || value.value}</span>
                     </div>
                     <span className='text-xs text-muted-foreground'>
                       ({value.productCount})
