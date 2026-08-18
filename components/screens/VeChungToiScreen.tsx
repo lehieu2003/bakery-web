@@ -50,7 +50,7 @@ export default function VeChungToiScreen() {
       <section className='relative h-64 md:h-80 rounded-2xl overflow-hidden my-8'>
         <Image
           src='/images/bakery-kitchen.jpg'
-          alt='Đội ngũ thợ bánh La Douceur trong bếp bánh chuyên nghiệp'
+          alt='Đội ngũ thợ bánh Phương Loan Bakery trong bếp bánh chuyên nghiệp'
           fill
           className='object-cover'
           priority
@@ -60,11 +60,11 @@ export default function VeChungToiScreen() {
             Về chúng tôi
           </p>
           <h1 className='font-serif text-3xl md:text-4xl font-bold text-white text-balance'>
-            La Douceur – Artisan Bakery
+            Phương Loan Bakery – Artisan Bakery
           </h1>
           <p className='text-sm text-white/80 mt-3 max-w-md text-pretty'>
-            Hơn 10 năm mang đến những chiếc bánh thủ công tinh tế tại TP. Hồ
-            Chí Minh
+            Hơn 10 năm mang đến những chiếc bánh thủ công tinh tế tại TP. Hồ Chí
+            Minh
           </p>
         </div>
       </section>
@@ -76,24 +76,24 @@ export default function VeChungToiScreen() {
         </h2>
         <div className='space-y-4 text-sm text-foreground leading-relaxed'>
           <p>
-            La Douceur – tiếng Pháp có nghĩa là{' '}
-            <em>&ldquo;sự ngọt ngào&rdquo;</em> – ra đời năm 2013 từ ước mơ
-            của một người thợ bánh trẻ yêu thích nghệ thuật làm bánh theo
-            phong cách Pháp. Bắt đầu từ một tiệm nhỏ tại Quận 1, TP.HCM, La
-            Douceur nhanh chóng chinh phục thực khách bởi hương vị tinh tế và
-            cách trình bày nghệ thuật.
+            Phương Loan Bakery – tiếng Pháp có nghĩa là{' '}
+            <em>&ldquo;sự ngọt ngào&rdquo;</em> – ra đời năm 2013 từ ước mơ của
+            một người thợ bánh trẻ yêu thích nghệ thuật làm bánh theo phong cách
+            Pháp. Bắt đầu từ một tiệm nhỏ tại Quận 1, TP.HCM, Phương Loan Bakery
+            nhanh chóng chinh phục thực khách bởi hương vị tinh tế và cách trình
+            bày nghệ thuật.
           </p>
           <p>
-            Sau hơn một thập kỷ, La Douceur đã mở rộng lên{' '}
+            Sau hơn một thập kỷ, Phương Loan Bakery đã mở rộng lên{' '}
             <strong>8 chi nhánh tại TP.HCM</strong>, phục vụ hơn{' '}
-            <strong>1.000 khách hàng mỗi ngày</strong>. Tuy nhiên, triết lý
-            làm bánh của chúng tôi vẫn không thay đổi: mỗi chiếc bánh phải
-            được làm thủ công, từ những nguyên liệu tươi ngon nhất, với sự tận
-            tâm cao nhất.
+            <strong>1.000 khách hàng mỗi ngày</strong>. Tuy nhiên, triết lý làm
+            bánh của chúng tôi vẫn không thay đổi: mỗi chiếc bánh phải được làm
+            thủ công, từ những nguyên liệu tươi ngon nhất, với sự tận tâm cao
+            nhất.
           </p>
           <p>
-            Từ bánh sinh nhật cầu kỳ đến chiếc croissant bơ giòn tan mỗi
-            sáng, La Douceur luôn hướng đến một điều duy nhất: mang lại niềm
+            Từ bánh sinh nhật cầu kỳ đến chiếc croissant bơ giòn tan mỗi sáng,
+            Phương Loan Bakery luôn hướng đến một điều duy nhất: mang lại niềm
             vui và sự ấm áp qua từng chiếc bánh.
           </p>
         </div>

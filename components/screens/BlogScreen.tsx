@@ -375,14 +375,14 @@ export default function BlogScreen() {
       {/* Page Header */}
       <header className='mb-10'>
         <p className='text-xs tracking-[0.25em] uppercase text-muted-foreground font-sans font-light mb-2'>
-          Từ bếp bánh La Douceur
+          Từ bếp bánh Phương Loan Bakery
         </p>
         <h1 className='font-serif text-4xl lg:text-5xl font-bold text-foreground text-balance mb-4'>
           Blog & Câu chuyện
         </h1>
         <p className='text-muted-foreground text-base leading-relaxed max-w-xl'>
           Khám phá công thức, mẹo làm bánh và những câu chuyện thú vị từ đội ngũ
-          thợ bánh La Douceur.
+          thợ bánh Phương Loan Bakery.
         </p>
 
         {/* Search Bar */}

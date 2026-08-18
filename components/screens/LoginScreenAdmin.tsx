@@ -47,7 +47,7 @@ export default function LoginScreenAdmin() {
               Admin Sign In
             </h1>
             <p className='text-sm text-muted-foreground mt-1'>
-              Sign in to manage La Douceur
+              Sign in to manage Phương Loan Bakery
             </p>
           </div>
 

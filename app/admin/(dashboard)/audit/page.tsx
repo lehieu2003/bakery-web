@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAdminAuditLogs } from '@/hooks/admin/use-audit';
+import type { AdminActionAuditEntry } from '@/types/api.types';
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('vi-VN');
@@ -27,7 +28,7 @@ export default function AdminAuditPage() {
   );
 
   const { data, isLoading, error, isFetching } = useAdminAuditLogs(params);
-  const logs = data?.logs ?? [];
+  const logs: AdminActionAuditEntry[] = data?.logs ?? [];
   const pagination = data?.pagination;
 
   return (

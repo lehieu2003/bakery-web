@@ -4,7 +4,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, ChevronLeft, TrendingDown, TrendingUp, ArrowDownUp } from 'lucide-react';
+import {
+  Search,
+  Loader2,
+  ChevronLeft,
+  TrendingDown,
+  TrendingUp,
+  ArrowDownUp,
+} from 'lucide-react';
 import { useProductFilters, useProducts } from '@/hooks/use-products';
 import {
   areFilterStateRecordsEqual,
@@ -16,11 +23,19 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 type SortOption = 'popular' | 'price-asc' | 'price-desc' | 'newest';
 
-const SORT_OPTIONS: { value: SortOption; label: string; icon: React.ReactNode }[] = [
+const SORT_OPTIONS: {
+  value: SortOption;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
   { value: 'popular', label: 'Phổ biến nhất', icon: <TrendingUp size={14} /> },
   { value: 'newest', label: 'Mới nhất', icon: <ArrowDownUp size={14} /> },
   { value: 'price-asc', label: 'Giá tăng dần', icon: <TrendingUp size={14} /> },
-  { value: 'price-desc', label: 'Giá giảm dần', icon: <TrendingDown size={14} /> },
+  {
+    value: 'price-desc',
+    label: 'Giá giảm dần',
+    icon: <TrendingDown size={14} />,
+  },
 ];
 
 const PLACEHOLDER_BLUR =
@@ -36,9 +51,9 @@ export default function SearchScreen() {
   const [inputValue, setInputValue] = useState(initialState.search);
   const [query, setQuery] = useState(initialState.search);
   const [sort, setSort] = useState<SortOption>('popular');
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>(
-    initialState.selectedFilters,
-  );
+  const [selectedFilters, setSelectedFilters] = useState<
+    Record<string, string[]>
+  >(initialState.selectedFilters);
   const [priceMin, setPriceMin] = useState(initialState.minPrice);
   const [priceMax, setPriceMax] = useState(initialState.maxPrice);
   const [inStockOnly, setInStockOnly] = useState(initialState.inStockOnly);
@@ -46,7 +61,9 @@ export default function SearchScreen() {
 
   // Sync URL param → input when navigating here
   useEffect(() => {
-    const next = parseListingUrlState(new URLSearchParams(searchParams.toString()));
+    const next = parseListingUrlState(
+      new URLSearchParams(searchParams.toString()),
+    );
     const timer = setTimeout(() => {
       setQuery(next.search);
       setPriceMin(next.minPrice);
@@ -275,7 +292,7 @@ export default function SearchScreen() {
               type='text'
               value={inputValue}
               onChange={handleInputChange}
-              placeholder='Bạn tìm gì ở La Douceur?'
+              placeholder='Bạn tìm gì ở Phương Loan Bakery?'
               autoFocus
               className='w-full border border-border rounded-xl px-5 py-3.5 pr-12 text-sm text-foreground placeholder:text-muted-foreground bg-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors'
             />
@@ -317,7 +334,9 @@ export default function SearchScreen() {
                         : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                     }`}
                   >
-                    <span className={`flex-shrink-0 ${sort === value ? 'text-primary' : 'text-muted-foreground'}`}>
+                    <span
+                      className={`flex-shrink-0 ${sort === value ? 'text-primary' : 'text-muted-foreground'}`}
+                    >
                       {icon}
                     </span>
                     {label}
@@ -369,7 +388,9 @@ export default function SearchScreen() {
             <div>
               <div className='flex items-center gap-3 mb-6'>
                 <Loader2 size={16} className='animate-spin text-primary' />
-                <p className='text-sm text-muted-foreground'>Đang tìm kiếm...</p>
+                <p className='text-sm text-muted-foreground'>
+                  Đang tìm kiếm...
+                </p>
               </div>
               <div className='grid grid-cols-2 md:grid-cols-3 gap-5'>
                 {[...Array(6)].map((_, i) => (
@@ -393,7 +414,9 @@ export default function SearchScreen() {
               <Search size={40} className='mx-auto mb-4 opacity-30' />
               <p className='text-base'>
                 Không tìm thấy sản phẩm nào cho{' '}
-                <span className='text-foreground font-semibold'>&quot;{query}&quot;</span>
+                <span className='text-foreground font-semibold'>
+                  &quot;{query}&quot;
+                </span>
               </p>
               <p className='text-sm mt-2'>Hãy thử từ khóa khác.</p>
             </div>
@@ -401,11 +424,18 @@ export default function SearchScreen() {
             <>
               <div className='flex items-center justify-between mb-6'>
                 <p className='text-sm text-muted-foreground'>
-                  Tìm thấy <span className='font-semibold text-foreground'>{sorted.length}</span> sản phẩm
+                  Tìm thấy{' '}
+                  <span className='font-semibold text-foreground'>
+                    {sorted.length}
+                  </span>{' '}
+                  sản phẩm
                   {query && (
                     <>
-                      {' '}cho{' '}
-                      <span className='font-semibold text-foreground'>&quot;{query}&quot;</span>
+                      {' '}
+                      cho{' '}
+                      <span className='font-semibold text-foreground'>
+                        &quot;{query}&quot;
+                      </span>
                     </>
                   )}
                 </p>

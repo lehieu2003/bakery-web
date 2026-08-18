@@ -93,7 +93,7 @@ const EARN_STEPS = [
   {
     icon: ShoppingBag,
     title: 'Đặt hàng',
-    desc: 'Mua sản phẩm bất kỳ trên website hoặc tại cửa hàng La Douceur.',
+    desc: 'Mua sản phẩm bất kỳ trên website hoặc tại cửa hàng Phương Loan Bakery.',
   },
   {
     icon: Coins,
@@ -131,7 +131,7 @@ const USE_STEPS = [
 ];
 
 const JOIN_CONDITIONS = [
-  'Đăng ký tài khoản tại La Douceur (miễn phí)',
+  'Đăng ký tài khoản tại Phương Loan Bakery (miễn phí)',
   'Thực hiện ít nhất 1 đơn hàng để kích hoạt hạng Silver',
   'Điểm tích lũy được tính từ ngày tài khoản được tạo',
   'Hạng thành viên được xét lại mỗi năm dựa trên tổng điểm tích lũy',
@@ -153,9 +153,9 @@ export default function MembershipScreen() {
           <span className='text-primary'>thượng khách</span>
         </h1>
         <p className='text-gray-500 text-base md:text-lg max-w-2xl mx-auto leading-relaxed'>
-          Tham gia chương trình thành viên La Douceur để nhận ưu đãi độc quyền,
-          tích điểm mỗi đơn hàng và thăng hạng để mở khóa những quyền lợi cao
-          hơn.
+          Tham gia chương trình thành viên Phương Loan Bakery để nhận ưu đãi độc
+          quyền, tích điểm mỗi đơn hàng và thăng hạng để mở khóa những quyền lợi
+          cao hơn.
         </p>
         <Link
           href='/auth'
@@ -192,7 +192,9 @@ export default function MembershipScreen() {
                 )}
 
                 {/* Top accent bar */}
-                <div className={`h-1 w-12 rounded-full ${tier.accentBar} mb-5`} />
+                <div
+                  className={`h-1 w-12 rounded-full ${tier.accentBar} mb-5`}
+                />
 
                 <div className='flex items-center gap-3 mb-4'>
                   <div className={`p-2.5 rounded-xl ${tier.iconBg}`}>
@@ -204,7 +206,9 @@ export default function MembershipScreen() {
                     </p>
                     <p className='text-xs text-gray-500'>{tier.subtitle}</p>
                   </div>
-                  <span className={`ml-auto text-[11px] font-semibold px-3 py-1 rounded-full ${tier.badgeClass}`}>
+                  <span
+                    className={`ml-auto text-[11px] font-semibold px-3 py-1 rounded-full ${tier.badgeClass}`}
+                  >
                     {tier.discount}% off
                   </span>
                 </div>
@@ -217,8 +221,14 @@ export default function MembershipScreen() {
 
                 <ul className='space-y-2.5'>
                   {tier.benefits.map((b) => (
-                    <li key={b} className='flex items-start gap-2 text-sm text-gray-700'>
-                      <CheckCircle2 size={15} className={`${tier.iconColor} flex-shrink-0 mt-0.5`} />
+                    <li
+                      key={b}
+                      className='flex items-start gap-2 text-sm text-gray-700'
+                    >
+                      <CheckCircle2
+                        size={15}
+                        className={`${tier.iconColor} flex-shrink-0 mt-0.5`}
+                      />
                       {b}
                     </li>
                   ))}
@@ -241,7 +251,8 @@ export default function MembershipScreen() {
               Điều kiện trở thành thành viên
             </h2>
             <p className='text-gray-500 text-sm mt-3 leading-relaxed'>
-              Tham gia hoàn toàn miễn phí — chỉ cần tạo tài khoản và bắt đầu mua sắm.
+              Tham gia hoàn toàn miễn phí — chỉ cần tạo tài khoản và bắt đầu mua
+              sắm.
             </p>
           </div>
           <div className='md:w-2/3'>
@@ -273,7 +284,10 @@ export default function MembershipScreen() {
           {EARN_STEPS.map((step, i) => {
             const Icon = step.icon;
             return (
-              <div key={i} className='relative bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow'>
+              <div
+                key={i}
+                className='relative bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow'
+              >
                 <div className='flex items-center gap-3 mb-4'>
                   <div className='w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0'>
                     <Icon size={18} className='text-primary' />
@@ -282,8 +296,12 @@ export default function MembershipScreen() {
                     0{i + 1}
                   </span>
                 </div>
-                <h3 className='font-semibold text-foreground mb-2'>{step.title}</h3>
-                <p className='text-sm text-gray-500 leading-relaxed'>{step.desc}</p>
+                <h3 className='font-semibold text-foreground mb-2'>
+                  {step.title}
+                </h3>
+                <p className='text-sm text-gray-500 leading-relaxed'>
+                  {step.desc}
+                </p>
 
                 {i < EARN_STEPS.length - 1 && (
                   <ArrowRight
@@ -304,8 +322,8 @@ export default function MembershipScreen() {
               Tỷ lệ tích điểm hiện tại
             </p>
             <p className='text-sm text-gray-500 mt-0.5'>
-              <span className='text-primary font-bold text-lg'>10.000đ</span>
-              {' '}= 1 điểm thưởng — áp dụng cho tất cả sản phẩm
+              <span className='text-primary font-bold text-lg'>10.000đ</span> =
+              1 điểm thưởng — áp dụng cho tất cả sản phẩm
             </p>
           </div>
         </div>
@@ -318,20 +336,28 @@ export default function MembershipScreen() {
             Cách sử dụng điểm
           </h2>
           <p className='text-gray-500 text-sm mt-2'>
-            Điểm tích lũy có thể dùng nhiều cách khác nhau để tối đa hoá quyền lợi.
+            Điểm tích lũy có thể dùng nhiều cách khác nhau để tối đa hoá quyền
+            lợi.
           </p>
         </div>
         <div className='grid sm:grid-cols-2 gap-5'>
           {USE_STEPS.map((step, i) => {
             const Icon = step.icon;
             return (
-              <div key={i} className='flex gap-4 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow'>
+              <div
+                key={i}
+                className='flex gap-4 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow'
+              >
                 <div className='w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0'>
                   <Icon size={20} className='text-primary' />
                 </div>
                 <div>
-                  <h3 className='font-semibold text-foreground mb-1'>{step.title}</h3>
-                  <p className='text-sm text-gray-500 leading-relaxed'>{step.desc}</p>
+                  <h3 className='font-semibold text-foreground mb-1'>
+                    {step.title}
+                  </h3>
+                  <p className='text-sm text-gray-500 leading-relaxed'>
+                    {step.desc}
+                  </p>
                 </div>
               </div>
             );
@@ -346,7 +372,8 @@ export default function MembershipScreen() {
           Bắt đầu hành trình của bạn ngay hôm nay
         </h2>
         <p className='text-white/70 text-sm max-w-md mx-auto leading-relaxed mb-7'>
-          Đăng ký miễn phí, nhận ngay hạng Silver và tích điểm từ đơn hàng đầu tiên.
+          Đăng ký miễn phí, nhận ngay hạng Silver và tích điểm từ đơn hàng đầu
+          tiên.
         </p>
         <div className='flex flex-col sm:flex-row gap-3 justify-center'>
           <Link

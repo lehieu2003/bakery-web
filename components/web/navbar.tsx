@@ -394,7 +394,7 @@ export default function WebNavbar() {
           >
             <Image
               src='/images/bakery-log.svg'
-              alt='La Douceur'
+              alt='Phương Loan Bakery'
               width={156}
               height={52}
               priority
@@ -410,7 +410,7 @@ export default function WebNavbar() {
             <form onSubmit={handleSearchSubmit}>
               <input
                 type='text'
-                placeholder='Bạn tìm gì ở La Douceur?'
+                placeholder='Bạn tìm gì ở Phương Loan Bakery?'
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
@@ -754,7 +754,7 @@ export default function WebNavbar() {
             >
               <Image
                 src='/images/bakery-log.svg'
-                alt='La Douceur'
+                alt='Phương Loan Bakery'
                 width={104}
                 height={36}
                 className='h-9 w-auto'

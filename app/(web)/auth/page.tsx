@@ -3,7 +3,7 @@ import AuthScreen from '@/components/screens/AuthScreen';
 
 export const metadata: Metadata = {
   title: 'Đăng nhập',
-  description: 'Đăng nhập hoặc tạo tài khoản La Douceur.',
+  description: 'Đăng nhập hoặc tạo tài khoản Phương Loan Bakery.',
   robots: {
     index: false,
     follow: false,

@@ -23,7 +23,7 @@ const steps = [
   },
   {
     step: '02',
-    title: 'Liên hệ La Douceur',
+    title: 'Liên hệ Phương Loan Bakery',
     description:
       'Gọi hotline 1900 779907 hoặc nhắn tin Zalo/Facebook kèm ảnh chụp và mã đơn hàng trong vòng 2 tiếng.',
   },
@@ -58,8 +58,8 @@ export default function ChinhSachDoiTraScreen() {
           Chính sách đổi trả
         </h1>
         <p className='text-sm text-muted-foreground mt-3 max-w-2xl text-pretty'>
-          Sự hài lòng của quý khách là ưu tiên hàng đầu của La Douceur. Chúng
-          tôi cam kết hỗ trợ đổi trả nhanh chóng và công bằng trong mọi
+          Sự hài lòng của quý khách là ưu tiên hàng đầu của Phương Loan Bakery.
+          Chúng tôi cam kết hỗ trợ đổi trả nhanh chóng và công bằng trong mọi
           trường hợp sản phẩm không đạt chất lượng.
         </p>
       </div>
@@ -68,10 +68,9 @@ export default function ChinhSachDoiTraScreen() {
       <div className='flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-10'>
         <Info size={18} className='text-primary mt-0.5 shrink-0' />
         <p className='text-sm text-foreground leading-relaxed'>
-          <strong>Lưu ý:</strong> Yêu cầu đổi trả phải được thực hiện trong
-          vòng{' '}
-          <strong className='text-primary'>2 tiếng</strong> kể từ khi nhận
-          hàng và cần có ảnh/video làm bằng chứng.
+          <strong>Lưu ý:</strong> Yêu cầu đổi trả phải được thực hiện trong vòng{' '}
+          <strong className='text-primary'>2 tiếng</strong> kể từ khi nhận hàng
+          và cần có ảnh/video làm bằng chứng.
         </p>
       </div>
 
@@ -158,14 +157,17 @@ export default function ChinhSachDoiTraScreen() {
             },
             {
               label: 'Hoàn tiền vào ví',
-              desc: 'Hoàn tiền vào ví La Douceur để sử dụng cho đơn hàng tiếp theo.',
+              desc: 'Hoàn tiền vào ví Phương Loan Bakery để sử dụng cho đơn hàng tiếp theo.',
             },
             {
               label: 'Hoàn tiền gốc',
               desc: 'Hoàn tiền về tài khoản gốc trong 3 – 5 ngày làm việc.',
             },
           ].map(({ label, desc }) => (
-            <div key={label} className='bg-card rounded-xl p-4 border border-border'>
+            <div
+              key={label}
+              className='bg-card rounded-xl p-4 border border-border'
+            >
               <p className='font-semibold text-foreground mb-1'>{label}</p>
               <p className='text-muted-foreground text-xs leading-relaxed'>
                 {desc}
@@ -186,7 +188,10 @@ export default function ChinhSachDoiTraScreen() {
           </p>
           <p className='text-sm text-muted-foreground mt-1'>
             Liên hệ hotline{' '}
-            <a href='tel:19007799' className='text-primary font-semibold hover:underline'>
+            <a
+              href='tel:19007799'
+              className='text-primary font-semibold hover:underline'
+            >
               1900 779907
             </a>{' '}
             hoặc email{' '}

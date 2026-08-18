@@ -121,7 +121,10 @@ export default function ProductCard({ product }: { product: Product }) {
       onMouseLeave={handleMouseLeave}
     >
       <div className='relative w-full overflow-hidden bg-secondary pb-[100%]'>
-        <Link href={`/products/${product.id}`} className='absolute inset-0 z-10'>
+        <Link
+          href={`/products/${product.id}`}
+          className='absolute inset-0 z-10'
+        >
           <Image
             src={safeImageUrls[currentImageIndex]}
             alt={product.name}
@@ -141,7 +144,7 @@ export default function ProductCard({ product }: { product: Product }) {
             disabled={product.stock <= 0}
             className='pointer-events-auto mx-auto block w-full max-w-[180px] translate-y-0 rounded-full bg-white/95 px-4 py-2 text-center text-xs font-semibold text-foreground shadow-sm transition-all duration-300 md:translate-y-4 md:group-hover:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50'
           >
-            {product.stock <= 0 ? 'Hết hàng' : 'Add to Cart'}
+            {product.stock <= 0 ? 'Hết hàng' : 'Thêm'}
           </button>
         </div>
 
@@ -156,7 +159,9 @@ export default function ProductCard({ product }: { product: Product }) {
         >
           <Heart
             size={16}
-            className={isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground'}
+            className={
+              isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground'
+            }
           />
         </button>
       </div>

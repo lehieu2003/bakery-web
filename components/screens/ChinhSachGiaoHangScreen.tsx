@@ -1,4 +1,11 @@
-import { Truck, Clock, MapPin, Package, Phone, AlertCircle } from 'lucide-react';
+import {
+  Truck,
+  Clock,
+  MapPin,
+  Package,
+  Phone,
+  AlertCircle,
+} from 'lucide-react';
 
 const shippingZones = [
   {
@@ -45,7 +52,7 @@ const sections = [
     icon: MapPin,
     title: 'Khu vực giao hàng',
     content: [
-      'La Douceur hiện giao hàng tại tất cả các quận huyện thuộc TP. Hồ Chí Minh.',
+      'Phương Loan Bakery hiện giao hàng tại tất cả các quận huyện thuộc TP. Hồ Chí Minh.',
       'Giao hàng liên tỉnh áp dụng cho các tỉnh thành lân cận: Bình Dương, Đồng Nai, Long An, Bà Rịa – Vũng Tàu.',
       'Với các đơn hàng ngoài khu vực trên, vui lòng liên hệ hotline để được hỗ trợ.',
     ],
@@ -55,7 +62,7 @@ const sections = [
     title: 'Lưu ý quan trọng',
     content: [
       'Quý khách vui lòng kiểm tra sản phẩm khi nhận hàng. Nếu có bất kỳ sự cố nào về chất lượng, hãy chụp ảnh và liên hệ ngay với chúng tôi trong vòng 2 tiếng.',
-      'La Douceur không chịu trách nhiệm với các hư hỏng do bảo quản không đúng cách sau khi đã nhận hàng.',
+      'Phương Loan Bakery không chịu trách nhiệm với các hư hỏng do bảo quản không đúng cách sau khi đã nhận hàng.',
       'Trong trường hợp không có người nhận, shipper sẽ liên hệ qua điện thoại trước khi quay lại.',
     ],
   },
@@ -78,9 +85,9 @@ export default function ChinhSachGiaoHangScreen() {
           Chính sách giao hàng
         </h1>
         <p className='text-sm text-muted-foreground mt-3 max-w-2xl text-pretty'>
-          La Douceur cam kết giao bánh tươi ngon, an toàn và đúng giờ đến tận
-          tay quý khách. Dưới đây là những thông tin chi tiết về dịch vụ giao
-          hàng của chúng tôi.
+          Phương Loan Bakery cam kết giao bánh tươi ngon, an toàn và đúng giờ
+          đến tận tay quý khách. Dưới đây là những thông tin chi tiết về dịch vụ
+          giao hàng của chúng tôi.
         </p>
       </div>
 
@@ -116,9 +123,7 @@ export default function ChinhSachGiaoHangScreen() {
                   <td className='px-5 py-4 text-muted-foreground'>
                     {row.time}
                   </td>
-                  <td className='px-5 py-4 text-muted-foreground'>
-                    {row.fee}
-                  </td>
+                  <td className='px-5 py-4 text-muted-foreground'>{row.fee}</td>
                   <td className='px-5 py-4 text-primary font-medium'>
                     {row.note}
                   </td>
@@ -146,7 +151,10 @@ export default function ChinhSachGiaoHangScreen() {
             </div>
             <ul className='space-y-2'>
               {content.map((item, i) => (
-                <li key={i} className='flex items-start gap-2 text-sm text-muted-foreground leading-relaxed'>
+                <li
+                  key={i}
+                  className='flex items-start gap-2 text-sm text-muted-foreground leading-relaxed'
+                >
                   <span className='w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0' />
                   {item}
                 </li>
@@ -167,7 +175,10 @@ export default function ChinhSachGiaoHangScreen() {
           </p>
           <p className='text-sm text-muted-foreground mt-1'>
             Gọi hotline{' '}
-            <a href='tel:19007799' className='text-primary font-semibold hover:underline'>
+            <a
+              href='tel:19007799'
+              className='text-primary font-semibold hover:underline'
+            >
               1900 779907
             </a>{' '}
             hoặc nhắn tin qua{' '}

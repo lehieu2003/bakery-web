@@ -17,9 +17,7 @@ const sections = [
   {
     id: '2',
     title: 'Mục đích sử dụng thông tin',
-    paragraphs: [
-      'Thông tin bạn cung cấp được sử dụng cho các mục đích sau:',
-    ],
+    paragraphs: ['Thông tin bạn cung cấp được sử dụng cho các mục đích sau:'],
     bullets: [
       'Xử lý và giao hàng đơn đặt của bạn.',
       'Gửi xác nhận đơn hàng, thông báo trạng thái giao hàng qua email hoặc SMS.',
@@ -32,7 +30,7 @@ const sections = [
     id: '3',
     title: 'Chia sẻ thông tin',
     paragraphs: [
-      'La Douceur không bán, cho thuê hoặc trao đổi thông tin cá nhân của bạn với bên thứ ba vì mục đích thương mại.',
+      'Phương Loan Bakery không bán, cho thuê hoặc trao đổi thông tin cá nhân của bạn với bên thứ ba vì mục đích thương mại.',
       'Chúng tôi chỉ chia sẻ thông tin cần thiết với các đối tác dịch vụ như đơn vị vận chuyển (để giao hàng) và cổng thanh toán (để xử lý giao dịch), các bên này có nghĩa vụ bảo mật thông tin tương đương.',
       'Chúng tôi có thể tiết lộ thông tin khi được yêu cầu bởi cơ quan pháp luật có thẩm quyền.',
     ],
@@ -56,9 +54,7 @@ const sections = [
   {
     id: '6',
     title: 'Quyền của bạn',
-    paragraphs: [
-      'Bạn có các quyền sau đối với dữ liệu cá nhân của mình:',
-    ],
+    paragraphs: ['Bạn có các quyền sau đối với dữ liệu cá nhân của mình:'],
     bullets: [
       'Quyền truy cập và xem lại thông tin cá nhân đang được lưu trữ.',
       'Quyền yêu cầu chỉnh sửa thông tin không chính xác.',
@@ -101,8 +97,8 @@ export default function ChinhSachBaoMatScreen() {
           Chính sách bảo mật
         </h1>
         <p className='text-sm text-muted-foreground mt-3 max-w-2xl text-pretty'>
-          La Douceur coi trọng quyền riêng tư của bạn. Chính sách này mô tả
-          cách chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân của
+          Phương Loan Bakery coi trọng quyền riêng tư của bạn. Chính sách này mô
+          tả cách chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân của
           bạn khi sử dụng Website ladouceur.vn.
         </p>
         <p className='text-xs text-muted-foreground mt-2'>

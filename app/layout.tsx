@@ -21,12 +21,12 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: 'La Douceur – Tiệm bánh thủ công tại Sài Gòn',
-    template: '%s | La Douceur',
+    default: 'Phương Loan Bakery – Tiệm bánh thủ công tại Sài Gòn',
+    template: '%s | Phương Loan Bakery',
   },
   description:
-    'La Douceur là tiệm bánh thủ công tại Sài Gòn, chuyên bánh kem, bánh ngọt và quà tặng cho sinh nhật, tiệc cưới và những dịp đặc biệt.',
-  applicationName: 'La Douceur',
+    'Phương Loan Bakery là tiệm bánh thủ công tại Sài Gòn, chuyên bánh kem, bánh ngọt và quà tặng cho sinh nhật, tiệc cưới và những dịp đặc biệt.',
+  applicationName: 'Phương Loan Bakery',
   generator: 'Next.js',
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
@@ -37,25 +37,25 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'vi_VN',
-    siteName: 'La Douceur',
-    title: 'La Douceur – Tiệm bánh thủ công tại Sài Gòn',
+    siteName: 'Phương Loan Bakery',
+    title: 'Phương Loan Bakery – Tiệm bánh thủ công tại Sài Gòn',
     description:
-      'Bánh kem và bánh ngọt thủ công từ nguyên liệu cao cấp, làm mới mỗi ngày tại La Douceur.',
+      'Bánh kem và bánh ngọt thủ công từ nguyên liệu cao cấp, làm mới mỗi ngày tại Phương Loan Bakery.',
     url: '/',
     images: [
       {
         url: '/opengraph-image',
         width: 1200,
         height: 630,
-        alt: 'La Douceur Artisan Bakery',
+        alt: 'Phương Loan Bakery Artisan Bakery',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'La Douceur – Tiệm bánh thủ công tại Sài Gòn',
+    title: 'Phương Loan Bakery – Tiệm bánh thủ công tại Sài Gòn',
     description:
-      'Bánh kem và bánh ngọt thủ công từ nguyên liệu cao cấp, làm mới mỗi ngày tại La Douceur.',
+      'Bánh kem và bánh ngọt thủ công từ nguyên liệu cao cấp, làm mới mỗi ngày tại Phương Loan Bakery.',
     images: ['/opengraph-image'],
   },
   robots: {

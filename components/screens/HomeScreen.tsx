@@ -78,7 +78,7 @@ const storyChapters = [
     kicker: '03 / Khoảnh khắc',
     title: 'Mang về một hộp bánh, hoặc ở lại cho một cuộc hẹn',
     description:
-      'La Douceur không chỉ để mua nhanh. Không gian ngồi lại giúp khách biến một món ngọt thành một buổi gặp đáng nhớ.',
+      'Phương Loan Bakery không chỉ để mua nhanh. Không gian ngồi lại giúp khách biến một món ngọt thành một buổi gặp đáng nhớ.',
     image: '/images/hero-cake.jpg',
     stat: '8',
     statLabel: 'chi nhánh tại TP.HCM',
@@ -115,7 +115,7 @@ export default function HomeScreen() {
                 ))}
 
                 <div className='absolute left-6 top-6 z-10 rounded-full border border-white/20 bg-white/12 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#f3cfa8] backdrop-blur'>
-                  La Douceur story
+                  Phương Loan Bakery story
                 </div>
 
                 <div className='absolute bottom-6 left-6 right-6 z-10 grid gap-3 sm:grid-cols-3'>
@@ -184,7 +184,7 @@ export default function HomeScreen() {
                   Chọn trải nghiệm trước
                 </p>
                 <h2 className='mt-3 font-serif text-3xl font-semibold leading-tight text-primary text-balance md:text-5xl'>
-                  Hôm nay bạn ghé La Douceur vì điều gì?
+                  Hôm nay bạn ghé Phương Loan Bakery vì điều gì?
                 </h2>
                 <p className='mt-5 max-w-xl text-sm leading-7 text-foreground/70 md:text-base'>
                   Đưa khách vào đúng nhu cầu ngay từ đầu: đặt bánh, ngồi lại thư
@@ -266,7 +266,7 @@ export default function HomeScreen() {
         {/* ── Categories ── */}
         <CategoriesSection />
 
-        {/* ── La Douceur – About section ── */}
+        {/* ── Phương Loan Bakery – About section ── */}
         <section data-home-reveal className='px-4 lg:px-8 py-16 bg-[#faf8f5]'>
           <div className='max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center'>
             {/* Text side */}
@@ -275,21 +275,22 @@ export default function HomeScreen() {
                 Chuỗi tiệm bánh kết hợp không gian F&B tại TP.HCM
               </p>
               <h2 className='font-serif text-2xl lg:text-3xl font-semibold text-primary leading-snug mb-6 text-balance'>
-                LA DOUCEUR – TIỆM BÁNH NGON Ở SÀI GÒN VỚI KHÔNG GIAN ĂN UỐNG
-                THOẢI MÁI
+                Phương Loan Bakery – TIỆM BÁNH NGON Ở SÀI GÒN VỚI KHÔNG GIAN ĂN
+                UỐNG THOẢI MÁI
               </h2>
               <div className='space-y-4 text-sm text-foreground leading-relaxed'>
                 <p>
-                  La Douceur là <strong>tiệm bánh ngon ở Sài Gòn</strong> được
-                  nhiều khách hàng lựa chọn nhờ sự kết hợp hài hòa giữa bánh
-                  chất lượng, nước uống đa dạng và{' '}
+                  Phương Loan Bakery là{' '}
+                  <strong>tiệm bánh ngon ở Sài Gòn</strong> được nhiều khách
+                  hàng lựa chọn nhờ sự kết hợp hài hòa giữa bánh chất lượng,
+                  nước uống đa dạng và{' '}
                   <strong>không gian ngồi lại thoải mái</strong>. Với hệ thống{' '}
-                  <strong>8 chi nhánh tại TP.HCM</strong>, La Douceur không chỉ
-                  là nơi mua bánh mang đi mà còn là điểm hẹn quen thuộc cho gia
-                  đình, nhóm bạn hay những buổi gặp gỡ cuối tuần.
+                  <strong>8 chi nhánh tại TP.HCM</strong>, Phương Loan Bakery
+                  không chỉ là nơi mua bánh mang đi mà còn là điểm hẹn quen
+                  thuộc cho gia đình, nhóm bạn hay những buổi gặp gỡ cuối tuần.
                 </p>
                 <p>
-                  Các dòng bánh nổi bật tại La Douceur gồm{' '}
+                  Các dòng bánh nổi bật tại Phương Loan Bakery gồm{' '}
                   <strong>bánh nướng phô mai tan chảy – best seller</strong>,
                   bánh cookies đa dạng và bánh lạnh nhẹ nhàng như su kem,
                   tiramisu, panna cotta. Bên cạnh đó, menu{' '}
@@ -312,7 +313,7 @@ export default function HomeScreen() {
             >
               <Image
                 src='/images/bakery-kitchen.jpg'
-                alt='Đội ngũ thợ làm bánh La Douceur đang làm việc trong bếp bánh chuyên nghiệp'
+                alt='Đội ngũ thợ làm bánh Phương Loan Bakery đang làm việc trong bếp bánh chuyên nghiệp'
                 fill
                 className='object-cover'
                 sizes='(max-width: 1024px) 100vw, 50vw'

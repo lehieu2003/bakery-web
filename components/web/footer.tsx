@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Phone, Mail, Instagram, Facebook, Youtube } from 'lucide-react';
+import {
+  MapPin,
+  Phone,
+  Mail,
+  Instagram,
+  Facebook,
+  Youtube,
+} from 'lucide-react';
 import NewsletterForm from './newsletter-form';
 import { useCategories } from '@/hooks/use-products';
 import { categoryHrefFromTrail } from '@/lib/category-path';
@@ -61,12 +68,12 @@ export default function WebFooter() {
       <div className='max-w-7xl mx-auto px-6 lg:px-8 py-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10'>
         {/* Brand column */}
         <div className='lg:col-span-1'>
-          <Link href='/' aria-label='La Douceur home'>
+          <Link href='/' aria-label='Phương Loan Bakery home'>
             <p
               className='font-serif text-2xl font-bold text-white tracking-tight'
               style={{ fontFamily: 'Georgia, serif' }}
             >
-              La Douceur
+              Phương Loan Bakery
             </p>
             <p className='text-[10px] tracking-widest text-primary/70 uppercase font-light mt-0.5'>
               Artisan Bakery
@@ -74,8 +81,7 @@ export default function WebFooter() {
           </Link>
           <p className='text-sm text-[#f5ebe4]/70 leading-relaxed mt-5 text-pretty'>
             Mỗi chiếc bánh là một tác phẩm nghệ thuật — được làm thủ công từ
-            những nguyên liệu tươi ngon nhất, gửi gắm tình yêu vào từng lớp
-            kem.
+            những nguyên liệu tươi ngon nhất, gửi gắm tình yêu vào từng lớp kem.
           </p>
 
           {/* Social links */}
@@ -193,8 +199,8 @@ export default function WebFooter() {
       <div className='border-t border-white/10'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3'>
           <p className='text-xs text-[#f5ebe4]/50'>
-            &copy; {new Date().getFullYear()} La Douceur Artisan Bakery. All
-            rights reserved.
+            &copy; {new Date().getFullYear()} Phương Loan Bakery Artisan Bakery.
+            All rights reserved.
           </p>
           <p className='text-xs text-[#f5ebe4]/40 italic font-serif'>
             Handcrafted with love in Saigon

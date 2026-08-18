@@ -16,10 +16,10 @@ const faqs: FaqItem[] = [
   {
     question: 'Tôi nên đặt bánh trước bao lâu?',
     answer:
-      'Với bánh có sẵn hoặc mẫu cơ bản, bạn nên đặt trước ít nhất 1 ngày để tiệm chuẩn bị tốt nhất. Với bánh sinh nhật, bánh tiệc hoặc yêu cầu trang trí riêng, La Douceur khuyến khích đặt trước 2-3 ngày.',
+      'Với bánh có sẵn hoặc mẫu cơ bản, bạn nên đặt trước ít nhất 1 ngày để tiệm chuẩn bị tốt nhất. Với bánh sinh nhật, bánh tiệc hoặc yêu cầu trang trí riêng, Phương Loan Bakery khuyến khích đặt trước 2-3 ngày.',
   },
   {
-    question: 'La Douceur có giao bánh trong TP.HCM không?',
+    question: 'Phương Loan Bakery có giao bánh trong TP.HCM không?',
     answer:
       'Có. Tiệm hỗ trợ giao hàng trong TP.HCM tùy theo khu vực và khung giờ hoạt động của chi nhánh. Phí giao hàng sẽ được hiển thị hoặc xác nhận trước khi hoàn tất đơn.',
   },
@@ -36,7 +36,7 @@ const faqs: FaqItem[] = [
   {
     question: 'Các chi nhánh có chỗ ngồi lại không?',
     answer:
-      'Có. La Douceur kết hợp tiệm bánh và không gian F&B, phù hợp để dùng bánh tại chỗ, gặp bạn bè hoặc nghỉ nhẹ cuối tuần. Sức chứa và bố trí chỗ ngồi có thể khác nhau tùy chi nhánh.',
+      'Có. Phương Loan Bakery kết hợp tiệm bánh và không gian F&B, phù hợp để dùng bánh tại chỗ, gặp bạn bè hoặc nghỉ nhẹ cuối tuần. Sức chứa và bố trí chỗ ngồi có thể khác nhau tùy chi nhánh.',
   },
   {
     question: 'Tiệm hỗ trợ những phương thức thanh toán nào?',

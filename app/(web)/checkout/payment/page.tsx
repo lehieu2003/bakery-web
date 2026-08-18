@@ -3,7 +3,7 @@ import CheckoutPaymentScreen from '@/components/screens/CheckoutPaymentScreen';
 
 export const metadata: Metadata = {
   title: 'Thanh toán',
-  description: 'Thanh toán đơn hàng La Douceur.',
+  description: 'Thanh toán đơn hàng Phương Loan Bakery.',
   robots: {
     index: false,
     follow: false,

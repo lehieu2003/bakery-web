@@ -3,7 +3,7 @@ import CheckoutInfoScreen from '@/components/screens/CheckoutInfoScreen';
 
 export const metadata: Metadata = {
   title: 'Thông tin giao hàng',
-  description: 'Nhập thông tin giao hàng cho đơn hàng La Douceur.',
+  description: 'Nhập thông tin giao hàng cho đơn hàng Phương Loan Bakery.',
   robots: {
     index: false,
     follow: false,

@@ -2,10 +2,9 @@ import type { Metadata } from 'next';
 import CategoryScreen from '@/components/screens/CategoryScreen';
 import { prisma } from '@/lib/prisma';
 
-const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(
-  /\/$/,
-  '',
-);
+const siteUrl = (
+  process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+).replace(/\/$/, '');
 
 type Props = {
   params: Promise<{ slug: string[] }>;
@@ -27,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!currentSlug) {
     return {
       title: 'Danh mục sản phẩm',
-      description: 'Khám phá các dòng bánh thủ công tại La Douceur.',
+      description: 'Khám phá các dòng bánh thủ công tại Phương Loan Bakery.',
       alternates: { canonical: '/categories' },
     };
   }
@@ -48,7 +47,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!category) {
     return {
       title: 'Danh mục không tồn tại',
-      description: 'Danh mục bạn tìm kiếm hiện không khả dụng tại La Douceur.',
+      description:
+        'Danh mục bạn tìm kiếm hiện không khả dụng tại Phương Loan Bakery.',
       robots: { index: false, follow: false },
     };
   }
@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const canonical = `/categories/${normalizedPath.map(encodeURIComponent).join('/')}`;
   const description =
     category.description ||
-    `Khám phá ${category.name.toLowerCase()} thủ công tại La Douceur, làm mới mỗi ngày từ nguyên liệu cao cấp.`;
+    `Khám phá ${category.name.toLowerCase()} thủ công tại Phương Loan Bakery, làm mới mỗi ngày từ nguyên liệu cao cấp.`;
 
   return {
     title: category.name,
@@ -66,7 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     openGraph: {
       type: 'website',
-      title: `${category.name} | La Douceur`,
+      title: `${category.name} | Phương Loan Bakery`,
       description,
       url: canonical,
       images: category.imageUrl
@@ -80,16 +80,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${category.name} | La Douceur`,
+      title: `${category.name} | Phương Loan Bakery`,
       description,
       images: category.imageUrl ? [category.imageUrl] : undefined,
     },
   };
 }
 
-export default async function CategoryPage({
-  params,
-}: Props) {
+export default async function CategoryPage({ params }: Props) {
   const { slug } = await params;
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
@@ -102,7 +100,10 @@ export default async function CategoryPage({
         item: siteUrl,
       },
       ...slug.map((segment, index) => {
-        const path = slug.slice(0, index + 1).map(encodeURIComponent).join('/');
+        const path = slug
+          .slice(0, index + 1)
+          .map(encodeURIComponent)
+          .join('/');
         return {
           '@type': 'ListItem',
           position: index + 2,

@@ -139,7 +139,7 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
         <div className='flex flex-col items-center text-center'>
           <Image
             src='/images/bakery-log.svg'
-            alt='La Douceur'
+            alt='Phương Loan Bakery'
             width={118}
             height={40}
             className='h-10 w-auto'

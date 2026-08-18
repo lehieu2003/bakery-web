@@ -110,7 +110,7 @@ function RelatedProductCard({
             disabled={product.stock <= 0}
             className='shrink-0 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded hover:opacity-90 active:scale-95 transition-all disabled:opacity-40'
           >
-            {product.stock <= 0 ? 'Hết hàng' : 'Add to Cart'}
+            {product.stock <= 0 ? 'Hết hàng' : 'Thêm'}
           </button>
         </div>
       </div>

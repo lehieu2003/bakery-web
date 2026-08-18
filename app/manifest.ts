@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'La Douceur',
-    short_name: 'La Douceur',
+    name: 'Phương Loan Bakery',
+    short_name: 'Phương Loan Bakery',
     description: 'Handcrafted Cakes for Every Celebration',
     start_url: '/',
     display: 'standalone',

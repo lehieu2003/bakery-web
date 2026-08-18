@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2, ChevronDown, ShoppingCart } from 'lucide-react';
+import {
+  MessageCircle,
+  X,
+  Send,
+  Loader2,
+  ChevronDown,
+  ShoppingCart,
+} from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -141,7 +148,7 @@ export default function ChatbotBubble() {
     {
       role: 'assistant',
       content:
-        'Xin chào! Tôi là trợ lý tư vấn bánh của La Douceur. Bạn cần tôi giúp gì hôm nay? 🎂',
+        'Xin chào! Tôi là trợ lý tư vấn bánh của Phương Loan Bakery. Bạn cần tôi giúp gì hôm nay? 🎂',
     },
   ]);
   const [input, setInput] = useState('');
@@ -176,14 +183,14 @@ export default function ChatbotBubble() {
     setLoading(true);
 
     try {
-      const res = await http.post<{ reply: string; suggestedProducts: SuggestedProduct[] }>(
-        ENDPOINTS.CHATBOT,
-        {
-          headers: { 'Content-Type': 'application/json' },
-          message: text,
-          history: messages,
-        },
-      );
+      const res = await http.post<{
+        reply: string;
+        suggestedProducts: SuggestedProduct[];
+      }>(ENDPOINTS.CHATBOT, {
+        headers: { 'Content-Type': 'application/json' },
+        message: text,
+        history: messages,
+      });
 
       const reply =
         res?.data?.reply || 'Xin lỗi, tôi không thể trả lời lúc này.';
@@ -237,7 +244,7 @@ export default function ChatbotBubble() {
               </div>
               <div>
                 <p className='text-sm font-semibold leading-tight'>
-                  La Douceur
+                  Phương Loan Bakery
                 </p>
                 <p className='text-[11px] opacity-75 leading-tight'>
                   Trợ lý tư vấn bánh
@@ -265,7 +272,9 @@ export default function ChatbotBubble() {
                     <MessageCircle size={13} className='text-primary' />
                   </div>
                 )}
-                <div className={`max-w-[85%] flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div
+                  className={`max-w-[85%] flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                >
                   <div
                     className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                       msg.role === 'user'

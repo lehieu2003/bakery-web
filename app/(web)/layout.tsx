@@ -4,7 +4,11 @@ import WebMain from '@/components/web/WebMain';
 import ChatbotBubble from '@/components/ui-custom/ChatbotBubble';
 import ZaloPhoneBubble from '@/components/ui-custom/ZaloPhoneBubble';
 import { prisma } from '@/lib/prisma';
-import { HydrationBoundary, QueryClient, dehydrate } from '@tanstack/react-query';
+import {
+  HydrationBoundary,
+  QueryClient,
+  dehydrate,
+} from '@tanstack/react-query';
 import { Suspense } from 'react';
 import type { Category } from '@/types/api.types';
 
@@ -29,13 +33,19 @@ async function getCategories(): Promise<Category[]> {
       },
       orderBy: { displayOrder: 'asc' },
     });
-    return categories.filter((c) => c.parentId === null) as unknown as Category[];
+    return categories.filter(
+      (c) => c.parentId === null,
+    ) as unknown as Category[];
   } catch {
     return [];
   }
 }
 
-export default async function WebLayout({ children }: { children: React.ReactNode }) {
+export default async function WebLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const queryClient = new QueryClient();
 
   const categories = await getCategories();
@@ -54,7 +64,6 @@ export default async function WebLayout({ children }: { children: React.ReactNod
       </Suspense>
       <WebMain>{children}</WebMain>
       <WebFooter />
-      <ZaloPhoneBubble />
       <ChatbotBubble />
     </HydrationBoundary>
   );

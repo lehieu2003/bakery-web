@@ -2,17 +2,19 @@ import type { Metadata } from 'next';
 import ProductDetailScreen from '@/components/screens/ProductDetailScreen';
 import { prisma } from '@/lib/prisma';
 
-const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(
-  /\/$/,
-  '',
-);
+const siteUrl = (
+  process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+).replace(/\/$/, '');
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 function toPlainText(value: string | null | undefined) {
-  return value?.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  return value
+    ?.replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function productDescription(product: {
@@ -23,7 +25,7 @@ function productDescription(product: {
   return (
     toPlainText(product.shortDescription) ||
     toPlainText(product.description) ||
-    `Đặt ${product.name} tại La Douceur - bánh thủ công làm mới mỗi ngày từ nguyên liệu cao cấp.`
+    `Đặt ${product.name} tại Phương Loan Bakery - bánh thủ công làm mới mỗi ngày từ nguyên liệu cao cấp.`
   );
 }
 
@@ -50,7 +52,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!product) {
     return {
       title: 'Sản phẩm không tồn tại',
-      description: 'Sản phẩm bạn tìm kiếm hiện không khả dụng tại La Douceur.',
+      description:
+        'Sản phẩm bạn tìm kiếm hiện không khả dụng tại Phương Loan Bakery.',
       robots: { index: false, follow: false },
     };
   }
@@ -67,7 +70,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     openGraph: {
       type: 'website',
-      title: `${product.name} | La Douceur`,
+      title: `${product.name} | Phương Loan Bakery`,
       description,
       url: `/products/${product.slug}`,
       images: primaryImage
@@ -81,16 +84,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${product.name} | La Douceur`,
+      title: `${product.name} | Phương Loan Bakery`,
       description,
       images: primaryImage ? [primaryImage.url] : undefined,
     },
   };
 }
 
-export default async function ProductDetailPage({
-  params,
-}: Props) {
+export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
   const product = await prisma.product.findFirst({
     where: {
@@ -123,7 +124,7 @@ export default async function ProductDetailPage({
         image: product.images.map((image) => image.url),
         brand: {
           '@type': 'Brand',
-          name: 'La Douceur',
+          name: 'Phương Loan Bakery',
         },
         offers: {
           '@type': 'Offer',
@@ -136,7 +137,9 @@ export default async function ProductDetailPage({
               : 'https://schema.org/OutOfStock',
           itemCondition: 'https://schema.org/NewCondition',
         },
-        ...(primaryImage?.altText ? { alternateName: primaryImage.altText } : {}),
+        ...(primaryImage?.altText
+          ? { alternateName: primaryImage.altText }
+          : {}),
       }
     : null;
 

@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Admin',
-  description: 'La Douceur Bakery Admin Panel',
+  description: 'Phương Loan Bakery Bakery Admin Panel',
   robots: {
     index: false,
     follow: false,

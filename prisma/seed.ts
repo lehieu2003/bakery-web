@@ -524,7 +524,7 @@ async function main() {
   // 7. SETTINGS
   // ============================================
   const settingsData = [
-    { key: 'store_name', value: 'La Douceur Bakery' },
+    { key: 'store_name', value: 'Phương Loan Bakery Bakery' },
     { key: 'store_phone', value: '0901234567' },
     { key: 'store_email', value: 'contact@ladouceur.vn' },
     {

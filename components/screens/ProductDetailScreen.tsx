@@ -12,7 +12,10 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import RelatedProducts from '@/components/screens/RelatedProducts';
 import BestSellersSection from '@/components/screens/BestSellersSection';
-import { categoryHrefFromTrail, findCategoryTrailById } from '@/lib/category-path';
+import {
+  categoryHrefFromTrail,
+  findCategoryTrailById,
+} from '@/lib/category-path';
 import { useToggleWishlist } from '@/hooks/use-wishlist';
 import { useAuth } from '@/providers/auth-provider';
 import { usePathname, useRouter } from 'next/navigation';
@@ -44,8 +47,12 @@ export default function ProductDetailScreen({
     null,
   );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const autoplayRef = useRef(Autoplay({ delay: 3000, stopOnInteraction: false }));
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [autoplayRef.current]);
+  const autoplayRef = useRef(
+    Autoplay({ delay: 3000, stopOnInteraction: false }),
+  );
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
+    autoplayRef.current,
+  ]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -55,7 +62,9 @@ export default function ProductDetailScreen({
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on('select', onSelect);
-    return () => { emblaApi.off('select', onSelect); };
+    return () => {
+      emblaApi.off('select', onSelect);
+    };
   }, [emblaApi, onSelect]);
 
   const scrollTo = useCallback(
@@ -77,7 +86,9 @@ export default function ProductDetailScreen({
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [zoomOpen]);
 
   const variants = useMemo(
@@ -146,7 +157,9 @@ export default function ProductDetailScreen({
   const categoryTrail = firstCategory?.id
     ? findCategoryTrailById(categoriesData || [], firstCategory.id)
     : undefined;
-  const categoryHref = categoryTrail ? categoryHrefFromTrail(categoryTrail) : '/';
+  const categoryHref = categoryTrail
+    ? categoryHrefFromTrail(categoryTrail)
+    : '/';
 
   const discountLabel =
     user?.level === 'platinum' ? '15%' : user?.level === 'gold' ? '10%' : '5%';
@@ -206,10 +219,7 @@ export default function ProductDetailScreen({
           <div className='space-y-3'>
             {/* Embla main carousel */}
             <div className='relative rounded-2xl bg-secondary aspect-square overflow-hidden'>
-              <div
-                className='overflow-hidden h-full w-full'
-                ref={emblaRef}
-              >
+              <div className='overflow-hidden h-full w-full' ref={emblaRef}>
                 <div className='flex h-full'>
                   {getProductImages(selectedProduct).map((src, i) => (
                     <div
@@ -296,7 +306,8 @@ export default function ProductDetailScreen({
                   ))}
                 </div>
                 <span className='text-xs text-muted-foreground'>
-                  {activeImageIndex + 1} / {getProductImages(selectedProduct).length}
+                  {activeImageIndex + 1} /{' '}
+                  {getProductImages(selectedProduct).length}
                 </span>
               </div>
             )}
@@ -511,7 +522,7 @@ export default function ProductDetailScreen({
                 }`}
               >
                 <ShoppingBag size={17} />
-                {added ? 'Added to Cart!' : 'Add to Cart'}
+                {added ? 'Added to Cart!' : 'Thêm'}
               </button>
 
               <button

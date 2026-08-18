@@ -3,7 +3,7 @@ import CartScreen from '@/components/screens/CartScreen';
 
 export const metadata: Metadata = {
   title: 'Giỏ hàng',
-  description: 'Xem và cập nhật giỏ hàng La Douceur.',
+  description: 'Xem và cập nhật giỏ hàng Phương Loan Bakery.',
   robots: {
     index: false,
     follow: false,

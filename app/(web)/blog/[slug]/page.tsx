@@ -2,10 +2,9 @@ import type { Metadata } from 'next';
 import BlogPostDetailScreen from '@/components/screens/BlogPostDetailScreen';
 import { prisma } from '@/lib/prisma';
 
-const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(
-  /\/$/,
-  '',
-);
+const siteUrl = (
+  process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+).replace(/\/$/, '');
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -36,17 +35,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description:
         post.metaDescription ??
         post.excerpt ??
-        'Đọc bài viết mới nhất từ La Douceur.',
+        'Đọc bài viết mới nhất từ Phương Loan Bakery.',
       alternates: {
         canonical: `/blog/${post.slug}`,
       },
       openGraph: {
         type: 'article',
-        title: `${post.metaTitle ?? post.title} | La Douceur`,
+        title: `${post.metaTitle ?? post.title} | Phương Loan Bakery`,
         description:
           post.metaDescription ??
           post.excerpt ??
-          'Đọc bài viết mới nhất từ La Douceur.',
+          'Đọc bài viết mới nhất từ Phương Loan Bakery.',
         url: `/blog/${post.slug}`,
         images: post.coverUrl
           ? [
@@ -59,11 +58,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
       twitter: {
         card: 'summary_large_image',
-        title: `${post.metaTitle ?? post.title} | La Douceur`,
+        title: `${post.metaTitle ?? post.title} | Phương Loan Bakery`,
         description:
           post.metaDescription ??
           post.excerpt ??
-          'Đọc bài viết mới nhất từ La Douceur.',
+          'Đọc bài viết mới nhất từ Phương Loan Bakery.',
         images: post.coverUrl ? [post.coverUrl] : undefined,
       },
     };
@@ -71,7 +70,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     console.error('generateMetadata blog post error:', error);
     return {
       title: 'Blog',
-      description: 'Đọc bài viết mới nhất từ La Douceur.',
+      description: 'Đọc bài viết mới nhất từ Phương Loan Bakery.',
     };
   }
 }
@@ -108,7 +107,7 @@ export default async function BlogPostPage({ params }: Props) {
         },
         publisher: {
           '@type': 'Organization',
-          name: 'La Douceur',
+          name: 'Phương Loan Bakery',
         },
         mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
       }

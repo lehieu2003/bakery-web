@@ -97,7 +97,7 @@ function BestSellerCard({
             onClick={handleAddToCart}
             className='shrink-0 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded hover:opacity-90 active:scale-95 transition-all'
           >
-            Add to Cart
+            Thêm
           </button>
         </div>
       </div>

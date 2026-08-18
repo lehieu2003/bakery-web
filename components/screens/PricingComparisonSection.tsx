@@ -126,7 +126,10 @@ const features: FeatureRow[] = [
   {
     feature: 'Ưu tiên giao hàng',
     values: {
-      silver: { type: 'unavailable', label: 'Silver chưa bao gồm ưu tiên giao hàng' },
+      silver: {
+        type: 'unavailable',
+        label: 'Silver chưa bao gồm ưu tiên giao hàng',
+      },
       gold: { type: 'text', label: 'Miễn phí' },
       platinum: { type: 'text', label: 'Ưu tiên VIP' },
     },
@@ -220,7 +223,7 @@ export default function PricingComparisonSection() {
             id='pricing-comparison-heading'
             className='font-serif text-3xl font-bold tracking-wide text-primary text-balance md:text-4xl'
           >
-            So sánh các hạng thành viên La Douceur
+            So sánh các hạng thành viên Phương Loan Bakery
           </h2>
           <p className='mt-4 text-sm leading-relaxed text-muted-foreground'>
             Tích điểm từ mỗi đơn hàng và mở khóa ưu đãi cao hơn khi bạn nâng

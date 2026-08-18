@@ -193,7 +193,7 @@ export default function AuthScreen() {
                     Welcome back
                   </h1>
                   <p className='text-sm text-muted-foreground mt-1'>
-                    Sign in to your La Douceur account
+                    Sign in to your Phương Loan Bakery account
                   </p>
                 </div>
 
@@ -308,7 +308,9 @@ export default function AuthScreen() {
                     onSubmit={
                       forgotOtpSent
                         ? handleForgotSubmit(onForgotVerify)
-                        : handleForgotSubmit((data) => onForgotSendOtp(data.email))
+                        : handleForgotSubmit((data) =>
+                            onForgotSendOtp(data.email),
+                          )
                     }
                     noValidate
                     className='space-y-4'
@@ -484,7 +486,7 @@ export default function AuthScreen() {
                 {/* Header */}
                 <div className='mb-7'>
                   <h1 className='font-serif text-2xl font-semibold text-foreground text-balance'>
-                    Join La Douceur
+                    Join Phương Loan Bakery
                   </h1>
                   <p className='text-sm text-muted-foreground mt-1'>
                     Create an account to earn points and enjoy member savings

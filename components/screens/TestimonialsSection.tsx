@@ -33,7 +33,7 @@ const testimonials: Testimonial[] = [
     name: 'Gia Hân',
     context: 'Bánh tặng mẹ',
     quote:
-      'Mình thích cách La Douceur trang trí tinh tế, không quá cầu kỳ nhưng nhìn rất sang. Mẹ mình khen phần kem mịn và không bị ngấy.',
+      'Mình thích cách Phương Loan Bakery trang trí tinh tế, không quá cầu kỳ nhưng nhìn rất sang. Mẹ mình khen phần kem mịn và không bị ngấy.',
     rating: 5,
   },
   {
@@ -54,7 +54,10 @@ const testimonials: Testimonial[] = [
 
 function RatingStars({ rating }: { rating: number }) {
   return (
-    <div className='flex items-center gap-1' aria-label={`${rating} trên 5 sao`}>
+    <div
+      className='flex items-center gap-1'
+      aria-label={`${rating} trên 5 sao`}
+    >
       {Array.from({ length: 5 }).map((_, index) => {
         const isFilled = index < rating;
 
@@ -89,14 +92,14 @@ export default function TestimonialsSection() {
             id='testimonials-heading'
             className='font-serif text-3xl font-bold tracking-wide text-primary text-balance md:text-4xl'
           >
-            Những lời nhắn gửi từ khách hàng La Douceur
+            Những lời nhắn gửi từ khách hàng Phương Loan Bakery
           </h2>
         </div>
 
         <div
           className='columns-1 gap-4 sm:columns-2 lg:columns-3'
           role='list'
-          aria-label='Cảm nhận khách hàng La Douceur'
+          aria-label='Cảm nhận khách hàng Phương Loan Bakery'
         >
           {testimonials.map((testimonial) => (
             <article
@@ -121,7 +124,7 @@ export default function TestimonialsSection() {
                   {testimonial.name}
                 </p>
                 <p className='mt-1 text-xs text-muted-foreground'>
-                  Khách hàng La Douceur
+                  Khách hàng Phương Loan Bakery
                 </p>
               </div>
             </article>

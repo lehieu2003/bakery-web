@@ -4,7 +4,7 @@ import BlogScreen from '@/components/screens/BlogScreen';
 export const metadata: Metadata = {
   title: 'Blog & Câu chuyện',
   description:
-    'Khám phá công thức, mẹo làm bánh và những câu chuyện thú vị từ đội ngũ thợ bánh La Douceur.',
+    'Khám phá công thức, mẹo làm bánh và những câu chuyện thú vị từ đội ngũ thợ bánh Phương Loan Bakery.',
 };
 
 export default function BlogPage() {

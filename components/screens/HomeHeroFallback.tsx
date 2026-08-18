@@ -6,7 +6,7 @@ export default function HomeHeroFallback() {
     <section className='relative isolate min-h-[560px] overflow-hidden bg-[#3a211b] text-white'>
       <Image
         src='/images/hero-cake.jpg'
-        alt='Bánh kem La Douceur được trang trí tinh tế trên bàn tiệc'
+        alt='Bánh kem Phương Loan Bakery được trang trí tinh tế trên bàn tiệc'
         fill
         priority
         className='object-cover opacity-70'
@@ -30,7 +30,7 @@ export default function HomeHeroFallback() {
             data-home-intro
             className='font-serif text-4xl font-semibold leading-[1.05] text-balance md:text-6xl'
           >
-            La Douceur, tiệm bánh cho những dịp cần thật chỉn chu
+            Phương Loan Bakery, tiệm bánh cho những dịp cần thật chỉn chu
           </h1>
           <p
             data-home-intro
@@ -50,7 +50,7 @@ export default function HomeHeroFallback() {
               href='/ve-chung-toi'
               className='inline-flex items-center justify-center rounded-full border border-white/35 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/18'
             >
-              Về La Douceur
+              Về Phương Loan Bakery
             </Link>
           </div>
         </div>

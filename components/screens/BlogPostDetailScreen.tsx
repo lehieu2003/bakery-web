@@ -218,7 +218,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
                       {post.author.name}
                     </p>
                     <p className='text-xs text-muted-foreground'>
-                      La Douceur Bakery
+                      Phương Loan Bakery Bakery
                     </p>
                   </div>
                 </div>
