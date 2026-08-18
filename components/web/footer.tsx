@@ -12,6 +12,7 @@ import {
 import NewsletterForm from './newsletter-form';
 import { useCategories } from '@/hooks/use-products';
 import { categoryHrefFromTrail } from '@/lib/category-path';
+import type { Category } from '@/types/api.types';
 
 const infoLinks = [
   { label: 'Về chúng tôi', href: '/ve-chung-toi' },
@@ -31,7 +32,7 @@ export default function WebFooter() {
   const { data: categoriesData } = useCategories();
 
   // Flatten to at most 6 root categories for the "Khám phá" column
-  const exploreLinks = (categoriesData || []).slice(0, 6).map((cat) => ({
+  const exploreLinks = ((categoriesData as Category[] | undefined) || []).slice(0, 6).map((cat: Category) => ({
     label: cat.name,
     href: categoryHrefFromTrail([cat]),
   }));
@@ -105,7 +106,7 @@ export default function WebFooter() {
             Khám phá
           </p>
           <ul className='space-y-3'>
-            {displayLinks.map((link) => (
+            {displayLinks.map((link: { label: string; href: string }) => (
               <li key={link.href}>
                 <Link
                   href={link.href}

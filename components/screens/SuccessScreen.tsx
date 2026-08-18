@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import { useOrders } from '@/hooks/use-orders';
 import { useAuth } from '@/providers/auth-provider';
+import type { Order } from '@/types/api.types';
 import {
   getConfirmationTitle,
   getOrderStatusPresentation,
@@ -24,8 +25,8 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
   } = useOrders({ enabled: isAuthenticated });
   const matchedOrder = useMemo(
     () =>
-      (isAuthenticated ? orders : []).find(
-        (order) => order.orderNumber === orderNumber,
+      ((isAuthenticated ? orders : []) as Order[]).find(
+        (order: Order) => order.orderNumber === orderNumber,
       ),
     [isAuthenticated, orders, orderNumber],
   );

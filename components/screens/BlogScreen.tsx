@@ -422,14 +422,14 @@ export default function BlogScreen() {
             )}
             {activeCategorySlug && (
               <span className='inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary'>
-                {categories.find((c) => c.slug === activeCategorySlug)?.name ??
+                {categories.find((c: BlogCategory) => c.slug === activeCategorySlug)?.name ??
                   activeCategorySlug}
               </span>
             )}
             {activeTagSlug && (
               <span className='inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary'>
                 #
-                {tags.find((t) => t.slug === activeTagSlug)?.name ??
+                {tags.find((t: BlogTag) => t.slug === activeTagSlug)?.name ??
                   activeTagSlug}
               </span>
             )}
@@ -465,7 +465,7 @@ export default function BlogScreen() {
             </div>
           ) : remainingPosts.length > 0 ? (
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
-              {remainingPosts.map((post) => (
+              {remainingPosts.map((post: BlogPost) => (
                 <BlogPostCard key={post.id} post={post} />
               ))}
             </div>

@@ -178,7 +178,7 @@ export default function BestSellersSection({
             ? Array.from({ length: 6 }).map((_, i) => (
                 <BestSellerSkeleton key={i} />
               ))
-            : products?.map((product) => (
+            : products?.map((product: Product & { totalSold?: number }) => (
                 <div
                   key={product.id}
                   style={{ scrollSnapAlign: 'start' }}

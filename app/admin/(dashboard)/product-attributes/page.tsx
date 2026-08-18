@@ -32,12 +32,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  useProductAttributes,
   useCreateProductAttribute,
   useDeleteProductAttribute,
-  useProductAttributes,
   useUpdateProductAttribute,
 } from '@/hooks/admin/use-product-attributes';
-import type { ProductAttribute, ProductAttributeType } from '@/types/api.types';
+import type { ProductAttribute, ProductAttributeType, ProductAttributeValue } from '@/types/api.types';
 import { slugify as normalizeSlug } from '@/lib/slug';
 
 const OPTION_TYPES: ProductAttributeType[] = ['SELECT', 'MULTI_SELECT'];
@@ -78,7 +78,7 @@ export default function ProductAttributesPage() {
 
     const q = search.toLowerCase();
     return source.filter(
-      (attribute) =>
+      (attribute: ProductAttribute) =>
         attribute.name.toLowerCase().includes(q) ||
         attribute.code.toLowerCase().includes(q) ||
         attribute.slug.toLowerCase().includes(q),
@@ -251,7 +251,7 @@ export default function ProductAttributesPage() {
               </tr>
             </thead>
             <tbody className='divide-y divide-border'>
-              {attributes.map((attribute) => (
+              {attributes.map((attribute: ProductAttribute) => (
                 <tr key={attribute.id} className='hover:bg-muted/20'>
                   <td className='px-4 py-4 align-top'>
                     <div>
@@ -271,7 +271,7 @@ export default function ProductAttributesPage() {
                   <td className='px-4 py-4 align-top'>
                     <div className='flex flex-wrap gap-1.5'>
                       {(attribute.values ?? []).length > 0 ? (
-                        attribute.values!.map((value) => (
+                        attribute.values!.map((value: ProductAttributeValue) => (
                           <span
                             key={value.id}
                             className='rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary'

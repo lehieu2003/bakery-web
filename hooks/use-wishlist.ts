@@ -66,7 +66,7 @@ export function useToggleWishlist(productId?: string) {
 
   const isFavorite = useMemo(() => {
     if (!productId || !wishlistQuery.data) return false;
-    return wishlistQuery.data.some((item) => item.productId === productId);
+    return wishlistQuery.data.some((item: WishlistItem) => item.productId === productId);
   }, [productId, wishlistQuery.data]);
 
   const toggleFavorite = async () => {

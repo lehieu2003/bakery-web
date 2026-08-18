@@ -75,10 +75,7 @@ export async function GET(request: NextRequest) {
             productCount: new Set(value.assignments.map((assignment) => assignment.productId)).size,
           }))
           .filter((value) => value.productCount > 0)
-          .map((value) => {
-            const { assignments: _assignments, ...sanitizedValue } = value;
-            return sanitizedValue;
-          }),
+          .map(({ assignments: _, ...sanitizedValue }) => sanitizedValue),
       }))
       .filter((attribute) => attribute.values.length > 0);
 

@@ -74,11 +74,12 @@ test('GET /api/notifications normalizes page/limit and maps read state', async (
     skip: 0,
     take: 50,
   });
-  assert.equal(result.body.data?.pagination.page, 1);
-  assert.equal(result.body.data?.pagination.limit, 50);
-  assert.equal(result.body.data?.pagination.total, 2);
-  assert.equal(result.body.data?.notifications[0].isRead, true);
-  assert.equal(result.body.data?.notifications[1].isRead, false);
+  if (!result.body.success) assert.fail('Expected success');
+  assert.equal(result.body.data.pagination.page, 1);
+  assert.equal(result.body.data.pagination.limit, 50);
+  assert.equal(result.body.data.pagination.total, 2);
+  assert.equal(result.body.data.notifications[0].isRead, true);
+  assert.equal(result.body.data.notifications[1].isRead, false);
 });
 
 test('GET /api/notifications falls back to safe defaults for invalid page/limit query values', async () => {
@@ -104,8 +105,9 @@ test('GET /api/notifications falls back to safe defaults for invalid page/limit 
     skip: 0,
     take: 20,
   });
-  assert.equal(result.body.data?.pagination.page, 1);
-  assert.equal(result.body.data?.pagination.limit, 20);
+  if (!result.body.success) assert.fail('Expected success');
+  assert.equal(result.body.data.pagination.page, 1);
+  assert.equal(result.body.data.pagination.limit, 20);
 });
 
 test('POST /api/notifications/[id]/read returns 404 when notification is inaccessible', async () => {

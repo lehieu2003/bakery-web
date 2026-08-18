@@ -15,6 +15,7 @@ import {
 } from '@/lib/orders/presentation';
 import { ApiError } from '@/lib/api/client';
 import type { ReorderUnavailableItem } from '@/services/order.service';
+import type { Order } from '@/types/api.types';
 
 const LEVEL_BENEFITS: Record<
   MemberLevel,
@@ -573,7 +574,7 @@ export default function ProfileScreen() {
                   </p>
                 </div>
               ) : orders.length > 0 ? (
-                orders.map((order) => {
+                orders.map((order: Order) => {
                   const itemsText =
                     order.orderItems.length > 1
                       ? `${order.orderItems[0].name} +${order.orderItems.length - 1} more`

@@ -396,7 +396,7 @@ export default function ProductDetailScreen({
                       Variant
                     </p>
                     <div className='flex gap-2 flex-wrap'>
-                      {variants.map((v) => (
+                      {variants.map((v: ProductVariant) => (
                         <button
                           key={v.id}
                           onClick={() => setSelectedVariant(v)}
@@ -458,7 +458,7 @@ export default function ProductDetailScreen({
                       Variant
                     </p>
                     <div className='flex gap-2 flex-wrap'>
-                      {variants.map((v) => (
+                      {variants.map((v: ProductVariant) => (
                         <button
                           key={v.id}
                           onClick={() => setSelectedVariant(v)}

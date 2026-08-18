@@ -161,7 +161,7 @@ export default function RelatedProducts({ productId }: RelatedProductsProps) {
           ? Array.from({ length: 4 }).map((_, i) => (
               <RelatedProductSkeleton key={i} />
             ))
-          : products?.map((product) => (
+          : products?.map((product: Product) => (
               <RelatedProductCard
                 key={product.id}
                 product={product}

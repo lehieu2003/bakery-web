@@ -124,7 +124,7 @@ export default function CategoriesSection() {
             ? Array.from({ length: 6 }).map((_, i) => (
                 <CategorySkeleton key={i} />
               ))
-            : categoriesData?.map((category) => (
+            : categoriesData?.map((category: Category) => (
                 <div
                   key={category.id}
                   style={{ scrollSnapAlign: 'start' }}

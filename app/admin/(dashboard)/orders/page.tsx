@@ -16,7 +16,7 @@ import {
   ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
 } from '@/lib/admin-data';
-import type { OrderStatus } from '@/types/api.types';
+import type { OrderStatus, Order } from '@/types/api.types';
 import { cn } from '@/lib/utils';
 import { useOrders } from '@/hooks/admin/use-orders';
 
@@ -93,7 +93,7 @@ export default function OrdersPage() {
               'Status',
               'Created At',
             ];
-            const rows = orders.map((o) => [
+            const rows = orders.map((o: Order) => [
               o.orderNumber,
               o.customerName,
               o.customerPhone,
@@ -110,9 +110,9 @@ export default function OrdersPage() {
             ]);
             const csvContent = [
               headers.join(','),
-              ...rows.map((row) =>
+              ...rows.map((row: (string | number)[]) =>
                 row
-                  .map((cell) =>
+                  .map((cell: string | number) =>
                     typeof cell === 'string' && cell.includes(',')
                       ? `"${cell}"`
                       : cell,
@@ -257,7 +257,7 @@ export default function OrdersPage() {
             </tr>
           </thead>
           <tbody className='divide-y divide-border'>
-            {orders.map((order) => (
+            {orders.map((order: Order) => (
               <tr
                 key={order.id}
                 className='hover:bg-muted/20 transition-colors'

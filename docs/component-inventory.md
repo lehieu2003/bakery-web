@@ -19,7 +19,7 @@
 
 - Storefront screens: `HomeScreen`, `ProductDetailScreen`, `CartScreen`, `Checkout*Screen`, `SearchScreen`
 - Admin shell and management UI: `AdminShell`, `AdminSidebar`, `ProductForm`, `ProductListView`
-- Marketing/utility widgets: `BannerCarousel`, `ChatbotBubble`, `ZaloPhoneBubble`
+- Marketing/utility widgets: `BannerCarousel`, `ChatbotBubble`
 
 ## Component Conventions
 

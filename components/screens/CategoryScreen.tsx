@@ -28,6 +28,7 @@ import {
 } from '@/lib/search-filter-state';
 import { Checkbox } from '@/components/ui/checkbox';
 import ProductCard from '@/components/screens/ProductCard';
+import type { ProductFilterGroup, ProductFilterValueOption } from '@/types/api.types';
 
 type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc';
 
@@ -244,6 +245,16 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
           <input
             type='number'
             inputMode='numeric'
+            placeholder={
+              filterData?.priceRange?.min
+                ? String(Number(filterData.priceRange.min))
+                : 'Từ giá'
+            }
+            className='h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary'
+          />
+          <input
+            type='number'
+            inputMode='numeric'
             value={priceMax}
             onChange={(event) => {
               setPriceMax(event.target.value);
@@ -257,7 +268,6 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
             className='h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary'
           />
         </div>
-
         <button
           onClick={() => {
             setInStockOnly((value) => !value);
@@ -276,7 +286,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
         </button>
       </div>
 
-      {filterGroups.map((group) => {
+      {filterGroups.map((group: ProductFilterGroup) => {
         const selectedValueSlugs = selectedFilters[group.slug] || [];
         return (
           <div key={group.id}>
@@ -284,7 +294,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
               {group.name}
             </p>
             <div className='space-y-2'>
-              {group.values.map((value) => {
+              {group.values.map((value: ProductFilterValueOption) => {
                 const active = selectedValueSlugs.includes(value.slug);
                 return (
                   <label
@@ -326,7 +336,6 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
 
   return (
     <div className='bg-background'>
-      {/* Page header */}
       <div className='border-b border-border/60 bg-card'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
           <Link

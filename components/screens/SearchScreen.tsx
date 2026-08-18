@@ -20,6 +20,7 @@ import {
 } from '@/lib/search-filter-state';
 import { getProductImage } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { Product, ProductFilterGroup, ProductFilterValueOption } from '@/types/api.types';
 
 type SortOption = 'popular' | 'price-asc' | 'price-desc' | 'newest';
 
@@ -109,9 +110,9 @@ export default function SearchScreen() {
     },
   );
   const { data: filterData } = useProductFilters();
-  const rawProducts = data?.products ?? [];
+  const rawProducts = (data?.products ?? []) as Product[];
 
-  const products = rawProducts.filter((p) => p.isActive);
+  const products = rawProducts.filter((p: Product) => p.isActive);
   const sorted = [...products].sort((a, b) => {
     if (sort === 'price-asc') return a.price - b.price;
     if (sort === 'price-desc') return b.price - a.price;
@@ -223,7 +224,7 @@ export default function SearchScreen() {
         </button>
       </div>
 
-      {filterGroups.map((group) => {
+      {filterGroups.map((group: ProductFilterGroup) => {
         const selectedValueSlugs = selectedFilters[group.slug] || [];
         return (
           <div key={group.id}>
@@ -231,7 +232,7 @@ export default function SearchScreen() {
               {group.name}
             </p>
             <div className='space-y-2'>
-              {group.values.map((value) => {
+              {group.values.map((value: ProductFilterValueOption) => {
                 const active = selectedValueSlugs.includes(value.slug);
                 return (
                   <label

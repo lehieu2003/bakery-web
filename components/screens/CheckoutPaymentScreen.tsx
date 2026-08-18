@@ -6,6 +6,7 @@ import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
 import { useAvailableIncentives } from '@/hooks/use-available-incentives';
 import { orderService, type PreviewIncentiveResponse } from '@/services/order.service';
+import type { AvailableIncentive } from '@/services/incentive-discovery.service';
 import { ApiError } from '@/lib/api/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -365,7 +366,7 @@ export default function CheckoutPaymentScreen() {
                     Available offers
                   </p>
                   <ul className='space-y-2'>
-                    {availableIncentives.map((offer) => {
+                    {availableIncentives.map((offer: AvailableIncentive) => {
                       const valueLabel =
                         offer.type === 'PERCENTAGE'
                           ? `${offer.value}% off`

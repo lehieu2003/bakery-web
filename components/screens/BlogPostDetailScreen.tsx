@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Eye, Tag, User } from 'lucide-react';
 import { usePublicBlogPost, usePublicBlogPosts } from '@/hooks/use-blog';
-import type { BlogPost } from '@/types/api.types';
+import type { BlogPost, BlogTag } from '@/types/api.types';
 import TableOfContents from '@/components/web/TableOfContents';
 
 const PLACEHOLDER_BLUR =
@@ -77,8 +77,8 @@ function Skeleton() {
 export default function BlogPostDetailScreen({ slug }: { slug: string }) {
   const { data: post, isLoading, error } = usePublicBlogPost(slug);
   const { data: relatedData } = usePublicBlogPosts({ limit: 4 });
-  const relatedPosts = (relatedData?.posts ?? [])
-    .filter((p) => p.slug !== slug)
+  const relatedPosts = ((relatedData?.posts ?? []) as BlogPost[])
+    .filter((p: BlogPost) => p.slug !== slug)
     .slice(0, 3);
 
   if (isLoading) return <Skeleton />;
@@ -187,7 +187,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
               <span className='text-xs text-muted-foreground flex items-center gap-1.5 mr-2'>
                 <Tag size={12} /> Thẻ:
               </span>
-              {post.tags.map((tag) => (
+              {post.tags.map((tag: BlogTag) => (
                 <Link
                   key={tag.id}
                   href={`/blog?tag=${tag.slug}`}
@@ -235,7 +235,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
                   Bài viết liên quan
                 </h3>
                 <div className='space-y-4'>
-                  {relatedPosts.map((p) => (
+                  {relatedPosts.map((p: BlogPost) => (
                     <RelatedPostCard key={p.id} post={p} />
                   ))}
                 </div>

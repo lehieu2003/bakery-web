@@ -269,7 +269,7 @@ export default function NotificationsAdminPage() {
             </tr>
           </thead>
           <tbody className='divide-y divide-border'>
-            {notifications.map((item) => {
+            {notifications.map((item: NotificationListItem) => {
               const status = statusConfig[item.status];
               return (
                 <tr

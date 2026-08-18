@@ -49,7 +49,7 @@ import {
 } from '@/hooks/admin/use-menu';
 import { useCategories } from '@/hooks/admin/use-categories';
 import { usePages } from '@/hooks/admin/use-pages';
-import type { MenuItem, MenuType } from '@/types/api.types';
+import type { Category, MenuItem, MenuType, Page } from '@/types/api.types';
 
 /** Flatten menu tree into a list with depth info */
 function flattenMenu(
@@ -402,7 +402,7 @@ export default function MenuAdminPage() {
                     <SelectValue placeholder='Select category' />
                   </SelectTrigger>
                   <SelectContent>
-                    {(categories || []).map((cat) => (
+                    {(categories || []).map((cat: Category) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.name}
                       </SelectItem>
@@ -420,7 +420,7 @@ export default function MenuAdminPage() {
                     <SelectValue placeholder='Select page' />
                   </SelectTrigger>
                   <SelectContent>
-                    {(pages || []).map((page) => (
+                    {(pages || []).map((page: Page) => (
                       <SelectItem key={page.id} value={page.id}>
                         {page.title}
                       </SelectItem>

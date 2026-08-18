@@ -188,7 +188,7 @@ export default function PersonalizedSuggestionsSection() {
           ? Array.from({ length: 4 }).map((_, index) => (
               <PersonalizedSuggestionSkeleton key={index} />
             ))
-          : products.map((product) => (
+          : products.map((product: Product) => (
               <PersonalizedSuggestionCard key={product.id} product={product} />
             ))}
       </div>

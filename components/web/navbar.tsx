@@ -5,7 +5,6 @@ import {
   Bell,
   Heart,
   Search,
-  Phone,
   User,
   Menu,
   X,
@@ -31,7 +30,7 @@ import {
 import { useWishlist } from '@/hooks/use-wishlist';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import type { Category, NotificationListItem } from '@/types/api.types';
+import type { Category, NotificationListItem, Product, ProductImage, WishlistItem } from '@/types/api.types';
 import Image from 'next/image';
 import {
   Popover,
@@ -446,9 +445,9 @@ export default function WebNavbar() {
                 ) : (
                   <>
                     <ul>
-                      {searchResults.map((product) => {
+                      {searchResults.map((product: Product) => {
                         const primaryImage =
-                          product.images?.find((img) => img.isPrimary) ??
+                          product.images?.find((img: ProductImage) => img.isPrimary) ??
                           product.images?.[0];
                         return (
                           <li key={product.id}>
@@ -613,10 +612,10 @@ export default function WebNavbar() {
                       </p>
                     ) : (
                       <ul>
-                        {wishlist.map((item) => {
+                        {wishlist.map((item: WishlistItem) => {
                           const product = item.product;
                           const primaryImage =
-                            product?.images?.find((img) => img.isPrimary) ??
+                            product?.images?.find((img: ProductImage) => img.isPrimary) ??
                             product?.images?.[0];
                           const productHref = product
                             ? `/products/${product.slug || product.id}`

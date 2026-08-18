@@ -2,7 +2,6 @@ import WebNavbar from '@/components/web/navbar';
 import WebFooter from '@/components/web/footer';
 import WebMain from '@/components/web/WebMain';
 import ChatbotBubble from '@/components/ui-custom/ChatbotBubble';
-import ZaloPhoneBubble from '@/components/ui-custom/ZaloPhoneBubble';
 import { prisma } from '@/lib/prisma';
 import {
   HydrationBoundary,

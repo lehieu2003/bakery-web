@@ -29,6 +29,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useDashboard } from '@/hooks/admin/use-dashboard';
+import type { DashboardStats } from '@/types/api.types';
 
 const formatRevenue = (val: number) => `₫${(val / 1000000).toFixed(1)}M`;
 
@@ -54,11 +55,11 @@ export default function DashboardPage() {
 
   const { kpi, chartData, recentOrders } = data;
   const pending =
-    data.orderStates.find((item) => item.status === 'PENDING')?.count ?? 0;
+    data.orderStates.find((item: DashboardStats['orderStates'][number]) => item.status === 'PENDING')?.count ?? 0;
   const completed =
-    data.orderStates.find((item) => item.status === 'COMPLETED')?.count ?? 0;
+    data.orderStates.find((item: DashboardStats['orderStates'][number]) => item.status === 'COMPLETED')?.count ?? 0;
   const cancelled =
-    data.orderStates.find((item) => item.status === 'CANCELLED')?.count ?? 0;
+    data.orderStates.find((item: DashboardStats['orderStates'][number]) => item.status === 'CANCELLED')?.count ?? 0;
 
   const kpiCards = [
     {
@@ -95,8 +96,8 @@ export default function DashboardPage() {
     },
   ];
 
-  const totalWeekOrders = chartData.reduce((sum, d) => sum + d.orders, 0);
-  const totalWeekRevenue = chartData.reduce((sum, d) => sum + d.revenue, 0);
+  const totalWeekOrders = chartData.reduce((sum: number, d: DashboardStats['chartData'][number]) => sum + d.orders, 0);
+  const totalWeekRevenue = chartData.reduce((sum: number, d: DashboardStats['chartData'][number]) => sum + d.revenue, 0);
   return (
     <>
       {/* Page header */}
@@ -311,7 +312,7 @@ export default function DashboardPage() {
               No orders yet
             </p>
           ) : (
-            recentOrders.map((order) => (
+            recentOrders.map((order: DashboardStats['recentOrders'][number]) => (
               <div key={order.id} className='flex items-center gap-4 px-5 py-3'>
                 <div className='flex-1 min-w-0'>
                   <div className='flex items-center gap-2'>

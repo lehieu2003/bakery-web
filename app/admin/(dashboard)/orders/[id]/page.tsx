@@ -33,7 +33,12 @@ import {
   useOrderInvestigation,
   useUpdateOrder,
 } from '@/hooks/admin/use-orders';
-import type { OrderStatus } from '@/types/api.types';
+import type {
+  OrderStatus,
+  OrderItem,
+  OrderInvestigationAttempt,
+  OrderInvestigationCallbackEvent,
+} from '@/types/api.types';
 import { getProductImage } from '@/lib/utils';
 import AuditLogList from '@/components/admin/AuditLogList';
 
@@ -134,7 +139,7 @@ export default function OrderDetailPage({
     );
   }
 
-  const nextStatuses = NEXT_STATUSES[order.status] ?? [];
+  const nextStatuses: OrderStatus[] = (order.status ? NEXT_STATUSES[order.status as OrderStatus] : undefined) ?? [];
 
   const handleUpdateStatus = async () => {
     if (selectedStatus) {
@@ -178,9 +183,9 @@ export default function OrderDetailPage({
               {order.orderNumber}
             </h1>
             <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${ORDER_STATUS_COLORS[order.status]}`}
+              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}
             >
-              {ORDER_STATUS_LABELS[order.status]}
+              {ORDER_STATUS_LABELS[order.status as OrderStatus]}
             </span>
           </div>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -209,7 +214,7 @@ export default function OrderDetailPage({
               </p>
             </div>
             <div className='divide-y divide-border'>
-              {order.orderItems.map((item) => (
+              {order.orderItems.map((item: OrderItem) => (
                 <div key={item.id} className='flex gap-3 px-5 py-4'>
                   <div className='w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-muted'>
                     {item.product ? (
@@ -363,8 +368,8 @@ export default function OrderDetailPage({
                   </SelectTrigger>
                   <SelectContent>
                     {nextStatuses
-                      .filter((s) => s !== 'CANCELLED')
-                      .map((status) => (
+                      .filter((s: OrderStatus) => s !== 'CANCELLED')
+                      .map((status: OrderStatus) => (
                         <SelectItem
                           key={status}
                           value={status}
@@ -456,7 +461,7 @@ export default function OrderDetailPage({
               </p>
               {investigation?.callbackTimeline?.length ? (
                 <div className='space-y-2'>
-                  {investigation.callbackTimeline.slice(0, 10).map((event) => (
+                  {investigation.callbackTimeline.slice(0, 10).map((event: OrderInvestigationCallbackEvent) => (
                     <div
                       key={event.id}
                       className='rounded-lg border border-border px-3 py-2'
@@ -492,7 +497,7 @@ export default function OrderDetailPage({
                 <div className='space-y-1.5'>
                   {investigation.reconciliationAttempts
                     .slice(0, 10)
-                    .map((attempt) => (
+                    .map((attempt: OrderInvestigationAttempt) => (
                       <div
                         key={attempt.callbackEventId}
                         className='text-[11px] text-muted-foreground'
@@ -521,7 +526,7 @@ export default function OrderDetailPage({
               <h1>{order.orderNumber}</h1>
               <div className='brand'>Bakery Shop</div>
             </div>
-            <span className='badge'>{ORDER_STATUS_LABELS[order.status]}</span>
+            <span className='badge'>{ORDER_STATUS_LABELS[order.status as OrderStatus]}</span>
           </div>
           <div className='grid-2'>
             <div className='section'>
@@ -565,7 +570,7 @@ export default function OrderDetailPage({
                 </tr>
               </thead>
               <tbody>
-                {order.orderItems.map((item) => (
+                {order.orderItems.map((item: OrderItem) => (
                   <tr key={item.id}>
                     <td>
                       <div className='item-name'>

@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { formatVND, MEMBER_LEVEL_COLORS, MemberLevel } from '@/lib/admin-data';
 import { cn } from '@/lib/utils';
 import { useCustomer, useCustomers } from '@/hooks/admin/use-customers';
+import type { Customer } from '@/types/api.types';
 
 type LevelFilter = 'ALL' | MemberLevel;
 
@@ -237,7 +238,7 @@ function CustomerDetailPanel({
                 No recent orders.
               </p>
             )}
-            {recentOrders.slice(0, 5).map((order) => (
+            {recentOrders.slice(0, 5).map((order: NonNullable<Customer['recentOrders']>[number]) => (
               <div
                 key={order.id}
                 className='text-[11px] py-1.5 border-b border-border last:border-b-0'
@@ -261,7 +262,7 @@ function CustomerDetailPanel({
                 No recent payments.
               </p>
             )}
-            {recentPayments.slice(0, 5).map((payment) => (
+            {recentPayments.slice(0, 5).map((payment: NonNullable<Customer['recentPayments']>[number]) => (
               <div
                 key={payment.paymentId}
                 className='text-[11px] py-1.5 border-b border-border last:border-b-0'
@@ -285,7 +286,7 @@ function CustomerDetailPanel({
                 No notification reads.
               </p>
             )}
-            {recentNotifications.slice(0, 5).map((notification) => (
+            {recentNotifications.slice(0, 5).map((notification: NonNullable<Customer['recentNotifications']>[number]) => (
               <div
                 key={notification.notificationId}
                 className='text-[11px] py-1.5 border-b border-border last:border-b-0'
@@ -342,7 +343,7 @@ export default function CustomersPage() {
   const pagination = data?.pagination;
 
   // Map API response to CustomerData interface
-  const customers: CustomerData[] = rawCustomers.map((c) => ({
+  const customers: CustomerData[] = rawCustomers.map((c: Customer) => ({
     id: c.id,
     name: c.name,
     email: c.email,

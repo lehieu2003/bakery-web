@@ -40,6 +40,7 @@ import { useCategories } from '@/hooks/admin/use-categories';
 import { useProductAttributes } from '@/hooks/admin/use-product-attributes';
 import { useToast } from '@/hooks/use-toast';
 import AuditLogList from '@/components/admin/AuditLogList';
+import type { Category, ProductAttribute, ProductAttributeValue } from '@/types/api.types';
 
 // Validation schema
 const productSchema = z.object({
@@ -140,7 +141,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
         name: existingProduct.name,
         slug: existingProduct.slug,
         categoryIds:
-          existingProduct.categories?.map((pc) => pc.categoryId) || [],
+          existingProduct.categories?.map((pc: { categoryId: string }) => pc.categoryId) || [],
         price: existingProduct.price,
         shortDesc: existingProduct.description?.slice(0, 80) || '',
         fullDesc: existingProduct.description || '',
@@ -150,7 +151,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
       // Populate images from product
       if (existingProduct.images && existingProduct.images.length > 0) {
         setImages(
-          existingProduct.images.map((img, idx) => ({
+          existingProduct.images.map((img: { url: string; isPrimary?: boolean }, idx: number) => ({
             url: img.url,
             isPrimary: img.isPrimary || idx === 0,
           })),
@@ -160,7 +161,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
       // Populate variants
       if (existingProduct.variants && existingProduct.variants.length > 0) {
         setVariants(
-          existingProduct.variants.map((v) => ({
+          existingProduct.variants.map((v: { id?: string; name: string; sku?: string | null; price: number; stock: number }) => ({
             id: v.id,
             name: v.name,
             sku: v.sku || '',
@@ -194,9 +195,9 @@ export default function ProductForm({ productId }: { productId?: string }) {
   }, [nameValue, slugEdited, form]);
 
   // Get categories from API (filter active ones)
-  const categories = (categoriesData || []).filter((c) => c.isActive);
+  const categories = (categoriesData || []).filter((c: Category) => c.isActive);
   const assignableAttributes = (attributesData || []).filter(
-    (attribute) =>
+    (attribute: ProductAttribute) =>
       attribute.isActive &&
       ['SELECT', 'MULTI_SELECT'].includes(attribute.type),
   );
@@ -211,7 +212,28 @@ export default function ProductForm({ productId }: { productId?: string }) {
     );
   }
 
-  // Error state
+  if (isEdit && productError) {
+    return (
+      <div className='flex flex-col items-center justify-center py-24 text-center'>
+        <div className='w-14 h-14 bg-muted rounded-xl flex items-center justify-center mb-4'>
+          <X size={24} className='text-muted-foreground' />
+        </div>
+        <h2 className='font-serif text-lg font-semibold text-foreground mb-1'>
+          Failed to load product
+        </h2>
+        <p className='text-xs text-muted-foreground mb-4'>
+          An error occurred while loading the product.
+        </p>
+        <button
+          onClick={() => router.back()}
+          className='text-xs text-primary underline underline-offset-4'
+        >
+          Go back
+        </button>
+      </div>
+    );
+  }
+  // Not found guard for edit mode
   if (isEdit && productError) {
     return (
       <div className='flex flex-col items-center justify-center py-24 text-center'>
@@ -234,7 +256,6 @@ export default function ProductForm({ productId }: { productId?: string }) {
     );
   }
 
-  // Not found guard for edit mode
   if (isEdit && !existingProduct && !productLoading) {
     return (
       <div className='flex flex-col items-center justify-center py-24 text-center'>
@@ -299,11 +320,14 @@ export default function ProductForm({ productId }: { productId?: string }) {
             stock: v.stock,
           })),
         attributeAssignments: assignableAttributes
-          .map((attribute) => ({
+          .map((attribute: ProductAttribute) => ({
             attributeId: attribute.id,
             valueIds: selectedAttributeValues[attribute.id] || [],
           }))
-          .filter((assignment) => assignment.valueIds.length > 0),
+          .filter(
+            (assignment: { attributeId: string; valueIds: string[] }) =>
+              assignment.valueIds.length > 0,
+          ),
       };
 
       if (isEdit && productId) {
@@ -466,7 +490,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                             No categories available
                           </div>
                         ) : (
-                          categories.map((c) => (
+                          categories.map((c: Category) => (
                             <React.Fragment key={c.id}>
                               <SelectItem
                                 value={c.id}
@@ -474,7 +498,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                               >
                                 {c.name}
                               </SelectItem>
-                              {c.children?.map((child) => (
+                              {c.children?.map((child: Category) => (
                                 <SelectItem
                                   key={child.id}
                                   value={child.id}
@@ -557,6 +581,8 @@ export default function ProductForm({ productId }: { productId?: string }) {
                 </FormItem>
               )}
             />
+
+            {/* Full Description */}
             <FormField
               control={form.control}
               name='fullDesc'
@@ -832,7 +858,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
               </p>
             ) : (
               <div className='space-y-4'>
-                {assignableAttributes.map((attribute) => {
+                {assignableAttributes.map((attribute: ProductAttribute) => {
                   const selectedValues = selectedAttributeValues[attribute.id] || [];
 
                   return (
@@ -848,7 +874,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                         )}
                       </div>
                       <div className='flex flex-wrap gap-2'>
-                        {(attribute.values || []).map((value) => {
+                        {(attribute.values || []).map((value: ProductAttributeValue) => {
                           const isSelected = selectedValues.includes(value.id);
                           return (
                             <button

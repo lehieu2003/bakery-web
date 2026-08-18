@@ -154,7 +154,7 @@ function createFakeDeps(args?: {
       deactivateDeviceTokens: async (tokens: string[], at: Date) => {
         deactivatedTokens.push({ tokens, at });
       },
-      createPushLogs: async (input) => {
+      createPushLogs: async (input: Parameters<NonNullable<Parameters<typeof processNotificationDispatch>[2]>['createPushLogs']>[0]) => {
         pushLogs.push({
           userId: input.userId,
           eventType: input.eventType,
