@@ -12,6 +12,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import RelatedProducts from '@/components/screens/RelatedProducts';
 import BestSellersSection from '@/components/screens/BestSellersSection';
+import ProductReviewsSection from '@/components/web/product-reviews';
 import {
   categoryHrefFromTrail,
   findCategoryTrailById,
@@ -355,20 +356,24 @@ export default function ProductDetailScreen({
                 ).toLocaleString('vi-VN')}
                 đ
               </span>
-              <div className='flex items-center gap-1'>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Star
-                    key={i}
-                    size={14}
-                    className={
-                      i <= 4 ? 'fill-amber-400 text-amber-400' : 'text-border'
-                    }
-                  />
-                ))}
-                <span className='text-xs text-muted-foreground ml-1'>
-                  (128 reviews)
-                </span>
-              </div>
+              {(selectedProduct.reviewCount ?? 0) > 0 && (
+                <div className='flex items-center gap-1'>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Star
+                      key={i}
+                      size={14}
+                      className={
+                        i <= Math.round(selectedProduct.ratingAverage ?? 0)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-border'
+                      }
+                    />
+                  ))}
+                  <span className='text-xs text-muted-foreground ml-1'>
+                    ({selectedProduct.reviewCount} reviews)
+                  </span>
+                </div>
+              )}
             </div>
 
             {user && (
@@ -384,6 +389,12 @@ export default function ProductDetailScreen({
               {selectedProduct.description ||
                 'Artisan quality, made fresh to order with premium ingredients and care.'}
             </p>
+
+            <ProductReviewsSection
+              productId={selectedProduct.id}
+              reviewCount={selectedProduct.reviewCount ?? 0}
+              ratingAverage={selectedProduct.ratingAverage ?? null}
+            />
 
             <div className='h-px bg-border mb-6' />
 
