@@ -122,6 +122,9 @@ export interface Product {
   categories?: ProductCategory[];
   variants?: ProductVariant[];
   attributeAssignments?: ProductAttributeAssignment[];
+  reviews?: Review[];
+  reviewCount?: number;
+  ratingAverage?: number | null;
   isActive: boolean;
   isFeatured: boolean;
   createdAt: string;
