@@ -194,6 +194,9 @@ export const ENDPOINTS = {
     ADD: `${API_BASE}/wishlist`,
     REMOVE: `${API_BASE}/wishlist`,
   },
+  REVIEWS: {
+    LIST: (productId: string) => `${API_BASE}/products/${productId}/reviews`,
+  },
 
   // ============================================================================
   // Chatbot API
