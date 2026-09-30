@@ -5,6 +5,7 @@ import {
   MemberLevel,
   DiscountType,
 } from '@prisma/client';
+import { hashPassword } from '../lib/password';
 
 const prisma = new PrismaClient();
 
@@ -15,12 +16,13 @@ async function main() {
   // 1. ADMIN USER
   // ============================================
   const adminEmail = 'admin@bakeryshop.com';
-  const adminPassword =
-    'b109f3bbbc244eb82441917ed06d618b9008dd09b3befd1b5e07394c706a8bb980b1d7785e5976ec049b46df5f1326af5a2ea6d103fd07c95385ffab0cacbc86'; // password: admin123 (SHA-512)
+  // lib/password.ts verifies with PBKDF2 — seed must hash with the same
+  // function or every seeded account fails to log in.
+  const adminPassword = await hashPassword('admin123'); // demo password: admin123
 
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: { password: adminPassword },
     create: {
       email: adminEmail,
       password: adminPassword,
@@ -90,7 +92,7 @@ async function main() {
   for (const cust of customersData) {
     const user = await prisma.user.upsert({
       where: { email: cust.email },
-      update: {},
+      update: { password: adminPassword },
       create: {
         email: cust.email,
         password: adminPassword, // Same password for demo
