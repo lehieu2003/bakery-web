@@ -501,7 +501,20 @@ export default function CheckoutPaymentScreen() {
               Select Payment Method
             </p>
             <div className='space-y-3'>
-              {PAYMENT_METHODS.map(({ id, label, icon: Icon, desc, logo }) => (
+              {PAYMENT_METHODS.map(({ id, label, icon: Icon, desc, logo }) => {
+                // COD wording depends on how the order is fulfilled.
+                const isCod = id === 'COD';
+                const displayLabel = isCod
+                  ? isDelivery
+                    ? 'Cash on Delivery'
+                    : 'Cash on Pickup'
+                  : label;
+                const displayDesc = isCod
+                  ? isDelivery
+                    ? 'Pay in cash when your order arrives'
+                    : 'Pay at the counter when you collect your order'
+                  : desc;
+                return (
                 <button
                   key={id}
                   onClick={() => setPayMethod(id)}
@@ -534,10 +547,10 @@ export default function CheckoutPaymentScreen() {
                     <p
                       className={`text-sm font-semibold ${payMethod === id ? 'text-primary' : 'text-foreground'}`}
                     >
-                      {label}
+                      {displayLabel}
                     </p>
                     <p className='text-xs text-muted-foreground mt-0.5'>
-                      {desc}
+                      {displayDesc}
                     </p>
                   </div>
                   <div
@@ -550,7 +563,8 @@ export default function CheckoutPaymentScreen() {
                     )}
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
