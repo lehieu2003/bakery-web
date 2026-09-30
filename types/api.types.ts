@@ -190,6 +190,7 @@ export interface OrderItem {
   orderId: string;
   productId: string;
   variantId?: string | null;
+  message?: string | null;
   name: string;
   product?: Product;
   variant?: ProductVariant;
@@ -207,6 +208,7 @@ export interface Order {
   customerPhone: string;
   customerEmail: string | null;
   customerAddress: string | null;
+  pickupDate?: string | null;
   status: OrderStatus;
   subtotal: number;
   deliveryFee: number;

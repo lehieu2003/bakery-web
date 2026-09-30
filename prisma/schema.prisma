@@ -496,6 +496,8 @@ model Order {
   customerEmail   String?
   customerAddress String?
 
+  pickupDate DateTime?
+
   subtotal    Decimal @db.Decimal(10, 2)
   deliveryFee Decimal @db.Decimal(10, 2)
   discount    Decimal @db.Decimal(10, 2)
@@ -524,6 +526,8 @@ model OrderItem {
   variantId String?
 
   name String
+
+  message String?
 
   price Decimal @db.Decimal(10, 2)
 

@@ -41,11 +41,15 @@ type CreateOrderPayload = {
   paymentMethod?: PaymentMethod;
   incentiveCode?: string;
   incentiveCodes?: string[];
+  pickupDate?: string;
+  addressId?: string;
   items?: Array<{
     productId?: string;
     name?: string;
     price?: number;
     quantity?: number;
+    variantId?: string;
+    message?: string;
   }>;
 };
 
@@ -75,6 +79,25 @@ type CreateOrderRouteDeps = {
       categoryIds: string[];
     }>
   >;
+  findVariants: (
+    variantIds: string[],
+  ) => Promise<
+    Array<{
+      id: string;
+      productId: string;
+      name: string;
+      price: number;
+    }>
+  >;
+  findUserAddress: (
+    userId: string,
+    addressId: string,
+  ) => Promise<{
+    street: string;
+    ward: string;
+    district: string;
+    province: string;
+  } | null>;
   findIncentiveByCode: (
     code: string,
     user: { id: string | null; memberLevel?: string | null } | null,
@@ -91,6 +114,7 @@ type CreateOrderRouteDeps = {
     customerPhone: string;
     customerEmail: string | null;
     customerAddress: string | null;
+    pickupDate: Date | null;
     subtotal: number;
     discount: number;
     total: number;
@@ -99,10 +123,12 @@ type CreateOrderRouteDeps = {
     paymentMethod: PaymentMethod;
     orderItems: Array<{
       productId: string;
+      variantId: string | null;
       name: string;
       price: number;
       quantity: number;
       subtotal: number;
+      message: string | null;
     }>;
   }) => Promise<{
     id: string;
@@ -147,6 +173,7 @@ type OrderReadModel = {
   customerPhone: string;
   customerEmail: string | null;
   customerAddress: string | null;
+  pickupDate: Date | null;
   status: string;
   subtotal: unknown;
   deliveryFee: unknown;
@@ -161,6 +188,7 @@ type OrderReadModel = {
     productId: string;
     variantId: string | null;
     name: string;
+    message: string | null;
     quantity: number;
     price: unknown;
     subtotal: unknown;
@@ -258,6 +286,35 @@ const createOrderDeps: CreateOrderRouteDeps = {
           categoryIds: product.categories.map((category) => category.categoryId),
         })),
       ),
+  findVariants: (variantIds) =>
+    prisma.productVariant
+      .findMany({
+        where: { id: { in: variantIds } },
+        select: {
+          id: true,
+          productId: true,
+          name: true,
+          price: true,
+        },
+      })
+      .then((variants) =>
+        variants.map((variant) => ({
+          id: variant.id,
+          productId: variant.productId,
+          name: variant.name,
+          price: Number(variant.price),
+        })),
+      ),
+  findUserAddress: (userId, addressId) =>
+    prisma.address.findFirst({
+      where: { id: addressId, userId },
+      select: {
+        street: true,
+        ward: true,
+        district: true,
+        province: true,
+      },
+    }),
   findIncentiveByCode: async (code) => {
     const coupon = await prisma.coupon.findUnique({
       where: { code },
@@ -329,6 +386,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
             customerPhone: args.customerPhone,
             customerEmail: args.customerEmail,
             customerAddress: args.customerAddress,
+            pickupDate: args.pickupDate,
             subtotal: args.subtotal,
             deliveryFee: 0,
             discount: args.discount,
@@ -514,6 +572,8 @@ export async function handleCreateOrderRequest(
     items,
     incentiveCode: incentiveCodeInput,
     incentiveCodes: incentiveCodesInput,
+    pickupDate: pickupDateInput,
+    addressId,
   } = payload;
 
   if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
@@ -551,6 +611,24 @@ export async function handleCreateOrderRequest(
         body: { success: false, error: 'Invalid item quantity' },
       };
     }
+    if (item.message !== undefined && item.message.trim().length > 200) {
+      return {
+        status: 400,
+        body: { success: false, error: 'Invalid item message' },
+      };
+    }
+  }
+
+  let pickupDate: Date | null = null;
+  if (pickupDateInput) {
+    const parsedPickupDate = new Date(pickupDateInput);
+    if (Number.isNaN(parsedPickupDate.getTime())) {
+      return {
+        status: 400,
+        body: { success: false, error: 'Invalid pickup date' },
+      };
+    }
+    pickupDate = parsedPickupDate;
   }
 
   const normalizedIncentiveCodesResult = resolveNormalizedIncentiveCodes({
@@ -594,16 +672,71 @@ export async function handleCreateOrderRequest(
     }
   }
 
+  const variantIds = Array.from(
+    new Set(
+      items
+        .map((item) => item.variantId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const variantMap = new Map<
+    string,
+    { id: string; productId: string; name: string; price: number }
+  >();
+  if (variantIds.length > 0) {
+    const variants = await deps.findVariants(variantIds);
+    for (const variant of variants) {
+      variantMap.set(variant.id, variant);
+    }
+  }
+
+  for (const item of items) {
+    if (!item.variantId) continue;
+    const variant = variantMap.get(item.variantId);
+    if (!variant || variant.productId !== item.productId) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Selected variant for "${item.name}" is not available`,
+        },
+      };
+    }
+  }
+
   const user = await deps.getCurrentUser(request);
+
+  let addressSnapshot: string | null = null;
+  if (addressId) {
+    if (!user) {
+      return {
+        status: 400,
+        body: { success: false, error: 'Invalid address' },
+      };
+    }
+    const address = await deps.findUserAddress(user.id, addressId);
+    if (!address) {
+      return {
+        status: 400,
+        body: { success: false, error: 'Invalid address' },
+      };
+    }
+    addressSnapshot = `${address.street}, ${address.ward}, ${address.district}, ${address.province}`;
+  }
+
   const orderItems = items.map((item) => {
     const product = productMap.get(item.productId!)!;
-    const price = Number(product.price);
+    const variant = item.variantId ? variantMap.get(item.variantId) : undefined;
+    const price = variant ? variant.price : Number(product.price);
+    const name = variant ? `${product.name} - ${variant.name}` : product.name;
     return {
       productId: item.productId!,
-      name: product.name,
+      variantId: item.variantId ?? null,
+      name,
       price,
       quantity: item.quantity!,
       subtotal: price * item.quantity!,
+      message: item.message?.trim() || null,
       categoryIds: product.categoryIds,
     };
   });
@@ -711,10 +844,12 @@ export async function handleCreateOrderRequest(
   const orderNumber = generateOrderNumber();
   const persistableOrderItems = orderItems.map((item) => ({
     productId: item.productId,
+    variantId: item.variantId,
     name: item.name,
     price: item.price,
     quantity: item.quantity,
     subtotal: item.subtotal,
+    message: item.message,
   }));
   let order: Awaited<ReturnType<CreateOrderRouteDeps['createOrderWithItems']>>;
   try {
@@ -724,7 +859,9 @@ export async function handleCreateOrderRequest(
       customerName,
       customerPhone,
       customerEmail: customerEmail || user?.email || null,
-      customerAddress: customerAddress?.trim() || null,
+      customerAddress:
+        addressSnapshot ?? (customerAddress?.trim() || null),
+      pickupDate,
       subtotal,
       discount: finalDiscount,
       total,
@@ -921,6 +1058,7 @@ export async function handleCreateOrderRequest(
 function serializeOrder(order: OrderReadModel) {
   return {
     ...order,
+    pickupDate: order.pickupDate ? order.pickupDate.toISOString() : null,
     subtotal: asNumber(order.subtotal),
     deliveryFee: asNumber(order.deliveryFee),
     discount: asNumber(order.discount),

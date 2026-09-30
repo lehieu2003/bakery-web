@@ -58,6 +58,8 @@ function createDeps(): CreateOrderDeps {
         categoryIds: ['cat-cake'],
       },
     ],
+    findVariants: async () => [],
+    findUserAddress: async () => null,
     findIncentiveByCode: async () => null,
     countUserCommittedIncentiveUsage: async () => 0,
     now: () => new Date('2026-04-06T12:00:00.000Z'),
@@ -99,6 +101,13 @@ function buildPayload(method: 'COD' | 'MOMO' | 'VNPAY' | 'BANK_TRANSFER') {
       },
     ],
   };
+}
+
+function withDeps(
+  base: CreateOrderDeps,
+  overrides: Partial<CreateOrderDeps>,
+): CreateOrderDeps {
+  return { ...base, ...overrides };
 }
 
 function createIncentiveFixture(
@@ -594,6 +603,7 @@ test('GET /api/orders returns serialized orders for authenticated user', async (
         customerPhone: '0909123456',
         customerEmail: 'lan@example.com',
         customerAddress: null,
+        pickupDate: new Date('2026-10-05T00:00:00.000Z'),
         status: 'CONFIRMED',
         subtotal: '200000',
         deliveryFee: '0',
@@ -609,6 +619,7 @@ test('GET /api/orders returns serialized orders for authenticated user', async (
             productId: 'p1',
             variantId: null,
             name: 'Cake A',
+            message: 'Less sugar, write "Happy Birthday"',
             quantity: 2,
             price: '100000',
             subtotal: '200000',
@@ -639,6 +650,14 @@ test('GET /api/orders returns serialized orders for authenticated user', async (
   assert.equal(result.body.data?.orders[0].total, 190000);
   assert.equal(result.body.data?.orders[0].orderItems[0].price, 100000);
   assert.equal(result.body.data?.orders[0].payment?.amount, 190000);
+  assert.equal(
+    result.body.data?.orders[0].pickupDate,
+    '2026-10-05T00:00:00.000Z',
+  );
+  assert.equal(
+    result.body.data?.orders[0].orderItems[0].message,
+    'Less sugar, write "Happy Birthday"',
+  );
 });
 
 test('GET /api/orders sanitizes invalid numeric fields to 0', async () => {
@@ -653,6 +672,7 @@ test('GET /api/orders sanitizes invalid numeric fields to 0', async () => {
         customerPhone: '0909123456',
         customerEmail: 'lan@example.com',
         customerAddress: null,
+        pickupDate: null,
         status: 'PENDING',
         subtotal: 'invalid',
         deliveryFee: Number.NaN,
@@ -668,6 +688,7 @@ test('GET /api/orders sanitizes invalid numeric fields to 0', async () => {
             productId: 'p2',
             variantId: null,
             name: 'Cake B',
+            message: null,
             quantity: 1,
             price: 'oops',
             subtotal: Number.NaN,
@@ -886,4 +907,62 @@ test('POST /api/orders dispatches order-status notification event asynchronously
   assert.equal(events[0].eventType, 'ORDER_STATUS_CHANGED');
   assert.equal(events[0].entityId, 'o1');
   assert.equal(events[0].targetEmail, 'lan@example.com');
+});
+
+test('order item with variant uses the variant price and name', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    findVariants: async () => [{ id: 'v1', productId: 'p1', name: '500g', price: 120000 }],
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK260405ABCD', orderItems: [] }; },
+  });
+  const payload = { ...buildPayload('COD'),
+    items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 2, variantId: 'v1' }] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 200); // create returns 200, matching the existing route
+  assert.equal(captured!.orderItems[0].price, 120000);
+  assert.equal(captured!.orderItems[0].name, 'Cake A - 500g');
+});
+
+test('variantId from another product is rejected', async () => {
+  const deps = withDeps(createDeps(), {
+    findVariants: async () => [{ id: 'v9', productId: 'OTHER', name: 'X', price: 1 }],
+  });
+  const payload = { ...buildPayload('COD'),
+    items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 1, variantId: 'v9' }] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 400);
+});
+
+test('item message over 200 chars is rejected', async () => {
+  const payload = { ...buildPayload('COD'),
+    items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 1, message: 'a'.repeat(201) }] };
+  const result = await handleCreateOrderRequest(payload, createDeps());
+  assert.equal(result.status, 400);
+});
+
+test('guest cannot use addressId; address of another user is rejected', async () => {
+  const guest = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), addressId: 'a1' }, createDeps());
+  assert.equal(guest.status, 400);
+  const other = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), addressId: 'a1' },
+    withDeps(createDeps(), {
+      getCurrentUser: async () => ({ id: 'u1' }),
+      findUserAddress: async () => null,
+    }));
+  assert.equal(other.status, 400);
+});
+
+test('owned addressId snapshots into customerAddress and pickupDate is persisted', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    getCurrentUser: async () => ({ id: 'u1' }),
+    findUserAddress: async () => ({ street: '12 Nguyen Trai', ward: 'P. Ben Nghe', district: 'Quan 1', province: 'TP.HCM' }),
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK260405ABCD', orderItems: [] }; },
+  });
+  const result = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), addressId: 'a1', pickupDate: '2026-10-05' }, deps);
+  assert.equal(result.status, 200);
+  assert.equal(captured!.customerAddress, '12 Nguyen Trai, P. Ben Nghe, Quan 1, TP.HCM');
+  assert.equal(captured!.pickupDate!.getTime(), new Date('2026-10-05').getTime());
 });
