@@ -11,10 +11,15 @@ import {
   normalizeIncentiveCode,
   type IncentiveReadModel,
 } from '@/lib/incentives/policy';
+import {
+  getDeliverySettings as fetchDeliverySettings,
+  type DeliverySettings,
+} from '@/lib/delivery-settings';
 
 type PreviewPayload = {
   incentiveCode?: string;
   incentiveCodes?: string[];
+  deliveryMethod?: 'pickup' | 'delivery';
   items?: Array<{
     productId?: string;
     quantity?: number;
@@ -34,6 +39,7 @@ type PreviewRouteDeps = {
     userId: string,
   ) => Promise<number>;
   getMembershipConfig: () => Promise<MembershipRulesConfig>;
+  getDeliverySettings: () => Promise<DeliverySettings>;
   now: () => Date;
 };
 
@@ -115,6 +121,7 @@ const defaultDeps: PreviewRouteDeps = {
       },
     }),
   getMembershipConfig: getMembershipRulesConfig,
+  getDeliverySettings: fetchDeliverySettings,
   now: () => new Date(),
 };
 
@@ -199,6 +206,20 @@ export async function handlePreviewIncentiveRequest(
     }
   }
 
+  if (
+    payload.deliveryMethod !== undefined &&
+    payload.deliveryMethod !== 'pickup' &&
+    payload.deliveryMethod !== 'delivery'
+  ) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        error: 'Invalid delivery method',
+      },
+    };
+  }
+
   const normalizedIncentiveCodesResult = resolveNormalizedIncentiveCodes({
     incentiveCodeInput: payload.incentiveCode,
     incentiveCodesInput: payload.incentiveCodes,
@@ -240,6 +261,20 @@ export async function handlePreviewIncentiveRequest(
   });
   const subtotal = cartItems.reduce((sum, item) => sum + item.lineSubtotal, 0);
 
+  // Same rule as the create-order route: only delivery orders pay the fee.
+  // Absent deliveryMethod keeps the legacy fee-less response so existing
+  // mobile clients parse the exact same fields as before.
+  const isDelivery = payload.deliveryMethod === 'delivery';
+  let deliveryFee = 0;
+  if (isDelivery) {
+    const deliverySettings = await deps.getDeliverySettings();
+    deliveryFee =
+      deliverySettings.freeDeliveryThreshold > 0 &&
+      subtotal >= deliverySettings.freeDeliveryThreshold
+        ? 0
+        : deliverySettings.deliveryFee;
+  }
+
   const user = request ? await deps.getCurrentUser(request) : null;
   const membershipConfig = await deps.getMembershipConfig();
   const membershipDiscountPercent = user
@@ -257,7 +292,11 @@ export async function handlePreviewIncentiveRequest(
           membershipDiscount,
           couponDiscount: 0,
           totalDiscount: membershipDiscount,
-          total: subtotal - membershipDiscount,
+          total: subtotal - membershipDiscount + deliveryFee,
+          // JSON.stringify drops undefined keys, so a request without
+          // deliveryMethod produces the exact legacy response shape.
+          deliveryFee:
+            payload.deliveryMethod !== undefined ? deliveryFee : undefined,
           appliedIncentive: null,
           appliedIncentives: [],
         },
@@ -335,7 +374,9 @@ export async function handlePreviewIncentiveRequest(
   }
 
   const totalDiscount = membershipDiscount + couponDiscount;
-  const total = subtotal - totalDiscount;
+  // Fee is added after discounts, matching the create-order route's
+  // `total = subtotal + deliveryFee - finalDiscount`.
+  const total = subtotal - totalDiscount + deliveryFee;
   if (total <= 0) {
     return {
       status: 400,
@@ -356,6 +397,8 @@ export async function handlePreviewIncentiveRequest(
         couponDiscount,
         totalDiscount,
         total,
+        deliveryFee:
+          payload.deliveryMethod !== undefined ? deliveryFee : undefined,
         appliedIncentive: appliedIncentives[0] ?? null,
         appliedIncentives,
       },

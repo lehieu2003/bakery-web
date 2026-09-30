@@ -8,6 +8,7 @@ export interface CreateOrderPayload {
   customerEmail?: string;
   customerAddress?: string;
   paymentMethod: 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'VNPAY';
+  deliveryMethod?: 'pickup' | 'delivery';
   incentiveCode?: string;
   incentiveCodes?: string[];
   pickupDate?: string;
@@ -25,6 +26,7 @@ export interface CreateOrderPayload {
 export interface PreviewIncentivePayload {
   incentiveCode?: string;
   incentiveCodes?: string[];
+  deliveryMethod?: 'pickup' | 'delivery';
   items: Array<{
     productId: string;
     quantity: number;
@@ -51,6 +53,8 @@ export interface PreviewIncentiveResponse {
   couponDiscount: number;
   totalDiscount: number;
   total: number;
+  /** Only present when the request carried an explicit deliveryMethod. */
+  deliveryFee?: number;
   appliedIncentive?: AppliedIncentiveSummary | null;
   appliedIncentives?: AppliedIncentiveSummary[] | null;
 }

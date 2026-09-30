@@ -43,6 +43,7 @@ type CreateOrderPayload = {
   customerEmail?: string;
   customerAddress?: string;
   paymentMethod?: PaymentMethod;
+  deliveryMethod?: 'pickup' | 'delivery';
   incentiveCode?: string;
   incentiveCodes?: string[];
   pickupDate?: string;
@@ -91,6 +92,7 @@ type CreateOrderRouteDeps = {
       productId: string;
       name: string;
       price: number;
+      stock: number;
     }>
   >;
   findUserAddress: (
@@ -301,6 +303,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
           productId: true,
           name: true,
           price: true,
+          stock: true,
         },
       })
       .then((variants) =>
@@ -309,6 +312,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
           productId: variant.productId,
           name: variant.name,
           price: Number(variant.price),
+          stock: variant.stock,
         })),
       ),
   findUserAddress: (userId, addressId) =>
@@ -576,6 +580,7 @@ export async function handleCreateOrderRequest(
     customerEmail,
     customerAddress,
     paymentMethod,
+    deliveryMethod,
     items,
     incentiveCode: incentiveCodeInput,
     incentiveCodes: incentiveCodesInput,
@@ -605,6 +610,17 @@ export async function handleCreateOrderRequest(
     };
   }
 
+  if (
+    deliveryMethod !== undefined &&
+    deliveryMethod !== 'pickup' &&
+    deliveryMethod !== 'delivery'
+  ) {
+    return {
+      status: 400,
+      body: { success: false, error: 'Invalid delivery method' },
+    };
+  }
+
   for (const item of items) {
     if (!item.productId || !item.name || !item.price || !item.quantity) {
       return {
@@ -618,7 +634,9 @@ export async function handleCreateOrderRequest(
         body: { success: false, error: 'Invalid item quantity' },
       };
     }
-    if (item.message !== undefined && item.message.trim().length > 200) {
+    if (
+      (typeof item.message === 'string' ? item.message.trim() : '').length > 200
+    ) {
       return {
         status: 400,
         body: { success: false, error: 'Invalid item message' },
@@ -688,7 +706,7 @@ export async function handleCreateOrderRequest(
   );
   const variantMap = new Map<
     string,
-    { id: string; productId: string; name: string; price: number }
+    { id: string; productId: string; name: string; price: number; stock: number }
   >();
   if (variantIds.length > 0) {
     const variants = await deps.findVariants(variantIds);
@@ -706,6 +724,15 @@ export async function handleCreateOrderRequest(
         body: {
           success: false,
           error: `Selected variant for "${item.name}" is not available`,
+        },
+      };
+    }
+    if (variant.stock <= 0) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Variant "${item.name}" is not available`,
         },
       };
     }
@@ -738,12 +765,12 @@ export async function handleCreateOrderRequest(
     const name = variant ? `${product.name} - ${variant.name}` : product.name;
     return {
       productId: item.productId!,
-      variantId: item.variantId ?? null,
+      variantId: item.variantId || null,
       name,
       price,
       quantity: item.quantity!,
       subtotal: price * item.quantity!,
-      message: item.message?.trim() || null,
+      message: (typeof item.message === 'string' ? item.message.trim() : '') || null,
       categoryIds: product.categoryIds,
     };
   });
@@ -840,9 +867,14 @@ export async function handleCreateOrderRequest(
 
   const deliveryAddress =
     addressSnapshot ?? (customerAddress?.trim() || null);
+  // Absent deliveryMethod keeps the legacy address-presence heuristic so
+  // existing mobile clients behave exactly as before.
+  const isDelivery = deliveryMethod
+    ? deliveryMethod === 'delivery'
+    : Boolean(deliveryAddress);
   const deliverySettings = await deps.getDeliverySettings();
   let deliveryFee = 0;
-  if (deliveryAddress) {
+  if (isDelivery) {
     deliveryFee =
       deliverySettings.freeDeliveryThreshold > 0 &&
       subtotal >= deliverySettings.freeDeliveryThreshold

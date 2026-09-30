@@ -1,6 +1,12 @@
 import React from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -39,6 +45,7 @@ vi.mock('@/hooks/use-available-incentives', () => ({
 vi.mock('@/services/order.service', () => ({
   orderService: {
     createOrder: vi.fn(),
+    previewIncentive: vi.fn(),
   },
 }));
 
@@ -78,6 +85,7 @@ const mockedUseCart = vi.mocked(useCart);
 const mockedUseMembershipBenefits = vi.mocked(useMembershipBenefits);
 const mockedUseAvailableIncentives = vi.mocked(useAvailableIncentives);
 const mockedCreateOrder = vi.mocked(orderService.createOrder);
+const mockedPreviewIncentive = vi.mocked(orderService.previewIncentive);
 const mockedUseOrders = vi.mocked(useOrders);
 const mockedUsePrepareReorder = vi.mocked(usePrepareReorder);
 const mockedUseLogout = vi.mocked(useLogout);
@@ -174,6 +182,7 @@ describe('Checkout payment order payload fidelity', () => {
       expect.objectContaining({
         addressId: 'a1',
         pickupDate: '2026-10-05',
+        deliveryMethod: 'pickup',
         items: [
           expect.objectContaining({
             productId: 'p1',
@@ -182,6 +191,112 @@ describe('Checkout payment order payload fidelity', () => {
           }),
         ],
       }),
+    );
+  });
+});
+
+describe('Checkout delivery fee display fidelity', () => {
+  test('delivery order shows the fee-inclusive preview total and sends deliveryMethod', async () => {
+    mockedUseCart.mockReturnValue(
+      buildCartValue({
+        checkoutInfo: {
+          customerName: 'Lan Nguyen',
+          customerPhone: '0909000000',
+          customerAddress: '12 Nguyen Trai, P. Ben Nghe, Quan 1, TP.HCM',
+          deliveryMethod: 'delivery' as const,
+          addressId: 'a1',
+        },
+      }) as ReturnType<typeof useCart>,
+    );
+    mockedUseMembershipBenefits.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    } as never);
+    mockedUseAvailableIncentives.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as never);
+    mockedCreateOrder.mockResolvedValue({
+      order: { id: 'o-1', orderNumber: 'BK26092901' } as never,
+      paymentUrl: null,
+      paymentError: undefined,
+      appliedIncentive: null,
+    });
+    mockedPreviewIncentive.mockResolvedValue({
+      subtotal: 200000,
+      membershipDiscount: 0,
+      couponDiscount: 0,
+      totalDiscount: 0,
+      total: 230000,
+      deliveryFee: 30000,
+      appliedIncentive: null,
+      appliedIncentives: [],
+    });
+
+    render(<CheckoutPaymentScreen />);
+
+    // Fee-aware preview is fetched for delivery orders so the displayed total
+    // can never be lower than the charged total.
+    await waitFor(() => {
+      expect(mockedPreviewIncentive).toHaveBeenCalledWith(
+        expect.objectContaining({ deliveryMethod: 'delivery' }),
+      );
+    });
+    expect(screen.getByText('Delivery fee')).toBeInTheDocument();
+    expect(screen.getByText('30.000đ')).toBeInTheDocument();
+    expect(screen.getByText('230.000đ')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Place Order — 230.000đ' }),
+    ).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Place Order/i }));
+
+    await waitFor(() => {
+      expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
+    });
+    expect(orderService.createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryMethod: 'delivery' }),
+    );
+  });
+
+  test('pickup order shows a zero delivery fee row and keeps the fee-less total', async () => {
+    mockedUseCart.mockReturnValue(buildCartValue() as ReturnType<typeof useCart>);
+    mockedUseMembershipBenefits.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    } as never);
+    mockedUseAvailableIncentives.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as never);
+    mockedCreateOrder.mockResolvedValue({
+      order: { id: 'o-1', orderNumber: 'BK26092901' } as never,
+      paymentUrl: null,
+      paymentError: undefined,
+      appliedIncentive: null,
+    });
+
+    render(<CheckoutPaymentScreen />);
+
+    // No preview round-trip is needed to price a pickup order.
+    expect(mockedPreviewIncentive).not.toHaveBeenCalled();
+    expect(screen.getByText('Delivery fee')).toBeInTheDocument();
+    expect(screen.getByText('0đ')).toBeInTheDocument();
+    const totalBox = screen.getByText('Total').parentElement as HTMLElement;
+    expect(within(totalBox).getByText('200.000đ')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Place Order — 200.000đ' }),
+    ).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Place Order/i }));
+
+    await waitFor(() => {
+      expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
+    });
+    expect(orderService.createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryMethod: 'pickup' }),
     );
   });
 });

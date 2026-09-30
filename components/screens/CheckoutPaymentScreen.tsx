@@ -68,6 +68,9 @@ export default function CheckoutPaymentScreen() {
   const [incentiveError, setIncentiveError] = useState('');
   const [previewPricing, setPreviewPricing] =
     useState<PreviewIncentiveResponse | null>(null);
+  // Set when the fee-aware preview request fails so ordering can still
+  // proceed instead of blocking on an unavailable endpoint.
+  const [isFeePreviewUnavailable, setIsFeePreviewUnavailable] = useState(false);
   const [isApplyingIncentive, setIsApplyingIncentive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -99,6 +102,13 @@ export default function CheckoutPaymentScreen() {
   const discountRate = user ? discountPercent / 100 : 0;
   const discount = Math.round(subtotal * discountRate);
   const baseTotal = subtotal - discount;
+  const deliveryMethod = checkoutInfo?.deliveryMethod;
+  // Same rule as the API routes: an absent method falls back to the
+  // address-presence heuristic.
+  const isDelivery = deliveryMethod
+    ? deliveryMethod === 'delivery'
+    : Boolean(checkoutInfo?.customerAddress);
+  const deliveryFee = isDelivery ? (previewPricing?.deliveryFee ?? 0) : 0;
   const availableIncentivesQuery = useAvailableIncentives({
     subtotal,
     cart: cartContext,
@@ -107,6 +117,10 @@ export default function CheckoutPaymentScreen() {
   const availableIncentives = availableIncentivesQuery.data ?? [];
   const couponDiscount = previewPricing?.couponDiscount ?? 0;
   const total = previewPricing?.total ?? baseTotal;
+  // The charged total must never exceed the displayed total, so delivery
+  // orders wait for the fee-aware preview before enabling Place Order.
+  const isFeePreviewPending =
+    isDelivery && previewPricing === null && !isFeePreviewUnavailable;
   const appliedIncentiveCodes =
     previewPricing?.appliedIncentives?.map((item) => item.code) ??
     selectedIncentiveCodes;
@@ -120,6 +134,39 @@ export default function CheckoutPaymentScreen() {
     setIncentiveError('');
   }, [subtotal, discount]);
 
+  // Keep the displayed delivery total fee-accurate: fetch a fee-aware preview
+  // whenever no incentive preview is active, so the gateway charge never
+  // exceeds the last displayed total for delivery orders.
+  useEffect(() => {
+    if (!isDelivery || cart.length === 0 || previewPricing || isFeePreviewUnavailable)
+      return;
+    let cancelled = false;
+    orderService
+      .previewIncentive({
+        items: cart.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+        deliveryMethod,
+      })
+      .then((preview) => {
+        if (!cancelled) setPreviewPricing(preview);
+      })
+      .catch(() => {
+        if (!cancelled) setIsFeePreviewUnavailable(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isDelivery,
+    subtotal,
+    previewPricing,
+    isFeePreviewUnavailable,
+    deliveryMethod,
+    cart,
+  ]);
+
   async function previewWithCodes(codes: string[]) {
     const preview = await orderService.previewIncentive({
       incentiveCodes: codes,
@@ -127,6 +174,7 @@ export default function CheckoutPaymentScreen() {
         productId: item.productId,
         quantity: item.quantity,
       })),
+      deliveryMethod,
     });
     setPreviewPricing(preview);
     setSelectedIncentiveCodes(codes);
@@ -229,6 +277,7 @@ export default function CheckoutPaymentScreen() {
         customerEmail: checkoutInfo.customerEmail,
         customerAddress: checkoutInfo.customerAddress,
         paymentMethod: payMethod,
+        deliveryMethod,
         incentiveCodes:
           selectedIncentiveCodes.length > 0 ? selectedIncentiveCodes : undefined,
         pickupDate:
@@ -514,7 +563,7 @@ export default function CheckoutPaymentScreen() {
 
           <button
             onClick={handlePlaceOrder}
-            disabled={isSubmitting || cart.length === 0}
+            disabled={isSubmitting || cart.length === 0 || isFeePreviewPending}
             className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
           >
             {isSubmitting ? (
@@ -589,6 +638,16 @@ export default function CheckoutPaymentScreen() {
                   </span>
                 </div>
               )}
+              <div className='flex justify-between text-sm'>
+                <span className='text-muted-foreground'>Delivery fee</span>
+                <span className='text-foreground font-medium'>
+                  {deliveryFee > 0
+                    ? `${deliveryFee.toLocaleString('vi-VN')}đ`
+                    : isDelivery
+                      ? 'Miễn phí'
+                      : '0đ'}
+                </span>
+              </div>
             </div>
             <div className='h-px bg-border mb-4' />
             <div className='flex justify-between items-center bg-secondary/70 rounded-xl px-4 py-3'>

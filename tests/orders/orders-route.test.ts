@@ -913,7 +913,7 @@ test('POST /api/orders dispatches order-status notification event asynchronously
 test('order item with variant uses the variant price and name', async () => {
   let captured: CreateOrderWithItemsArgs | null = null;
   const deps = withDeps(createDeps(), {
-    findVariants: async () => [{ id: 'v1', productId: 'p1', name: '500g', price: 120000 }],
+    findVariants: async () => [{ id: 'v1', productId: 'p1', name: '500g', price: 120000, stock: 5 }],
     createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK260405ABCD', orderItems: [] }; },
   });
   const payload = { ...buildPayload('COD'),
@@ -926,7 +926,7 @@ test('order item with variant uses the variant price and name', async () => {
 
 test('variantId from another product is rejected', async () => {
   const deps = withDeps(createDeps(), {
-    findVariants: async () => [{ id: 'v9', productId: 'OTHER', name: 'X', price: 1 }],
+    findVariants: async () => [{ id: 'v9', productId: 'OTHER', name: 'X', price: 1, stock: 5 }],
   });
   const payload = { ...buildPayload('COD'),
     items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 1, variantId: 'v9' }] };
@@ -1004,4 +1004,77 @@ test('pick-up orders never pay a delivery fee', async () => {
   const payload = buildPayload('COD');
   await handleCreateOrderRequest({ ...payload, customerAddress: undefined }, deps);
   assert.equal(captured!.deliveryFee, 0);
+});
+
+test('item message null is treated as no message instead of crashing', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const payload = { ...buildPayload('COD'),
+    items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 1, message: null as unknown as string }] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(captured!.orderItems[0].message, null);
+});
+
+test('empty variantId is normalized to no variant instead of a dangling reference', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    findVariants: async () => [],
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const payload = { ...buildPayload('COD'),
+    items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 1, variantId: '' }] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(captured!.orderItems[0].variantId, null);
+  assert.equal(captured!.orderItems[0].price, 100000);
+  assert.equal(captured!.orderItems[0].name, 'Cake A');
+});
+
+test('out-of-stock variant is rejected as unavailable', async () => {
+  const deps = withDeps(createDeps(), {
+    findVariants: async () => [{ id: 'v1', productId: 'p1', name: '500g', price: 120000, stock: 0 }],
+  });
+  const payload = { ...buildPayload('COD'),
+    items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 2, variantId: 'v1' }] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Variant "Cake A" is not available');
+});
+
+test('deliveryMethod pickup with a saved address is never charged the delivery fee', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const result = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), deliveryMethod: 'pickup' }, deps);
+  assert.equal(result.status, 200);
+  assert.equal(captured!.deliveryFee, 0);
+  assert.equal(captured!.total, captured!.subtotal);
+});
+
+test('deliveryMethod delivery applies the configured fee to the charged total', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const result = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), deliveryMethod: 'delivery' }, deps);
+  assert.equal(result.status, 200);
+  assert.equal(captured!.deliveryFee, 30000);
+  assert.equal(captured!.total, captured!.subtotal + 30000);
+});
+
+test('invalid deliveryMethod value is rejected', async () => {
+  const result = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), deliveryMethod: 'drone' }, createDeps());
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Invalid delivery method');
 });
