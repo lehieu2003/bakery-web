@@ -98,7 +98,7 @@ export default function ProductReviewsSection({
         <div className='flex items-center gap-2'>
           <StarRating rating={Math.round(ratingAverage ?? 0)} />
           <span className='text-sm text-muted-foreground'>
-            ({reviewCount} reviews)
+            ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
           </span>
         </div>
       )}

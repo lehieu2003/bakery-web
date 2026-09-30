@@ -370,7 +370,8 @@ export default function ProductDetailScreen({
                     />
                   ))}
                   <span className='text-xs text-muted-foreground ml-1'>
-                    ({selectedProduct.reviewCount} reviews)
+                    ({selectedProduct.reviewCount}{' '}
+                    {selectedProduct.reviewCount === 1 ? 'review' : 'reviews'})
                   </span>
                 </div>
               )}

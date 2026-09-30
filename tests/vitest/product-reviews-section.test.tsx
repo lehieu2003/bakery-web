@@ -157,3 +157,21 @@ describe('ProductReviewsSection', () => {
     expect(screen.getByText('15/8/2026')).toBeInTheDocument();
   });
 });
+
+describe('ProductReviewsSection singular count', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuth(true);
+    mockSubmitReview();
+  });
+
+  test('uses singular "(1 review)" for a single review', () => {
+    mockProductReviews([buildReview()]);
+    render(
+      <ProductReviewsSection productId='p1' reviewCount={1} ratingAverage={5} />,
+    );
+
+    expect(screen.getByText('(1 review)')).toBeInTheDocument();
+    expect(screen.queryByText('(1 reviews)')).toBeNull();
+  });
+});
