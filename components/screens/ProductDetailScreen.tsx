@@ -351,7 +351,7 @@ export default function ProductDetailScreen({
 
             <div className='flex items-center gap-4 mb-4'>
               <span className='font-sans text-2xl font-bold text-accent'>
-                {(
+                {Number(
                   selectedVariant?.price ?? selectedProduct.price
                 ).toLocaleString('vi-VN')}
                 đ
@@ -420,7 +420,7 @@ export default function ProductDetailScreen({
                           {v.name}
                           {v.price !== selectedProduct.price && (
                             <span className='ml-1.5 text-xs opacity-75'>
-                              ({v.price.toLocaleString('vi-VN')}đ)
+                              ({Number(v.price).toLocaleString('vi-VN')}đ)
                             </span>
                           )}
                         </button>
@@ -482,7 +482,7 @@ export default function ProductDetailScreen({
                           {v.name}
                           {v.price !== selectedProduct.price && (
                             <span className='ml-1.5 text-xs opacity-75'>
-                              ({v.price.toLocaleString('vi-VN')}đ)
+                              ({Number(v.price).toLocaleString('vi-VN')}đ)
                             </span>
                           )}
                         </button>
