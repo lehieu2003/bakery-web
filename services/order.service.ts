@@ -30,6 +30,7 @@ export interface PreviewIncentivePayload {
   items: Array<{
     productId: string;
     quantity: number;
+    variantId?: string;
   }>;
 }
 

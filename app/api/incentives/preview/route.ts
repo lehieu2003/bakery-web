@@ -23,7 +23,16 @@ type PreviewPayload = {
   items?: Array<{
     productId?: string;
     quantity?: number;
+    variantId?: string;
   }>;
+};
+
+type PreviewVariant = {
+  id: string;
+  productId: string;
+  name: string;
+  price: number;
+  stock: number;
 };
 
 type PreviewRouteDeps = {
@@ -33,6 +42,7 @@ type PreviewRouteDeps = {
   findProducts: (
     productIds: string[],
   ) => Promise<Array<{ id: string; name: string; price: number; categoryIds: string[] }>>;
+  findVariants: (variantIds: string[]) => Promise<PreviewVariant[]>;
   findIncentiveByCode: (code: string) => Promise<IncentiveReadModel | null>;
   countUserCommittedIncentiveUsage: (
     couponId: string,
@@ -66,6 +76,27 @@ const defaultDeps: PreviewRouteDeps = {
           name: product.name,
           price: Number(product.price),
           categoryIds: product.categories.map((category) => category.categoryId),
+        })),
+      ),
+  findVariants: (variantIds) =>
+    prisma.productVariant
+      .findMany({
+        where: { id: { in: variantIds } },
+        select: {
+          id: true,
+          productId: true,
+          name: true,
+          price: true,
+          stock: true,
+        },
+      })
+      .then((variants) =>
+        variants.map((variant) => ({
+          id: variant.id,
+          productId: variant.productId,
+          name: variant.name,
+          price: Number(variant.price),
+          stock: variant.stock,
         })),
       ),
   findIncentiveByCode: async (code) => {
@@ -251,12 +282,46 @@ export async function handlePreviewIncentiveRequest(
     }
   }
 
+  // Mirror the create-order route's variant pricing: requests without any
+  // variantId never hit the variants dep and keep the exact legacy base-price
+  // behavior. Preview is advisory — a missing or foreign variant falls back to
+  // the base product price instead of 400, since the create route remains the
+  // enforcement point for variant ownership.
+  const variantIds = Array.from(
+    new Set(
+      payload.items
+        .map((item) => item.variantId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const variantMap = new Map<string, PreviewVariant>();
+  if (variantIds.length > 0) {
+    const variants = await deps.findVariants(variantIds);
+    for (const variant of variants) {
+      variantMap.set(variant.id, variant);
+    }
+  }
+
   const cartItems = payload.items.map((item) => {
     const product = productMap.get(item.productId!)!;
+    const variant = item.variantId ? variantMap.get(item.variantId) : undefined;
+    const ownedVariant =
+      variant && variant.productId === item.productId ? variant : undefined;
+    // Same line identity as the create route: variant price wins when the
+    // variant belongs to this product, and the item is named
+    // `${product.name} - ${variant.name}`. The preview response does not
+    // expose per-item lines today, so the name only documents the pricing
+    // identity alongside `price`.
+    const name = ownedVariant
+      ? `${product.name} - ${ownedVariant.name}`
+      : product.name;
+    const price = ownedVariant ? ownedVariant.price : product.price;
     return {
       productId: item.productId!,
-      lineSubtotal: product.price * item.quantity!,
+      lineSubtotal: price * item.quantity!,
       categoryIds: product.categoryIds,
+      name,
+      price,
     };
   });
   const subtotal = cartItems.reduce((sum, item) => sum + item.lineSubtotal, 0);

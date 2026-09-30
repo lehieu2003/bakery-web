@@ -237,10 +237,17 @@ describe('Checkout delivery fee display fidelity', () => {
     render(<CheckoutPaymentScreen />);
 
     // Fee-aware preview is fetched for delivery orders so the displayed total
-    // can never be lower than the charged total.
+    // can never be lower than the charged total, and it carries the cart
+    // item's variantId so the preview re-prices lines exactly like the
+    // create route does.
     await waitFor(() => {
       expect(mockedPreviewIncentive).toHaveBeenCalledWith(
-        expect.objectContaining({ deliveryMethod: 'delivery' }),
+        expect.objectContaining({
+          deliveryMethod: 'delivery',
+          items: [
+            expect.objectContaining({ productId: 'p1', variantId: 'v1' }),
+          ],
+        }),
       );
     });
     expect(screen.getByText('Delivery fee')).toBeInTheDocument();

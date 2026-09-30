@@ -145,6 +145,7 @@ export default function CheckoutPaymentScreen() {
       .previewIncentive({
         items: cart.map((item) => ({
           productId: item.productId,
+          variantId: item.variantId,
           quantity: item.quantity,
         })),
         deliveryMethod,
@@ -172,6 +173,7 @@ export default function CheckoutPaymentScreen() {
       incentiveCodes: codes,
       items: cart.map((item) => ({
         productId: item.productId,
+        variantId: item.variantId,
         quantity: item.quantity,
       })),
       deliveryMethod,
