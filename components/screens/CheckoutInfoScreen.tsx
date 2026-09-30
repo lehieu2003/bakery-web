@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronLeft } from 'lucide-react';
-import { useImperativeHandle, useRef, useState, type RefObject } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
 import { useAddresses, useCreateAddress } from '@/hooks/use-addresses';
@@ -336,6 +336,19 @@ export default function CheckoutInfoScreen() {
   );
   const auth = useOptionalAuth();
   const showSavedAddresses = auth?.isAuthenticated === true;
+  // The one-shot useState initializers above run before auth resolves on a
+  // direct load — sync contact fields from the profile once the user arrives,
+  // without overwriting anything already typed or restored from the draft.
+  useEffect(() => {
+    const profile = auth?.user;
+    if (!profile) return;
+    if (!checkoutInfo?.customerName) {
+      setName((current) => current || profile.name || '');
+    }
+    if (!checkoutInfo?.customerPhone) {
+      setPhone((current) => current || profile.phone || '');
+    }
+  }, [auth?.user, checkoutInfo?.customerName, checkoutInfo?.customerPhone]);
   const pickerHandleRef = useRef<SavedAddressPickerHandle | null>(null);
   const [isSavingNewAddress, setIsSavingNewAddress] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(

@@ -157,3 +157,86 @@ describe('Checkout saved address picker', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('Checkout contact prefill when auth resolves after mount', () => {
+  beforeEach(() => {
+    mockedUseCart.mockReturnValue(buildCartValue());
+    mockedUseMembershipBenefits.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    } as never);
+    mockedUseCreateAddress.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue(undefined),
+      isPending: false,
+    } as never);
+    mockedUseAddresses.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as never);
+  });
+
+  test('prefills name and phone from the profile when user arrives after mount', () => {
+    mockedUseAuth.mockReturnValue({
+      user: null,
+      isAuthenticated: false,
+      isLoading: true,
+      setUser: vi.fn(),
+      logout: vi.fn(),
+    } as never);
+    const { rerender } = render(<CheckoutInfoScreen />);
+    expect(screen.getByPlaceholderText('Your full name')).toHaveValue('');
+
+    mockedUseAuth.mockReturnValue({
+      user: {
+        id: 'u-1',
+        email: 'lan@example.com',
+        name: 'Lan Nguyen',
+        phone: '0901234567',
+      },
+      isAuthenticated: true,
+      isLoading: false,
+      setUser: vi.fn(),
+      logout: vi.fn(),
+    } as never);
+    rerender(<CheckoutInfoScreen />);
+
+    expect(screen.getByPlaceholderText('Your full name')).toHaveValue(
+      'Lan Nguyen',
+    );
+    expect(screen.getByPlaceholderText(/0909 xxx xxx/)).toHaveValue(
+      '0901234567',
+    );
+  });
+
+  test('does not overwrite a name the user already typed', () => {
+    mockedUseAuth.mockReturnValue({
+      user: null,
+      isAuthenticated: false,
+      isLoading: true,
+      setUser: vi.fn(),
+      logout: vi.fn(),
+    } as never);
+    const { rerender } = render(<CheckoutInfoScreen />);
+    fireEvent.change(screen.getByPlaceholderText('Your full name'), {
+      target: { value: 'Typed First' },
+    });
+
+    mockedUseAuth.mockReturnValue({
+      user: {
+        id: 'u-1',
+        email: 'lan@example.com',
+        name: 'Lan Nguyen',
+        phone: '0901234567',
+      },
+      isAuthenticated: true,
+      isLoading: false,
+      setUser: vi.fn(),
+      logout: vi.fn(),
+    } as never);
+    rerender(<CheckoutInfoScreen />);
+
+    expect(screen.getByPlaceholderText('Your full name')).toHaveValue(
+      'Typed First',
+    );
+  });
+});
