@@ -82,6 +82,7 @@ function createDeps(): CreateOrderDeps {
         },
       ],
     }),
+    getDeliverySettings: async () => ({ deliveryFee: 0, freeDeliveryThreshold: 0 }),
   };
 }
 
@@ -965,4 +966,42 @@ test('owned addressId snapshots into customerAddress and pickupDate is persisted
   assert.equal(result.status, 200);
   assert.equal(captured!.customerAddress, '12 Nguyen Trai, P. Ben Nghe, Quan 1, TP.HCM');
   assert.equal(captured!.pickupDate!.getTime(), new Date('2026-10-05').getTime());
+});
+
+test('delivery order under the threshold is charged the configured fee', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  await handleCreateOrderRequest(buildPayload('COD'), deps); // payload has customerAddress
+  assert.equal(captured!.deliveryFee, 30000);
+  assert.equal(captured!.total, captured!.subtotal + 30000);
+});
+
+test('delivery order at/above the threshold ships free', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    // Server prices come from the DB via findProducts, not the payload —
+    // make the catalog item worth 500000 so the order sits exactly at the
+    // free-delivery threshold.
+    findProducts: async () => [
+      { id: 'p1', name: 'Cake A', price: 500000, stock: 10, categoryIds: ['cat-cake'] },
+    ],
+    getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  await handleCreateOrderRequest({ ...buildPayload('COD'), items: [{ productId: 'p1', name: 'Cake A', price: 500000, quantity: 1 }] }, deps);
+  assert.equal(captured!.deliveryFee, 0);
+});
+
+test('pick-up orders never pay a delivery fee', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const payload = buildPayload('COD');
+  await handleCreateOrderRequest({ ...payload, customerAddress: undefined }, deps);
+  assert.equal(captured!.deliveryFee, 0);
 });

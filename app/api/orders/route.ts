@@ -11,6 +11,10 @@ import {
   type MembershipRulesConfig,
 } from '@/lib/membership/rules';
 import {
+  getDeliverySettings as fetchDeliverySettings,
+  type DeliverySettings,
+} from '@/lib/delivery-settings';
+import {
   asNumber,
   evaluateIncentiveEligibility,
   normalizeIncentiveCode,
@@ -116,6 +120,7 @@ type CreateOrderRouteDeps = {
     customerAddress: string | null;
     pickupDate: Date | null;
     subtotal: number;
+    deliveryFee: number;
     discount: number;
     total: number;
     appliedIncentives?: AppliedIncentive[];
@@ -163,6 +168,7 @@ type CreateOrderRouteDeps = {
   }) => Promise<unknown>;
   getAppUrl: () => string;
   getMembershipConfig: () => Promise<MembershipRulesConfig>;
+  getDeliverySettings: () => Promise<DeliverySettings>;
 };
 
 type OrderReadModel = {
@@ -388,7 +394,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
             customerAddress: args.customerAddress,
             pickupDate: args.pickupDate,
             subtotal: args.subtotal,
-            deliveryFee: 0,
+            deliveryFee: args.deliveryFee,
             discount: args.discount,
             total: args.total,
             paymentMethod: args.paymentMethod as never,
@@ -473,6 +479,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
   dispatchNotificationEvent,
   getAppUrl: () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   getMembershipConfig: getMembershipRulesConfig,
+  getDeliverySettings: fetchDeliverySettings,
 };
 
 const getOrdersDeps: GetOrdersRouteDeps = {
@@ -831,7 +838,19 @@ export async function handleCreateOrderRequest(
 
   const finalDiscount = membershipDiscount + couponDiscount;
 
-  const total = subtotal - finalDiscount;
+  const deliveryAddress =
+    addressSnapshot ?? (customerAddress?.trim() || null);
+  const deliverySettings = await deps.getDeliverySettings();
+  let deliveryFee = 0;
+  if (deliveryAddress) {
+    deliveryFee =
+      deliverySettings.freeDeliveryThreshold > 0 &&
+      subtotal >= deliverySettings.freeDeliveryThreshold
+        ? 0
+        : deliverySettings.deliveryFee;
+  }
+
+  const total = subtotal + deliveryFee - finalDiscount;
 
   if (total <= 0) {
     return {
@@ -859,10 +878,10 @@ export async function handleCreateOrderRequest(
       customerName,
       customerPhone,
       customerEmail: customerEmail || user?.email || null,
-      customerAddress:
-        addressSnapshot ?? (customerAddress?.trim() || null),
+      customerAddress: deliveryAddress,
       pickupDate,
       subtotal,
+      deliveryFee,
       discount: finalDiscount,
       total,
       paymentMethod,
