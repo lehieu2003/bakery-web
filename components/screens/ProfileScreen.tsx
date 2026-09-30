@@ -914,6 +914,25 @@ export default function ProfileScreen() {
                                 },
                               )}
                             </p>
+                            {order.pickupDate ? (
+                              <p className='text-xs text-muted-foreground'>
+                                Pickup: {order.pickupDate}
+                              </p>
+                            ) : null}
+                            <div className='mt-2 space-y-0.5'>
+                              {order.orderItems.map((item) => (
+                                <div key={item.id}>
+                                  <p className='text-xs text-muted-foreground'>
+                                    {item.name} × {item.quantity}
+                                  </p>
+                                  {item.message ? (
+                                    <p className='text-xs italic text-muted-foreground'>
+                                      {item.message}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                         <div className='flex items-center gap-3'>

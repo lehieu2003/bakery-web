@@ -73,6 +73,21 @@ export default function CheckoutPaymentScreen() {
   const [error, setError] = useState('');
   const isSubmittingRef = useRef(false);
 
+  const parseablePickupDates = cart
+    .map((item) => item.pickupDate)
+    .filter(
+      (date): date is string =>
+        Boolean(date) && !Number.isNaN(new Date(date ?? '').getTime()),
+    );
+  const earliestPickupDate =
+    parseablePickupDates.length > 0
+      ? parseablePickupDates.reduce((earliest, current) =>
+          new Date(current).getTime() < new Date(earliest).getTime()
+            ? current
+            : earliest,
+        )
+      : undefined;
+
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const cartContext = Array.from(
     cart.reduce((acc, item) => {
@@ -216,8 +231,15 @@ export default function CheckoutPaymentScreen() {
         paymentMethod: payMethod,
         incentiveCodes:
           selectedIncentiveCodes.length > 0 ? selectedIncentiveCodes : undefined,
+        pickupDate:
+          checkoutInfo.deliveryMethod === 'pickup'
+            ? earliestPickupDate
+            : undefined,
+        addressId: checkoutInfo.addressId,
         items: cart.map((item) => ({
           productId: item.productId,
+          variantId: item.variantId,
+          message: item.message,
           name: item.name,
           price: item.price,
           quantity: item.quantity,

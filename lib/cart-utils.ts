@@ -29,6 +29,7 @@ export interface PersistedCheckoutInfo {
   customerEmail?: string;
   customerAddress?: string;
   deliveryMethod?: 'pickup' | 'delivery';
+  addressId?: string;
 }
 
 export interface PersistedCartState {
@@ -100,6 +101,7 @@ export function normalizeCheckoutInfo(
     value.deliveryMethod === 'pickup' || value.deliveryMethod === 'delivery'
       ? value.deliveryMethod
       : undefined;
+  const addressId = normalizeText(value.addressId);
 
   return {
     customerName,
@@ -107,6 +109,7 @@ export function normalizeCheckoutInfo(
     customerEmail: customerEmail || undefined,
     customerAddress: customerAddress || undefined,
     deliveryMethod,
+    addressId: addressId || undefined,
   };
 }
 

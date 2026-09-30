@@ -10,8 +10,12 @@ export interface CreateOrderPayload {
   paymentMethod: 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'VNPAY';
   incentiveCode?: string;
   incentiveCodes?: string[];
+  pickupDate?: string;
+  addressId?: string;
   items: Array<{
     productId: string;
+    variantId?: string;
+    message?: string;
     name: string;
     price: number;
     quantity: number;

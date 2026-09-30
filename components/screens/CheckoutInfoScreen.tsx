@@ -39,9 +39,11 @@ type SavedAddressPickerHandle = {
 
 function SavedAddressPicker({
   onUseSaved,
+  onUseNew,
   handleRef,
 }: {
   onUseSaved: (address: Address) => void;
+  onUseNew?: () => void;
   handleRef: RefObject<SavedAddressPickerHandle | null>;
 }) {
   const addressesQuery = useAddresses();
@@ -152,7 +154,10 @@ function SavedAddressPicker({
           type='button'
           role='radio'
           aria-checked={selectedId === 'new'}
-          onClick={() => setSelectedId('new')}
+          onClick={() => {
+            setSelectedId('new');
+            onUseNew?.();
+          }}
           className={radioCardClass(selectedId === 'new')}
         >
           <span className='text-sm font-medium text-foreground'>
@@ -333,6 +338,13 @@ export default function CheckoutInfoScreen() {
   const showSavedAddresses = auth?.isAuthenticated === true;
   const pickerHandleRef = useRef<SavedAddressPickerHandle | null>(null);
   const [isSavingNewAddress, setIsSavingNewAddress] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    checkoutInfo?.addressId ?? null,
+  );
+  // One-line text of the currently selected saved card. Hand-edits that no
+  // longer match it must drop the id, or the backend would snapshot the saved
+  // address and silently discard the edited text.
+  const selectedAddressLineRef = useRef<string | null>(null);
 
   const fillFromSavedAddress = (savedAddress: Address) => {
     setName(savedAddress.fullName);
@@ -340,6 +352,20 @@ export default function CheckoutInfoScreen() {
     setAddress(addressToOneLine(savedAddress));
     setPhoneError('');
     setAddressError('');
+    setSelectedAddressId(savedAddress.id);
+    selectedAddressLineRef.current = addressToOneLine(savedAddress);
+  };
+
+  const handleAddressChange = (nextAddress: string) => {
+    setAddress(nextAddress);
+    if (
+      selectedAddressId !== null &&
+      nextAddress !== selectedAddressLineRef.current
+    ) {
+      setSelectedAddressId(null);
+      selectedAddressLineRef.current = null;
+    }
+    if (addressError) validateAddress(nextAddress, method);
   };
 
   // Vietnamese phone: 0xx or +84xx, 9-11 digits
@@ -506,6 +532,10 @@ export default function CheckoutInfoScreen() {
           {showSavedAddresses && (
             <SavedAddressPicker
               onUseSaved={fillFromSavedAddress}
+              onUseNew={() => {
+                setSelectedAddressId(null);
+                selectedAddressLineRef.current = null;
+              }}
               handleRef={pickerHandleRef}
             />
           )}
@@ -516,10 +546,7 @@ export default function CheckoutInfoScreen() {
             </label>
             <textarea
               value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                if (addressError) validateAddress(e.target.value, method);
-              }}
+              onChange={(e) => handleAddressChange(e.target.value)}
               onBlur={() => validateAddress(address, method)}
               placeholder={
                 method === 'delivery'
@@ -593,6 +620,7 @@ export default function CheckoutInfoScreen() {
                 customerEmail: email.trim() || undefined,
                 customerAddress: address.trim() || undefined,
                 deliveryMethod: method,
+                addressId: selectedAddressId ?? undefined,
               });
               router.push('/checkout/payment');
             }}
