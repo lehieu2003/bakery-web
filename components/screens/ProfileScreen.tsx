@@ -7,6 +7,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useOrders, usePrepareReorder } from '@/hooks/use-orders';
 import { useLogout, useUpdateProfile } from '@/hooks/use-auth';
+import {
+  useAddresses,
+  useCreateAddress,
+  useDeleteAddress,
+  useUpdateAddress,
+} from '@/hooks/use-addresses';
 import { useAuth } from '@/providers/auth-provider';
 import {
   getOrderStatusPresentation,
@@ -15,7 +21,7 @@ import {
 } from '@/lib/orders/presentation';
 import { ApiError } from '@/lib/api/client';
 import type { ReorderUnavailableItem } from '@/services/order.service';
-import type { Order } from '@/types/api.types';
+import type { Address, Order } from '@/types/api.types';
 
 const LEVEL_BENEFITS: Record<
   MemberLevel,
@@ -63,10 +69,280 @@ type ReorderFeedbackState = {
   hasPreparedItems: boolean;
 };
 
+type AddressFormValues = {
+  fullName: string;
+  phone: string;
+  street: string;
+  ward: string;
+  district: string;
+  province: string;
+};
+
+const EMPTY_ADDRESS_FORM: AddressFormValues = {
+  fullName: '',
+  phone: '',
+  street: '',
+  ward: '',
+  district: '',
+  province: '',
+};
+
+function addressToOneLine(address: Address): string {
+  return [address.street, address.ward, address.district, address.province].join(
+    ', ',
+  );
+}
+
+const ADDRESS_INPUT_CLASS =
+  'mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60';
+
+// The address book mounts only for confirmed-authenticated members; legacy
+// component tests mock the auth provider without this flag, and the address
+// hooks require the app's auth + query providers.
+function SavedAddressesSection() {
+  const addressesQuery = useAddresses();
+  const addresses = addressesQuery.data ?? [];
+  const {
+    mutateAsync: createAddress,
+    isPending: isCreatingAddress,
+  } = useCreateAddress();
+  const {
+    mutateAsync: updateAddress,
+    isPending: isUpdatingAddress,
+  } = useUpdateAddress();
+  const { mutateAsync: deleteAddress, isPending: isDeletingAddress } =
+    useDeleteAddress();
+  const [form, setForm] = useState<{
+    addressId: string | null;
+    values: AddressFormValues;
+  } | null>(null);
+  const [actionError, setActionError] = useState('');
+
+  const isSavingAddress = isCreatingAddress || isUpdatingAddress;
+
+  const openAddForm = () => {
+    setActionError('');
+    setForm({ addressId: null, values: EMPTY_ADDRESS_FORM });
+  };
+
+  const openEditForm = (address: Address) => {
+    setActionError('');
+    setForm({
+      addressId: address.id,
+      values: {
+        fullName: address.fullName,
+        phone: address.phone,
+        street: address.street,
+        ward: address.ward,
+        district: address.district,
+        province: address.province,
+      },
+    });
+  };
+
+  const describeActionError = (error: unknown, fallback: string) =>
+    error instanceof ApiError && error.data?.error
+      ? error.data.error
+      : fallback;
+
+  const handleSaveForm = async () => {
+    if (!form) return;
+
+    const values: AddressFormValues = {
+      fullName: form.values.fullName.trim(),
+      phone: form.values.phone.trim(),
+      street: form.values.street.trim(),
+      ward: form.values.ward.trim(),
+      district: form.values.district.trim(),
+      province: form.values.province.trim(),
+    };
+    if (Object.values(values).some((value) => !value)) {
+      setActionError('All six fields are required (1-200 characters).');
+      return;
+    }
+
+    try {
+      if (form.addressId) {
+        await updateAddress({ id: form.addressId, input: values });
+      } else {
+        await createAddress(values);
+      }
+      setForm(null);
+      setActionError('');
+    } catch (error) {
+      setActionError(
+        describeActionError(error, 'Could not save this address. Please try again.'),
+      );
+    }
+  };
+
+  const handleSetDefault = async (address: Address) => {
+    setActionError('');
+    try {
+      await updateAddress({ id: address.id, input: { isDefault: true } });
+    } catch (error) {
+      setActionError(
+        describeActionError(
+          error,
+          'Could not set this address as default. Please try again.',
+        ),
+      );
+    }
+  };
+
+  const handleDelete = async (address: Address) => {
+    setActionError('');
+    try {
+      await deleteAddress(address.id);
+    } catch (error) {
+      setActionError(
+        describeActionError(
+          error,
+          'Could not delete this address. Please try again.',
+        ),
+      );
+    }
+  };
+
+  return (
+    <div className='bg-card rounded-2xl border border-border/50 p-6'>
+      <div className='flex items-center justify-between mb-4'>
+        <h2 className='font-serif text-lg font-semibold text-foreground'>
+          Saved Addresses
+        </h2>
+        {!form ? (
+          <button
+            onClick={openAddForm}
+            className='text-sm font-medium text-primary hover:opacity-80'
+          >
+            Add address
+          </button>
+        ) : null}
+      </div>
+
+      {form ? (
+        <div className='space-y-3'>
+          {(
+            [
+              ['fullName', 'Full Name'],
+              ['phone', 'Phone'],
+              ['street', 'Street'],
+              ['ward', 'Ward'],
+              ['district', 'District'],
+              ['province', 'Province'],
+            ] as Array<[keyof AddressFormValues, string]>
+          ).map(([field, label]) => (
+            <label key={field} className='block'>
+              <span className='text-xs text-muted-foreground'>{label}</span>
+              <input
+                value={form.values[field]}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    prev
+                      ? { ...prev, values: { ...prev.values, [field]: e.target.value } }
+                      : prev,
+                  )
+                }
+                disabled={isSavingAddress}
+                className={ADDRESS_INPUT_CLASS}
+                placeholder={`Your ${label.toLowerCase()}`}
+              />
+            </label>
+          ))}
+
+          <div className='flex gap-2 pt-1'>
+            <button
+              onClick={() => void handleSaveForm()}
+              disabled={isSavingAddress}
+              className='rounded-full bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60'
+            >
+              {isSavingAddress
+                ? 'Saving...'
+                : form.addressId
+                  ? 'Save Changes'
+                  : 'Save Address'}
+            </button>
+            <button
+              onClick={() => setForm(null)}
+              disabled={isSavingAddress}
+              className='rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary disabled:opacity-60'
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : addressesQuery.isLoading ? (
+        <p className='text-sm text-muted-foreground'>
+          Loading saved addresses...
+        </p>
+      ) : addresses.length === 0 ? (
+        <p className='text-sm text-muted-foreground'>No saved addresses yet.</p>
+      ) : (
+        <div className='space-y-3'>
+          {addresses.map((address) => (
+            <div
+              key={address.id}
+              className='rounded-xl border border-border p-4'
+            >
+              <div className='flex items-center justify-between gap-2'>
+                <p className='text-sm font-semibold text-foreground'>
+                  {address.fullName}
+                </p>
+                {address.isDefault && (
+                  <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
+                    Default
+                  </span>
+                )}
+              </div>
+              <p className='text-xs text-muted-foreground mt-0.5'>
+                {address.phone}
+              </p>
+              <p className='text-xs text-muted-foreground'>
+                {addressToOneLine(address)}
+              </p>
+              <div className='flex flex-wrap gap-2 mt-3'>
+                <button
+                  onClick={() => openEditForm(address)}
+                  disabled={isDeletingAddress}
+                  className='rounded-full border border-primary/30 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60'
+                >
+                  Edit
+                </button>
+                {!address.isDefault && (
+                  <button
+                    onClick={() => void handleSetDefault(address)}
+                    disabled={isDeletingAddress}
+                    className='rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60'
+                  >
+                    Set as default
+                  </button>
+                )}
+                <button
+                  onClick={() => void handleDelete(address)}
+                  disabled={isDeletingAddress}
+                  className='rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60'
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {actionError ? (
+        <p className='text-xs text-destructive mt-3' aria-live='polite'>
+          {actionError}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { replaceCart } = useCart();
-  const { user: authUser, logout: clearAuthUser, setUser } = useAuth();
+  const { user: authUser, isAuthenticated, logout: clearAuthUser, setUser } = useAuth();
   const {
     data: ordersData,
     isLoading: ordersLoading,
@@ -460,6 +736,8 @@ export default function ProfileScreen() {
               </div>
             ) : null}
           </div>
+
+          {isAuthenticated ? <SavedAddressesSection /> : null}
 
           <div className='bg-card rounded-2xl border border-border/50 p-6'>
             <h2 className='font-serif text-lg font-semibold text-foreground mb-5'>

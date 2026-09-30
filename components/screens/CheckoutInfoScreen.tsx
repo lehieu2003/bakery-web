@@ -1,11 +1,226 @@
 'use client';
 
 import { ChevronLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useImperativeHandle, useRef, useState, type RefObject } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
+import { useAddresses, useCreateAddress } from '@/hooks/use-addresses';
+import { useAuth } from '@/providers/auth-provider';
+import type { Address } from '@/types/api.types';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+
+// CheckoutInfoScreen is also rendered by legacy component tests without
+// AuthProvider mounted; treat a missing provider as "not authenticated"
+// instead of crashing the whole checkout screen.
+function useOptionalAuth() {
+  try {
+    return useAuth();
+  } catch {
+    return null;
+  }
+}
+
+function addressToOneLine(address: Address): string {
+  return [address.street, address.ward, address.district, address.province].join(
+    ', ',
+  );
+}
+
+type SavedAddressPickerHandle = {
+  // Runs on the checkout form's valid submit. Returns false when the save was
+  // requested but failed (the message is rendered inside the picker) so the
+  // caller can abort navigation.
+  saveNewAddress: (contact: {
+    fullName: string;
+    phone: string;
+  }) => Promise<boolean>;
+};
+
+function SavedAddressPicker({
+  onUseSaved,
+  handleRef,
+}: {
+  onUseSaved: (address: Address) => void;
+  handleRef: RefObject<SavedAddressPickerHandle | null>;
+}) {
+  const addressesQuery = useAddresses();
+  const addresses = addressesQuery.data ?? [];
+  const {
+    mutateAsync: createAddress,
+    isPending: isSavingAddress,
+  } = useCreateAddress();
+  const [selectedId, setSelectedId] = useState<string | 'new' | null>(null);
+  const [saveRequested, setSaveRequested] = useState(false);
+  const [street, setStreet] = useState('');
+  const [ward, setWard] = useState('');
+  const [district, setDistrict] = useState('');
+  const [province, setProvince] = useState('');
+  const [saveError, setSaveError] = useState('');
+
+  useImperativeHandle(handleRef, () => ({
+    saveNewAddress: async (contact) => {
+      if (!saveRequested) return true;
+
+      const payload = {
+        fullName: contact.fullName.trim(),
+        phone: contact.phone.trim(),
+        street: street.trim(),
+        ward: ward.trim(),
+        district: district.trim(),
+        province: province.trim(),
+      };
+      if (
+        !payload.street ||
+        !payload.ward ||
+        !payload.district ||
+        !payload.province
+      ) {
+        setSaveError(
+          'Fill in street, ward, district and province to save this address.',
+        );
+        return false;
+      }
+
+      try {
+        await createAddress(payload);
+        return true;
+      } catch {
+        setSaveError(
+          'Could not save this address. Please try again or continue without saving it.',
+        );
+        return false;
+      }
+    },
+  }));
+
+  // Authenticated members with no saved addresses keep the free-text flow.
+  if (addresses.length === 0) {
+    return null;
+  }
+
+  const radioCardClass = (isSelected: boolean) =>
+    `w-full text-left rounded-2xl border p-4 transition-colors ${
+      isSelected
+        ? 'bg-primary/10 border-primary'
+        : 'border-border bg-card hover:border-primary/50'
+    }`;
+
+  return (
+    <div>
+      <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
+        Saved Addresses
+      </label>
+      <div
+        role='radiogroup'
+        aria-label='Saved addresses'
+        className='space-y-2.5 mb-4'
+      >
+        {addresses.map((savedAddress) => (
+          <button
+            key={savedAddress.id}
+            type='button'
+            role='radio'
+            aria-checked={selectedId === savedAddress.id}
+            onClick={() => {
+              setSelectedId(savedAddress.id);
+              setSaveRequested(false);
+              setSaveError('');
+              onUseSaved(savedAddress);
+            }}
+            className={radioCardClass(selectedId === savedAddress.id)}
+          >
+            <div className='flex items-center justify-between gap-2'>
+              <span className='text-sm font-semibold text-foreground'>
+                {savedAddress.fullName}
+              </span>
+              {savedAddress.isDefault && (
+                <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
+                  Default
+                </span>
+              )}
+            </div>
+            <p className='text-xs text-muted-foreground mt-0.5'>
+              {savedAddress.phone}
+            </p>
+            <p className='text-xs text-muted-foreground'>
+              {addressToOneLine(savedAddress)}
+            </p>
+          </button>
+        ))}
+        <button
+          type='button'
+          role='radio'
+          aria-checked={selectedId === 'new'}
+          onClick={() => setSelectedId('new')}
+          className={radioCardClass(selectedId === 'new')}
+        >
+          <span className='text-sm font-medium text-foreground'>
+            Use a new address
+          </span>
+        </button>
+      </div>
+
+      {selectedId === 'new' && (
+        <div className='rounded-2xl border border-border bg-secondary/40 p-4 mb-4 space-y-3'>
+          <label className='flex items-center gap-2 text-sm text-foreground'>
+            <input
+              type='checkbox'
+              checked={saveRequested}
+              onChange={(e) => {
+                setSaveRequested(e.target.checked);
+                if (!e.target.checked) setSaveError('');
+              }}
+              disabled={isSavingAddress}
+            />
+            Save this address for next time
+          </label>
+          {saveRequested && (
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <input
+                type='text'
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                placeholder='Street'
+                aria-label='Street'
+                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+              />
+              <input
+                type='text'
+                value={ward}
+                onChange={(e) => setWard(e.target.value)}
+                placeholder='Ward'
+                aria-label='Ward'
+                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+              />
+              <input
+                type='text'
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                placeholder='District'
+                aria-label='District'
+                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+              />
+              <input
+                type='text'
+                value={province}
+                onChange={(e) => setProvince(e.target.value)}
+                placeholder='Province'
+                aria-label='Province'
+                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+              />
+            </div>
+          )}
+          {saveError && (
+            <p className='text-xs text-destructive' aria-live='polite'>
+              {saveError}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function OrderSidebar({
   step,
@@ -114,6 +329,18 @@ export default function CheckoutInfoScreen() {
   const [method, setMethod] = useState<'pickup' | 'delivery'>(
     checkoutInfo?.deliveryMethod || 'pickup',
   );
+  const auth = useOptionalAuth();
+  const showSavedAddresses = auth?.isAuthenticated === true;
+  const pickerHandleRef = useRef<SavedAddressPickerHandle | null>(null);
+  const [isSavingNewAddress, setIsSavingNewAddress] = useState(false);
+
+  const fillFromSavedAddress = (savedAddress: Address) => {
+    setName(savedAddress.fullName);
+    setPhone(savedAddress.phone);
+    setAddress(addressToOneLine(savedAddress));
+    setPhoneError('');
+    setAddressError('');
+  };
 
   // Vietnamese phone: 0xx or +84xx, 9-11 digits
   const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
@@ -276,6 +503,13 @@ export default function CheckoutInfoScreen() {
             </div>
           </div>
 
+          {showSavedAddresses && (
+            <SavedAddressPicker
+              onUseSaved={fillFromSavedAddress}
+              handleRef={pickerHandleRef}
+            />
+          )}
+
           <div>
             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
               Delivery Address {method === 'delivery' ? '' : '(Optional)'}
@@ -335,10 +569,24 @@ export default function CheckoutInfoScreen() {
           )}
 
           <button
-            onClick={() => {
+            onClick={async () => {
               if (!validatePhone(phone)) return;
               if (!validateEmail(email)) return;
               if (!validateAddress(address, method)) return;
+
+              if (showSavedAddresses) {
+                setIsSavingNewAddress(true);
+                try {
+                  const saved = await pickerHandleRef.current?.saveNewAddress({
+                    fullName: name,
+                    phone,
+                  });
+                  if (saved === false) return;
+                } finally {
+                  setIsSavingNewAddress(false);
+                }
+              }
+
               setCheckoutInfo({
                 customerName: name.trim(),
                 customerPhone: phone.replace(/[\s.-]/g, ''),
@@ -351,7 +599,8 @@ export default function CheckoutInfoScreen() {
             disabled={
               !name.trim() ||
               !phone.trim() ||
-              (method === 'delivery' && !address.trim())
+              (method === 'delivery' && !address.trim()) ||
+              isSavingNewAddress
             }
             className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
           >
