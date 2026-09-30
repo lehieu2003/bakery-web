@@ -197,6 +197,10 @@ export const ENDPOINTS = {
   REVIEWS: {
     LIST: (productId: string) => `${API_BASE}/products/${productId}/reviews`,
   },
+  ADDRESSES: {
+    LIST: `${API_BASE}/addresses`,
+    DETAIL: (id: string) => `${API_BASE}/addresses/${id}`,
+  },
 
   // ============================================================================
   // Chatbot API
