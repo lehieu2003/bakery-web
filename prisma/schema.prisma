@@ -1031,8 +1031,6 @@ model Setting {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
-
-  auditLogs SettingAuditLog[]
 }
 
 model SettingAuditLog {
@@ -1050,7 +1048,10 @@ model SettingAuditLog {
 
   createdAt DateTime @default(now())
 
-  setting Setting @relation(fields: [settingKey], references: [key], onDelete: Cascade)
+  // No relation to Setting: admin-action audit entries use synthetic
+  // `admin_action:<entity>:<id>` keys that never exist in the Setting table,
+  // and audit history must survive setting deletion. The physical FK was
+  // dropped in migration 20260930_drop_settingauditlog_fk.
   actor   User?   @relation("SettingAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([settingKey, createdAt(sort: Desc)])
