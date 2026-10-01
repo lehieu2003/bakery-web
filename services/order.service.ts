@@ -105,6 +105,14 @@ export const orderService = {
     return response.data!.orders;
   },
 
+  getOrderByNumber: async (orderNumber: string): Promise<Order> => {
+    const response = await http.get<{ order: Order }>(
+      ENDPOINTS.ORDERS_DETAIL(orderNumber),
+      { showErrorToast: false },
+    );
+    return response.data!.order;
+  },
+
   createOrder: async (
     payload: CreateOrderPayload,
   ): Promise<CreateOrderResponse> => {

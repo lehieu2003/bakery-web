@@ -173,7 +173,7 @@ type CreateOrderRouteDeps = {
   getDeliverySettings: () => Promise<DeliverySettings>;
 };
 
-type OrderReadModel = {
+export type OrderReadModel = {
   id: string;
   orderNumber: string;
   userId: string | null;
@@ -970,7 +970,7 @@ export async function handleCreateOrderRequest(
           orderStatus,
           paymentMethod,
           occurredAt: deps.now().toISOString(),
-          linkUrl: `${appUrl}/orders`,
+          linkUrl: `${appUrl}/orders/${orderNumber}`,
         },
       })
       .catch((error) => {
@@ -1106,7 +1106,7 @@ export async function handleCreateOrderRequest(
   };
 }
 
-function serializeOrder(order: OrderReadModel) {
+export function serializeOrder(order: OrderReadModel) {
   return {
     ...order,
     pickupDate: order.pickupDate ? order.pickupDate.toISOString() : null,

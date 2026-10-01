@@ -879,7 +879,11 @@ export default function ProfileScreen() {
                   return (
                     <div key={order.id} className='space-y-2'>
                       <div className='flex items-center justify-between px-5 py-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/40 transition-colors group'>
-                        <div className='flex items-center gap-5'>
+                        <Link
+                          href={`/orders/${order.orderNumber}`}
+                          className='flex items-center gap-5 flex-1 min-w-0'
+                          aria-label={`View order ${order.orderNumber}`}
+                        >
                           <div className='w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0'>
                             <span className='font-serif text-xs font-semibold text-muted-foreground'>
                               {order.orderNumber.slice(-3)}
@@ -933,8 +937,8 @@ export default function ProfileScreen() {
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        </div>
+                            </div>
+                        </Link>
                         <div className='flex items-center gap-3'>
                           <div className='text-right'>
                             <p className='text-base font-bold text-accent'>
@@ -945,7 +949,7 @@ export default function ProfileScreen() {
                               {order.orderItems.length > 1 ? 's' : ''}
                             </p>
                           </div>
-                          {canReorder ? (
+                        {canReorder ? (
                             <button
                               type='button'
                               onClick={() => void handleReorder(order.id)}

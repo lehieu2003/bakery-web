@@ -170,7 +170,7 @@ test('MoMo callback applies PAID transition for successful resultCode', async ()
   );
   assert.equal(
     (notificationEvents[0].payload as Record<string, unknown>).linkUrl,
-    'http://localhost:3000/orders',
+    'http://localhost:3000/orders/BK260405ABCD',
   );
 });
 

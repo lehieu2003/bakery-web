@@ -399,7 +399,7 @@ export async function handleMoMoCallbackRequest(
           provider: 'MOMO',
           transactionId,
           occurredAt: new Date().toISOString(),
-          linkUrl: `${appUrl}/orders`,
+          linkUrl: `${appUrl}/orders/${payment.orderNumber}`,
         },
       })
       .catch((error) => {
