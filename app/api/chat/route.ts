@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
 import { getRedisClient } from '@/lib/redis';
+import { enforceIpRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 type ChatHistoryMessage = {
   role: string;
@@ -354,6 +355,20 @@ function createDefaultDeps(): ChatRouteDeps {
 
 // POST /api/chat
 export async function POST(request: NextRequest) {
+  const rateLimit = enforceIpRateLimit(request, 'chat', RATE_LIMITS.CHAT_PER_IP);
+  if (!rateLimit.ok) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Too many requests. Please try again later.',
+      },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfterSec) },
+      },
+    );
+  }
+
   try {
     const result = await handlePostChatRequest(
       (await request.json()) as ChatRequestBody,

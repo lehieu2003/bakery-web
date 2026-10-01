@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUserFromRequest } from '@/lib/session';
 import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
+import { enforceIpRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createMoMoPayment } from '@/lib/payment/momo';
 import { createVNPayPayment } from '@/lib/payment/vnpay';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
@@ -1182,6 +1183,24 @@ export async function GET(request: NextRequest) {
 
 // POST: Create a new order
 export async function POST(request: NextRequest) {
+  const rateLimit = enforceIpRateLimit(
+    request,
+    'orders',
+    RATE_LIMITS.ORDERS_PER_IP,
+  );
+  if (!rateLimit.ok) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Too many requests. Please try again later.',
+      },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfterSec) },
+      },
+    );
+  }
+
   try {
     const body = await request.json();
     const result = await handleCreateOrderRequest(
