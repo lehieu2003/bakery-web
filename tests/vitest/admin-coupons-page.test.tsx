@@ -71,7 +71,7 @@ describe('Admin coupons page', () => {
     fireEvent.change(await screen.findByPlaceholderText(/SAVE10/i), {
       target: { value: '  welcome20  ' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/10000000/i), {
+    fireEvent.change(screen.getByLabelText(/Phần trăm giảm/i), {
       target: { value: '20' },
     });
 
@@ -83,5 +83,53 @@ describe('Admin coupons page', () => {
     const payload = createCoupon.mock.calls[0][0] as { code: string; value: number };
     expect(payload.code).toBe('WELCOME20'); // trimmed + uppercased
     expect(payload.value).toBe(20);
+  });
+});
+
+describe('Admin coupons create dialog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetAll.mockResolvedValue([]);
+    createCoupon.mockResolvedValue(buildCoupon());
+  });
+
+  test('creates a FIXED coupon with the selected validity window', async () => {
+    renderWithClient(<AdminCouponsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /add coupon/i }));
+
+    fireEvent.change(await screen.findByPlaceholderText(/SAVE10/i), {
+      target: { value: 'TET50K' },
+    });
+    fireEvent.change(screen.getByLabelText(/Loại giảm giá/i), {
+      target: { value: 'FIXED' },
+    });
+    fireEvent.change(await screen.findByLabelText(/Số tiền giảm/i), {
+      target: { value: '50000' },
+    });
+    fireEvent.change(screen.getByLabelText(/Bắt đầu/i), {
+      target: { value: '2026-11-01T08:00' },
+    });
+    fireEvent.change(screen.getByLabelText(/Kết thúc/i), {
+      target: { value: '2026-12-01T22:00' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /create/i }));
+
+    await waitFor(() => {
+      expect(createCoupon).toHaveBeenCalledTimes(1);
+    });
+    const payload = createCoupon.mock.calls[0][0] as {
+      code: string;
+      type: string;
+      value: number;
+      startAt: string;
+      endAt: string;
+    };
+    expect(payload.code).toBe('TET50K');
+    expect(payload.type).toBe('FIXED');
+    expect(payload.value).toBe(50000);
+    expect(payload.startAt.startsWith('2026-11-01')).toBe(true);
+    expect(payload.endAt.startsWith('2026-12-01')).toBe(true);
   });
 });

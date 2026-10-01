@@ -27,15 +27,28 @@ export default function AdminCouponsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [code, setCode] = useState('');
+  const [type, setType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [value, setValue] = useState('');
+  const [startAt, setStartAt] = useState('');
+  const [endAt, setEndAt] = useState('');
   const [usageLimit, setUsageLimit] = useState('');
   const [formError, setFormError] = useState('');
+
+  function toDatetimeLocal(date: Date) {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
 
   const coupons = couponsQuery.data ?? [];
 
   function openDialog() {
     setCode('');
+    setType('PERCENTAGE');
     setValue('');
+    setStartAt(toDatetimeLocal(new Date()));
+    setEndAt(
+      toDatetimeLocal(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+    );
     setUsageLimit('');
     setFormError('');
     setDialogOpen(true);
@@ -48,12 +61,17 @@ export default function AdminCouponsPage() {
       return;
     }
 
+    if (!startAt || !endAt || new Date(endAt) <= new Date(startAt)) {
+      setFormError('Chọn thời gian hiệu lực hợp lệ (kết thúc sau khi bắt đầu).');
+      return;
+    }
+
     const payload: CreateCouponRequest = {
       code: code.trim().toUpperCase(),
-      type: 'PERCENTAGE',
+      type,
       value: numericValue,
-      startAt: new Date().toISOString(),
-      endAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      startAt: new Date(startAt).toISOString(),
+      endAt: new Date(endAt).toISOString(),
       usageLimit: usageLimit ? Number(usageLimit) : null,
     };
 
@@ -211,14 +229,63 @@ export default function AdminCouponsPage() {
               </div>
               <div>
                 <label className='text-xs font-semibold text-muted-foreground uppercase'>
-                  Phần trăm giảm *
+                  Loại giảm giá
+                </label>
+                <select
+                  aria-label='Loại giảm giá'
+                  value={type}
+                  onChange={(e) =>
+                    setType(e.target.value as 'PERCENTAGE' | 'FIXED')
+                  }
+                  className='mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm'
+                >
+                  <option value='PERCENTAGE'>Giảm theo %</option>
+                  <option value='FIXED'>Giảm số tiền (VND)</option>
+                </select>
+              </div>
+              <div>
+                <label className='text-xs font-semibold text-muted-foreground uppercase'>
+                  {type === 'PERCENTAGE'
+                    ? 'Phần trăm giảm *'
+                    : 'Số tiền giảm (VND) *'}
                 </label>
                 <input
-                  placeholder='10000000'
+                  aria-label={
+                    type === 'PERCENTAGE'
+                      ? 'Phần trăm giảm'
+                      : 'Số tiền giảm (VND)'
+                  }
+                  placeholder={type === 'PERCENTAGE' ? '20' : '50000'}
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
                   className='mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm'
                 />
+              </div>
+              <div className='grid grid-cols-2 gap-3'>
+                <div>
+                  <label className='text-xs font-semibold text-muted-foreground uppercase'>
+                    Bắt đầu
+                  </label>
+                  <input
+                    type='datetime-local'
+                    aria-label='Bắt đầu'
+                    value={startAt}
+                    onChange={(e) => setStartAt(e.target.value)}
+                    className='mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm'
+                  />
+                </div>
+                <div>
+                  <label className='text-xs font-semibold text-muted-foreground uppercase'>
+                    Kết thúc
+                  </label>
+                  <input
+                    type='datetime-local'
+                    aria-label='Kết thúc'
+                    value={endAt}
+                    onChange={(e) => setEndAt(e.target.value)}
+                    className='mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm'
+                  />
+                </div>
               </div>
               <div>
                 <label className='text-xs font-semibold text-muted-foreground uppercase'>

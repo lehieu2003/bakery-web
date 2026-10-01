@@ -13,9 +13,18 @@ type AdminUser = {
   role: UserRole;
 };
 
+type CouponRow = {
+  id: string;
+  code: string;
+  type: unknown;
+  startAt: Date | string;
+  endAt: Date | string;
+  [key: string]: unknown;
+};
+
 type CouponByIdDeps = {
   requireAdmin: () => Promise<AdminUser>;
-  findCouponById: (id: string) => Promise<{ id: string; code: string } | null>;
+  findCouponById: (id: string) => Promise<CouponRow | null>;
   updateCouponById: (
     id: string,
     payload: Record<string, unknown>,
@@ -53,8 +62,7 @@ type HandlerResult = {
 
 const defaultDeps: CouponByIdDeps = {
   requireAdmin,
-  findCouponById: (id) =>
-    prisma.coupon.findUnique({ where: { id }, select: { id: true, code: true } }),
+  findCouponById: (id) => prisma.coupon.findUnique({ where: { id } }),
   updateCouponById: (id, payload) =>
     prisma.coupon.update({ where: { id }, data: payload }),
   countRedemptions: (id) =>
@@ -64,6 +72,12 @@ const defaultDeps: CouponByIdDeps = {
   },
   writeAdminAudit: writeAdminActionAuditLog,
 };
+
+const CODE_PATTERN = /^[A-Z0-9_-]{3,40}$/;
+
+function badRequest(error: string): HandlerResult {
+  return { status: 400, body: { success: false, error } };
+}
 
 export async function handleAdminCouponPutRequest(
   request: NextRequest,
@@ -82,32 +96,113 @@ export async function handleAdminCouponPutRequest(
 
   if (body.isActive !== undefined) {
     if (typeof body.isActive !== 'boolean') {
-      return {
-        status: 400,
-        body: { success: false, error: 'isActive must be a boolean' },
-      };
+      return badRequest('isActive must be a boolean');
     }
     payload.isActive = body.isActive;
   }
 
-  if (body.usageLimit !== undefined) {
-    if (body.usageLimit === null) {
-      payload.usageLimit = null;
-    } else if (
-      typeof body.usageLimit !== 'number' ||
-      !Number.isInteger(body.usageLimit) ||
-      body.usageLimit < 1
-    ) {
-      return {
-        status: 400,
-        body: { success: false, error: 'usageLimit must be a positive integer or null' },
-      };
-    } else {
-      payload.usageLimit = body.usageLimit;
+  if (body.code !== undefined) {
+    const code =
+      typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+    if (!CODE_PATTERN.test(code)) {
+      return badRequest(
+        'Code must be 3-40 characters (letters, numbers, - or _)',
+      );
     }
+    payload.code = code;
   }
 
-  const updated = await deps.updateCouponById(id, payload);
+  const resolvedType = body.type !== undefined ? body.type : existing.type;
+  if (resolvedType !== 'PERCENTAGE' && resolvedType !== 'FIXED') {
+    return badRequest('type must be PERCENTAGE or FIXED');
+  }
+  if (body.type !== undefined) {
+    payload.type = body.type;
+  }
+
+  if (body.value !== undefined) {
+    const value = typeof body.value === 'number' ? body.value : NaN;
+    if (!Number.isFinite(value) || value <= 0) {
+      return badRequest('value must be a positive number');
+    }
+    if (resolvedType === 'PERCENTAGE' && value > 100) {
+      return badRequest('PERCENTAGE value must be at most 100');
+    }
+    payload.value = value;
+  }
+
+  const parseAmount = (
+    input: unknown,
+  ): { skip: true } | { skip: false; value: number | null } | { error: string } => {
+    if (input === undefined) return { skip: true };
+    if (input === null) return { skip: false, value: null };
+    const num = typeof input === 'number' ? input : NaN;
+    if (!Number.isFinite(num) || num < 0) {
+      return { error: 'amount fields must be non-negative numbers or null' };
+    }
+    return { skip: false, value: num };
+  };
+  const minOrder = parseAmount(body.minOrder);
+  if ('error' in minOrder) return badRequest(minOrder.error);
+  if (!minOrder.skip) payload.minOrder = minOrder.value;
+  const maxDiscount = parseAmount(body.maxDiscount);
+  if ('error' in maxDiscount) return badRequest(maxDiscount.error);
+  if (!maxDiscount.skip) payload.maxDiscount = maxDiscount.value;
+
+  const parseLimit = (
+    input: unknown,
+  ): { skip: true } | { skip: false; value: number | null } | { error: string } => {
+    if (input === undefined) return { skip: true };
+    if (input === null) return { skip: false, value: null };
+    const num = typeof input === 'number' ? input : NaN;
+    if (!Number.isInteger(num) || num < 1) {
+      return { error: 'limits must be positive integers or null' };
+    }
+    return { skip: false, value: num };
+  };
+  const usageLimit = parseLimit(body.usageLimit);
+  if ('error' in usageLimit) return badRequest(usageLimit.error);
+  if (!usageLimit.skip) payload.usageLimit = usageLimit.value;
+  const perUserLimit = parseLimit(body.perUserLimit);
+  if ('error' in perUserLimit) return badRequest(perUserLimit.error);
+  if (!perUserLimit.skip) payload.perUserLimit = perUserLimit.value;
+
+  const parseDate = (
+    input: unknown,
+  ): { skip: true } | { skip: false; iso: string } | { error: string } => {
+    if (input === undefined) return { skip: true };
+    if (typeof input !== 'string') return { error: 'dates must be ISO strings' };
+    const date = new Date(input);
+    if (Number.isNaN(date.getTime())) {
+      return { error: 'dates must be valid' };
+    }
+    return { skip: false, iso: date.toISOString() };
+  };
+  const startAt = parseDate(body.startAt);
+  if ('error' in startAt) return badRequest(startAt.error);
+  const endAt = parseDate(body.endAt);
+  if ('error' in endAt) return badRequest(endAt.error);
+  const resolvedStart = startAt.skip
+    ? new Date(existing.startAt)
+    : new Date(startAt.iso);
+  const resolvedEnd = endAt.skip
+    ? new Date(existing.endAt)
+    : new Date(endAt.iso);
+  if (resolvedEnd <= resolvedStart) {
+    return badRequest('endAt must be after startAt');
+  }
+  if (!startAt.skip) payload.startAt = startAt.iso;
+  if (!endAt.skip) payload.endAt = endAt.iso;
+
+  let updated: unknown;
+  try {
+    updated = await deps.updateCouponById(id, payload);
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') {
+      return badRequest('Coupon code already exists');
+    }
+    throw error;
+  }
 
   const headers =
     typeof (request as unknown as { headers?: Headers }).headers?.get === 'function'

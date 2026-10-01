@@ -11,6 +11,20 @@ import {
 
 const admin = { id: 'admin-1', role: 'ADMIN' as const };
 
+const fullRow = {
+  id: 'c1',
+  code: 'SAVE10',
+  type: 'PERCENTAGE' as const,
+  value: '10',
+  minOrder: null,
+  maxDiscount: null,
+  usageLimit: 100,
+  perUserLimit: 1,
+  startAt: '2026-10-01T00:00:00.000Z',
+  endAt: '2026-10-31T23:59:59.000Z',
+  isActive: true,
+};
+
 function baseDeps(overrides: Record<string, unknown> = {}) {
   return {
     requireAdmin: async () => admin,
@@ -19,7 +33,7 @@ function baseDeps(overrides: Record<string, unknown> = {}) {
       id: 'c-new',
       ...payload,
     }),
-    findCouponById: async () => null,
+    findCouponById: async () => ({ ...fullRow }),
     updateCouponById: async (_id: string, payload: Record<string, unknown>) => ({
       id: 'c1',
       ...payload,
@@ -133,7 +147,6 @@ test('PUT toggles isActive and audits the update', async () => {
     } as never,
     { id: 'c1' },
     baseDeps({
-      findCouponById: async () => ({ id: 'c1', code: 'SAVE10' }),
       writeAdminAudit: async (payload: { mutationType: string }) => {
         audits.push(payload.mutationType);
       },
@@ -185,4 +198,78 @@ test('DELETE removes a coupon without redemptions and audits it', async () => {
   assert.equal(result.status, 200);
   assert.equal(deleted, true);
   assert.deepEqual(audits, ['DELETE']);
+});
+
+test('PUT applies a full valid payload with per-field validation', async () => {
+  const seen: Array<{ id: string; payload: Record<string, unknown> }> = [];
+  const result = await handleAdminCouponPutRequest(
+    {
+      json: async () => ({
+        code: 'BIG20',
+        type: 'PERCENTAGE',
+        value: 20,
+        minOrder: 200000,
+        startAt: '2026-11-01T00:00:00.000Z',
+        endAt: '2026-11-30T23:59:59.000Z',
+      }),
+      headers: new Headers(),
+    } as never,
+    { id: 'c1' },
+    baseDeps({
+      findCouponById: async () => ({ ...fullRow }),
+      updateCouponById: async (id: string, payload: Record<string, unknown>) => {
+        seen.push({ id, payload });
+        return { id, ...payload };
+      },
+    }) as never,
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(seen[0].payload.code, 'BIG20');
+  assert.equal(seen[0].payload.value, 20);
+});
+
+test('PUT rejects PERCENTAGE 150 on update', async () => {
+  const result = await handleAdminCouponPutRequest(
+    {
+      json: async () => ({ type: 'PERCENTAGE', value: 150 }),
+      headers: new Headers(),
+    } as never,
+    { id: 'c1' },
+    baseDeps({ findCouponById: async () => ({ ...fullRow }) }) as never,
+  );
+  assert.equal(result.status, 400);
+});
+
+test('PUT maps a code collision (P2002) to 400', async () => {
+  const result = await handleAdminCouponPutRequest(
+    {
+      json: async () => ({ code: 'TAKEN10' }),
+      headers: new Headers(),
+    } as never,
+    { id: 'c1' },
+    baseDeps({
+      findCouponById: async () => ({ ...fullRow }),
+      updateCouponById: async () => {
+        const error = new Error('Unique constraint failed');
+        (error as { code?: string }).code = 'P2002';
+        throw error;
+      },
+    }) as never,
+  );
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Coupon code already exists');
+});
+
+test('PUT validates the merged window when only endAt is provided', async () => {
+  const result = await handleAdminCouponPutRequest(
+    {
+      json: async () => ({ endAt: '2026-09-01T00:00:00.000Z' }),
+      headers: new Headers(),
+    } as never,
+    { id: 'c1' },
+    baseDeps({ findCouponById: async () => ({ ...fullRow }) }) as never,
+  );
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'endAt must be after startAt');
 });
