@@ -1,8 +1,13 @@
 import { prisma } from './prisma';
+import type { UserRole } from '@prisma/client';
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { canUseAuthenticatedSession, isSessionExpired } from './auth/session-utils';
+import {
+  canUseAuthenticatedSession,
+  isSessionExpired,
+  isSessionUsable,
+} from './auth/session-utils';
 import { hasPolicyAccess } from './authorization-policy';
 
 const SESSION_COOKIE_NAME = 'bakery_session';
@@ -108,18 +113,14 @@ async function getSessionByToken(token: string) {
     return null;
   }
 
-  // A revoked session (consumed by refresh rotation) can never authenticate.
-  if (session.revokedAt) {
-    return null;
-  }
-
-  // Check if session has expired
-  if (isSessionExpired(session.expiresAt)) {
-    await prisma.session.delete({ where: { id: session.id } });
-    return null;
-  }
-
-  if (!canUseAuthenticatedSession(session.user)) {
+  // Single authentication decision: revoked (consumed by refresh rotation),
+  // expired, or inactive/unverified users can never authenticate.
+  if (!isSessionUsable(session)) {
+    // Expired sessions are garbage-collected; revoked sessions are kept so
+    // a later replay can still be detected (revoke-all defense).
+    if (!session.revokedAt && isSessionExpired(session.expiresAt)) {
+      await prisma.session.delete({ where: { id: session.id } });
+    }
     return null;
   }
 
@@ -173,7 +174,17 @@ export async function requireAuth() {
  * Require admin role
  */
 export async function requireAdmin() {
-  const user = await requireAuth();
+  return assertAdminAccess(await requireAuth());
+}
+
+/**
+ * The admin guard decision, extracted for direct testing: every
+ * /api/admin/* route is protected by exactly this check.
+ */
+export function assertAdminAccess<T extends { role: UserRole }>(user: T): T {
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
 
   if (!hasPolicyAccess(user.role, 'ADMIN_ONLY')) {
     throw new Error('Forbidden: Admin access required');
