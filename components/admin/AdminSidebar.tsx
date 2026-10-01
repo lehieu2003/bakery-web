@@ -18,6 +18,7 @@ import {
   Menu,
   Bell,
   ShieldCheck,
+  TicketPercent,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
@@ -107,6 +108,11 @@ const navItems: NavItem[] = [
     label: 'Membership',
     href: '/admin/membership',
     icon: <Crown size={16} />,
+  },
+  {
+    label: 'Coupons',
+    href: '/admin/coupons',
+    icon: <TicketPercent size={16} />,
   },
   {
     label: 'Customers',

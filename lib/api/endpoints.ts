@@ -91,6 +91,13 @@ export const ENDPOINTS = {
     // Membership
     MEMBERSHIP: `${ADMIN_BASE}/membership`,
 
+    // Coupons
+    COUPONS: {
+      LIST: `${ADMIN_BASE}/coupons`,
+      CREATE: `${ADMIN_BASE}/coupons`,
+      UPDATE: (id: string) => `${ADMIN_BASE}/coupons/${id}`,
+    },
+
     // Pages
     PAGES: {
       LIST: `${ADMIN_BASE}/pages`,
