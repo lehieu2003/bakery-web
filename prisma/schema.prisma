@@ -155,6 +155,7 @@ model Session {
   token  String @unique
 
   expiresAt DateTime
+  revokedAt DateTime?
 
   userAgent String?
   ipAddress String?

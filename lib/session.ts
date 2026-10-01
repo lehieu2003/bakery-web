@@ -108,6 +108,11 @@ async function getSessionByToken(token: string) {
     return null;
   }
 
+  // A revoked session (consumed by refresh rotation) can never authenticate.
+  if (session.revokedAt) {
+    return null;
+  }
+
   // Check if session has expired
   if (isSessionExpired(session.expiresAt)) {
     await prisma.session.delete({ where: { id: session.id } });
