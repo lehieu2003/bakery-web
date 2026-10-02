@@ -7,6 +7,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Format a product price as "2.400.000đ".
+ * Prisma Decimal serializes to a JSON string, so coerce before formatting —
+ * String.prototype.toLocaleString ignores locale args and returns the raw digits.
+ */
+export function formatPrice(price: number | string): string {
+  return `${Number(price).toLocaleString('vi-VN')}đ`;
+}
+
+/**
  * Get the primary image URL from a product's images array.
  * Falls back to first image, then placeholder.
  */

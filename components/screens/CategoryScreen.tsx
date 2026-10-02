@@ -489,7 +489,8 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
 
             {/* Product grid */}
             <div className='flex-1 min-w-0'>
-              <div className='mb-5 rounded-2xl border border-border/60 bg-card p-4 lg:hidden'>
+              {/* mr-12 keeps the panel clear of the floating order button on the right edge */}
+              <div className='mb-5 mr-12 rounded-2xl border border-border/60 bg-card p-4 lg:hidden'>
                 <label className='mb-2 block text-xs font-semibold uppercase tracking-widest text-muted-foreground'>
                   Từ khóa
                 </label>
@@ -540,7 +541,8 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                 </div>
               )}
 
-              <div className='mb-5 rounded-2xl border border-border/60 bg-card p-4 lg:hidden'>
+              {/* mr-12 keeps the panel clear of the floating order button on the right edge */}
+              <div className='mb-5 mr-12 rounded-2xl border border-border/60 bg-card p-4 lg:hidden'>
                 <div className='mb-3 flex items-center gap-2'>
                   <SlidersHorizontal
                     size={15}

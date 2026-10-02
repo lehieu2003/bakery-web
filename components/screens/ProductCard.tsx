@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
-import { getProductImages } from '@/lib/utils';
+import { formatPrice, getProductImages } from '@/lib/utils';
 import { useCart } from '@/lib/cart-store';
 import { useToggleWishlist } from '@/hooks/use-wishlist';
 import { useAuth } from '@/providers/auth-provider';
@@ -176,7 +176,7 @@ export default function ProductCard({ product }: { product: Product }) {
           </p>
         )}
         <p className='mt-2.5 font-sans text-base font-bold text-accent'>
-          {product.price.toLocaleString('vi-VN')}đ
+          {formatPrice(product.price)}
         </p>
       </Link>
     </article>

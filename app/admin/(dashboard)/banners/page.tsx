@@ -468,7 +468,7 @@ export default function BannersPage() {
                   className='h-8 text-xs mt-1.5'
                   value={formLinkUrl}
                   onChange={(e) => setFormLinkUrl(e.target.value)}
-                  placeholder='/category/cakes'
+                  placeholder='/search hoặc /categories/tiramisu'
                 />
               </div>
               <div>

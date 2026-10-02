@@ -170,7 +170,7 @@ export default function BannerCarousel({
       <div className='relative z-10 max-w-7xl mx-auto px-6 lg:px-8 py-12 md:py-16 lg:py-20 min-h-[480px] md:min-h-[560px] lg:min-h-[600px] flex items-center'>
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center w-full'>
           {/* 2. CONTENT & DECORATION LAYERS (Left Column) */}
-          <div className='lg:col-span-7 flex flex-col justify-center space-y-6'>
+          <div className='lg:col-span-7 flex flex-col justify-center space-y-6 pr-16 lg:pr-0'>
             {/* Decoration Layer: Pill badge */}
             <div
               className='inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/15 bg-white/10 backdrop-blur-md w-fit text-xs font-semibold uppercase tracking-wider text-white shadow-sm transition-all duration-350 ease-out'
@@ -223,7 +223,7 @@ export default function BannerCarousel({
                 </Link>
               ) : (
                 <Link
-                  href='/category'
+                  href='/search'
                   className='inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium text-sm text-foreground bg-white hover:bg-white/90 shadow-lg shadow-black/15 transition-all hover:gap-3 active:scale-95'
                 >
                   <span>Xem thực đơn bánh</span>
@@ -232,7 +232,7 @@ export default function BannerCarousel({
               )}
 
               <Link
-                href='/category'
+                href='/search'
                 className='inline-flex items-center px-5 py-3.5 rounded-full text-sm font-medium text-white/90 hover:text-white border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 backdrop-blur-sm transition-all active:scale-95'
               >
                 Tất cả sản phẩm

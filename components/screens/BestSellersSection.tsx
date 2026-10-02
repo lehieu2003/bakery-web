@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useBestSellers } from '@/hooks/use-products';
-import { getProductImage } from '@/lib/utils';
+import { formatPrice, getProductImage } from '@/lib/utils';
 import { useCart } from '@/lib/cart-store';
 import type { Product } from '@/types/api.types';
 import { trackMerchImpression } from '@/lib/merch-impressions';
@@ -91,7 +91,7 @@ function BestSellerCard({
 
         <div className='flex items-center justify-between gap-2 mt-1'>
           <p className='font-sans text-sm font-bold text-primary'>
-            {product.price.toLocaleString('vi-VN')} VND
+            {formatPrice(product.price)}
           </p>
           <button
             onClick={handleAddToCart}

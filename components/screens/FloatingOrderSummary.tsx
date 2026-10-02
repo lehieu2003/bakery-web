@@ -33,18 +33,19 @@ export function FloatingOrderSummary() {
   // Don't display on cart or checkout pages where cart is the main view, or admin routes
   if (
     pathname === '/cart' ||
-    pathname === '/checkout' ||
-    pathname?.startsWith('/admin') ||
-    pathname?.startsWith('/checkout/payment-return')
+    pathname?.startsWith('/checkout') ||
+    pathname?.startsWith('/admin')
   ) {
     return null;
   }
 
   return (
     <>
-      {/* Floating Order Summary Trigger (Fixed right edge, vertically centered) */}
+      {/* Floating Order Summary Trigger (Fixed right edge, vertically centered).
+          z-30: floats above page content but stays under the navbar drawer (z-40/50)
+          and this component's own overlay (z-50) so it never blocks them. */}
       <div
-        className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 ${
+        className={`fixed right-0 top-1/2 -translate-y-1/2 z-30 ${
           isBouncing ? 'animate-bounce' : ''
         }`}
       >
@@ -52,7 +53,7 @@ export function FloatingOrderSummary() {
           type='button'
           onClick={() => setIsOpen(true)}
           aria-label={`Mở đơn hàng hiện tại (${cartCount} món)`}
-          className='flex flex-col items-center gap-2 py-4 pl-3.5 pr-2.5 bg-primary text-primary-foreground rounded-l-2xl shadow-xl hover:-translate-x-1 transition-all duration-200 cursor-pointer min-w-[60px] border border-r-0 border-white/20'
+          className='flex flex-col items-center gap-2 py-3.5 pl-3 pr-2 bg-primary text-primary-foreground rounded-l-2xl shadow-xl hover:-translate-x-1 transition-all duration-200 cursor-pointer min-w-[52px] border border-r-0 border-white/20'
         >
           {/* Bag Icon & Count Badge */}
           <div className='relative inline-block'>

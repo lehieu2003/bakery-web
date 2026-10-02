@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { useRelatedProducts } from '@/hooks/use-products';
-import { getProductImage } from '@/lib/utils';
+import { formatPrice, getProductImage } from '@/lib/utils';
 import { useCart } from '@/lib/cart-store';
 import type { Product } from '@/types/api.types';
 import { trackMerchImpression } from '@/lib/merch-impressions';
@@ -94,21 +94,21 @@ function RelatedProductCard({
             {product.shortDescription}
           </p>
         )}
-        <div className='flex items-center justify-between gap-2 mt-auto pt-1'>
+        <div className='flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 mt-auto pt-1'>
           <div>
             <p className='text-sm font-bold text-primary'>
-              {product.price.toLocaleString('vi-VN')}đ
+              {formatPrice(product.price)}
             </p>
             {product.comparePrice && product.comparePrice > product.price && (
               <p className='text-xs text-muted-foreground line-through leading-none'>
-                {product.comparePrice.toLocaleString('vi-VN')}đ
+                {formatPrice(product.comparePrice)}
               </p>
             )}
           </div>
           <button
             onClick={handleAddToCart}
             disabled={product.stock <= 0}
-            className='shrink-0 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded hover:opacity-90 active:scale-95 transition-all disabled:opacity-40'
+            className='ml-auto shrink-0 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded hover:opacity-90 active:scale-95 transition-all disabled:opacity-40'
           >
             {product.stock <= 0 ? 'Hết hàng' : 'Thêm'}
           </button>

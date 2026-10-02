@@ -381,7 +381,7 @@ export default function WebNavbar() {
   };
 
   return (
-    <header className='bg-white shadow-sm'>
+    <header className='relative z-40 bg-white shadow-sm'>
       {/* Main header */}
       <div className='bg-white border-b border-gray-100'>
         <div className='max-w-7xl mx-auto px-4 lg:px-8 py-3 flex flex-wrap items-center gap-x-4 gap-y-3 md:flex-nowrap lg:gap-6'>

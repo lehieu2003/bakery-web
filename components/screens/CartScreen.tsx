@@ -123,15 +123,15 @@ export default function CartScreen() {
                           <Trash2 size={16} />
                         </button>
                       </div>
-                      <div className='flex items-center justify-between mt-4'>
+                      <div className='flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between mt-4'>
                         <p className='font-sans text-lg font-bold text-accent'>
                           {(item.price * item.quantity).toLocaleString('vi-VN')}
                           đ
                         </p>
-                        <div className='flex items-center gap-3 border border-border rounded-full px-3 py-1.5'>
+                        <div className='flex items-center gap-2 border border-border rounded-full px-2.5 py-1.5 w-fit'>
                           <button
                             onClick={() => updateQty(item.id, -1)}
-                            className='text-muted-foreground hover:text-foreground transition-colors'
+                            className='p-1 text-muted-foreground hover:text-foreground transition-colors'
                             aria-label='Decrease quantity'
                           >
                             <Minus size={14} />
@@ -141,7 +141,7 @@ export default function CartScreen() {
                           </span>
                           <button
                             onClick={() => updateQty(item.id, 1)}
-                            className='text-muted-foreground hover:text-foreground transition-colors'
+                            className='p-1 text-muted-foreground hover:text-foreground transition-colors'
                             aria-label='Increase quantity'
                           >
                             <Plus size={14} />
@@ -222,7 +222,7 @@ export default function CartScreen() {
                     onClick={() => router.push('/checkout/info')}
                     className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors'
                   >
-                    Thanh toán ngày
+                    Thanh toán ngay
                   </button>
                 </div>
               </div>
