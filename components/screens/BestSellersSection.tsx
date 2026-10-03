@@ -152,7 +152,7 @@ export default function BestSellersSection({
         id='best-sellers-heading'
         className='font-serif text-3xl md:text-4xl font-bold text-primary text-center tracking-wide mb-10 text-balance'
       >
-        SẢN PHẨM NỔI BẬT
+        Sản phẩm nổi bật
       </h2>
 
       {/* Scrollable row + nav buttons */}

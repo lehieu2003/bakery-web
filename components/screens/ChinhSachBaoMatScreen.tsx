@@ -5,7 +5,7 @@ const sections = [
     id: '1',
     title: 'Thông tin chúng tôi thu thập',
     paragraphs: [
-      'Khi bạn sử dụng Website ladouceur.vn, chúng tôi có thể thu thập các loại thông tin sau:',
+      'Khi bạn sử dụng Website phuongloan.vn, chúng tôi có thể thu thập các loại thông tin sau:',
     ],
     bullets: [
       'Thông tin cá nhân: họ tên, số điện thoại, địa chỉ email và địa chỉ giao hàng khi bạn đặt hàng hoặc tạo tài khoản.',
@@ -75,7 +75,7 @@ const sections = [
     title: 'Liên hệ về quyền riêng tư',
     paragraphs: [
       'Nếu bạn có câu hỏi hoặc yêu cầu liên quan đến chính sách bảo mật, vui lòng liên hệ:',
-      'Email: privacy@ladouceur.vn | Hotline: 1900 779907 | Địa chỉ: 123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh.',
+      'Email: privacy@phuongloan.vn | Hotline: 1900 779907 | Địa chỉ: 123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh.',
     ],
   },
 ];
@@ -99,7 +99,7 @@ export default function ChinhSachBaoMatScreen() {
         <p className='text-sm text-muted-foreground mt-3 max-w-2xl text-pretty'>
           Phương Loan Bakery coi trọng quyền riêng tư của bạn. Chính sách này mô
           tả cách chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân của
-          bạn khi sử dụng Website ladouceur.vn.
+          bạn khi sử dụng Website phuongloan.vn.
         </p>
         <p className='text-xs text-muted-foreground mt-2'>
           Cập nhật lần cuối: Tháng 1, 2025

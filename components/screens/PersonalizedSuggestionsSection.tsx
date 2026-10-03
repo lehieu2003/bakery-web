@@ -22,18 +22,14 @@ function buildFallbackMessage(args: {
   isError: boolean;
 }) {
   if (args.isError) {
-    return 'Unable to load personalized suggestions right now.';
+    return 'Chưa tải được gợi ý dành cho bạn lúc này.';
   }
 
   if (!args.source || args.source === 'behavioral') return null;
 
   switch (args.reason) {
-    case 'no-user':
-      return 'Sign in to unlock personalized suggestions. Showing featured picks for now.';
-    case 'no-signal':
-      return 'We are still learning your taste. Showing featured picks for now.';
     case 'insufficient-signal':
-      return 'Showing a mix of personalized picks and featured products.';
+      return 'Đang kết hợp giữa gợi ý cá nhân và sản phẩm nổi bật.';
     default:
       return null;
   }
@@ -158,6 +154,18 @@ export default function PersonalizedSuggestionsSection() {
     reason: data?.reason,
     isError,
   });
+
+  // Best Sellers sits right above; the 'fallback' source only re-lists
+  // featured products, so render this section solely for genuinely
+  // personalized picks ('behavioral' and 'hybrid').
+  if (
+    !isLoading &&
+    !isError &&
+    data?.source !== 'behavioral' &&
+    data?.source !== 'hybrid'
+  ) {
+    return null;
+  }
 
   if (!isLoading && products.length === 0 && !fallbackMessage) {
     return null;

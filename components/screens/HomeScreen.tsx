@@ -93,10 +93,10 @@ export default function HomeScreen() {
         <HomeBannerSection />
 
         {/* ── Scroll Story ── */}
-        <section data-scroll-story className='relative bg-[#2d1913] text-white'>
-          <div className='mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[0.92fr_1.08fr] lg:px-8 lg:py-24'>
+        <section data-scroll-story className='relative bg-roast text-white'>
+          <div className='mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[0.92fr_1.08fr] lg:px-8 lg:py-20'>
             <div className='lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]'>
-              <div className='relative h-[460px] overflow-hidden rounded-lg bg-[#1f100c] shadow-2xl shadow-black/30 lg:h-full'>
+              <div className='relative h-[460px] overflow-hidden rounded-lg bg-roast-deep shadow-2xl shadow-black/30 lg:h-full'>
                 {storyChapters.map((chapter, index) => (
                   <div
                     key={chapter.title}
@@ -114,7 +114,7 @@ export default function HomeScreen() {
                   </div>
                 ))}
 
-                <div className='absolute left-6 top-6 z-10 rounded-full border border-white/20 bg-white/12 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#f3cfa8] backdrop-blur'>
+                <div className='absolute left-6 top-6 z-10 rounded-full border border-white/20 bg-white/12 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold backdrop-blur'>
                   Phương Loan Bakery story
                 </div>
 
@@ -125,7 +125,7 @@ export default function HomeScreen() {
                       data-story-visual={`${index}`}
                       className='border-t border-white/20 pt-3 opacity-45 transition duration-500 data-[active=true]:opacity-100'
                     >
-                      <p className='font-serif text-3xl font-semibold text-[#f3cfa8]'>
+                      <p className='font-serif text-3xl font-semibold text-gold'>
                         {chapter.stat}
                       </p>
                       <p className='mt-1 text-xs uppercase tracking-[0.16em] text-white/70'>
@@ -137,7 +137,7 @@ export default function HomeScreen() {
               </div>
             </div>
 
-            <div className='space-y-6 lg:py-[18vh]'>
+            <div className='space-y-6 lg:py-[10vh]'>
               <div className='mb-6 max-w-2xl lg:mb-16'>
                 <h2 className='mt-4 font-serif text-4xl font-semibold leading-tight text-balance md:text-6xl'>
                   Đi theo một ngày trong tiệm bánh
@@ -148,9 +148,9 @@ export default function HomeScreen() {
                 <article
                   key={chapter.title}
                   data-story-step={`${index}`}
-                  className='min-h-[62vh] border-l border-white/15 pl-6 opacity-45 transition duration-500 data-[active=true]:border-[#f3cfa8] data-[active=true]:opacity-100 lg:pl-8'
+                  className='min-h-[42vh] border-l border-white/15 pl-6 opacity-45 transition duration-500 data-[active=true]:border-gold data-[active=true]:opacity-100 lg:pl-8'
                 >
-                  <p className='text-xs font-semibold uppercase tracking-[0.26em] text-[#f3cfa8]'>
+                  <p className='text-xs font-semibold uppercase tracking-[0.26em] text-gold'>
                     {chapter.kicker}
                   </p>
                   <h3 className='mt-4 max-w-2xl font-serif text-3xl font-semibold leading-tight text-balance md:text-5xl'>
@@ -161,7 +161,7 @@ export default function HomeScreen() {
                   </p>
                   <Link
                     href={index === 2 ? '/store' : '/search'}
-                    className='mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#f3cfa8] transition hover:text-white'
+                    className='mt-7 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-white'
                   >
                     Khám phá tiếp
                     <ArrowRight size={16} />
@@ -175,7 +175,7 @@ export default function HomeScreen() {
         {/* ── Exploration Hook ── */}
         <section
           data-home-reveal
-          className='relative overflow-hidden bg-[#fffaf3] px-4 py-14 lg:px-8 lg:py-18'
+          className='relative overflow-hidden bg-background px-4 py-14 lg:px-8 lg:py-18'
         >
           <div className='mx-auto max-w-7xl'>
             <div className='grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-end'>
@@ -241,7 +241,7 @@ export default function HomeScreen() {
                     <p className='mt-3 text-sm leading-6 text-white/78'>
                       {mood.description}
                     </p>
-                    <span className='mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#f3cfa8]'>
+                    <span className='mt-5 inline-flex items-center gap-2 text-sm font-semibold text-gold'>
                       {mood.cta}
                       <ArrowRight
                         size={16}
@@ -267,7 +267,7 @@ export default function HomeScreen() {
         <CategoriesSection />
 
         {/* ── Phương Loan Bakery – About section ── */}
-        <section data-home-reveal className='px-4 lg:px-8 py-16 bg-[#faf8f5]'>
+        <section data-home-reveal className='px-4 lg:px-8 py-16 bg-background'>
           <div className='max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center'>
             {/* Text side */}
             <div className='order-2 lg:order-1'>
@@ -275,8 +275,7 @@ export default function HomeScreen() {
                 Chuỗi tiệm bánh kết hợp không gian F&B tại TP.HCM
               </p>
               <h2 className='font-serif text-2xl lg:text-3xl font-semibold text-primary leading-snug mb-6 text-balance'>
-                Phương Loan Bakery – TIỆM BÁNH NGON Ở SÀI GÒN VỚI KHÔNG GIAN ĂN
-                UỐNG THOẢI MÁI
+                Nơi dừng chân ngọt ngào giữa lòng Sài Gòn
               </h2>
               <div className='space-y-4 text-sm text-foreground leading-relaxed'>
                 <p>
@@ -298,8 +297,8 @@ export default function HomeScreen() {
                   thưởng thức bánh trở nên trọn vẹn và thư giãn hơn.
                 </p>
                 <p>
-                  Nhờ không gian hiện đại, dễ chịu cùng menu phong phú, La
-                  Douceur dần trở thành{' '}
+                  Nhờ không gian hiện đại, dễ chịu cùng menu phong phú, Phương
+                  Loan Bakery dần trở thành{' '}
                   <strong>tiệm bánh ngon tại TP.HCM</strong> phù hợp cho nhiều
                   nhu cầu: ăn nhẹ, trò chuyện, hẹn hò hay đưa trẻ nhỏ đi chơi
                   cuối tuần.
@@ -334,7 +333,7 @@ export default function HomeScreen() {
           }}
         >
           {/* Dark overlay */}
-          <div className='absolute inset-0 bg-black/60' />
+          <div className='absolute inset-0 bg-roast/70' />
           <div className='relative z-10 max-w-4xl mx-auto px-4 lg:px-8'>
             <div className='grid grid-cols-1 md:grid-cols-3 gap-10 text-center text-white'>
               {/* Stat 1 */}
@@ -370,7 +369,7 @@ export default function HomeScreen() {
                   />
                 </svg>
                 <div>
-                  <p className='text-4xl font-bold text-[#e8c49a]'>+ 120</p>
+                  <p className='text-4xl font-bold text-gold'>+ 120</p>
                   <p className='text-xs tracking-[0.2em] uppercase mt-1 text-white/80'>
                     Loại bánh
                   </p>
@@ -408,7 +407,7 @@ export default function HomeScreen() {
                   />
                 </svg>
                 <div>
-                  <p className='text-4xl font-bold text-[#e8c49a]'>+ 1000</p>
+                  <p className='text-4xl font-bold text-gold'>+ 1000</p>
                   <p className='text-xs tracking-[0.2em] uppercase mt-1 text-white/80'>
                     Khách hàng mỗi ngày
                   </p>
@@ -445,7 +444,7 @@ export default function HomeScreen() {
                   />
                 </svg>
                 <div>
-                  <p className='text-4xl font-bold text-[#e8c49a]'>+ 10</p>
+                  <p className='text-4xl font-bold text-gold'>+ 10</p>
                   <p className='text-xs tracking-[0.2em] uppercase mt-1 text-white/80'>
                     Năm kinh nghiệm
                   </p>

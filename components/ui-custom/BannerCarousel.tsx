@@ -17,37 +17,15 @@ interface BannerCarouselProps {
   autoPlayInterval?: number;
 }
 
-// Preset visual palettes tailored for bakery aesthetics
-const THEMES = [
-  {
-    bgGradient: 'from-[#2b1810] via-[#3a2015] to-[#180e09]',
-    ambientGlow: 'rgba(224, 169, 109, 0.18)',
-    accentColor: '#e0a96d',
-    badgeText: 'Freshly Baked Daily',
-    tagline: 'Artisanal Bakery & Patisserie',
-  },
-  {
-    bgGradient: 'from-[#192622] via-[#22332e] to-[#101917]',
-    ambientGlow: 'rgba(149, 213, 178, 0.16)',
-    accentColor: '#95d5b2',
-    badgeText: 'Pure Japanese Matcha',
-    tagline: 'Ceremonial Grade Flavour',
-  },
-  {
-    bgGradient: 'from-[#2a1420] via-[#3b1c2e] to-[#190c13]',
-    ambientGlow: 'rgba(244, 166, 205, 0.16)',
-    accentColor: '#f4a6cd',
-    badgeText: 'Berry & Rose Cream',
-    tagline: 'Seasonal French Patisserie',
-  },
-  {
-    bgGradient: 'from-[#271d11] via-[#382b1a] to-[#171109]',
-    ambientGlow: 'rgba(243, 198, 143, 0.18)',
-    accentColor: '#f3c68f',
-    badgeText: '100% French Butter',
-    tagline: 'Golden Flaky Perfection',
-  },
-];
+// Single hero visual identity: roast-brown gradient + one gold accent,
+// matching the scroll-story band and footer via the --roast/--gold tokens.
+const HERO_THEME = {
+  bgGradient: 'from-[#2b1810] via-[#3a2015] to-[#180e09]',
+  ambientGlow: 'rgba(232, 196, 154, 0.18)',
+  accentColor: 'var(--gold)',
+  badgeText: 'Bánh mới mỗi ngày',
+  tagline: 'Tiệm bánh thủ công tại Sài Gòn',
+};
 
 const ANIMATION_DURATION = 500; // ms
 
@@ -126,7 +104,6 @@ export default function BannerCarousel({
     return null;
   }
 
-  const currentTheme = THEMES[currentIndex % THEMES.length];
   const currentBanner = banners[currentIndex];
 
   return (
@@ -139,38 +116,24 @@ export default function BannerCarousel({
       aria-roledescription='carousel'
       aria-label='Hero Banners'
     >
-      {/* 1. BACKGROUND LAYER: Smooth gradient crossfade + ambient radial aura */}
+      {/* 1. BACKGROUND LAYER: roast gradient + ambient radial aura */}
       <div className='absolute inset-0 z-0 overflow-hidden'>
-        {banners.map((_, index) => {
-          const theme = THEMES[index % THEMES.length];
-          const isActive = index === currentIndex;
-          return (
-            <div
-              key={index}
-              className={`absolute inset-0 bg-gradient-to-br ${theme.bgGradient} transition-opacity duration-500 ease-in-out`}
-              style={{
-                opacity: isActive ? 1 : 0,
-                zIndex: isActive ? 1 : 0,
-              }}
-            >
-              {/* Ambient radial lighting behind media focal point */}
-              <div
-                className='absolute right-0 top-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full blur-3xl pointer-events-none opacity-40 transition-transform duration-700'
-                style={{
-                  background: `radial-gradient(circle, ${theme.ambientGlow} 0%, transparent 70%)`,
-                  transform: isActive ? 'scale(1)' : 'scale(0.8)',
-                }}
-              />
-            </div>
-          );
-        })}
+        <div
+          className={`absolute inset-0 bg-gradient-to-br ${HERO_THEME.bgGradient}`}
+        />
+        <div
+          className='absolute right-0 top-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full blur-3xl pointer-events-none opacity-40'
+          style={{
+            background: `radial-gradient(circle, ${HERO_THEME.ambientGlow} 0%, transparent 70%)`,
+          }}
+        />
       </div>
 
       {/* Hero container layout */}
       <div className='relative z-10 max-w-7xl mx-auto px-6 lg:px-8 py-12 md:py-16 lg:py-20 min-h-[480px] md:min-h-[560px] lg:min-h-[600px] flex items-center'>
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center w-full'>
           {/* 2. CONTENT & DECORATION LAYERS (Left Column) */}
-          <div className='lg:col-span-7 flex flex-col justify-center space-y-6 pr-16 lg:pr-0'>
+          <div className='lg:col-span-7 flex flex-col justify-center space-y-6 pr-0 sm:pr-16 lg:pr-0'>
             {/* Decoration Layer: Pill badge */}
             <div
               className='inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/15 bg-white/10 backdrop-blur-md w-fit text-xs font-semibold uppercase tracking-wider text-white shadow-sm transition-all duration-350 ease-out'
@@ -181,19 +144,19 @@ export default function BannerCarousel({
             >
               <Sparkles
                 size={14}
-                style={{ color: currentTheme.accentColor }}
+                style={{ color: HERO_THEME.accentColor }}
                 className='animate-pulse'
               />
-              <span>{currentTheme.badgeText}</span>
+              <span>{HERO_THEME.badgeText}</span>
             </div>
 
             {/* Content Layer: Heading & Description */}
             <div className='space-y-4 max-w-2xl'>
               <p
                 className='text-xs md:text-sm font-semibold tracking-widest uppercase text-white/70 transition-opacity duration-300'
-                style={{ color: currentTheme.accentColor }}
+                style={{ color: HERO_THEME.accentColor }}
               >
-                {currentTheme.tagline}
+                {HERO_THEME.tagline}
               </p>
               <h1
                 key={`title-${currentIndex}`}

@@ -49,7 +49,7 @@ export default function WebFooter() {
         ];
 
   return (
-    <footer className='bg-[#3d1a0f] text-[#f5ebe4]'>
+    <footer className='bg-roast text-[#f5ebe4]'>
       {/* Newsletter banner */}
       <div className='border-b border-white/10'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-6'>
@@ -166,14 +166,14 @@ export default function WebFooter() {
             </li>
             <li>
               <a
-                href='mailto:hello@ladouceur.vn'
+                href='mailto:hello@phuongloan.vn'
                 className='flex items-start gap-3 text-sm text-[#f5ebe4]/75 hover:text-white transition-colors group'
               >
                 <Mail
                   size={15}
                   className='text-primary mt-0.5 shrink-0 group-hover:scale-110 transition-transform'
                 />
-                <span>hello@ladouceur.vn</span>
+                <span>hello@phuongloan.vn</span>
               </a>
             </li>
             <li>

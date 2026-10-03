@@ -5,7 +5,7 @@ const sections = [
     id: '1',
     title: 'Giới thiệu',
     paragraphs: [
-      'Chào mừng bạn đến với Phương Loan Bakery – Artisan Bakery ("chúng tôi"). Khi truy cập và sử dụng trang web ladouceur.vn ("Website"), bạn đồng ý tuân thủ các Điều khoản Sử dụng dưới đây.',
+      'Chào mừng bạn đến với Phương Loan Bakery – Artisan Bakery ("chúng tôi"). Khi truy cập và sử dụng trang web phuongloan.vn ("Website"), bạn đồng ý tuân thủ các Điều khoản Sử dụng dưới đây.',
       'Vui lòng đọc kỹ các điều khoản này trước khi sử dụng dịch vụ. Nếu bạn không đồng ý với bất kỳ điều khoản nào, hãy ngừng sử dụng Website.',
     ],
   },
@@ -69,7 +69,7 @@ const sections = [
     title: 'Liên hệ',
     paragraphs: [
       'Mọi thắc mắc về Điều khoản Sử dụng, vui lòng liên hệ:',
-      'Email: hello@ladouceur.vn | Hotline: 1900 779907 | Địa chỉ: 123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh.',
+      'Email: hello@phuongloan.vn | Hotline: 1900 779907 | Địa chỉ: 123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh.',
     ],
   },
 ];

@@ -13,13 +13,14 @@ const PLACEHOLDER_BLUR =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YxZjVmOSIvPjwvc3ZnPg==';
 
 function CategoryCard({ category }: { category: Category }) {
+  const href = categoryHrefFromTrail([category]);
   return (
     <div
       data-home-card
       className='flex-shrink-0 w-56 md:w-64 rounded-2xl overflow-hidden border border-border/40 bg-card shadow-sm hover:shadow-md transition-shadow group'
     >
       {/* Product image */}
-      <Link href={categoryHrefFromTrail([category])} className='block'>
+      <Link href={href} className='block'>
         <div className='relative h-48 md:h-56 bg-secondary overflow-hidden'>
           {category.imageUrl && (
             <Image
@@ -38,7 +39,7 @@ function CategoryCard({ category }: { category: Category }) {
 
       {/* Info block — light green tint matching project palette */}
       <div className='bg-secondary px-4 py-3 flex flex-col gap-2'>
-        <Link href={`/products/${category.id}`} className='block'>
+        <Link href={href} className='block'>
           <p className='font-sans text-sm font-bold text-primary leading-snug line-clamp-2 group-hover:opacity-80 transition-opacity'>
             {category.name}
           </p>
@@ -118,7 +119,7 @@ export default function CategoriesSection() {
           className='flex gap-4 overflow-x-auto scrollbar-hide pb-2'
           style={{ scrollSnapType: 'x mandatory' }}
           role='list'
-          aria-label='Danh sách sản phẩm nổi bật'
+          aria-label='Danh mục sản phẩm'
         >
           {isLoading
             ? Array.from({ length: 6 }).map((_, i) => (

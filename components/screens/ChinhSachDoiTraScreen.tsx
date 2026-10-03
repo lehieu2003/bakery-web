@@ -196,10 +196,10 @@ export default function ChinhSachDoiTraScreen() {
             </a>{' '}
             hoặc email{' '}
             <a
-              href='mailto:hello@ladouceur.vn'
+              href='mailto:hello@phuongloan.vn'
               className='text-primary font-semibold hover:underline'
             >
-              hello@ladouceur.vn
+              hello@phuongloan.vn
             </a>
             .
           </p>

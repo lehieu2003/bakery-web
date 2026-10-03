@@ -42,8 +42,8 @@ export default function HomeMotion({ children }: HomeMotionProps) {
         });
       },
       {
-        rootMargin: '0px 0px -12% 0px',
-        threshold: 0.18,
+        rootMargin: '0px 0px -8% 0px',
+        threshold: 0.05,
       },
     );
 
@@ -121,8 +121,8 @@ export default function HomeMotion({ children }: HomeMotionProps) {
           opacity: 1 !important;
           transform: translateY(0) !important;
           transition:
-            opacity 850ms ease,
-            transform 850ms ease;
+            opacity 600ms ease,
+            transform 600ms ease;
         }
 
         @keyframes homeFloat {

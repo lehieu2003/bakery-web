@@ -43,9 +43,11 @@ export function FloatingOrderSummary() {
     <>
       {/* Floating Order Summary Trigger (Fixed right edge, vertically centered).
           z-30: floats above page content but stays under the navbar drawer (z-40/50)
-          and this component's own overlay (z-50) so it never blocks them. */}
+          and this component's own overlay (z-50) so it never blocks them.
+          Hidden below sm: the header cart icon covers quick access and the tab
+          would overlap hero content on narrow screens. */}
       <div
-        className={`fixed right-0 top-1/2 -translate-y-1/2 z-30 ${
+        className={`fixed right-0 top-1/2 -translate-y-1/2 z-30 hidden sm:block ${
           isBouncing ? 'animate-bounce' : ''
         }`}
       >

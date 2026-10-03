@@ -90,7 +90,7 @@ describe('PersonalizedSuggestionsSection', () => {
     ).not.toBeInTheDocument();
   });
 
-  test('shows fallback message for anonymous visitors', () => {
+  test('hides section for anonymous visitors to avoid duplicating best sellers', () => {
     mockedUsePersonalizedRecommendations.mockReturnValue({
       data: {
         products: [buildProduct()],
@@ -101,11 +101,12 @@ describe('PersonalizedSuggestionsSection', () => {
       isError: false,
     } as unknown as ReturnType<typeof usePersonalizedRecommendations>);
 
-    render(<PersonalizedSuggestionsSection />);
+    const { container } = render(<PersonalizedSuggestionsSection />);
 
+    expect(container.firstChild).toBeNull();
     expect(
-      screen.getByText(/Sign in to unlock personalized suggestions/i),
-    ).toBeInTheDocument();
+      screen.queryByText(/Gợi Ý Dành Cho Bạn/i),
+    ).not.toBeInTheDocument();
   });
 
   test('returns null when there are no products and loading has finished', () => {
@@ -134,7 +135,7 @@ describe('PersonalizedSuggestionsSection', () => {
     render(<PersonalizedSuggestionsSection />);
 
     expect(
-      screen.getByText(/Unable to load personalized suggestions right now/i),
+      screen.getByText(/Chưa tải được gợi ý dành cho bạn/i),
     ).toBeInTheDocument();
   });
 });

@@ -117,16 +117,16 @@ async function main() {
   // Parent categories
   const parentCategoriesData = [
     {
-      name: 'Cakes',
+      name: 'Bánh',
       slug: 'cakes',
-      description: 'All types of cakes',
+      description: 'Tất cả các loại bánh',
       displayOrder: 1,
       level: 1,
     },
     {
-      name: 'Ingredients',
+      name: 'Nguyên liệu',
       slug: 'ingredients',
-      description: 'Baking ingredients and supplies',
+      description: 'Nguyên liệu và dụng cụ làm bánh',
       displayOrder: 2,
       level: 1,
     },
@@ -136,7 +136,7 @@ async function main() {
   for (const cat of parentCategoriesData) {
     const category = await prisma.category.upsert({
       where: { slug: cat.slug },
-      update: {},
+      update: { name: cat.name, description: cat.description },
       create: cat,
     });
     categories[cat.name] = category.id;
@@ -146,59 +146,59 @@ async function main() {
   // Child categories
   const childCategoriesData = [
     {
-      name: 'Birthday Cakes',
+      name: 'Bánh sinh nhật',
       slug: 'birthday-cakes',
-      description: 'Beautiful birthday cakes for all ages',
+      description: 'Bánh sinh nhật cho mọi độ tuổi',
       displayOrder: 1,
       level: 2,
-      parentId: categories['Cakes'],
+      parentId: categories['Bánh'],
     },
     {
-      name: 'Wedding Cakes',
+      name: 'Bánh cưới',
       slug: 'wedding-cakes',
-      description: 'Elegant wedding cakes for your special day',
+      description: 'Bánh cưới trang trọng cho ngày trọng đại',
       displayOrder: 2,
       level: 2,
-      parentId: categories['Cakes'],
+      parentId: categories['Bánh'],
     },
     {
-      name: 'Seasonal',
+      name: 'Theo mùa',
       slug: 'seasonal',
-      description: 'Limited edition seasonal cakes',
+      description: 'Bánh theo mùa số lượng giới hạn',
       displayOrder: 3,
       level: 2,
-      parentId: categories['Cakes'],
+      parentId: categories['Bánh'],
     },
     {
-      name: 'Flour & Baking',
+      name: 'Bột & làm bánh',
       slug: 'flour-baking',
-      description: 'Premium baking flour and essentials',
+      description: 'Bột và nguyên liệu làm bánh cao cấp',
       displayOrder: 1,
       level: 2,
-      parentId: categories['Ingredients'],
+      parentId: categories['Nguyên liệu'],
     },
     {
-      name: 'Chocolate & Cocoa',
+      name: 'Sô-cô-la & Cacao',
       slug: 'chocolate-cocoa',
-      description: 'High-quality chocolate and cocoa products',
+      description: 'Sô-cô-la và cacao chất lượng cao',
       displayOrder: 2,
       level: 2,
-      parentId: categories['Ingredients'],
+      parentId: categories['Nguyên liệu'],
     },
     {
-      name: 'Decorations',
+      name: 'Phụ kiện trang trí',
       slug: 'decorations',
-      description: 'Cake decorations and toppings',
+      description: 'Phụ kiện và topping trang trí bánh',
       displayOrder: 3,
       level: 2,
-      parentId: categories['Ingredients'],
+      parentId: categories['Nguyên liệu'],
     },
   ];
 
   for (const cat of childCategoriesData) {
     const category = await prisma.category.upsert({
       where: { slug: cat.slug },
-      update: {},
+      update: { name: cat.name, description: cat.description },
       create: cat,
     });
     categories[cat.name] = category.id;
@@ -210,12 +210,12 @@ async function main() {
   // ============================================
   const productsData = [
     {
-      name: 'Rose Garden Birthday Cake',
+      name: 'Bánh sinh nhật vườn hồng',
       slug: 'rose-garden-birthday-cake',
       description:
-        'A beautiful rose garden themed birthday cake with delicate buttercream roses.',
+        'Bánh sinh nhật chủ đề vườn hồng với những bông hoa kem bơ tinh tế.',
       price: 850000,
-      categoryName: 'Birthday Cakes',
+      categoryName: 'Bánh sinh nhật',
       images: [
         { url: '/images/cake-1.jpg', isPrimary: true },
         { url: '/images/cake-detail.jpg', isPrimary: false },
@@ -225,44 +225,44 @@ async function main() {
       isFeatured: true,
     },
     {
-      name: 'Chocolate Lava Dream',
+      name: 'Bánh sô-cô-la lava',
       slug: 'chocolate-lava-dream',
-      description: 'Rich dark chocolate cake with molten lava center.',
+      description: 'Bánh sô-cô-la đen đậm đà với nhân lava tan chảy.',
       price: 720000,
-      categoryName: 'Birthday Cakes',
+      categoryName: 'Bánh sinh nhật',
       images: [{ url: '/images/cake-2.jpg', isPrimary: true }],
       stock: 15,
       isActive: true,
       isFeatured: true,
     },
     {
-      name: 'Classic White Wedding',
+      name: 'Bánh cưới kem trắng',
       slug: 'classic-white-wedding',
-      description: 'Elegant 3-tier white wedding cake with fondant finish.',
+      description: 'Bánh cưới 3 tầng trang nhã với lớp kem fondant trắng.',
       price: 2400000,
-      categoryName: 'Wedding Cakes',
+      categoryName: 'Bánh cưới',
       images: [{ url: '/images/cake-3.jpg', isPrimary: true }],
       stock: 5,
       isActive: true,
       isFeatured: true,
     },
     {
-      name: 'Matcha Sakura Delight',
+      name: 'Bánh matcha hoa anh đào',
       slug: 'matcha-sakura-delight',
-      description: 'Japanese-inspired matcha cake with sakura decoration.',
+      description: 'Bánh matcha phong cách Nhật với trang trí hoa anh đào.',
       price: 650000,
-      categoryName: 'Seasonal',
+      categoryName: 'Theo mùa',
       images: [{ url: '/images/cake-4.jpg', isPrimary: true }],
       stock: 0,
       isActive: false,
       isFeatured: false,
     },
     {
-      name: 'Premium Almond Flour',
+      name: 'Bột hạnh nhân cao cấp',
       slug: 'premium-almond-flour',
-      description: 'Fine ground blanched almond flour, perfect for macarons.',
+      description: 'Bột hạnh nhân xay mịn, lý tưởng cho làm macaron.',
       price: 85000,
-      categoryName: 'Flour & Baking',
+      categoryName: 'Bột & làm bánh',
       images: [{ url: '/images/ing-1.jpg', isPrimary: true }],
       variants: [
         { name: '250g', price: 85000, stock: 100 },
@@ -274,11 +274,11 @@ async function main() {
       isFeatured: false,
     },
     {
-      name: 'Belgian Dark Chocolate 70%',
+      name: 'Sô-cô-la đen Bỉ 70%',
       slug: 'belgian-dark-chocolate',
-      description: 'Premium Belgian dark chocolate with 70% cocoa content.',
+      description: 'Sô-cô-la đen Bỉ thượng hạng với 70% hàm lượng cacao.',
       price: 120000,
-      categoryName: 'Chocolate & Cocoa',
+      categoryName: 'Sô-cô-la & Cacao',
       images: [{ url: '/images/ing-2.jpg', isPrimary: true }],
       variants: [
         { name: '200g', price: 120000, stock: 80 },
@@ -289,11 +289,12 @@ async function main() {
       isFeatured: true,
     },
     {
-      name: 'Edible Gold Flakes',
+      name: 'Chiết xuất vani Madagascar',
       slug: 'edible-gold-flakes',
-      description: '24K edible gold flakes for luxury cake decoration.',
+      description:
+        'Chiết xuất vani tự nhiên từ hạt vani Madagascar, thơm nồng cho mọi công thức bánh.',
       price: 250000,
-      categoryName: 'Decorations',
+      categoryName: 'Phụ kiện trang trí',
       images: [{ url: '/images/ing-3.jpg', isPrimary: true }],
       stock: 30,
       isActive: true,
@@ -306,7 +307,7 @@ async function main() {
   for (const prod of productsData) {
     const product = await prisma.product.upsert({
       where: { slug: prod.slug },
-      update: {},
+      update: { name: prod.name, description: prod.description },
       create: {
         name: prod.name,
         slug: prod.slug,
@@ -349,8 +350,8 @@ async function main() {
   // ============================================
   const bannersData = [
     {
-      title: 'Spring Collection 2026',
-      description: 'Discover our new spring-inspired cake collection!',
+      title: 'Bộ sưu tập Xuân 2026',
+      description: 'Khám phá bộ sưu tập bánh lấy cảm hứng mùa xuân!',
       imageUrl: '/images/hero-cake.jpg',
       linkUrl: '/category/seasonal',
       placement: 'HOME_HERO',
@@ -358,8 +359,8 @@ async function main() {
       isActive: true,
     },
     {
-      title: 'Premium Ingredients Sale',
-      description: 'Up to 30% off on premium baking ingredients.',
+      title: 'Ưu đãi nguyên liệu cao cấp',
+      description: 'Giảm đến 30% cho nguyên liệu làm bánh cao cấp.',
       imageUrl: '/images/ing-1.jpg',
       linkUrl: '/category/ingredients',
       placement: 'HOME_PROMO',
@@ -367,8 +368,8 @@ async function main() {
       isActive: true,
     },
     {
-      title: 'Wedding Season Special',
-      description: 'Book your dream wedding cake today!',
+      title: 'Ưu đãi mùa bánh cưới',
+      description: 'Đặt bánh cưới trong mơ của bạn ngay hôm nay!',
       imageUrl: '/images/cake-3.jpg',
       linkUrl: '/category/wedding',
       placement: 'HOME_HERO',
@@ -526,9 +527,9 @@ async function main() {
   // 7. SETTINGS
   // ============================================
   const settingsData = [
-    { key: 'store_name', value: 'Phương Loan Bakery Bakery' },
+    { key: 'store_name', value: 'Phương Loan Bakery' },
     { key: 'store_phone', value: '0901234567' },
-    { key: 'store_email', value: 'contact@ladouceur.vn' },
+    { key: 'store_email', value: 'contact@phuongloan.vn' },
     {
       key: 'store_address',
       value: '123 Nguyen Hue, District 1, Ho Chi Minh City',
