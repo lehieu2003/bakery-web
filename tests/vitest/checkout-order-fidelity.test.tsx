@@ -172,7 +172,7 @@ describe('Checkout payment order payload fidelity', () => {
   test('sends variant, message, pickup date, and address id with the order', async () => {
     render(<CheckoutPaymentScreen />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Place Order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Đặt bánh/i }));
 
     await waitFor(() => {
       expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
@@ -250,14 +250,14 @@ describe('Checkout delivery fee display fidelity', () => {
         }),
       );
     });
-    expect(screen.getByText('Delivery fee')).toBeInTheDocument();
+    expect(screen.getByText('Phí giao hàng')).toBeInTheDocument();
     expect(screen.getByText('30.000đ')).toBeInTheDocument();
     expect(screen.getByText('230.000đ')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Place Order — 230.000đ' }),
+      screen.getByRole('button', { name: 'Đặt bánh — 230.000đ' }),
     ).toBeEnabled();
 
-    fireEvent.click(screen.getByRole('button', { name: /Place Order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Đặt bánh/i }));
 
     await waitFor(() => {
       expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
@@ -289,15 +289,15 @@ describe('Checkout delivery fee display fidelity', () => {
 
     // No preview round-trip is needed to price a pickup order.
     expect(mockedPreviewIncentive).not.toHaveBeenCalled();
-    expect(screen.getByText('Delivery fee')).toBeInTheDocument();
+    expect(screen.getByText('Phí giao hàng')).toBeInTheDocument();
     expect(screen.getByText('0đ')).toBeInTheDocument();
-    const totalBox = screen.getByText('Total').parentElement as HTMLElement;
+    const totalBox = screen.getByText('Tổng cộng').parentElement as HTMLElement;
     expect(within(totalBox).getByText('200.000đ')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Place Order — 200.000đ' }),
+      screen.getByRole('button', { name: 'Đặt bánh — 200.000đ' }),
     ).toBeEnabled();
 
-    fireEvent.click(screen.getByRole('button', { name: /Place Order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Đặt bánh/i }));
 
     await waitFor(() => {
       expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
@@ -356,7 +356,7 @@ describe('Checkout saved address hand-edit fidelity', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /Lan Nguyen/ }));
     const addressTextarea = screen.getByPlaceholderText(
-      /Address is optional for pickup/i,
+      /Không bắt buộc khi nhận tại cửa hàng/i,
     ) as HTMLTextAreaElement;
     expect(addressTextarea.value).toBe(SAVED_ADDRESS_LINE);
 
@@ -364,7 +364,7 @@ describe('Checkout saved address hand-edit fidelity', () => {
       target: { value: EDITED_ADDRESS_LINE },
     });
     fireEvent.click(
-      screen.getByRole('button', { name: /Continue to Payment/i }),
+      screen.getByRole('button', { name: /Tiếp tục thanh toán/i }),
     );
 
     await waitFor(() => {
@@ -384,7 +384,7 @@ describe('Checkout saved address hand-edit fidelity', () => {
       buildCartValue({ checkoutInfo: capturedInfo }) as ReturnType<typeof useCart>,
     );
     render(<CheckoutPaymentScreen />);
-    fireEvent.click(screen.getByRole('button', { name: /Place Order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Đặt bánh/i }));
 
     await waitFor(() => {
       expect(mockedCreateOrder).toHaveBeenCalledTimes(1);

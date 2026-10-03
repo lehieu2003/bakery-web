@@ -120,14 +120,14 @@ describe('Checkout saved address picker', () => {
     const card = screen.getByRole('radio', { name: /Lan Nguyen/ });
     expect(card).toBeInTheDocument();
     expect(screen.getByText('0909123456')).toBeInTheDocument();
-    expect(screen.getByText('Default')).toBeInTheDocument();
+    expect(screen.getByText('Mặc định')).toBeInTheDocument();
 
     fireEvent.click(card);
 
     expect(
-      screen.getByPlaceholderText(/Address is optional for pickup/i),
+      screen.getByPlaceholderText(/Không bắt buộc khi nhận tại cửa hàng/i),
     ).toHaveValue('12 Nguyen Trai, P. Ben Nghe, Quan 1, TP.HCM');
-    expect(screen.getByPlaceholderText('Your full name')).toHaveValue(
+    expect(screen.getByPlaceholderText('Họ và tên của bạn')).toHaveValue(
       'Lan Nguyen',
     );
     expect(screen.getByPlaceholderText(/0909 xxx xxx/)).toHaveValue(
@@ -153,7 +153,7 @@ describe('Checkout saved address picker', () => {
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
     expect(screen.queryByText(/Lan Nguyen/)).not.toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText(/Address is optional for pickup/i),
+      screen.getByPlaceholderText(/Không bắt buộc khi nhận tại cửa hàng/i),
     ).toBeInTheDocument();
   });
 });
@@ -184,7 +184,7 @@ describe('Checkout contact prefill when auth resolves after mount', () => {
       logout: vi.fn(),
     } as never);
     const { rerender } = render(<CheckoutInfoScreen />);
-    expect(screen.getByPlaceholderText('Your full name')).toHaveValue('');
+    expect(screen.getByPlaceholderText('Họ và tên của bạn')).toHaveValue('');
 
     mockedUseAuth.mockReturnValue({
       user: {
@@ -200,7 +200,7 @@ describe('Checkout contact prefill when auth resolves after mount', () => {
     } as never);
     rerender(<CheckoutInfoScreen />);
 
-    expect(screen.getByPlaceholderText('Your full name')).toHaveValue(
+    expect(screen.getByPlaceholderText('Họ và tên của bạn')).toHaveValue(
       'Lan Nguyen',
     );
     expect(screen.getByPlaceholderText(/0909 xxx xxx/)).toHaveValue(
@@ -217,7 +217,7 @@ describe('Checkout contact prefill when auth resolves after mount', () => {
       logout: vi.fn(),
     } as never);
     const { rerender } = render(<CheckoutInfoScreen />);
-    fireEvent.change(screen.getByPlaceholderText('Your full name'), {
+    fireEvent.change(screen.getByPlaceholderText('Họ và tên của bạn'), {
       target: { value: 'Typed First' },
     });
 
@@ -235,7 +235,7 @@ describe('Checkout contact prefill when auth resolves after mount', () => {
     } as never);
     rerender(<CheckoutInfoScreen />);
 
-    expect(screen.getByPlaceholderText('Your full name')).toHaveValue(
+    expect(screen.getByPlaceholderText('Họ và tên của bạn')).toHaveValue(
       'Typed First',
     );
   });

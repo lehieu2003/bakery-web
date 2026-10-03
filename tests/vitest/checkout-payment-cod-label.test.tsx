@@ -76,16 +76,16 @@ describe('COD payment label follows the fulfillment method', () => {
     cartState.checkoutInfo = { method: 'delivery', deliveryMethod: 'delivery' };
   });
 
-  test('delivery order shows Cash on Delivery, not Cash on Pickup', () => {
+  test('delivery order shows the COD-delivery wording, not the pickup wording', () => {
     const { getByText, queryByText } = render(<CheckoutPaymentScreen />);
-    expect(getByText('Cash on Delivery')).toBeInTheDocument();
-    expect(queryByText('Cash on Pickup')).toBeNull();
+    expect(getByText('Tiền mặt khi giao')).toBeInTheDocument();
+    expect(queryByText('Tiền mặt tại cửa hàng')).toBeNull();
   });
 
-  test('pickup order shows Cash on Pickup', () => {
+  test('pickup order shows the COD-pickup wording', () => {
     cartState.checkoutInfo = { method: 'pickup', deliveryMethod: 'pickup' };
     const { getByText, queryByText } = render(<CheckoutPaymentScreen />);
-    expect(getByText('Cash on Pickup')).toBeInTheDocument();
-    expect(queryByText('Cash on Delivery')).toBeNull();
+    expect(getByText('Tiền mặt tại cửa hàng')).toBeInTheDocument();
+    expect(queryByText('Tiền mặt khi giao')).toBeNull();
   });
 });
