@@ -27,19 +27,19 @@ export const DEFAULT_MEMBERSHIP_RULES: MembershipRulesConfig = {
   levels: [
     {
       level: 'SILVER',
-      label: 'Silver',
+      label: 'Bạc',
       minPoints: 0,
       discountPercent: 3,
     },
     {
       level: 'GOLD',
-      label: 'Gold',
+      label: 'Vàng',
       minPoints: 300,
       discountPercent: 7,
     },
     {
       level: 'PLATINUM',
-      label: 'Platinum',
+      label: 'Bạch kim',
       minPoints: 900,
       discountPercent: 12,
     },
@@ -120,7 +120,7 @@ export async function getMembershipRulesConfig(
   const levels = getSafeLevels([
     {
       level: 'SILVER',
-      label: 'Silver',
+      label: 'Bạc',
       minPoints: parseIntOrFallback(
         settingsMap[MEMBERSHIP_SETTING_KEYS.SILVER_MIN_POINTS],
         DEFAULT_MEMBERSHIP_RULES.levels[0].minPoints,
@@ -132,7 +132,7 @@ export async function getMembershipRulesConfig(
     },
     {
       level: 'GOLD',
-      label: 'Gold',
+      label: 'Vàng',
       minPoints: parseIntOrFallback(
         settingsMap[MEMBERSHIP_SETTING_KEYS.GOLD_MIN_POINTS],
         DEFAULT_MEMBERSHIP_RULES.levels[1].minPoints,
@@ -144,7 +144,7 @@ export async function getMembershipRulesConfig(
     },
     {
       level: 'PLATINUM',
-      label: 'Platinum',
+      label: 'Bạch kim',
       minPoints: parseIntOrFallback(
         settingsMap[MEMBERSHIP_SETTING_KEYS.PLATINUM_MIN_POINTS],
         DEFAULT_MEMBERSHIP_RULES.levels[2].minPoints,
@@ -246,7 +246,7 @@ export function buildMembershipBenefitsView(args: {
       nextTier: null,
       eligibility: {
         isHighestTier: true,
-        message: 'You have reached the highest membership tier.',
+        message: 'Bạn đang ở hạng thành viên cao nhất.',
       },
     };
   }
@@ -264,7 +264,7 @@ export function buildMembershipBenefitsView(args: {
     },
     eligibility: {
       isHighestTier: false,
-      message: `${pointsNeeded} more points to unlock ${nextTier.label} benefits.`,
+      message: `Cần thêm ${pointsNeeded} điểm để lên hạng ${nextTier.label}.`,
     },
   };
 }

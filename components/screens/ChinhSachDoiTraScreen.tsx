@@ -37,7 +37,7 @@ const steps = [
     step: '04',
     title: 'Nhận sản phẩm mới',
     description:
-      'Sản phẩm thay thế sẽ được giao trong vòng 2 – 4 tiếng (nội thành TP.HCM) hoặc theo lịch giao gần nhất.',
+      'Sản phẩm thay thế sẽ được giao trong vòng 2 – 4 tiếng (tại Quảng Ngãi) hoặc theo lịch giao gần nhất.',
   },
 ];
 

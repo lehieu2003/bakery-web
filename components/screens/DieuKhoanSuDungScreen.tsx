@@ -69,7 +69,7 @@ const sections = [
     title: 'Liên hệ',
     paragraphs: [
       'Mọi thắc mắc về Điều khoản Sử dụng, vui lòng liên hệ:',
-      'Email: hello@phuongloan.vn | Hotline: 1900 779907 | Địa chỉ: 123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh.',
+      'Email: hello@phuongloan.vn | Hotline: 1900 779907 | Địa chỉ: TT. Chợ Chùa, Nghĩa Hành, Quảng Ngãi.',
     ],
   },
 ];

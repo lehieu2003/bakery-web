@@ -19,9 +19,9 @@ const faqs: FaqItem[] = [
       'Với bánh có sẵn hoặc mẫu cơ bản, bạn nên đặt trước ít nhất 1 ngày để tiệm chuẩn bị tốt nhất. Với bánh sinh nhật, bánh tiệc hoặc yêu cầu trang trí riêng, Phương Loan Bakery khuyến khích đặt trước 2-3 ngày.',
   },
   {
-    question: 'Phương Loan Bakery có giao bánh trong TP.HCM không?',
+    question: 'Phương Loan Bakery có hỗ trợ giao bánh không?',
     answer:
-      'Có. Tiệm hỗ trợ giao hàng trong TP.HCM tùy theo khu vực và khung giờ hoạt động của chi nhánh. Phí giao hàng sẽ được hiển thị hoặc xác nhận trước khi hoàn tất đơn.',
+      'Có. Tiệm hỗ trợ giao hàng tại Quảng Ngãi và khu vực lân cận. Phí giao hàng sẽ được hiển thị hoặc xác nhận trước khi hoàn tất đơn.',
   },
   {
     question: 'Tôi có thể yêu cầu viết chữ hoặc đổi trang trí trên bánh không?',
@@ -34,14 +34,14 @@ const faqs: FaqItem[] = [
       'Bánh lạnh nên được giữ trong ngăn mát và dùng trong ngày để có hương vị tốt nhất. Với cookies hoặc bánh khô, bạn nên bảo quản nơi thoáng mát, tránh nắng trực tiếp và đóng kín sau khi mở.',
   },
   {
-    question: 'Các chi nhánh có chỗ ngồi lại không?',
+    question: 'Cửa hàng có chỗ ngồi lại không?',
     answer:
-      'Có. Phương Loan Bakery kết hợp tiệm bánh và không gian F&B, phù hợp để dùng bánh tại chỗ, gặp bạn bè hoặc nghỉ nhẹ cuối tuần. Sức chứa và bố trí chỗ ngồi có thể khác nhau tùy chi nhánh.',
+      'Có. Phương Loan Bakery kết hợp tiệm bánh và không gian F&B, phù hợp để dùng bánh tại chỗ, gặp bạn bè hoặc nghỉ nhẹ cuối tuần.',
   },
   {
     question: 'Tiệm hỗ trợ những phương thức thanh toán nào?',
     answer:
-      'Bạn có thể thanh toán bằng tiền mặt khi nhận hàng hoặc các phương thức thanh toán điện tử được hỗ trợ tại thời điểm đặt hàng, tùy kênh mua và chính sách của từng chi nhánh.',
+      'Bạn có thể thanh toán bằng tiền mặt khi nhận hàng hoặc các phương thức thanh toán điện tử được hỗ trợ tại thời điểm đặt hàng, tùy kênh mua.',
   },
   {
     question: 'Tôi có thể đổi giờ nhận hoặc chỉnh sửa đơn sau khi đặt không?',

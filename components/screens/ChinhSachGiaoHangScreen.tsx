@@ -9,13 +9,13 @@ import {
 
 const shippingZones = [
   {
-    zone: 'Nội thành TP.HCM',
+    zone: 'Trong bán kính 10km từ cửa hàng',
     time: '2 – 4 tiếng',
     fee: '20.000đ – 35.000đ',
-    note: 'Miễn phí cho đơn từ 300.000đ',
+    note: 'Miễn phí cho đơn từ 500.000đ',
   },
   {
-    zone: 'Ngoại thành TP.HCM',
+    zone: 'Các khu vực còn lại của Quảng Ngãi',
     time: '4 – 8 tiếng',
     fee: '40.000đ – 60.000đ',
     note: 'Miễn phí cho đơn từ 500.000đ',
@@ -33,7 +33,7 @@ const sections = [
     icon: Clock,
     title: 'Thời gian giao hàng',
     content: [
-      'Đơn hàng được đặt trước 14:00 sẽ được giao trong ngày (áp dụng khu vực nội thành TP.HCM).',
+      'Đơn hàng được đặt trước 14:00 sẽ được giao trong ngày (áp dụng khu vực tại Quảng Ngãi).',
       'Đơn hàng đặt sau 14:00 sẽ được giao vào ngày hôm sau.',
       'Với các dịp lễ, Tết hoặc cuối tuần, thời gian giao hàng có thể chậm hơn 1 – 2 tiếng do lượng đơn tăng cao.',
       'Quý khách có thể chọn khung giờ giao hàng mong muốn khi đặt hàng: 8:00–12:00, 12:00–16:00 hoặc 16:00–20:00.',
@@ -52,8 +52,8 @@ const sections = [
     icon: MapPin,
     title: 'Khu vực giao hàng',
     content: [
-      'Phương Loan Bakery hiện giao hàng tại tất cả các quận huyện thuộc TP. Hồ Chí Minh.',
-      'Giao hàng liên tỉnh áp dụng cho các tỉnh thành lân cận: Bình Dương, Đồng Nai, Long An, Bà Rịa – Vũng Tàu.',
+      'Phương Loan Bakery hiện giao hàng tại các khu vực thuộc tỉnh Quảng Ngãi.',
+      'Giao hàng liên tỉnh áp dụng cho các tỉnh thành lân cận: Bình Định, Kon Tum, Đà Nẵng. Vui lòng liên hệ trước để được hỗ trợ.',
       'Với các đơn hàng ngoài khu vực trên, vui lòng liên hệ hotline để được hỗ trợ.',
     ],
   },

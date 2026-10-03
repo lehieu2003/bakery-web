@@ -1,7 +1,16 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Clock, MapPin, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Clock,
+  MapPin,
+  Package,
+  RotateCcw,
+  Sparkles,
+} from 'lucide-react';
 import BestSellersSection from '@/components/screens/BestSellersSection';
+import RecentlyViewedSection from '@/components/screens/RecentlyViewedSection';
 import FaqSection from '@/components/screens/FaqSection';
 import HomeBannerSection from '@/components/screens/HomeBannerSection';
 import HomeMotion from '@/components/screens/HomeMotion';
@@ -45,8 +54,8 @@ const homeHighlights = [
   },
   {
     icon: MapPin,
-    label: 'Dễ ghé tại TP.HCM',
-    value: '8 chi nhánh',
+    label: 'Ghé cửa hàng tại Quảng Ngãi',
+    value: 'Mở cửa mỗi ngày',
   },
   {
     icon: Clock,
@@ -80,8 +89,8 @@ const storyChapters = [
     description:
       'Phương Loan Bakery không chỉ để mua nhanh. Không gian ngồi lại giúp khách biến một món ngọt thành một buổi gặp đáng nhớ.',
     image: '/images/hero-cake.jpg',
-    stat: '8',
-    statLabel: 'chi nhánh tại TP.HCM',
+    stat: '1.000+',
+    statLabel: 'khách ghé thăm mỗi ngày',
   },
 ];
 
@@ -258,6 +267,9 @@ export default function HomeScreen() {
         {/* ── Best Sellers ── */}
         <BestSellersSection />
 
+        {/* ── Recently Viewed ── */}
+        <RecentlyViewedSection />
+
         {/* ── Personalized Suggestions ── */}
         <div data-home-reveal>
           <PersonalizedSuggestionsSection />
@@ -272,20 +284,19 @@ export default function HomeScreen() {
             {/* Text side */}
             <div className='order-2 lg:order-1'>
               <p className='text-xs tracking-[0.25em] uppercase text-muted-foreground font-sans font-light mb-3'>
-                Chuỗi tiệm bánh kết hợp không gian F&B tại TP.HCM
+                Tiệm bánh kết hợp không gian F&B tại Quảng Ngãi
               </p>
               <h2 className='font-serif text-2xl lg:text-3xl font-semibold text-primary leading-snug mb-6 text-balance'>
-                Nơi dừng chân ngọt ngào giữa lòng Sài Gòn
+                Nơi dừng chân ngọt ngào giữa lòng Quảng Ngãi
               </h2>
               <div className='space-y-4 text-sm text-foreground leading-relaxed'>
                 <p>
                   Phương Loan Bakery là{' '}
-                  <strong>tiệm bánh ngon ở Sài Gòn</strong> được nhiều khách
-                  hàng lựa chọn nhờ sự kết hợp hài hòa giữa bánh chất lượng,
-                  nước uống đa dạng và{' '}
-                  <strong>không gian ngồi lại thoải mái</strong>. Với hệ thống{' '}
-                  <strong>8 chi nhánh tại TP.HCM</strong>, Phương Loan Bakery
-                  không chỉ là nơi mua bánh mang đi mà còn là điểm hẹn quen
+                  <strong>tiệm bánh thủ công tại Quảng Ngãi</strong> được nhiều
+                  khách hàng lựa chọn nhờ sự kết hợp hài hòa giữa bánh chất
+                  lượng, nước uống đa dạng và{' '}
+                  <strong>không gian ngồi lại thoải mái</strong>. Không chỉ là
+                  nơi mua bánh mang đi, Phương Loan Bakery còn là điểm hẹn quen
                   thuộc cho gia đình, nhóm bạn hay những buổi gặp gỡ cuối tuần.
                 </p>
                 <p>
@@ -299,7 +310,7 @@ export default function HomeScreen() {
                 <p>
                   Nhờ không gian hiện đại, dễ chịu cùng menu phong phú, Phương
                   Loan Bakery dần trở thành{' '}
-                  <strong>tiệm bánh ngon tại TP.HCM</strong> phù hợp cho nhiều
+                  <strong>địa chỉ bánh ngọt đáng ghé tại Quảng Ngãi</strong> phù hợp cho nhiều
                   nhu cầu: ăn nhẹ, trò chuyện, hẹn hò hay đưa trẻ nhỏ đi chơi
                   cuối tuần.
                 </p>
@@ -451,6 +462,50 @@ export default function HomeScreen() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* ── Trust badges ── */}
+        <section data-home-reveal className='bg-background px-4 py-12 lg:px-8'>
+          <div className='max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-6'>
+            {[
+              {
+                icon: Sparkles,
+                title: 'Làm tươi mỗi ngày',
+                desc: 'Bánh thủ công theo đơn, không chất bảo quản.',
+              },
+              {
+                icon: Package,
+                title: 'Đóng gói giữ lạnh',
+                desc: 'Hộp chuyên dụng, giữ lạnh trọn vẹn khi vận chuyển.',
+              },
+              {
+                icon: BadgeCheck,
+                title: 'Kiểm tra trước khi nhận',
+                desc: 'Vui lòng kiểm tra bánh cùng shipper ngay tại chỗ.',
+              },
+              {
+                icon: RotateCcw,
+                title: 'Hỗ trợ đổi trả',
+                desc: 'Sự cố chất lượng được đổi trả trong 2 tiếng đầu.',
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                data-home-card
+                className='flex flex-col items-start gap-3 rounded-2xl border border-border/50 bg-card p-5'
+              >
+                <span className='flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary'>
+                  <Icon size={18} />
+                </span>
+                <div>
+                  <p className='text-sm font-semibold text-foreground'>{title}</p>
+                  <p className='mt-1 text-xs leading-relaxed text-muted-foreground'>
+                    {desc}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 

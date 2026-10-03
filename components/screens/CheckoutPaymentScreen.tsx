@@ -16,28 +16,28 @@ import { canSubmitOrderRequest } from '@/lib/checkout-utils';
 const PAYMENT_METHODS = [
   {
     id: 'COD' as const,
-    label: 'Cash on Pickup',
+    label: 'Tiền mặt khi nhận',
     icon: Banknote,
-    desc: 'Pay at the counter when you collect your order',
+    desc: 'Thanh toán bằng tiền mặt khi nhận bánh',
   },
   {
     id: 'MOMO' as const,
     label: 'MoMo',
     icon: Wallet,
-    desc: 'Pay with MoMo e-wallet',
+    desc: 'Thanh toán qua ví điện tử MoMo',
     logo: '/images/momo-logo.png',
   },
   {
     id: 'VNPAY' as const,
     label: 'VNPAY',
     icon: CreditCard,
-    desc: 'Pay with VNPAY (QR Code, ATM Cards, Visa, MasterCard)',
+    desc: 'Thanh toán qua VNPAY (QR code, thẻ ATM, Visa, MasterCard)',
   },
   {
     id: 'BANK_TRANSFER' as const,
-    label: 'Bank Transfer',
+    label: 'Chuyển khoản ngân hàng',
     icon: Wallet,
-    desc: 'Transfer to bakery account and confirm payment after checkout',
+    desc: 'Chuyển khoản và xác nhận thanh toán sau khi đặt bánh',
   },
 ];
 
@@ -52,13 +52,13 @@ export default function CheckoutPaymentScreen() {
   const memberLabel =
     membershipBenefitsQuery.data?.benefits.currentTier.label ??
     user?.level ??
-    'Member';
+    'thành viên';
   const membershipPoints =
     membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
   const eligibilityMessage = membershipBenefitsQuery.isLoading
-    ? 'Checking membership benefit eligibility...'
+    ? 'Đang kiểm tra ưu đãi thành viên...'
     : membershipBenefitsQuery.data?.benefits.eligibility.message ??
-      'Membership eligibility details are unavailable right now.';
+      'Tạm thời không hiển thị được ưu đãi thành viên.';
   const [payMethod, setPayMethod] = useState<
     'COD' | 'MOMO' | 'VNPAY' | 'BANK_TRANSFER'
   >('COD');
@@ -187,7 +187,7 @@ export default function CheckoutPaymentScreen() {
     const normalizedCode = (rawCode ?? incentiveCodeInput).trim().toUpperCase();
 
     if (!normalizedCode) {
-      setIncentiveError('Please enter an incentive code.');
+      setIncentiveError('Vui lòng nhập mã giảm giá.');
       setPreviewPricing(null);
       return;
     }
@@ -196,7 +196,7 @@ export default function CheckoutPaymentScreen() {
       new Set([...selectedIncentiveCodes, normalizedCode]),
     );
     if (nextCodes.length > 5) {
-      setIncentiveError('You can apply up to 5 incentive codes.');
+      setIncentiveError('Bạn chỉ có thể dùng tối đa 5 mã giảm giá.');
       return;
     }
 
@@ -209,13 +209,13 @@ export default function CheckoutPaymentScreen() {
       const preview = await previewWithCodes(nextCodes);
       setIncentiveCodeInput('');
       setIncentiveAssistMessage(
-        `Applied ${nextCodes.length} code(s). Coupon discount: -${preview.couponDiscount.toLocaleString('vi-VN')}đ.`,
+        `Đã áp dụng ${nextCodes.length} mã. Giảm giá: -${preview.couponDiscount.toLocaleString('vi-VN')}đ.`,
       );
     } catch (caught) {
       if (caught instanceof ApiError && caught.data?.error) {
         setIncentiveError(caught.data.error);
       } else {
-        setIncentiveError('Unable to apply incentive code right now.');
+        setIncentiveError('Tạm thời không áp dụng được mã. Vui lòng thử lại.');
       }
     } finally {
       setIsApplyingIncentive(false);
@@ -238,13 +238,13 @@ export default function CheckoutPaymentScreen() {
 
       const preview = await previewWithCodes(nextCodes);
       setIncentiveAssistMessage(
-        `Updated codes. Coupon discount: -${preview.couponDiscount.toLocaleString('vi-VN')}đ.`,
+        `Đã cập nhật mã. Giảm giá: -${preview.couponDiscount.toLocaleString('vi-VN')}đ.`,
       );
     } catch (caught) {
       if (caught instanceof ApiError && caught.data?.error) {
         setIncentiveError(caught.data.error);
       } else {
-        setIncentiveError('Unable to update incentive codes right now.');
+        setIncentiveError('Tạm thời không cập nhật được mã. Vui lòng thử lại.');
       }
     } finally {
       setIsApplyingIncentive(false);
@@ -316,7 +316,7 @@ export default function CheckoutPaymentScreen() {
       if (caught instanceof ApiError && caught.data?.error) {
         setError(caught.data.error);
       } else {
-        setError('Failed to place order. Please try again.');
+        setError('Đặt bánh chưa thành công. Vui lòng thử lại.');
       }
     } finally {
       isSubmittingRef.current = false;
@@ -333,10 +333,10 @@ export default function CheckoutPaymentScreen() {
             className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4'
           >
             <ChevronLeft size={16} />
-            Back to Information
+            Về bước thông tin
           </Link>
           <h1 className='font-serif text-3xl font-semibold text-foreground'>
-            Payment
+            Thanh toán
           </h1>
         </div>
       </div>
@@ -348,12 +348,11 @@ export default function CheckoutPaymentScreen() {
             <div className='flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-primary/10 border border-primary/20'>
               <span className='text-primary text-lg font-serif'>✦</span>
               <p className='text-sm font-medium text-primary'>
-                {memberLabel}{' '}
-                Member Discount Applied — saving{' '}
-                {membershipDiscountApplied.toLocaleString('vi-VN')}đ on this order
+                Ưu đãi hạng {memberLabel} — tiết kiệm{' '}
+                {membershipDiscountApplied.toLocaleString('vi-VN')}đ cho đơn này
               </p>
               <p className='text-xs text-primary' aria-live='polite'>
-                Current points: {membershipPoints.toLocaleString('vi-VN')}.{' '}
+                Điểm tích luỹ: {membershipPoints.toLocaleString('vi-VN')}.{' '}
                 {eligibilityMessage}
               </p>
             </div>
@@ -363,7 +362,7 @@ export default function CheckoutPaymentScreen() {
             <div className='flex items-center gap-2'>
               <TicketPercent size={16} className='text-primary' />
               <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
-                Incentive Code
+                Mã giảm giá
               </p>
             </div>
             <input
@@ -372,7 +371,7 @@ export default function CheckoutPaymentScreen() {
               onChange={(e) => {
                 setIncentiveCodeInput(e.target.value.toUpperCase());
               }}
-              placeholder='Enter incentive code (optional)'
+              placeholder='Nhập mã giảm giá (không bắt buộc)'
               className='w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
             />
             <button
@@ -386,16 +385,16 @@ export default function CheckoutPaymentScreen() {
               {isApplyingIncentive ? (
                 <>
                   <Loader2 size={15} className='animate-spin' />
-                  Applying...
+                  Đang áp dụng...
                 </>
               ) : (
-                'Apply code'
+                'Áp dụng'
               )}
             </button>
             {selectedIncentiveCodes.length > 0 && (
               <div className='space-y-2'>
                 <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
-                  Applied codes
+                  Mã đã áp dụng
                 </p>
                 <div className='flex flex-wrap gap-2'>
                   {selectedIncentiveCodes.map((code) => (
@@ -415,19 +414,19 @@ export default function CheckoutPaymentScreen() {
             )}
             {availableIncentivesQuery.isLoading && (
               <p className='text-xs text-muted-foreground' aria-live='polite'>
-                Loading available offers...
+                Đang tải ưu đãi...
               </p>
             )}
             {!availableIncentivesQuery.isLoading && availableIncentivesQuery.isError && (
               <p className='text-xs text-muted-foreground' aria-live='polite'>
-                Unable to load offers right now. You can still enter a code manually.
+                Tạm thời không tải được ưu đãi. Bạn vẫn có thể nhập mã thủ công.
               </p>
             )}
             {!availableIncentivesQuery.isLoading &&
               !availableIncentivesQuery.isError &&
               availableIncentives.length === 0 && (
                 <p className='text-xs text-muted-foreground' aria-live='polite'>
-                  No available offers for this cart right now.
+                  Chưa có ưu đãi phù hợp với giỏ hàng này.
                 </p>
               )}
             {!availableIncentivesQuery.isLoading &&
@@ -435,17 +434,17 @@ export default function CheckoutPaymentScreen() {
               availableIncentives.length > 0 && (
                 <div className='space-y-2'>
                   <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
-                    Available offers
+                    Ưu đãi có sẵn
                   </p>
                   <ul className='space-y-2'>
                     {availableIncentives.map((offer: AvailableIncentive) => {
                       const valueLabel =
                         offer.type === 'PERCENTAGE'
-                          ? `${offer.value}% off`
+                          ? `giảm ${offer.value}%`
                           : `-${offer.value.toLocaleString('vi-VN')}đ`;
                       const minOrderLabel = offer.minOrder
-                        ? `Min ${offer.minOrder.toLocaleString('vi-VN')}đ`
-                        : 'No minimum order';
+                        ? `Đơn tối thiểu ${offer.minOrder.toLocaleString('vi-VN')}đ`
+                        : 'Không giới hạn';
                       const maxDiscountLabel = offer.maxDiscount
                         ? `, max ${offer.maxDiscount.toLocaleString('vi-VN')}đ`
                         : '';
@@ -460,7 +459,7 @@ export default function CheckoutPaymentScreen() {
                             <p className='text-sm font-semibold text-foreground'>{offer.code}</p>
                             <p className='text-xs text-muted-foreground'>
                               {valueLabel} · {minOrderLabel}
-                              {maxDiscountLabel} · Ends {expiresLabel}
+                              {maxDiscountLabel} · HSD {expiresLabel}
                             </p>
                           </div>
                           <button
@@ -472,8 +471,8 @@ export default function CheckoutPaymentScreen() {
                             className='text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                           >
                             {selectedIncentiveCodes.includes(offer.code)
-                              ? 'Added'
-                              : 'Apply'}
+                              ? 'Đã áp dụng'
+                              : 'Áp dụng'}
                           </button>
                         </li>
                       );
@@ -492,13 +491,13 @@ export default function CheckoutPaymentScreen() {
               </p>
             )}
             <p className='text-xs text-muted-foreground' aria-live='polite'>
-              You can apply multiple incentive codes. Final eligibility and totals are validated by server.
+              Bạn có thể dùng nhiều mã cùng lúc. Điều kiện và tổng tiền cuối cùng được hệ thống xác nhận.
             </p>
           </div>
 
           <div>
             <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4'>
-              Select Payment Method
+              Chọn phương thức thanh toán
             </p>
             <div className='space-y-3'>
               {PAYMENT_METHODS.map(({ id, label, icon: Icon, desc, logo }) => {
@@ -506,13 +505,13 @@ export default function CheckoutPaymentScreen() {
                 const isCod = id === 'COD';
                 const displayLabel = isCod
                   ? isDelivery
-                    ? 'Cash on Delivery'
-                    : 'Cash on Pickup'
+                    ? 'Tiền mặt khi giao'
+                    : 'Tiền mặt tại cửa hàng'
                   : label;
                 const displayDesc = isCod
                   ? isDelivery
-                    ? 'Pay in cash when your order arrives'
-                    : 'Pay at the counter when you collect your order'
+                    ? 'Thanh toán bằng tiền mặt khi nhận bánh'
+                    : 'Thanh toán bằng tiền mặt tại cửa hàng'
                   : desc;
                 return (
                 <button
@@ -585,10 +584,10 @@ export default function CheckoutPaymentScreen() {
             {isSubmitting ? (
               <>
                 <Loader2 size={17} className='animate-spin' />
-                Processing...
+                Đang xử lý...
               </>
             ) : (
-              `Place Order — ${total.toLocaleString('vi-VN')}đ`
+              `Đặt bánh — ${total.toLocaleString('vi-VN')}đ`
             )}
           </button>
         </div>
@@ -602,11 +601,11 @@ export default function CheckoutPaymentScreen() {
               <div className='flex-1 h-1.5 rounded-full bg-primary' />
             </div>
             <p className='text-xs text-muted-foreground mb-6'>
-              Step 2 of 2 – Payment
+              Bước 2/2 – Thanh toán
             </p>
 
             <h3 className='font-serif text-base font-semibold text-foreground mb-5'>
-              Order Summary
+              Tóm tắt đơn hàng
             </h3>
             <div className='space-y-3 mb-4'>
               {cart.map((item) => (
@@ -623,7 +622,7 @@ export default function CheckoutPaymentScreen() {
             <div className='h-px bg-border mb-4' />
             <div className='space-y-2.5 mb-4'>
               <div className='flex justify-between text-sm'>
-                <span className='text-muted-foreground'>Subtotal</span>
+                <span className='text-muted-foreground'>Tạm tính</span>
                 <span className='text-foreground font-medium'>
                   {subtotal.toLocaleString('vi-VN')}đ
                 </span>
@@ -631,7 +630,7 @@ export default function CheckoutPaymentScreen() {
               {membershipDiscountApplied > 0 && (
                 <div className='flex justify-between text-sm'>
                   <span className='text-primary'>
-                    {memberLabel} discount ({discountPercent}%)
+                    Ưu đãi hạng {memberLabel} ({discountPercent}%)
                   </span>
                   <span className='text-primary font-semibold'>
                     -{membershipDiscountApplied.toLocaleString('vi-VN')}đ
@@ -640,7 +639,7 @@ export default function CheckoutPaymentScreen() {
               )}
               {couponDiscount > 0 && (
                 <div className='flex justify-between text-sm'>
-                  <span className='text-primary'>Coupon discount</span>
+                  <span className='text-primary'>Mã giảm giá</span>
                   <span className='text-primary font-semibold'>
                     -{couponDiscount.toLocaleString('vi-VN')}đ
                   </span>
@@ -648,14 +647,14 @@ export default function CheckoutPaymentScreen() {
               )}
               {appliedIncentiveCodes.length > 0 && (
                 <div className='flex justify-between text-sm'>
-                  <span className='text-muted-foreground'>Incentive codes</span>
+                  <span className='text-muted-foreground'>Mã đã dùng</span>
                   <span className='text-foreground font-medium text-right'>
                     {appliedIncentiveCodes.join(', ')}
                   </span>
                 </div>
               )}
               <div className='flex justify-between text-sm'>
-                <span className='text-muted-foreground'>Delivery fee</span>
+                <span className='text-muted-foreground'>Phí giao hàng</span>
                 <span className='text-foreground font-medium'>
                   {deliveryFee > 0
                     ? `${deliveryFee.toLocaleString('vi-VN')}đ`
@@ -668,7 +667,7 @@ export default function CheckoutPaymentScreen() {
             <div className='h-px bg-border mb-4' />
             <div className='flex justify-between items-center bg-secondary/70 rounded-xl px-4 py-3'>
               <span className='font-serif text-sm font-bold text-foreground'>
-                Total
+                Tổng cộng
               </span>
               <span className='font-serif text-lg font-bold text-accent'>
                 {total.toLocaleString('vi-VN')}đ

@@ -73,6 +73,11 @@ function BestSellerCard({
             blurDataURL={PLACEHOLDER_BLUR}
             className='object-cover transition-transform group-hover:scale-105'
           />
+          {product.isFeatured && (
+            <span className='absolute left-2.5 top-2.5 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm'>
+              Best seller
+            </span>
+          )}
         </div>
       </Link>
 

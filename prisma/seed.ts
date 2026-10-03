@@ -532,7 +532,7 @@ async function main() {
     { key: 'store_email', value: 'contact@phuongloan.vn' },
     {
       key: 'store_address',
-      value: '123 Nguyen Hue, District 1, Ho Chi Minh City',
+      value: 'TT. Chợ Chùa, Nghĩa Hành, Quảng Ngãi',
     },
     { key: 'delivery_fee', value: '30000' },
     { key: 'min_order_amount', value: '0' },

@@ -22,11 +22,11 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Phương Loan Bakery – Tiệm bánh thủ công tại Sài Gòn',
+    default: 'Phương Loan Bakery – Tiệm bánh thủ công tại Quảng Ngãi',
     template: '%s | Phương Loan Bakery',
   },
   description:
-    'Phương Loan Bakery là tiệm bánh thủ công tại Sài Gòn, chuyên bánh kem, bánh ngọt và quà tặng cho sinh nhật, tiệc cưới và những dịp đặc biệt.',
+    'Phương Loan Bakery là tiệm bánh thủ công tại Quảng Ngãi, chuyên bánh kem, bánh ngọt và quà tặng cho sinh nhật, tiệc cưới và những dịp đặc biệt.',
   applicationName: 'Phương Loan Bakery',
   generator: 'Next.js',
   metadataBase: new URL(
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'vi_VN',
     siteName: 'Phương Loan Bakery',
-    title: 'Phương Loan Bakery – Tiệm bánh thủ công tại Sài Gòn',
+    title: 'Phương Loan Bakery – Tiệm bánh thủ công tại Quảng Ngãi',
     description:
       'Bánh kem và bánh ngọt thủ công từ nguyên liệu cao cấp, làm mới mỗi ngày tại Phương Loan Bakery.',
     url: '/',
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Phương Loan Bakery – Tiệm bánh thủ công tại Sài Gòn',
+    title: 'Phương Loan Bakery – Tiệm bánh thủ công tại Quảng Ngãi',
     description:
       'Bánh kem và bánh ngọt thủ công từ nguyên liệu cao cấp, làm mới mỗi ngày tại Phương Loan Bakery.',
     images: ['/opengraph-image'],

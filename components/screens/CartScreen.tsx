@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { ChevronLeft, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/lib/cart-store';
 import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
+import { STORE_CONFIG } from '@/lib/store-config';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -20,13 +21,13 @@ export default function CartScreen() {
   const memberLabel =
     membershipBenefitsQuery.data?.benefits.currentTier.label ??
     user?.level ??
-    'Member';
+    'thành viên';
   const membershipPoints =
     membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
   const eligibilityMessage = membershipBenefitsQuery.isLoading
-    ? 'Checking membership benefit eligibility...'
+    ? 'Đang kiểm tra ưu đãi thành viên...'
     : (membershipBenefitsQuery.data?.benefits.eligibility.message ??
-      'Membership eligibility details are unavailable right now.');
+      'Tạm thời không hiển thị được ưu đãi thành viên.');
   const discountRate = user ? discountPercent / 100 : 0;
   const discount = Math.round(subtotal * discountRate);
   const total = subtotal - discount;
@@ -41,10 +42,10 @@ export default function CartScreen() {
             className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4'
           >
             <ChevronLeft size={16} />
-            Continue Shopping
+            Tiếp tục mua sắm
           </Link>
           <h1 className='font-serif text-3xl font-semibold text-foreground'>
-            My Cart
+            Giỏ hàng của bạn
           </h1>
         </div>
       </div>
@@ -57,17 +58,17 @@ export default function CartScreen() {
             </div>
             <div>
               <p className='font-serif text-xl font-semibold text-foreground mb-1'>
-                Your cart is empty
+                Giỏ hàng đang trống
               </p>
               <p className='text-sm text-muted-foreground'>
-                Add some cakes or ingredients to get started.
+                Thêm vài chiếc bánh hay nguyên liệu làm bánh để bắt đầu nhé.
               </p>
             </div>
             <Link
               href='/'
               className='px-8 py-3 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors'
             >
-              Browse Menu
+              Xem thực đơn
             </Link>
           </div>
         ) : (
@@ -106,7 +107,7 @@ export default function CartScreen() {
                           )}
                           {item.pickupDate && (
                             <p className='text-sm text-muted-foreground'>
-                              Pickup: {item.pickupDate}
+                              Ngày nhận: {item.pickupDate}
                             </p>
                           )}
                           {item.message && (
@@ -159,13 +160,13 @@ export default function CartScreen() {
               <div className='sticky top-24'>
                 <div className='bg-card rounded-2xl border border-border/50 p-6'>
                   <h2 className='font-serif text-xl font-semibold text-foreground mb-6'>
-                    Order Summary
+                    Tóm tắt đơn hàng
                   </h2>
                   <div className='space-y-3 mb-4'>
                     <div className='flex justify-between'>
                       <span className='text-sm text-muted-foreground'>
-                        Subtotal ({cart.reduce((s, i) => s + i.quantity, 0)}{' '}
-                        items)
+                        Tạm tính ({cart.reduce((s, i) => s + i.quantity, 0)}{' '}
+                        món)
                       </span>
                       <span className='text-sm text-foreground font-medium'>
                         {subtotal.toLocaleString('vi-VN')}đ
@@ -174,7 +175,7 @@ export default function CartScreen() {
                     {user && discount > 0 && (
                       <div className='flex justify-between'>
                         <span className='text-sm text-primary capitalize'>
-                          {memberLabel} Member ({discountPercent}% off)
+                          Ưu đãi hạng {memberLabel} (giảm {discountPercent}%)
                         </span>
                         <span className='text-sm text-primary font-semibold'>
                           -{discount.toLocaleString('vi-VN')}đ
@@ -187,7 +188,7 @@ export default function CartScreen() {
                         aria-live='polite'
                       >
                         <p className='text-xs text-muted-foreground'>
-                          Current points:{' '}
+                          Điểm tích luỹ:{' '}
                           {membershipPoints.toLocaleString('vi-VN')}
                         </p>
                         <p className='text-xs text-muted-foreground'>
@@ -196,14 +197,59 @@ export default function CartScreen() {
                       </div>
                     )}
                   </div>
+                  {cart.length > 0 && (
+                    <div className='mb-4' aria-live='polite'>
+                      {subtotal >= STORE_CONFIG.freeDeliveryThreshold ? (
+                        <p className='text-xs font-medium text-primary mb-1.5'>
+                          Đơn của bạn được miễn phí giao hàng 🎉
+                        </p>
+                      ) : (
+                        <p className='text-xs text-muted-foreground mb-1.5'>
+                          Mua thêm{' '}
+                          <span className='font-semibold text-primary'>
+                            {(STORE_CONFIG.freeDeliveryThreshold - subtotal).toLocaleString('vi-VN')}đ
+                          </span>{' '}
+                          để được miễn phí giao hàng
+                        </p>
+                      )}
+                      <div className='h-1.5 rounded-full bg-secondary overflow-hidden'>
+                        <div
+                          className='h-full rounded-full bg-primary transition-all duration-500'
+                          style={{
+                            width: `${Math.min((subtotal / STORE_CONFIG.freeDeliveryThreshold) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <p className='text-xs text-muted-foreground mt-2'>
+                        Phí giao hàng ước tính:{' '}
+                        {subtotal >= STORE_CONFIG.freeDeliveryThreshold ? (
+                          <span className='font-semibold text-primary'>Miễn phí</span>
+                        ) : (
+                          <span>{STORE_CONFIG.deliveryFee.toLocaleString('vi-VN')}đ</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+
                   <div className='h-px bg-border mb-4' />
-                  <div className='flex justify-between items-center bg-secondary/70 rounded-xl px-4 py-3 mb-6'>
+                  <div className='flex justify-between items-center bg-secondary/70 rounded-xl px-4 py-3 mb-4'>
                     <span className='font-serif text-base font-bold text-foreground'>
-                      Total
+                      Tổng cộng
                     </span>
                     <span className='font-serif text-xl font-bold text-accent'>
                       {total.toLocaleString('vi-VN')}đ
                     </span>
+                  </div>
+
+                  <div className='flex items-center justify-center gap-2 mb-5'>
+                    {['MoMo', 'ZaloPay', 'VNPAY', 'Tiền mặt'].map((method) => (
+                      <span
+                        key={method}
+                        className='text-[10px] font-semibold text-muted-foreground border border-border rounded-full px-2 py-0.5'
+                      >
+                        {method}
+                      </span>
+                    ))}
                   </div>
 
                   {!user && (
@@ -212,9 +258,9 @@ export default function CartScreen() {
                         href='/profile'
                         className='text-primary underline underline-offset-2 font-medium'
                       >
-                        Sign in
+                        Đăng nhập
                       </Link>{' '}
-                      to apply membership savings.
+                      để nhận ưu đãi hạng thành viên.
                     </p>
                   )}
 

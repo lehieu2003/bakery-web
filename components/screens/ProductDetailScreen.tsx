@@ -18,7 +18,9 @@ import {
   findCategoryTrailById,
 } from '@/lib/category-path';
 import { useToggleWishlist } from '@/hooks/use-wishlist';
+import { recordRecentlyViewed } from '@/lib/recently-viewed';
 import { useAuth } from '@/providers/auth-provider';
+import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
 import { usePathname, useRouter } from 'next/navigation';
 
 const PLACEHOLDER_BLUR =
@@ -44,6 +46,13 @@ export default function ProductDetailScreen({
     selectedProduct?.id,
   );
   const { data: categoriesData } = useCategories();
+  const membershipBenefitsQuery = useMembershipBenefits({
+    enabled: Boolean(user),
+  });
+  const memberDiscountPercent =
+    membershipBenefitsQuery.data?.benefits.currentTier.discountPercent ?? 0;
+  const memberTierLabel =
+    membershipBenefitsQuery.data?.benefits.currentTier.label ?? '';
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null,
   );
@@ -77,6 +86,7 @@ export default function ProductDetailScreen({
 
   const [message, setMessage] = useState('');
   const [pickupDate, setPickupDate] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
 
@@ -103,6 +113,19 @@ export default function ProductDetailScreen({
       setSelectedVariant(variants[0]);
     }
   }, [variants, selectedVariant]);
+
+  // Remember this product for the "Sản phẩm bạn vừa xem" strip on the home page
+  useEffect(() => {
+    if (!selectedProduct) return;
+    recordRecentlyViewed({
+      id: selectedProduct.id,
+      slug: selectedProduct.slug ?? null,
+      name: selectedProduct.name,
+      price: Number(selectedVariant?.price ?? selectedProduct.price),
+      image: getProductImage(selectedProduct),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProduct?.id]);
 
   if (isLoading) {
     return (
@@ -139,19 +162,18 @@ export default function ProductDetailScreen({
     return (
       <div className='bg-background min-h-screen flex items-center justify-center'>
         <div className='text-center'>
-          <p className='text-destructive mb-4'>Product not found</p>
+          <p className='text-destructive mb-4'>Không tìm thấy sản phẩm</p>
           <Link
             href='/'
             className='text-primary hover:underline text-sm font-medium'
           >
-            Back to Home
+            Về trang chủ
           </Link>
         </div>
       </div>
     );
   }
 
-  const isCake = (selectedProduct.categories || []).length > 0; // Simplified check
 
   const firstCategory = selectedProduct.categories?.[0]?.category;
   const categoryName = firstCategory?.name;
@@ -162,11 +184,19 @@ export default function ProductDetailScreen({
     ? categoryHrefFromTrail(categoryTrail)
     : '/';
 
-  const discountLabel =
-    user?.level === 'platinum' ? '15%' : user?.level === 'gold' ? '10%' : '5%';
-  const levelLabel = user?.level
-    ? user.level.charAt(0).toUpperCase() + user.level.slice(1)
-    : '';
+  // Cake-like personalisation (message, pickup date) only makes sense for
+  // bakery products; ingredients/drinks are told apart by their root category.
+  const INGREDIENT_ROOT_SLUGS = new Set([
+    'do-pha-che',
+    'do-lam-banh',
+    'do-uong',
+    'ingredients',
+  ]);
+  const rootCategorySlug = categoryTrail?.[0]?.slug;
+  const isCake =
+    rootCategorySlug != null
+      ? !INGREDIENT_ROOT_SLUGS.has(rootCategorySlug)
+      : (selectedProduct.categories || []).length > 0;
 
   function handleAddToCart() {
     const variantSuffix = selectedVariant ? `-${selectedVariant.id}` : '';
@@ -181,7 +211,7 @@ export default function ProductDetailScreen({
       variantName: selectedVariant?.name,
       message: isCake ? message : undefined,
       pickupDate: isCake ? pickupDate : undefined,
-      quantity: 1,
+      quantity,
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);
@@ -370,25 +400,24 @@ export default function ProductDetailScreen({
                     />
                   ))}
                   <span className='text-xs text-muted-foreground ml-1'>
-                    ({selectedProduct.reviewCount}{' '}
-                    {selectedProduct.reviewCount === 1 ? 'review' : 'reviews'})
+                    ({selectedProduct.reviewCount} đánh giá)
                   </span>
                 </div>
               )}
             </div>
 
-            {user && (
+            {user && memberTierLabel && memberDiscountPercent > 0 && (
               <div className='mb-5 px-4 py-3 rounded-xl bg-primary/8 border border-primary/20'>
                 <p className='text-xs text-primary font-medium'>
-                  As a {levelLabel} Member, you save {discountLabel} at
-                  checkout.
+                  Ưu đãi hạng {memberTierLabel}: giảm {memberDiscountPercent}%
+                  khi thanh toán.
                 </p>
               </div>
             )}
 
             <p className='text-sm text-muted-foreground leading-relaxed mb-6'>
               {selectedProduct.description ||
-                'Artisan quality, made fresh to order with premium ingredients and care.'}
+                'Bánh thủ công được làm mới mỗi ngày với nguyên liệu tuyển chọn.'}
             </p>
 
             <ProductReviewsSection
@@ -405,7 +434,7 @@ export default function ProductDetailScreen({
                 {variants.length > 0 && (
                   <div>
                     <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
-                      Variant
+                      Kích cỡ
                     </p>
                     <div className='flex gap-2 flex-wrap'>
                       {variants.map((v: ProductVariant) => (
@@ -432,11 +461,11 @@ export default function ProductDetailScreen({
 
                 <div>
                   <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 block'>
-                    Message on Cake
+                    Viết chữ lên bánh
                   </label>
                   <input
                     type='text'
-                    placeholder='e.g. Happy Birthday, Linh!'
+                    placeholder='VD: Chúc mừng sinh nhật Lan!'
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     maxLength={40}
@@ -449,14 +478,32 @@ export default function ProductDetailScreen({
 
                 <div>
                   <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 block'>
-                    Pick-up Date
+                    Ngày nhận bánh
                   </label>
                   <input
                     type='date'
                     value={pickupDate}
+                    min={new Date(Date.now() + 24 * 60 * 60 * 1000)
+                      .toISOString()
+                      .slice(0, 10)}
                     onChange={(e) => setPickupDate(e.target.value)}
                     className='w-full text-sm bg-card rounded-xl px-4 py-3 border border-border focus:outline-none focus:border-primary text-foreground transition-colors'
                   />
+                  <p className='text-xs text-muted-foreground mt-1.5'>
+                    Bánh làm theo đơn nên vui lòng đặt trước ít nhất 1 ngày.
+                  </p>
+                  <div className='mt-3 bg-secondary/60 rounded-xl px-4 py-3 space-y-1.5'>
+                    <p className='text-xs text-foreground'>
+                      <span className='font-semibold'>Bảo quản:</span> tủ lạnh
+                      0–4°C, ngon nhất trong 2–3 ngày; để ngoài 15–20 phút trước
+                      khi thưởng thức.
+                    </p>
+                    <p className='text-xs text-foreground'>
+                      <span className='font-semibold'>Nhận bánh:</span> tại cửa
+                      hàng hoặc giao hàng tại Quảng Ngãi (phí giao hiển thị ở
+                      bước thanh toán).
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -467,7 +514,7 @@ export default function ProductDetailScreen({
                 {variants.length > 0 && (
                   <div>
                     <p className='text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3'>
-                      Variant
+                      Quy cách
                     </p>
                     <div className='flex gap-2 flex-wrap'>
                       {variants.map((v: ProductVariant) => (
@@ -493,18 +540,21 @@ export default function ProductDetailScreen({
                 )}
                 <div className='bg-card rounded-2xl border border-border/50 p-5 space-y-3'>
                   {[
-                    { label: 'Weight', value: '500g' },
                     {
-                      label: 'Origin',
-                      value: 'Imported',
+                      label: 'Trọng lượng',
+                      value: selectedVariant?.name ?? 'Theo quy cách đóng gói',
                     },
                     {
-                      label: 'Best Before',
-                      value: '12 months from production',
+                      label: 'Xuất xứ',
+                      value: 'Nhập khẩu',
                     },
                     {
-                      label: 'Storage',
-                      value: 'Cool, dry place away from sunlight',
+                      label: 'Hạn sử dụng',
+                      value: '12 tháng từ ngày sản xuất',
+                    },
+                    {
+                      label: 'Bảo quản',
+                      value: 'Nơi khô mát, tránh ánh nắng trực tiếp',
                     },
                   ].map(({ label, value }) => (
                     <div
@@ -523,18 +573,53 @@ export default function ProductDetailScreen({
               </div>
             )}
 
+            {(selectedProduct.stock ?? 0) <= 10 && (selectedProduct.stock ?? 0) > 0 && (
+              <p className='text-xs font-medium text-primary mb-2'>
+                Chỉ còn {selectedProduct.stock} chiếc hôm nay — đặt sớm để giữ
+                bánh!
+              </p>
+            )}
+
             <div className='flex items-center gap-3'>
+              {/* Quantity stepper */}
+              <div className='flex items-center gap-1 border border-border rounded-full px-2 py-1.5 bg-card'>
+                <button
+                  type='button'
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className='p-1.5 text-muted-foreground hover:text-foreground transition-colors'
+                  aria-label='Giảm số lượng'
+                >
+                  −
+                </button>
+                <span className='text-sm font-semibold text-foreground w-6 text-center'>
+                  {quantity}
+                </span>
+                <button
+                  type='button'
+                  onClick={() => setQuantity((q) => q + 1)}
+                  className='p-1.5 text-muted-foreground hover:text-foreground transition-colors'
+                  aria-label='Tăng số lượng'
+                >
+                  +
+                </button>
+              </div>
+
               {/* Add to cart */}
               <button
                 onClick={handleAddToCart}
-                className={`flex-1 py-4 rounded-full font-medium text-sm shadow-md flex items-center justify-center gap-2.5 transition-all ${
+                disabled={(selectedProduct.stock ?? 0) <= 0}
+                className={`flex-1 py-4 rounded-full font-medium text-sm shadow-md flex items-center justify-center gap-2.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                   added
                     ? 'bg-accent text-white'
                     : 'bg-primary text-white hover:bg-primary/90'
                 }`}
               >
                 <ShoppingBag size={17} />
-                {added ? 'Đã thêm vào giỏ hàng!' : 'Thêm'}
+                {(selectedProduct.stock ?? 0) <= 0
+                  ? 'Hết hàng'
+                  : added
+                    ? 'Đã thêm vào giỏ hàng!'
+                    : `Thêm ${quantity > 1 ? `${quantity} món` : 'vào giỏ'}`}
               </button>
 
               <button
@@ -543,8 +628,8 @@ export default function ProductDetailScreen({
                 disabled={isToggling}
                 aria-label={
                   isFavorite
-                    ? 'Remove from favorite list'
-                    : 'Add to favorite list'
+                    ? 'Xoá khỏi danh sách yêu thích'
+                    : 'Thêm vào danh sách yêu thích'
                 }
                 className='h-12 w-12 rounded-full border border-border bg-card text-foreground flex items-center justify-center transition-colors hover:border-primary/40 disabled:opacity-60'
               >
@@ -563,9 +648,9 @@ export default function ProductDetailScreen({
                   href='/profile'
                   className='text-primary underline underline-offset-2'
                 >
-                  Sign in
+                  Đăng nhập
                 </Link>{' '}
-                to enjoy membership discounts.
+                để nhận ưu đãi hạng thành viên.
               </p>
             )}
           </div>

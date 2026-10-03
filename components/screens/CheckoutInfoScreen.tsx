@@ -79,7 +79,7 @@ function SavedAddressPicker({
         !payload.province
       ) {
         setSaveError(
-          'Fill in street, ward, district and province to save this address.',
+          'Điền đầy đủ đường, phường/xã, quận/huyện và tỉnh/thành để lưu địa chỉ này.',
         );
         return false;
       }
@@ -89,7 +89,7 @@ function SavedAddressPicker({
         return true;
       } catch {
         setSaveError(
-          'Could not save this address. Please try again or continue without saving it.',
+          'Không lưu được địa chỉ. Bạn có thể thử lại hoặc tiếp tục mà không lưu.',
         );
         return false;
       }
@@ -111,11 +111,11 @@ function SavedAddressPicker({
   return (
     <div>
       <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
-        Saved Addresses
+        Địa chỉ đã lưu
       </label>
       <div
         role='radiogroup'
-        aria-label='Saved addresses'
+        aria-label='Danh sách địa chỉ đã lưu'
         className='space-y-2.5 mb-4'
       >
         {addresses.map((savedAddress) => (
@@ -138,7 +138,7 @@ function SavedAddressPicker({
               </span>
               {savedAddress.isDefault && (
                 <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
-                  Default
+                  Mặc định
                 </span>
               )}
             </div>
@@ -161,7 +161,7 @@ function SavedAddressPicker({
           className={radioCardClass(selectedId === 'new')}
         >
           <span className='text-sm font-medium text-foreground'>
-            Use a new address
+            Dùng địa chỉ mới
           </span>
         </button>
       </div>
@@ -178,7 +178,7 @@ function SavedAddressPicker({
               }}
               disabled={isSavingAddress}
             />
-            Save this address for next time
+            Lưu địa chỉ này cho lần sau
           </label>
           {saveRequested && (
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
@@ -186,32 +186,32 @@ function SavedAddressPicker({
                 type='text'
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
-                placeholder='Street'
-                aria-label='Street'
+                placeholder='Đường'
+                aria-label='Đường'
                 className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
               />
               <input
                 type='text'
                 value={ward}
                 onChange={(e) => setWard(e.target.value)}
-                placeholder='Ward'
-                aria-label='Ward'
+                placeholder='Phường/Xã'
+                aria-label='Phường/Xã'
                 className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
               />
               <input
                 type='text'
                 value={district}
                 onChange={(e) => setDistrict(e.target.value)}
-                placeholder='District'
-                aria-label='District'
+                placeholder='Quận/Huyện'
+                aria-label='Quận/Huyện'
                 className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
               />
               <input
                 type='text'
                 value={province}
                 onChange={(e) => setProvince(e.target.value)}
-                placeholder='Province'
-                aria-label='Province'
+                placeholder='Tỉnh/Thành phố'
+                aria-label='Tỉnh/Thành phố'
                 className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
               />
             </div>
@@ -249,7 +249,7 @@ function OrderSidebar({
   return (
     <div className='bg-card rounded-2xl border border-border/50 p-6 sticky top-24'>
       <h3 className='font-serif text-base font-semibold text-foreground mb-5'>
-        Order Summary
+        Tóm tắt đơn hàng
       </h3>
 
       {/* Step progress */}
@@ -262,12 +262,12 @@ function OrderSidebar({
         />
       </div>
       <p className='text-xs text-muted-foreground mb-5'>
-        Step {step} of 2 – {step === 1 ? 'Information' : 'Payment'}
+        Bước {step}/2 – {step === 1 ? 'Thông tin' : 'Thanh toán'}
       </p>
 
       <div className='space-y-2.5 mb-4'>
         <div className='flex justify-between text-sm'>
-          <span className='text-muted-foreground'>Subtotal</span>
+          <span className='text-muted-foreground'>Tạm tính</span>
           <span className='text-foreground font-medium'>
             {subtotal.toLocaleString('vi-VN')}đ
           </span>
@@ -275,7 +275,7 @@ function OrderSidebar({
         {user && discount > 0 && (
           <div className='flex justify-between text-sm'>
             <span className='text-primary capitalize'>
-              {memberLabel} discount
+              Ưu đãi hạng {memberLabel}
             </span>
             <span className='text-primary font-semibold'>
               -{discount.toLocaleString('vi-VN')}đ
@@ -285,7 +285,7 @@ function OrderSidebar({
         {user && (
           <div className='rounded-xl bg-secondary/70 px-3 py-2' aria-live='polite'>
             <p className='text-xs text-muted-foreground'>
-              Current points: {points.toLocaleString('vi-VN')}
+              Điểm tích luỹ: {points.toLocaleString('vi-VN')}
             </p>
             <p className='text-xs text-muted-foreground'>{eligibilityMessage}</p>
           </div>
@@ -294,7 +294,7 @@ function OrderSidebar({
       <div className='h-px bg-border mb-4' />
       <div className='flex justify-between items-center bg-secondary/70 rounded-xl px-4 py-3'>
         <span className='font-serif text-sm font-bold text-foreground'>
-          Total
+          Tổng cộng
         </span>
         <span className='font-serif text-lg font-bold text-accent'>
           {total.toLocaleString('vi-VN')}đ
@@ -319,9 +319,9 @@ export default function CheckoutInfoScreen() {
   const membershipPoints =
     membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
   const eligibilityMessage = membershipBenefitsQuery.isLoading
-    ? 'Checking membership benefit eligibility...'
+    ? 'Đang kiểm tra ưu đãi thành viên...'
     : membershipBenefitsQuery.data?.benefits.eligibility.message ??
-      'Membership eligibility details are unavailable right now.';
+      'Tạm thời không hiển thị được ưu đãi thành viên.';
   const [name, setName] = useState(
     checkoutInfo?.customerName || user?.name || '',
   );
@@ -387,11 +387,11 @@ export default function CheckoutInfoScreen() {
   function validatePhone(value: string): boolean {
     const cleaned = value.replace(/[\s.-]/g, '');
     if (!cleaned) {
-      setPhoneError('Phone number is required');
+      setPhoneError('Vui lòng nhập số điện thoại');
       return false;
     }
     if (!VN_PHONE_REGEX.test(cleaned)) {
-      setPhoneError('Please enter a valid Vietnamese phone number');
+      setPhoneError('Số điện thoại chưa hợp lệ');
       return false;
     }
     setPhoneError('');
@@ -407,7 +407,7 @@ export default function CheckoutInfoScreen() {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmed)) {
-      setEmailError('Please enter a valid email address');
+      setEmailError('Email chưa hợp lệ');
       return false;
     }
 
@@ -422,7 +422,7 @@ export default function CheckoutInfoScreen() {
     }
 
     if (!value.trim()) {
-      setAddressError('Delivery address is required');
+      setAddressError('Vui lòng nhập địa chỉ giao hàng');
       return false;
     }
 
@@ -444,10 +444,10 @@ export default function CheckoutInfoScreen() {
             className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4'
           >
             <ChevronLeft size={16} />
-            Back to Cart
+            Về giỏ hàng
           </Link>
           <h1 className='font-serif text-3xl font-semibold text-foreground'>
-            Checkout
+            Thanh toán
           </h1>
         </div>
       </div>
@@ -457,20 +457,20 @@ export default function CheckoutInfoScreen() {
         <div className='flex-1 min-w-0 space-y-6'>
           <div>
             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
-              Full Name
+              Họ và tên
             </label>
             <input
               type='text'
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder='Your full name'
+              placeholder='Họ và tên của bạn'
               className='w-full px-5 py-3.5 rounded-2xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
             />
           </div>
 
           <div>
             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
-              Phone Number
+              Số điện thoại
             </label>
             <input
               type='tel'
@@ -494,7 +494,7 @@ export default function CheckoutInfoScreen() {
 
           <div>
             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
-              Email (Optional)
+              Email (không bắt buộc)
             </label>
             <input
               type='email'
@@ -518,7 +518,7 @@ export default function CheckoutInfoScreen() {
 
           <div>
             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
-              Collection Method
+              Hình thức nhận bánh
             </label>
             <div className='grid grid-cols-2 gap-3'>
               {(['pickup', 'delivery'] as const).map((m) => (
@@ -536,7 +536,7 @@ export default function CheckoutInfoScreen() {
                       : 'border-border text-muted-foreground bg-card hover:border-primary/50'
                   }`}
                 >
-                  {m === 'pickup' ? 'Store Pick-up' : 'Delivery'}
+                  {m === 'pickup' ? 'Nhận tại cửa hàng' : 'Giao tận nơi'}
                 </button>
               ))}
             </div>
@@ -555,7 +555,7 @@ export default function CheckoutInfoScreen() {
 
           <div>
             <label className='text-xs font-semibold text-muted-foreground uppercase tracking-widest block mb-2.5'>
-              Delivery Address {method === 'delivery' ? '' : '(Optional)'}
+              Địa chỉ giao hàng {method === 'delivery' ? '' : '(không bắt buộc)'}
             </label>
             <textarea
               value={address}
@@ -563,8 +563,8 @@ export default function CheckoutInfoScreen() {
               onBlur={() => validateAddress(address, method)}
               placeholder={
                 method === 'delivery'
-                  ? 'Street, ward, district, city'
-                  : 'Address is optional for pickup'
+                  ? 'Đường, phường/xã, quận/huyện, thành phố'
+                  : 'Không bắt buộc khi nhận tại cửa hàng'
               }
               rows={3}
               className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors resize-none ${
@@ -581,7 +581,7 @@ export default function CheckoutInfoScreen() {
           {cakeItems.length > 0 && pickupDates.length > 0 && (
             <div className='bg-primary/8 border border-primary/20 rounded-2xl p-5'>
               <p className='text-xs font-semibold text-primary uppercase tracking-widest mb-3'>
-                Pickup Confirmation
+                Xác nhận ngày nhận bánh
               </p>
               {pickupDates.map((d) => (
                 <p key={d} className='text-sm text-foreground font-medium'>
@@ -589,7 +589,7 @@ export default function CheckoutInfoScreen() {
                 </p>
               ))}
               <p className='text-xs text-muted-foreground mt-2'>
-                Please arrive within your selected time window.
+                Vui lòng đến nhận bánh trong khung giờ bạn đã chọn.
               </p>
             </div>
           )}
@@ -601,9 +601,9 @@ export default function CheckoutInfoScreen() {
                   href='/profile'
                   className='text-primary font-medium underline underline-offset-2'
                 >
-                  Create an account
+                  Tạo tài khoản
                 </Link>{' '}
-                to collect loyalty points for this order.
+                để tích điểm cho đơn hàng này.
               </p>
             </div>
           )}
@@ -645,7 +645,7 @@ export default function CheckoutInfoScreen() {
             }
             className='w-full py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
           >
-            Continue to Payment
+            Tiếp tục thanh toán
           </button>
         </div>
 

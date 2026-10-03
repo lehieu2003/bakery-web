@@ -24,7 +24,7 @@ const HERO_THEME = {
   ambientGlow: 'rgba(232, 196, 154, 0.18)',
   accentColor: 'var(--gold)',
   badgeText: 'Bánh mới mỗi ngày',
-  tagline: 'Tiệm bánh thủ công tại Sài Gòn',
+  tagline: 'Tiệm bánh thủ công tại Quảng Ngãi',
 };
 
 const ANIMATION_DURATION = 500; // ms

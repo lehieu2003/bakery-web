@@ -9,7 +9,6 @@ import {
   Facebook,
   Youtube,
 } from 'lucide-react';
-import NewsletterForm from './newsletter-form';
 import { useCategories } from '@/hooks/use-products';
 import { categoryHrefFromTrail } from '@/lib/category-path';
 import type { Category } from '@/types/api.types';
@@ -50,18 +49,33 @@ export default function WebFooter() {
 
   return (
     <footer className='bg-roast text-[#f5ebe4]'>
-      {/* Newsletter banner */}
+      {/* Order CTA banner */}
       <div className='border-b border-white/10'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-6'>
           <div>
             <p className='font-serif text-xl font-semibold text-white text-balance'>
-              Nhận ưu đãi &amp; công thức bánh mỗi tuần
+              Cần bánh cho dịp đặc biệt?
             </p>
             <p className='text-sm text-primary/80 mt-1'>
-              Đăng ký nhận bản tin để không bỏ lỡ bộ sưu tập mới nhất.
+              Liên hệ để được tư vấn và đặt bánh trước — bánh làm theo đơn mỗi
+              ngày.
             </p>
           </div>
-          <NewsletterForm />
+          <div className='flex items-center gap-3'>
+            <a
+              href='tel:1900779907'
+              className='inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors'
+            >
+              <Phone size={15} />
+              Gọi 1900 779907
+            </a>
+            <Link
+              href='/store'
+              className='inline-flex items-center px-5 py-3 rounded-full border border-white/20 text-sm font-medium text-white/90 hover:border-white/40 transition-colors'
+            >
+              Xem cửa hàng
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -180,9 +194,9 @@ export default function WebFooter() {
               <div className='flex items-start gap-3 text-sm text-[#f5ebe4]/75'>
                 <MapPin size={15} className='text-primary mt-0.5 shrink-0' />
                 <span className='leading-relaxed'>
-                  123 Đường Nguyễn Huệ,
+                  TT. Chợ Chùa, Nghĩa Hành,
                   <br />
-                  Quận 1, TP. Hồ Chí Minh
+                  Quảng Ngãi
                 </span>
               </div>
             </li>
@@ -204,7 +218,7 @@ export default function WebFooter() {
             All rights reserved.
           </p>
           <p className='text-xs text-[#f5ebe4]/40 italic font-serif'>
-            Handcrafted with love in Saigon
+            Handcrafted with love in Quảng Ngãi
           </p>
         </div>
       </div>

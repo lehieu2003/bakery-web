@@ -4,7 +4,7 @@ import VeChungToiScreen from '@/components/screens/VeChungToiScreen';
 export const metadata: Metadata = {
   title: 'Về chúng tôi',
   description:
-    'Tìm hiểu về Phương Loan Bakery – tiệm bánh thủ công ra đời năm 2013 tại TP.HCM với hơn 8 chi nhánh, phục vụ hơn 1.000 khách mỗi ngày.',
+    'Tìm hiểu về Phương Loan Bakery – tiệm bánh thủ công tại Quảng Ngãi, phục vụ hơn 1.000 khách mỗi ngày với không gian ngồi lại thoải mái.',
 };
 
 export default function VeChungToiPage() {

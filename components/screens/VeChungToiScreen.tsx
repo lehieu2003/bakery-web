@@ -24,22 +24,10 @@ const values = [
 
 const branches = [
   {
-    name: 'Chi nhánh Quận 1',
-    address: '123 Đường Nguyễn Huệ, P. Bến Nghé, Quận 1, TP.HCM',
+    name: 'Phương Loan Bakery',
+    address: 'ĐT624, TT. Chợ Chùa, Nghĩa Hành, Quảng Ngãi',
     hours: '8:00 – 21:00',
-    phone: '028 3823 xxxx',
-  },
-  {
-    name: 'Chi nhánh Quận 3',
-    address: '45 Đường Lê Văn Sỹ, P. 13, Quận 3, TP.HCM',
-    hours: '8:00 – 21:00',
-    phone: '028 3930 xxxx',
-  },
-  {
-    name: 'Chi nhánh Thủ Đức',
-    address: '89 Đường Võ Văn Ngân, P. Bình Thọ, TP. Thủ Đức, TP.HCM',
-    hours: '8:30 – 21:30',
-    phone: '028 3722 xxxx',
+    phone: '+84 978 780 176',
   },
 ];
 
@@ -55,16 +43,15 @@ export default function VeChungToiScreen() {
           className='object-cover'
           priority
         />
-        <div className='absolute inset-0 bg-[#3d1a0f]/60 flex flex-col items-center justify-center text-center px-4'>
-          <p className='text-xs tracking-[0.25em] uppercase text-[#e8c49a] font-light mb-2'>
+        <div className='absolute inset-0 bg-roast/70 flex flex-col items-center justify-center text-center px-4'>
+          <p className='text-xs tracking-[0.25em] uppercase text-gold font-light mb-2'>
             Về chúng tôi
           </p>
           <h1 className='font-serif text-3xl md:text-4xl font-bold text-white text-balance'>
             Phương Loan Bakery – Artisan Bakery
           </h1>
           <p className='text-sm text-white/80 mt-3 max-w-md text-pretty'>
-            Hơn 10 năm mang đến những chiếc bánh thủ công tinh tế tại TP. Hồ Chí
-            Minh
+            Hơn 10 năm mang đến những chiếc bánh thủ công tinh tế tại Quảng Ngãi
           </p>
         </div>
       </section>
@@ -79,17 +66,16 @@ export default function VeChungToiScreen() {
             Phương Loan Bakery – tiếng Pháp có nghĩa là{' '}
             <em>&ldquo;sự ngọt ngào&rdquo;</em> – ra đời năm 2013 từ ước mơ của
             một người thợ bánh trẻ yêu thích nghệ thuật làm bánh theo phong cách
-            Pháp. Bắt đầu từ một tiệm nhỏ tại Quận 1, TP.HCM, Phương Loan Bakery
+            Pháp. Bắt đầu từ một tiệm bánh nhỏ tại Nghĩa Hành, Quảng Ngãi, Phương Loan Bakery
             nhanh chóng chinh phục thực khách bởi hương vị tinh tế và cách trình
             bày nghệ thuật.
           </p>
           <p>
-            Sau hơn một thập kỷ, Phương Loan Bakery đã mở rộng lên{' '}
-            <strong>8 chi nhánh tại TP.HCM</strong>, phục vụ hơn{' '}
-            <strong>1.000 khách hàng mỗi ngày</strong>. Tuy nhiên, triết lý làm
-            bánh của chúng tôi vẫn không thay đổi: mỗi chiếc bánh phải được làm
-            thủ công, từ những nguyên liệu tươi ngon nhất, với sự tận tâm cao
-            nhất.
+            Sau hơn một thập kỷ, tiệm bánh đã trở thành điểm dừng chân quen
+            thuộc, phục vụ hơn <strong>1.000 khách hàng mỗi ngày</strong>. Tuy
+            nhiên, triết lý làm bánh của chúng tôi vẫn không thay đổi: mỗi chiếc
+            bánh phải được làm thủ công, từ những nguyên liệu tươi ngon nhất,
+            với sự tận tâm cao nhất.
           </p>
           <p>
             Từ bánh sinh nhật cầu kỳ đến chiếc croissant bơ giòn tan mỗi sáng,
@@ -128,7 +114,7 @@ export default function VeChungToiScreen() {
         <div className='grid grid-cols-2 md:grid-cols-4 gap-6 text-center'>
           {[
             { value: '2013', label: 'Năm thành lập' },
-            { value: '8+', label: 'Chi nhánh' },
+            { value: '1', label: 'Cửa hàng' },
             { value: '120+', label: 'Loại bánh' },
             { value: '1.000+', label: 'Khách/ngày' },
           ].map(({ value, label }) => (
@@ -150,9 +136,9 @@ export default function VeChungToiScreen() {
       {/* Branches */}
       <section className='py-12 my-4'>
         <h2 className='font-serif text-2xl font-semibold text-primary mb-8 text-balance'>
-          Hệ thống chi nhánh
+          Ghé thăm chúng tôi
         </h2>
-        <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
           {branches.map((branch) => (
             <div
               key={branch.name}
