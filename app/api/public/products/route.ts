@@ -31,6 +31,7 @@ type PublicProductsRouteDeps = {
     where: Record<string, unknown>;
     skip: number;
     take: number;
+    orderBy: Record<string, unknown>[];
   }) => Promise<unknown[]>;
   countProducts: (args: { where: Record<string, unknown> }) => Promise<number>;
 };
@@ -43,16 +44,27 @@ const defaultDeps: PublicProductsRouteDeps = {
       where: { parentId, isActive: true },
       select: { id: true },
     }),
-  findProducts: ({ where, skip, take }) =>
+  findProducts: ({ where, skip, take, orderBy }) =>
     prisma.product.findMany({
       where,
       include: productInclude,
       skip,
       take,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
     }),
   countProducts: ({ where }) => prisma.product.count({ where }),
 };
+
+const SORT_ORDERINGS: Record<string, Record<string, unknown>[]> = {
+  popular: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
+  newest: [{ createdAt: 'desc' }],
+  'price-asc': [{ price: 'asc' }],
+  'price-desc': [{ price: 'desc' }],
+};
+
+function resolveSortOrdering(sort: string | null): Record<string, unknown>[] {
+  return SORT_ORDERINGS[sort ?? 'popular'] ?? SORT_ORDERINGS.popular;
+}
 
 function normalizePositiveInt(
   value: string | null,
@@ -81,6 +93,7 @@ export async function handleGetPublicProductsRequest(
   const attributeFilters = deps.parseAttributeFilters(
     searchParams.getAll('attribute'),
   );
+  const orderBy = resolveSortOrdering(searchParams.get('sort'));
 
   const skip = (page - 1) * limit;
 
@@ -125,7 +138,7 @@ export async function handleGetPublicProductsRequest(
   }
 
   const [products, total] = await Promise.all([
-    deps.findProducts({ where, skip, take: limit }),
+    deps.findProducts({ where, skip, take: limit, orderBy }),
     deps.countProducts({ where }),
   ]);
 

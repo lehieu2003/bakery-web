@@ -820,6 +820,8 @@ export interface ProductsQueryParams extends PaginationParams {
   search?: string;
   featured?: boolean;
   active?: boolean;
+  /** Server-side ordering: 'popular' (default) | 'newest' | 'price-asc' | 'price-desc' */
+  sort?: 'popular' | 'newest' | 'price-asc' | 'price-desc';
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;

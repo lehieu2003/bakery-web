@@ -8,6 +8,7 @@ import {
   Search,
   Loader2,
   ChevronLeft,
+  ChevronRight,
   TrendingDown,
   TrendingUp,
   ArrowDownUp,
@@ -23,6 +24,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import type { Product, ProductFilterGroup, ProductFilterValueOption } from '@/types/api.types';
 
 type SortOption = 'popular' | 'price-asc' | 'price-desc' | 'newest';
+
+// Search results are paginated server-side; 24 keeps the grid from growing
+// unbounded while still covering most queries on a single page.
+const SEARCH_PAGE_SIZE = 24;
 
 const SORT_OPTIONS: {
   value: SortOption;
@@ -58,6 +63,7 @@ export default function SearchScreen() {
   const [priceMin, setPriceMin] = useState(initialState.minPrice);
   const [priceMax, setPriceMax] = useState(initialState.maxPrice);
   const [inStockOnly, setInStockOnly] = useState(initialState.inStockOnly);
+  const [page, setPage] = useState(initialState.page);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync URL param → input when navigating here
@@ -67,6 +73,7 @@ export default function SearchScreen() {
     );
     const timer = setTimeout(() => {
       setQuery(next.search);
+      setPage((current) => (current === next.page ? current : next.page));
       setPriceMin(next.minPrice);
       setPriceMax(next.maxPrice);
       setInStockOnly(next.inStockOnly);
@@ -94,7 +101,9 @@ export default function SearchScreen() {
   const { data, isLoading } = useProducts(
     {
       search: query || undefined,
-      limit: 48,
+      page,
+      sort,
+      limit: SEARCH_PAGE_SIZE,
       minPrice: priceMin ? Number(priceMin) : undefined,
       maxPrice: priceMax ? Number(priceMax) : undefined,
       inStock: inStockOnly || undefined,
@@ -110,14 +119,11 @@ export default function SearchScreen() {
     },
   );
   const { data: filterData } = useProductFilters();
+  const pagination = data?.pagination;
   const rawProducts = (data?.products ?? []) as Product[];
 
+  // Sorting is applied server-side so it spans every page of results.
   const products = rawProducts.filter((p: Product) => p.isActive);
-  const sorted = [...products].sort((a, b) => {
-    if (sort === 'price-asc') return a.price - b.price;
-    if (sort === 'price-desc') return b.price - a.price;
-    return 0;
-  });
   const filterGroups = filterData?.filters || [];
   const hasActiveFilters =
     !!priceMin ||
@@ -131,6 +137,7 @@ export default function SearchScreen() {
     debounceRef.current = setTimeout(() => {
       const trimmed = e.target.value.trim();
       setQuery(trimmed);
+      setPage(1);
     }, 350);
   };
 
@@ -138,12 +145,13 @@ export default function SearchScreen() {
     e.preventDefault();
     const trimmed = inputValue.trim();
     setQuery(trimmed);
+    setPage(1);
   };
 
   useEffect(() => {
     const params = buildListingUrlSearchParams({
       search: query,
-      page: 1,
+      page,
       minPrice: priceMin,
       maxPrice: priceMax,
       inStockOnly,
@@ -152,7 +160,7 @@ export default function SearchScreen() {
     });
     const url = params.toString();
     router.replace(url ? `/search?${url}` : '/search', { scroll: false });
-  }, [inStockOnly, priceMax, priceMin, query, router, selectedFilters]);
+  }, [inStockOnly, page, priceMax, priceMin, query, router, selectedFilters]);
 
   const renderFilterPanel = () => (
     <div className='space-y-6'>
@@ -168,6 +176,7 @@ export default function SearchScreen() {
                 setPriceMin('');
                 setPriceMax('');
                 setInStockOnly(false);
+                setPage(1);
               }}
               className='text-[11px] font-medium text-primary'
             >
@@ -183,6 +192,7 @@ export default function SearchScreen() {
             value={priceMin}
             onChange={(event) => {
               setPriceMin(event.target.value);
+              setPage(1);
             }}
             placeholder={
               filterData?.priceRange?.min
@@ -197,6 +207,7 @@ export default function SearchScreen() {
             value={priceMax}
             onChange={(event) => {
               setPriceMax(event.target.value);
+              setPage(1);
             }}
             placeholder={
               filterData?.priceRange?.max
@@ -210,6 +221,7 @@ export default function SearchScreen() {
         <button
           onClick={() => {
             setInStockOnly((value) => !value);
+            setPage(1);
           }}
           className={`mt-3 flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition-colors ${
             inStockOnly
@@ -254,6 +266,7 @@ export default function SearchScreen() {
                               [group.slug]: nextValues,
                             };
                           });
+                          setPage(1);
                         }}
                       />
                       <span className='text-sm'>{value.label || value.value}</span>
@@ -328,7 +341,10 @@ export default function SearchScreen() {
                 {SORT_OPTIONS.map(({ value, label, icon }) => (
                   <button
                     key={value}
-                    onClick={() => setSort(value)}
+                    onClick={() => {
+                      setSort(value);
+                      setPage(1);
+                    }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all ${
                       sort === value
                         ? 'bg-primary/10 text-primary font-semibold'
@@ -369,7 +385,10 @@ export default function SearchScreen() {
             {SORT_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => setSort(value)}
+                onClick={() => {
+                  setSort(value);
+                  setPage(1);
+                }}
                 className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                   sort === value
                     ? 'bg-primary text-primary-foreground border-primary'
@@ -411,7 +430,7 @@ export default function SearchScreen() {
                 ))}
               </div>
             </div>
-          ) : sorted.length === 0 ? (
+          ) : products.length === 0 ? (
             <div className='py-20 text-center text-muted-foreground'>
               <Search size={40} className='mx-auto mb-4 opacity-30' />
               <p className='text-base'>
@@ -428,7 +447,7 @@ export default function SearchScreen() {
                 <p className='text-sm text-muted-foreground'>
                   Tìm thấy{' '}
                   <span className='font-semibold text-foreground'>
-                    {sorted.length}
+                    {pagination?.total ?? products.length}
                   </span>{' '}
                   sản phẩm
                   {query && (
@@ -443,7 +462,7 @@ export default function SearchScreen() {
                 </p>
               </div>
               <div className='grid grid-cols-2 md:grid-cols-3 gap-5'>
-                {sorted.map((p) => (
+                {products.map((p) => (
                   <Link
                     key={p.id}
                     href={`/products/${p.slug}`}
@@ -480,6 +499,34 @@ export default function SearchScreen() {
                   </Link>
                 ))}
               </div>
+
+              {pagination && pagination.totalPages > 1 && (
+                <div className='mt-10 flex items-center justify-center gap-2'>
+                  <button
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={pagination.page <= 1}
+                    className='inline-flex items-center gap-1 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50'
+                  >
+                    <ChevronLeft size={14} />
+                    Trang trước
+                  </button>
+                  <span className='px-3 text-sm text-muted-foreground'>
+                    Trang {pagination.page} / {pagination.totalPages}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setPage((prev) =>
+                        Math.min(pagination.totalPages, prev + 1),
+                      )
+                    }
+                    disabled={pagination.page >= pagination.totalPages}
+                    className='inline-flex items-center gap-1 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50'
+                  >
+                    Trang sau
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -99,3 +99,51 @@ test('public products route composes keyword, price, stock and attribute filters
   });
 });
 
+
+test('public products route maps sort param to prisma orderBy', async () => {
+  let capturedOrderBy: Record<string, unknown>[] | null = null;
+
+  const result = await handleGetPublicProductsRequest(
+    'http://localhost/api/public/products?sort=price-asc',
+    {
+      parseAttributeFilters: () => [],
+      buildProductAttributeWhere: () => [],
+      findChildCategories: async () => [],
+      findProducts: async ({ orderBy }) => {
+        capturedOrderBy = orderBy;
+        return [];
+      },
+      countProducts: async () => 0,
+    },
+  );
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(capturedOrderBy, [{ price: 'asc' }]);
+});
+
+test('public products route defaults to popular ordering and rejects unknown sort', async () => {
+  const captured: Record<string, unknown>[] | null[] = [];
+
+  for (const query of ['', 'sort=popular', 'sort=totally-unknown']) {
+    let orderBy: Record<string, unknown>[] | null = null;
+    await handleGetPublicProductsRequest(
+      `http://localhost/api/public/products${query ? `?${query}` : ''}`,
+      {
+        parseAttributeFilters: () => [],
+        buildProductAttributeWhere: () => [],
+        findChildCategories: async () => [],
+        findProducts: async (args) => {
+          orderBy = args.orderBy;
+          return [];
+        },
+        countProducts: async () => 0,
+      },
+    );
+    captured.push(orderBy);
+  }
+
+  assert.ok(captured.every((entry) => entry !== null));
+  assert.deepEqual(captured[0], [{ isFeatured: 'desc' }, { createdAt: 'desc' }]);
+  assert.deepEqual(captured[1], [{ isFeatured: 'desc' }, { createdAt: 'desc' }]);
+  assert.deepEqual(captured[2], [{ isFeatured: 'desc' }, { createdAt: 'desc' }]);
+});

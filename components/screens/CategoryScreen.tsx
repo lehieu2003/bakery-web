@@ -108,6 +108,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
       categoryId: effectiveCategoryId,
       search: keyword || undefined,
       page,
+      sort,
       limit: PAGE_SIZE,
       minPrice: priceMin ? Number(priceMin) : undefined,
       maxPrice: priceMax ? Number(priceMax) : undefined,
@@ -123,11 +124,6 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
 
   const products = productsData?.products || [];
   const pagination = productsData?.pagination;
-  const sorted = [...products].sort((a, b) => {
-    if (sort === 'price-asc') return a.price - b.price;
-    if (sort === 'price-desc') return b.price - a.price;
-    return 0;
-  });
 
   const rawLastSlug = slugPath[slugPath.length - 1] || '';
   const decodedLastSlug = (() => {
@@ -463,7 +459,10 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                       {SORT_OPTIONS.map(({ value, label, icon }) => (
                         <button
                           key={value}
-                          onClick={() => setSort(value)}
+                          onClick={() => {
+  setSort(value);
+  setPage(1);
+}}
                           className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all ${
                             sort === value
                               ? 'bg-primary/10 text-primary font-semibold'
@@ -560,7 +559,10 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                 {SORT_OPTIONS.map(({ value, label }) => (
                   <button
                     key={value}
-                    onClick={() => setSort(value)}
+                    onClick={() => {
+  setSort(value);
+  setPage(1);
+}}
                     className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                       sort === value
                         ? 'bg-primary text-primary-foreground border-primary'
@@ -574,7 +576,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
 
               <div className='flex items-center justify-between mb-6'>
                 <p className='text-sm text-muted-foreground'>
-                  {pagination?.total ?? sorted.length} products
+                  {pagination?.total ?? products.length} sản phẩm
                 </p>
               </div>
 
@@ -595,11 +597,11 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                       </div>
                     </div>
                   ))
-                ) : sorted.length > 0 ? (
-                  sorted.map((p) => <ProductCard key={p.id} product={p} />)
+                ) : products.length > 0 ? (
+                  products.map((p) => <ProductCard key={p.id} product={p} />)
                 ) : (
                   <div className='col-span-full text-center py-12 text-muted-foreground'>
-                    No products available in this category
+                    Chưa có sản phẩm trong danh mục này
                   </div>
                 )}
               </div>
@@ -612,10 +614,10 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                     className='inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50'
                   >
                     <ChevronLeft size={14} />
-                    Prev
+                    Trang trước
                   </button>
                   <span className='px-3 text-sm text-muted-foreground'>
-                    Page {pagination.page} / {pagination.totalPages}
+                    Trang {pagination.page} / {pagination.totalPages}
                   </span>
                   <button
                     onClick={() =>
@@ -626,7 +628,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                     disabled={pagination.page >= pagination.totalPages}
                     className='inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50'
                   >
-                    Next
+                    Trang sau
                     <ChevronRight size={14} />
                   </button>
                 </div>

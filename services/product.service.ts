@@ -21,6 +21,7 @@ export function buildProductQueryParams(params?: ProductsQueryParams) {
   if (params.search) searchParams.set('search', params.search);
   if (params.page) searchParams.set('page', String(params.page));
   if (params.limit) searchParams.set('limit', String(params.limit));
+  if (params.sort) searchParams.set('sort', params.sort);
   if (params.minPrice !== undefined) {
     searchParams.set('minPrice', String(params.minPrice));
   }
