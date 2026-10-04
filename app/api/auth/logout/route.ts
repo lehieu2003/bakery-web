@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteSession } from '@/lib/session';
+import { deleteSession, hashSessionToken } from '@/lib/session';
 import { readSessionTokenFromRequest } from '@/app/api/auth/refresh/route';
 import { prisma } from '@/lib/prisma';
 
@@ -16,7 +16,9 @@ const defaultDeps: LogoutRouteDeps = {
   readPresentedToken: readSessionTokenFromRequest,
   deleteServerSession: deleteSession,
   revokeSessionByToken: async (token) => {
-    await prisma.session.deleteMany({ where: { token } });
+    await prisma.session.deleteMany({
+      where: { token: hashSessionToken(token) },
+    });
   },
   clearSessionCookie: async () => {
     await deleteSession();

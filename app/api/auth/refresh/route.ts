@@ -4,7 +4,7 @@ import {
   rotateSession,
   type RotateSessionResult,
 } from '@/lib/auth/session-rotation';
-import { setSessionCookie } from '@/lib/session';
+import { setSessionCookie, hashSessionToken } from '@/lib/session';
 
 type SessionTokenSource = { token: string; source: 'cookie' | 'bearer' };
 
@@ -94,7 +94,9 @@ const defaultDeps: RefreshRouteDeps = {
   setSessionCookie,
   revokeSessionByToken: async (token) => {
     const { prisma } = await import('@/lib/prisma');
-    await prisma.session.deleteMany({ where: { token } });
+    await prisma.session.deleteMany({
+      where: { token: hashSessionToken(token) },
+    });
   },
   clearSessionCookie: async () => {
     const { deleteSession } = await import('@/lib/session');

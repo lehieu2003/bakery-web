@@ -8,7 +8,10 @@ import {
   isSessionExpired,
   isSessionUsable,
 } from './auth/session-utils';
+import { hashSessionToken } from './auth/session-hash';
 import { hasPolicyAccess } from './authorization-policy';
+
+export { hashSessionToken };
 
 const SESSION_COOKIE_NAME = 'bakery_session';
 const SESSION_EXPIRY_DAYS = 30;
@@ -46,7 +49,8 @@ export async function createSession(
   const session = await prisma.session.create({
     data: {
       userId,
-      token,
+      // Only the hash is persisted; `token` below stays the raw value.
+      token: hashSessionToken(token),
       expiresAt,
       userAgent,
       ipAddress,
@@ -67,7 +71,9 @@ export async function createSession(
     },
   });
 
-  return session;
+  // Callers hand `session.token` to the client (cookie + JSON body), so the
+  // returned object must carry the RAW token, never the stored hash.
+  return { ...session, token };
 }
 
 /**
@@ -103,7 +109,7 @@ async function getSessionByToken(token: string) {
   if (!token) return null;
 
   const session = await prisma.session.findUnique({
-    where: { token },
+    where: { token: hashSessionToken(token) },
     include: {
       user: { select: USER_SELECT },
     },
@@ -201,7 +207,9 @@ export async function deleteSession() {
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
   if (token) {
-    await prisma.session.deleteMany({ where: { token } });
+    await prisma.session.deleteMany({
+      where: { token: hashSessionToken(token) },
+    });
   }
 
   cookieStore.delete(SESSION_COOKIE_NAME);

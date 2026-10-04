@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { prisma } from '@/lib/prisma';
+import { hashSessionToken } from '@/lib/auth/session-hash';
 
 const SESSION_EXPIRY_DAYS = 30;
 
@@ -85,7 +86,7 @@ export function createPrismaRotationDeps() {
   return {
     findSessionByToken: (token: string) =>
       prisma.session.findUnique({
-        where: { token },
+        where: { token: hashSessionToken(token) },
         select: {
           id: true,
           userId: true,
@@ -111,8 +112,18 @@ export function createPrismaRotationDeps() {
         Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
       );
       return prisma.session
-        .create({ data: { userId, token, expiresAt, userAgent, ipAddress } })
-        .then((created) => ({ token: created.token, expiresAt: created.expiresAt }));
+        .create({
+          data: {
+            userId,
+            // Persist the hash; the RAW token is what rotateSession returns
+            // to the route (cookie + JSON body), never the stored hash.
+            token: hashSessionToken(token),
+            expiresAt,
+            userAgent,
+            ipAddress,
+          },
+        })
+        .then((created) => ({ token, expiresAt: created.expiresAt }));
     },
     revokeAllUserSessions: (userId: string) =>
       prisma.session
