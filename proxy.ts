@@ -3,6 +3,36 @@ import type { NextRequest } from 'next/server';
 
 const protectedUserRoutes = ['/profile'];
 
+const CSP =
+  "default-src 'self'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data: https:; connect-src 'self' https: ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
+function applySecurityHeaders(response: NextResponse, request: NextRequest) {
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=()',
+  );
+  response.headers.set('Content-Security-Policy', CSP);
+
+  const forwardedProto = request.headers
+    .get('x-forwarded-proto')
+    ?.split(',')[0]
+    ?.trim();
+  const isHttps =
+    request.nextUrl.protocol === 'https:' || forwardedProto === 'https';
+
+  if (isHttps) {
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains',
+    );
+  }
+
+  return response;
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -19,27 +49,33 @@ export function proxy(request: NextRequest) {
     if (!sessionToken) {
       const url = new URL('/admin/login', request.url);
       url.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(url);
+      return applySecurityHeaders(NextResponse.redirect(url), request);
     }
 
     if (userRole !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/', request.url));
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL('/', request.url)),
+        request,
+      );
     }
   }
 
   if (isProtectedUserRoute && !sessionToken) {
     const url = new URL('/auth', request.url);
     url.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(url);
+    return applySecurityHeaders(NextResponse.redirect(url), request);
   }
 
   if (isAdminLoginRoute && sessionToken && userRole === 'ADMIN') {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    return applySecurityHeaders(
+      NextResponse.redirect(new URL('/admin/dashboard', request.url)),
+      request,
+    );
   }
 
-  return NextResponse.next();
+  return applySecurityHeaders(NextResponse.next(), request);
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/profile/:path*', '/auth'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
