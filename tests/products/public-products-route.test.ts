@@ -10,7 +10,7 @@ test('public products route normalizes invalid pagination values', async () => {
     {
       parseAttributeFilters: () => [],
       buildProductAttributeWhere: () => [],
-      findChildCategories: async () => [],
+      listActiveCategories: async () => [],
       findProducts: async ({ skip, take }) => {
         captured = { skip, take };
         return [];
@@ -37,11 +37,10 @@ test('public products route includes descendant category ids and keeps paginatio
     {
       parseAttributeFilters: () => [],
       buildProductAttributeWhere: () => [],
-      findChildCategories: async (parentId: string) => {
-        if (parentId === 'c1') return [{ id: 'c2' }];
-        if (parentId === 'c2') return [{ id: 'c3' }];
-        return [];
-      },
+      listActiveCategories: async () => [
+        { id: 'c2', parentId: 'c1' },
+        { id: 'c3', parentId: 'c2' },
+      ],
       findProducts: async ({ where, skip, take }) => {
         capturedWhere = where;
         capturedSkip = skip;
@@ -78,7 +77,7 @@ test('public products route composes keyword, price, stock and attribute filters
         { attributeSlug: 'flavor', valueSlugs: ['chocolate', 'vanilla'] },
       ],
       buildProductAttributeWhere: () => [{ attributeAssignments: { some: { valueKey: 'flavor:chocolate' } } }],
-      findChildCategories: async () => [],
+      listActiveCategories: async () => [],
       findProducts: async ({ where }) => {
         capturedWhere = where;
         return [];
@@ -108,7 +107,7 @@ test('public products route maps sort param to prisma orderBy', async () => {
     {
       parseAttributeFilters: () => [],
       buildProductAttributeWhere: () => [],
-      findChildCategories: async () => [],
+      listActiveCategories: async () => [],
       findProducts: async ({ orderBy }) => {
         capturedOrderBy = orderBy;
         return [];
@@ -122,7 +121,7 @@ test('public products route maps sort param to prisma orderBy', async () => {
 });
 
 test('public products route defaults to popular ordering and rejects unknown sort', async () => {
-  const captured: Record<string, unknown>[] | null[] = [];
+  const captured: (Record<string, unknown>[] | null)[] = [];
 
   for (const query of ['', 'sort=popular', 'sort=totally-unknown']) {
     let orderBy: Record<string, unknown>[] | null = null;
@@ -131,7 +130,7 @@ test('public products route defaults to popular ordering and rejects unknown sor
       {
         parseAttributeFilters: () => [],
         buildProductAttributeWhere: () => [],
-        findChildCategories: async () => [],
+        listActiveCategories: async () => [],
         findProducts: async (args) => {
           orderBy = args.orderBy;
           return [];

@@ -23,10 +23,12 @@ const productInclude: Prisma.ProductInclude = {
   },
 };
 
+type ActiveCategoryRow = { id: string; parentId: string | null };
+
 type PublicProductsRouteDeps = {
   parseAttributeFilters: typeof parseAttributeFilters;
   buildProductAttributeWhere: typeof buildProductAttributeWhere;
-  findChildCategories: (parentId: string) => Promise<Array<{ id: string }>>;
+  listActiveCategories: () => Promise<ActiveCategoryRow[]>;
   findProducts: (args: {
     where: Record<string, unknown>;
     skip: number;
@@ -36,14 +38,32 @@ type PublicProductsRouteDeps = {
   countProducts: (args: { where: Record<string, unknown> }) => Promise<number>;
 };
 
+const CATEGORY_TREE_TTL_MS = 60_000;
+let activeCategoryCache: { rows: ActiveCategoryRow[]; expiresAt: number } | null =
+  null;
+
 const defaultDeps: PublicProductsRouteDeps = {
   parseAttributeFilters,
   buildProductAttributeWhere,
-  findChildCategories: (parentId) =>
-    prisma.category.findMany({
-      where: { parentId, isActive: true },
-      select: { id: true },
-    }),
+  listActiveCategories: () => {
+    // Categories change rarely; a short TTL cache keeps the tree lookup off
+    // the DB for most requests on this high-latency database setup.
+    if (activeCategoryCache && activeCategoryCache.expiresAt > Date.now()) {
+      return Promise.resolve(activeCategoryCache.rows);
+    }
+    return prisma.category
+      .findMany({
+        where: { isActive: true },
+        select: { id: true, parentId: true },
+      })
+      .then((rows) => {
+        activeCategoryCache = {
+          rows,
+          expiresAt: Date.now() + CATEGORY_TREE_TTL_MS,
+        };
+        return rows;
+      });
+  },
   findProducts: ({ where, skip, take, orderBy }) =>
     prisma.product.findMany({
       where,
@@ -100,14 +120,26 @@ export async function handleGetPublicProductsRequest(
   const andConditions: Record<string, unknown>[] = [];
   const where: Record<string, unknown> = { isActive: true };
   if (categoryId) {
-    const collectDescendantIds = async (parentId: string): Promise<string[]> => {
-      const children = await deps.findChildCategories(parentId);
-      const childIds = children.map((c) => c.id);
-      const deeper = await Promise.all(childIds.map(collectDescendantIds));
-      return [...childIds, ...deeper.flat()];
-    };
+    // One flat query + in-memory traversal replaces per-level recursion.
+    const categories = await deps.listActiveCategories();
+    const childrenByParent = new Map<string, string[]>();
+    for (const row of categories) {
+      if (!row.parentId) continue;
+      const children = childrenByParent.get(row.parentId) ?? [];
+      children.push(row.id);
+      childrenByParent.set(row.parentId, children);
+    }
 
-    const descendantIds = await collectDescendantIds(categoryId);
+    const descendantIds: string[] = [];
+    const queue = [categoryId];
+    while (queue.length > 0) {
+      const current = queue.pop() as string;
+      for (const childId of childrenByParent.get(current) ?? []) {
+        descendantIds.push(childId);
+        queue.push(childId);
+      }
+    }
+
     const categoryIds = [categoryId, ...descendantIds];
     where.categories = { some: { categoryId: { in: categoryIds } } };
   }

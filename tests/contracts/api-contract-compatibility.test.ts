@@ -53,7 +53,7 @@ test('public products route returns success/data envelope for list responses', a
     {
       parseAttributeFilters: () => [],
       buildProductAttributeWhere: () => [],
-      findChildCategories: async () => [],
+      listActiveCategories: async () => [],
       findProducts: async () => [{ id: 'p1', name: 'Bread' }],
       countProducts: async () => 1,
     },
