@@ -65,14 +65,14 @@ export function getConfirmationTitle(args: {
   orderStatusLabel?: string;
   paymentStatusLabel?: string;
 }): string {
-  if (!args.isAuthenticated) return 'Order Received';
+  if (!args.isAuthenticated) return 'Đã nhận đơn';
 
   if (
     args.orderStatusLabel === 'Confirmed' ||
     args.paymentStatusLabel === 'Paid'
   ) {
-    return 'Order Confirmed';
+    return 'Đơn đã được xác nhận';
   }
 
-  return 'Order Received';
+  return 'Đã nhận đơn';
 }

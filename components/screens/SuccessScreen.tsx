@@ -80,8 +80,8 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
           </h1>
           <p className='text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto'>
             {matchedOrder
-              ? 'Your order details are synced from your account history.'
-              : 'Your order was placed. Status may update after payment callback reconciliation.'}
+              ? 'Chi tiết đơn được đồng bộ từ lịch sử tài khoản của bạn.'
+              : 'Đơn hàng đã được ghi nhận. Trạng thái có thể cập nhật sau khi cổng thanh toán xác nhận.'}
           </p>
         </div>
 
@@ -89,7 +89,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
         <div className='bg-card rounded-2xl border border-border/50 p-6 mb-4'>
           <div className='flex justify-between items-center pb-4 border-b border-border'>
             <span className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
-              Order Number
+              Mã đơn hàng
             </span>
             <span className='font-serif text-base font-semibold text-foreground'>
               #{orderNumber}
@@ -99,7 +99,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
           <div className='pt-4 space-y-3'>
             {isAuthenticated && isLoading && (
               <p className='text-xs text-muted-foreground'>
-                Syncing latest order status...
+                Đang đồng bộ trạng thái mới nhất...
               </p>
             )}
 
@@ -107,7 +107,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
               <>
                 <div className='flex justify-between items-center'>
                   <span className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
-                    Order Status
+                    Trạng thái đơn
                   </span>
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
@@ -117,7 +117,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
                 </div>
                 <div className='flex justify-between items-center'>
                   <span className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
-                    Payment
+                    Thanh toán
                   </span>
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
@@ -127,7 +127,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
                 </div>
                 <div className='flex justify-between items-center'>
                   <span className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
-                    Total
+                    Tổng cộng
                   </span>
                   <span className='text-sm font-semibold text-foreground'>
                     {matchedOrder.total.toLocaleString('vi-VN')}đ
@@ -138,22 +138,22 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
 
             {!isAuthenticated && (
               <p className='text-xs text-muted-foreground leading-relaxed'>
-                Guest checkout: keep this order number for support. Order
-                history tracking is available after sign-in.
+                Đặt hàng không cần tài khoản: lưu lại mã đơn hàng để được
+                hỗ trợ. Theo dõi lịch sử đơn sau khi đăng nhập.
               </p>
             )}
 
             {isAuthenticated && !isLoading && !matchedOrder && (
               <p className='text-xs text-muted-foreground leading-relaxed'>
-                Your order is being finalized. Open Order History to see live
-                status updates.
+                Đơn hàng đang được chốt lại. Mở Lịch sử đơn hàng để xem
+                cập nhật trực tiếp.
               </p>
             )}
 
             {isError && (
               <p className='text-xs text-amber-700'>
-                Could not sync current order status right now. You can still
-                check Order History.
+                Tạm thời không đồng bộ được trạng thái đơn. Bạn vẫn có thể
+                xem trong Lịch sử đơn hàng.
               </p>
             )}
           </div>
@@ -164,14 +164,14 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
           <div className='bg-primary/8 border border-primary/20 rounded-2xl p-5 mb-4'>
             <div className='flex items-center justify-between mb-2'>
               <p className='font-serif text-sm font-semibold text-primary'>
-                Loyalty Snapshot
+                Tích điểm
               </p>
               <span className='text-xs text-primary uppercase tracking-wider font-semibold'>
                 {user.memberLevel ?? 'SILVER'}
               </span>
             </div>
             <p className='text-xs text-muted-foreground'>
-              Current points: {(user.points ?? 0).toLocaleString()}.
+              Điểm tích luỹ: {(user.points ?? 0).toLocaleString()}.
             </p>
           </div>
         )}
@@ -184,9 +184,9 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
                 href='/profile'
                 className='text-primary font-medium underline underline-offset-2'
               >
-                Create an account
+                Tạo tài khoản
               </Link>{' '}
-              to start earning rewards on your next order.
+              để bắt đầu tích điểm từ đơn hàng tiếp theo.
             </p>
           </div>
         )}
@@ -196,13 +196,13 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
             href='/'
             className='flex-1 py-4 bg-primary text-white rounded-full font-medium text-sm shadow-md hover:bg-primary/90 transition-colors text-center'
           >
-            Back to Home
+            Về trang chủ
           </Link>
           <Link
             href='/profile'
             className='flex-1 py-4 border border-border text-foreground rounded-full font-medium text-sm hover:bg-secondary transition-colors text-center'
           >
-            View Order History
+            Xem lịch sử đơn hàng
           </Link>
         </div>
       </div>

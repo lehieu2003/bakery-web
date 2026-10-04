@@ -114,6 +114,17 @@ const EDITED_ADDRESS_LINE = '45 Nguyen Trai, P. Ben Nghe, Quan 1, TP.HCM';
 // count createOrder calls stay isolated from each other.
 beforeEach(() => {
   vi.clearAllMocks();
+  // The payment screen now always runs the fee-aware preview (it is the
+  // authoritative price even for pickup orders), so every test needs a sane
+  // default preview response; individual tests override when needed.
+  mockedPreviewIncentive.mockResolvedValue({
+    subtotal: 200000,
+    membershipDiscount: 0,
+    couponDiscount: 0,
+    totalDiscount: 0,
+    total: 200000,
+    appliedIncentives: [],
+  } as never);
 });
 
 function buildCartValue(overrides?: Partial<ReturnType<typeof useCart>>) {
@@ -172,7 +183,9 @@ describe('Checkout payment order payload fidelity', () => {
   test('sends variant, message, pickup date, and address id with the order', async () => {
     render(<CheckoutPaymentScreen />);
 
-    fireEvent.click(screen.getByRole('button', { name: /^Đặt bánh/i }));
+    const placeOrderButton = screen.getByRole('button', { name: /^Đặt bánh/i });
+    await waitFor(() => expect(placeOrderButton).toBeEnabled());
+    fireEvent.click(placeOrderButton);
 
     await waitFor(() => {
       expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
@@ -285,10 +298,23 @@ describe('Checkout delivery fee display fidelity', () => {
       appliedIncentive: null,
     });
 
+    // The preview is authoritative for pickup orders too — the backend may
+    // apply a session-based membership discount the client cannot see.
+    mockedPreviewIncentive.mockResolvedValue({
+      subtotal: 200000,
+      membershipDiscount: 0,
+      couponDiscount: 0,
+      totalDiscount: 0,
+      total: 200000,
+      appliedIncentives: [],
+    } as never);
     render(<CheckoutPaymentScreen />);
 
-    // No preview round-trip is needed to price a pickup order.
-    expect(mockedPreviewIncentive).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockedPreviewIncentive).toHaveBeenCalledWith(
+        expect.objectContaining({ deliveryMethod: 'pickup' }),
+      );
+    });
     expect(screen.getByText('Phí giao hàng')).toBeInTheDocument();
     expect(screen.getByText('0đ')).toBeInTheDocument();
     const totalBox = screen.getByText('Tổng cộng').parentElement as HTMLElement;
@@ -384,7 +410,9 @@ describe('Checkout saved address hand-edit fidelity', () => {
       buildCartValue({ checkoutInfo: capturedInfo }) as ReturnType<typeof useCart>,
     );
     render(<CheckoutPaymentScreen />);
-    fireEvent.click(screen.getByRole('button', { name: /^Đặt bánh/i }));
+    const placeOrderButton = screen.getByRole('button', { name: /^Đặt bánh/i });
+    await waitFor(() => expect(placeOrderButton).toBeEnabled());
+    fireEvent.click(placeOrderButton);
 
     await waitFor(() => {
       expect(mockedCreateOrder).toHaveBeenCalledTimes(1);

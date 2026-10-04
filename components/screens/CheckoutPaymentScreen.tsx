@@ -117,16 +117,22 @@ export default function CheckoutPaymentScreen() {
   const availableIncentives = availableIncentivesQuery.data ?? [];
   const couponDiscount = previewPricing?.couponDiscount ?? 0;
   const total = previewPricing?.total ?? baseTotal;
-  // The charged total must never exceed the displayed total, so delivery
-  // orders wait for the fee-aware preview before enabling Place Order.
+  // The charged total must never exceed the displayed total: every order
+  // waits for the fee-aware preview before enabling Place Order.
   const isFeePreviewPending =
-    isDelivery && previewPricing === null && !isFeePreviewUnavailable;
+    previewPricing === null && !isFeePreviewUnavailable;
   const appliedIncentiveCodes =
     previewPricing?.appliedIncentives?.map((item) => item.code) ??
     selectedIncentiveCodes;
   const membershipDiscountApplied = previewPricing
     ? Math.max(previewPricing.totalDiscount - previewPricing.couponDiscount, 0)
     : discount;
+  // Client auth state may lag the session the backend sees (stale cookies),
+  // so derive the displayed percent from the authoritative preview amounts.
+  const membershipDiscountPercentShown =
+    previewPricing && subtotal > 0
+      ? Math.round((membershipDiscountApplied / subtotal) * 100)
+      : discountPercent;
 
   useEffect(() => {
     setPreviewPricing(null);
@@ -134,12 +140,11 @@ export default function CheckoutPaymentScreen() {
     setIncentiveError('');
   }, [subtotal, discount]);
 
-  // Keep the displayed delivery total fee-accurate: fetch a fee-aware preview
-  // whenever no incentive preview is active, so the gateway charge never
-  // exceeds the last displayed total for delivery orders.
+  // The preview is the authoritative price for EVERY order: the backend can
+  // apply a membership discount server-side even when the client-side auth
+  // state still says guest, so the displayed total must always come from it.
   useEffect(() => {
-    if (!isDelivery || cart.length === 0 || previewPricing || isFeePreviewUnavailable)
-      return;
+    if (cart.length === 0 || previewPricing || isFeePreviewUnavailable) return;
     let cancelled = false;
     orderService
       .previewIncentive({
@@ -160,7 +165,6 @@ export default function CheckoutPaymentScreen() {
       cancelled = true;
     };
   }, [
-    isDelivery,
     subtotal,
     previewPricing,
     isFeePreviewUnavailable,
@@ -630,7 +634,7 @@ export default function CheckoutPaymentScreen() {
               {membershipDiscountApplied > 0 && (
                 <div className='flex justify-between text-sm'>
                   <span className='text-primary'>
-                    Ưu đãi hạng {memberLabel} ({discountPercent}%)
+                    Ưu đãi hạng {memberLabel} ({membershipDiscountPercentShown}%)
                   </span>
                   <span className='text-primary font-semibold'>
                     -{membershipDiscountApplied.toLocaleString('vi-VN')}đ

@@ -54,7 +54,7 @@ test('getConfirmationTitle respects auth and finalized payment/order signals', (
       orderStatusLabel: 'Confirmed',
       paymentStatusLabel: 'Paid',
     }),
-    'Order Received',
+    'Đã nhận đơn',
   );
 
   assert.equal(
@@ -63,7 +63,7 @@ test('getConfirmationTitle respects auth and finalized payment/order signals', (
       orderStatusLabel: 'Confirmed',
       paymentStatusLabel: 'Payment pending',
     }),
-    'Order Confirmed',
+    'Đơn đã được xác nhận',
   );
 
   assert.equal(
@@ -72,7 +72,7 @@ test('getConfirmationTitle respects auth and finalized payment/order signals', (
       orderStatusLabel: 'Pending',
       paymentStatusLabel: 'Paid',
     }),
-    'Order Confirmed',
+    'Đơn đã được xác nhận',
   );
 
   assert.equal(
@@ -81,6 +81,6 @@ test('getConfirmationTitle respects auth and finalized payment/order signals', (
       orderStatusLabel: 'Pending',
       paymentStatusLabel: 'Payment pending',
     }),
-    'Order Received',
+    'Đã nhận đơn',
   );
 });
