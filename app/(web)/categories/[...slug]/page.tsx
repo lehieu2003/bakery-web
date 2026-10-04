@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import CategoryScreen from '@/components/screens/CategoryScreen';
 import { prisma } from '@/lib/prisma';
+import { safeJsonLdString } from '@/lib/json-ld';
 
 const siteUrl = (
   process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -118,7 +119,9 @@ export default async function CategoryPage({ params }: Props) {
     <>
       <script
         type='application/ld+json'
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: safeJsonLdString(breadcrumbJsonLd),
+        }}
       />
       <CategoryScreen slugPath={slug} />
     </>

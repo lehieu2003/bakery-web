@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",
     "test": "npm run test:node && npm run test:vitest",
-    "test:node": "tsx --test tests/**/*.test.ts",
+    "test:node": "tsx --test \"tests/**/*.test.ts\"",
     "test:vitest": "vitest run",
     "test:vitest:ci": "vitest run --exclude \"tests/vitest/membership-benefit-visibility.test.tsx\" --exclude \"tests/vitest/personalized-suggestions-section.test.tsx\"",
     "test:vitest:watch": "vitest"

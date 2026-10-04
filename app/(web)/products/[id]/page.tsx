@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import ProductDetailScreen from '@/components/screens/ProductDetailScreen';
 import { prisma } from '@/lib/prisma';
+import { safeJsonLdString } from '@/lib/json-ld';
 
 const siteUrl = (
   process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -148,7 +149,9 @@ export default async function ProductDetailPage({ params }: Props) {
       {productJsonLd ? (
         <script
           type='application/ld+json'
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLdString(productJsonLd),
+          }}
         />
       ) : null}
       <ProductDetailScreen productId={id} />

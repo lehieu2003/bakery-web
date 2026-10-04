@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import BlogPostDetailScreen from '@/components/screens/BlogPostDetailScreen';
 import { prisma } from '@/lib/prisma';
+import { safeJsonLdString } from '@/lib/json-ld';
 
 const siteUrl = (
   process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -118,7 +119,9 @@ export default async function BlogPostPage({ params }: Props) {
       {articleJsonLd ? (
         <script
           type='application/ld+json'
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLdString(articleJsonLd),
+          }}
         />
       ) : null}
       <BlogPostDetailScreen slug={slug} />
