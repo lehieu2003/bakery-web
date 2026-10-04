@@ -4,6 +4,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AdminCoupon } from '@/services/admin/coupons.service';
 
+// AdminRoleGuard calls /api/auth/me before rendering the page; stub both the
+// router and the fetch response so the guard verifies an admin session.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+}));
+
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -47,9 +53,23 @@ function buildCoupon(overrides?: Partial<AdminCoupon>): AdminCoupon {
   };
 }
 
+function stubAdminMeResponse() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { user: { role: 'ADMIN' } },
+      }),
+    }),
+  );
+}
+
 describe('Admin coupons page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    stubAdminMeResponse();
   });
 
   test('renders the coupon table with usage and status', async () => {
@@ -89,6 +109,7 @@ describe('Admin coupons page', () => {
 describe('Admin coupons create dialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    stubAdminMeResponse();
     mockedGetAll.mockResolvedValue([]);
     createCoupon.mockResolvedValue(buildCoupon());
   });

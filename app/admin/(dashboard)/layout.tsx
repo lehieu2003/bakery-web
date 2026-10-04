@@ -1,3 +1,4 @@
+import AdminRoleGuard from '@/components/admin/AdminRoleGuard';
 import AdminShell from '@/components/admin/AdminShell';
 import type { Metadata } from 'next';
 
@@ -15,5 +16,9 @@ export default function DashboardGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <AdminRoleGuard>
+      <AdminShell>{children}</AdminShell>
+    </AdminRoleGuard>
+  );
 }

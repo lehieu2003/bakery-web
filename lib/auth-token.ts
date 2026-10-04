@@ -17,7 +17,7 @@ export const authToken = {
   /**
    * Set auth token to localStorage
    */
-  set: (data: { token: string; role?: string }): void => {
+  set: (data: { token: string }): void => {
     if (typeof window === 'undefined') return;
 
     // save localStorage
@@ -25,10 +25,6 @@ export const authToken = {
 
     // save cookie for middleware
     document.cookie = `bakery_session=${data.token}; path=/`;
-
-    if (data.role) {
-      document.cookie = `bakery_role=${data.role}; path=/`;
-    }
   },
 
   /**
@@ -40,7 +36,6 @@ export const authToken = {
 
     // remove cookies
     document.cookie = 'bakery_session=; Max-Age=0; path=/';
-    document.cookie = 'bakery_role=; Max-Age=0; path=/';
   },
 
   /**

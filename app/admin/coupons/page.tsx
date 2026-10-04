@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, TicketPercent } from 'lucide-react';
+import AdminRoleGuard from '@/components/admin/AdminRoleGuard';
 import {
   useCoupons,
   useCreateCoupon,
@@ -19,7 +20,17 @@ function formatWindow(startAt: string, endAt: string) {
   return `${fmt(startAt)} → ${fmt(endAt)}`;
 }
 
+// This page sits outside the admin (dashboard) route group, so it carries its
+// own client-side role gate (same one used by the (dashboard) layout).
 export default function AdminCouponsPage() {
+  return (
+    <AdminRoleGuard>
+      <AdminCouponsPageContent />
+    </AdminRoleGuard>
+  );
+}
+
+function AdminCouponsPageContent() {
   const couponsQuery = useCoupons();
   const createCoupon = useCreateCoupon();
   const updateCoupon = useUpdateCoupon();

@@ -37,7 +37,6 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const sessionToken = request.cookies.get('bakery_session')?.value;
-  const userRole = request.cookies.get('bakery_role')?.value;
 
   const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
   const isAdminLoginRoute = pathname === '/admin/login';
@@ -45,18 +44,16 @@ export function proxy(request: NextRequest) {
     pathname.startsWith(route),
   );
 
+  // The middleware cannot verify the user's role safely (a client-writable
+  // role cookie must not gate anything), so it only checks session presence.
+  // Role enforcement stays server-side via requireAdmin() on /api/admin/*
+  // routes, and the admin (dashboard) layout verifies the role client-side
+  // via /api/auth/me and bounces non-admins home.
   if (isAdminRoute && !isAdminLoginRoute) {
     if (!sessionToken) {
       const url = new URL('/admin/login', request.url);
       url.searchParams.set('redirect', pathname);
       return applySecurityHeaders(NextResponse.redirect(url), request);
-    }
-
-    if (userRole !== 'ADMIN') {
-      return applySecurityHeaders(
-        NextResponse.redirect(new URL('/', request.url)),
-        request,
-      );
     }
   }
 
@@ -66,7 +63,9 @@ export function proxy(request: NextRequest) {
     return applySecurityHeaders(NextResponse.redirect(url), request);
   }
 
-  if (isAdminLoginRoute && sessionToken && userRole === 'ADMIN') {
+  // Any logged-in user visiting /admin/login goes to the dashboard; if they
+  // are not an admin the (dashboard) layout guard redirects them home.
+  if (isAdminLoginRoute && sessionToken) {
     return applySecurityHeaders(
       NextResponse.redirect(new URL('/admin/dashboard', request.url)),
       request,

@@ -35,7 +35,6 @@ export const authService = {
     if (response.data?.token) {
       authToken.set({
         token: response.data.token,
-        role: response.data.user.role,
       });
     }
 
