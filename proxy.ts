@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 const protectedUserRoutes = ['/profile'];
 
 const CSP =
-  "default-src 'self'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data: https:; connect-src 'self' https: ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data: https:; connect-src 'self' https: ws: wss:; frame-src 'self' https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 function applySecurityHeaders(response: NextResponse, request: NextRequest) {
   response.headers.set('X-Frame-Options', 'DENY');
