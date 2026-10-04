@@ -11,6 +11,9 @@ interface RateLimitConfig {
 
 // Rate limit configurations
 export const RATE_LIMITS = {
+  LOGIN_PER_IP: { maxRequests: 10, windowMs: 15 * 60 * 1000 }, // 10 per 15 minutes per IP
+  REGISTER_PER_IP: { maxRequests: 5, windowMs: 60 * 60 * 1000 }, // 5 per hour per IP
+  OTP_PER_IP: { maxRequests: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour per IP
   OTP_SEND_PER_IP: { maxRequests: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour per IP
   OTP_SEND_PER_EMAIL: { maxRequests: 5, windowMs: 60 * 60 * 1000 }, // 5 per hour per email
   OTP_SEND_COOLDOWN: { maxRequests: 1, windowMs: 60 * 1000 }, // 1 per minute (cooldown)
@@ -205,4 +208,44 @@ export function enforceIpRateLimit(
 /** Clears the in-memory limiter store — test isolation only. */
 export function __resetIpRateLimitForTests() {
   ipRateLimitStore.clear();
+}
+
+// ============================================================================
+// Auth route rate limiting (login / register / OTP endpoints)
+// ============================================================================
+
+export type AuthRateLimitScope = 'auth-login' | 'auth-register' | 'auth-otp';
+
+const authRateLimitConfigs: Record<AuthRateLimitScope, IpRateLimitConfig> = {
+  'auth-login': RATE_LIMITS.LOGIN_PER_IP,
+  'auth-register': RATE_LIMITS.REGISTER_PER_IP,
+  'auth-otp': RATE_LIMITS.OTP_PER_IP,
+};
+
+export interface AuthRateLimitRejection {
+  status: 429;
+  retryAfterSec: number;
+}
+
+/**
+ * Shared gate for the auth routes. Returns null when the request may proceed,
+ * otherwise a 429 rejection whose fields feed the JSON status and the
+ * Retry-After header of the response.
+ */
+export function checkAuthRateLimit(
+  request: Request,
+  scope: AuthRateLimitScope,
+): AuthRateLimitRejection | null {
+  const result = enforceIpRateLimit(request, scope, authRateLimitConfigs[scope]);
+  return result.ok
+    ? null
+    : { status: 429, retryAfterSec: result.retryAfterSec };
+}
+
+/**
+ * Drop the failure counter for an IP + scope. The login route calls this
+ * after a successful credential verify so its budget counts only failures.
+ */
+export function resetIpRateLimit(ip: string, scope: string): void {
+  ipRateLimitStore.delete(`${scope}:${ip}`);
 }

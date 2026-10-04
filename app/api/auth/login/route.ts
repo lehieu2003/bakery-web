@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateEmail, getClientIp } from '@/lib/rate-limit';
+import {
+  checkAuthRateLimit,
+  getClientIp,
+  resetIpRateLimit,
+  validateEmail,
+} from '@/lib/rate-limit';
 import { verifyPassword } from '@/lib/password';
 import { createSession, setSessionCookie } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
@@ -10,6 +15,17 @@ import { canAuthenticateWithPassword } from '@/lib/auth/login-policy';
  * Only for users who have already verified their email during registration
  */
 export async function POST(request: NextRequest) {
+  const authRateLimit = checkAuthRateLimit(request, 'auth-login');
+  if (authRateLimit) {
+    return NextResponse.json(
+      { success: false, error: 'Quá nhiều lần thử. Vui lòng thử lại sau.' },
+      {
+        status: authRateLimit.status,
+        headers: { 'Retry-After': String(authRateLimit.retryAfterSec) },
+      },
+    );
+  }
+
   try {
     const body = await request.json();
     const { email, password } = body;
@@ -71,8 +87,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create session
+    // Credentials verified — clear this IP's failed-login counter so the
+    // auth-login budget only accumulates failed attempts.
     const clientIp = getClientIp(request);
+    resetIpRateLimit(clientIp, 'auth-login');
+
+    // Create session
     const userAgent = request.headers.get('user-agent') || undefined;
 
     const session = await createSession(user.id, userAgent, clientIp);

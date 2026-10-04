@@ -4,6 +4,7 @@ import { generateOtp, createOtpVerification } from '@/lib/otp';
 import { emailService } from '@/lib/email';
 import { hashPassword } from '@/lib/password';
 import {
+  checkAuthRateLimit,
   checkRateLimit,
   checkCooldown,
   validateEmail,
@@ -13,6 +14,17 @@ import { prisma } from '@/lib/prisma';
 import { getRegistrationState } from '@/lib/auth/registration-utils';
 
 export async function POST(request: Request) {
+  const ipRateLimit = checkAuthRateLimit(request, 'auth-register');
+  if (ipRateLimit) {
+    return NextResponse.json(
+      { success: false, error: 'Quá nhiều lần thử. Vui lòng thử lại sau.' },
+      {
+        status: ipRateLimit.status,
+        headers: { 'Retry-After': String(ipRateLimit.retryAfterSec) },
+      },
+    );
+  }
+
   const requestId = randomUUID();
 
   try {

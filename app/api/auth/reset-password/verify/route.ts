@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyOtp } from '@/lib/otp';
-import { validateEmail } from '@/lib/rate-limit';
+import { checkAuthRateLimit, validateEmail } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
 import {
@@ -113,6 +113,17 @@ export async function handleResetPasswordVerifyRequest(
 }
 
 export async function POST(request: Request) {
+  const ipRateLimit = checkAuthRateLimit(request, 'auth-otp');
+  if (ipRateLimit) {
+    return NextResponse.json(
+      { success: false, error: 'Quá nhiều lần thử. Vui lòng thử lại sau.' },
+      {
+        status: ipRateLimit.status,
+        headers: { 'Retry-After': String(ipRateLimit.retryAfterSec) },
+      },
+    );
+  }
+
   try {
     const body = (await request.json()) as ResetPasswordVerifyRequestBody;
     const result = await handleResetPasswordVerifyRequest(body);
