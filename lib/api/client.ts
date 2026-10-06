@@ -4,7 +4,6 @@
  */
 
 import { toast } from 'sonner';
-import { authToken } from '@/lib/auth-token';
 
 // ============================================================================
 // Types
@@ -94,13 +93,12 @@ export const interceptors = {
 // Default Interceptors
 // ============================================================================
 
-// Add default headers and auth token
+// Add default headers. Authentication is cookie-based: the HttpOnly
+// `bakery_session` cookie is sent automatically by fetch (credentials:
+// 'include' in `request()` below). No Authorization header from the browser.
 interceptors.request.use((config) => {
-  const token = authToken.get();
-
   config.headers = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...config.headers,
   };
   return config;

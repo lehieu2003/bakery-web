@@ -12,7 +12,6 @@ import {
   useEffect,
   useCallback,
 } from 'react';
-import { authToken } from '@/lib/auth-token';
 import { authService } from '@/services/auth.service';
 import type { User } from '@/types/api.types';
 
@@ -30,21 +29,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Restore user from token on mount
+  // Always verify the session via /auth/me on mount. Auth state comes solely
+  // from the server (HttpOnly `bakery_session` cookie); there is no client-
+  // side token to gate on.
   useEffect(() => {
     const initAuth = async () => {
-      const token = authToken.get();
-
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
         const apiUser = await authService.me();
         setUser(apiUser);
       } catch {
-        authToken.remove();
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -56,7 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     setUser(null);
-    authToken.remove();
   }, []);
 
   const value = {

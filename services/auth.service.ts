@@ -5,7 +5,6 @@
 
 import http from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
-import { authToken } from '@/lib/auth-token';
 import type {
   User,
   LoginRequest,
@@ -31,13 +30,9 @@ export const authService = {
       },
     );
 
-    // Store token in localStorage
-    if (response.data?.token) {
-      authToken.set({
-        token: response.data.token,
-      });
-    }
-
+    // Session persists via the HttpOnly `bakery_session` cookie set by the
+    // server (Set-Cookie). The token in the response body is for non-browser
+    // (mobile Bearer) clients only — the browser never stores it.
     return response.data!.user;
   },
 
@@ -54,8 +49,7 @@ export const authService = {
       },
     );
 
-    // Remove token from localStorage
-    authToken.remove();
+    // Server clears the HttpOnly `bakery_session` cookie in its response.
 
     return response.data!;
   },
@@ -116,15 +110,11 @@ export const authService = {
 
     const responseData = response.data!;
 
-    // Store token if present
     if (
       responseData &&
       typeof responseData === 'object' &&
       'token' in responseData
     ) {
-      authToken.set({
-        token: (responseData as { token: string }).token,
-      });
       return responseData.user;
     }
 
