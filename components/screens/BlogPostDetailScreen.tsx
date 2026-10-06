@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Eye, Tag, User } from 'lucide-react';
 import { usePublicBlogPost, usePublicBlogPosts } from '@/hooks/use-blog';
+import { sanitizeHtmlContent } from '@/lib/sanitize';
 import type { BlogPost, BlogTag } from '@/types/api.types';
 import TableOfContents from '@/components/web/TableOfContents';
 
@@ -178,7 +179,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
           {/* Content */}
           <div
             className='blog-content prose prose-sm lg:prose-base prose-headings:font-serif prose-headings:text-foreground prose-p:text-foreground prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground prose-img:rounded-xl max-w-none'
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(post.content) }}
           />
 
           {/* Tags */}
