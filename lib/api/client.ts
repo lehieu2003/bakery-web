@@ -190,10 +190,18 @@ async function request<T>(
     if (!response.ok) {
       let error = new ApiError(response.status, response.statusText, data);
 
+      // Rebind to THIS request's config: concurrent requests overwrite the
+      // module-level binding set at request start, so each failure must be
+      // judged by its own config (e.g. skipAuthRedirect on auth checks).
+      currentRequestConfig = config;
+
       // Apply error interceptors
       for (const interceptor of errorInterceptors) {
         error = await interceptor(error);
       }
+
+      // Clear so no stale config outlives this request
+      currentRequestConfig = null;
 
       if (showErrorToast) {
         toast.error(data.error || 'Đã có lỗi xảy ra');
