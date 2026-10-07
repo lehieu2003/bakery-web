@@ -1,7 +1,7 @@
 import { prisma } from './prisma';
 import type { UserRole } from '@prisma/client';
 import crypto from 'crypto';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import {
   canUseAuthenticatedSession,
@@ -92,12 +92,43 @@ export async function setSessionCookie(token: string) {
 }
 
 /**
+ * Resolve which presented token identifies the session: Bearer first
+ * (non-browser clients, e.g. the mobile app), then the session cookie.
+ * Malformed/empty Bearer values fall back to the cookie rather than
+ * authenticating.
+ */
+export function pickSessionToken(
+  authorizationHeader: string | null | undefined,
+  cookieToken: string | null | undefined,
+): string | null {
+  const raw = authorizationHeader ?? '';
+  if (raw.startsWith('Bearer ')) {
+    const token = raw.slice(7).trim();
+    if (token) {
+      return token;
+    }
+  }
+  return cookieToken || null;
+}
+
+/**
  * Get session from cookie
  */
 export async function getSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  let authorizationHeader: string | null = null;
+  try {
+    const headerStore = await headers();
+    authorizationHeader = headerStore.get('authorization');
+  } catch {
+    // headers() is unavailable outside a request scope (scripts, some RSC
+    // contexts) — cookie-only fallback, the pre-Bearer behavior.
+  }
 
+  const cookieStore = await cookies();
+  const token = pickSessionToken(
+    authorizationHeader,
+    cookieStore.get(SESSION_COOKIE_NAME)?.value,
+  );
   if (!token) {
     return null;
   }
