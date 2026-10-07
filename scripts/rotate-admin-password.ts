@@ -1,13 +1,16 @@
-// One-off admin password re-rotation for admin@bakeryshop.com.
+// One-off admin password rotation for admin@bakeryshop.com.
 //
-// Unlike set-admin-password.ts (which only rotates away from the legacy demo
-// password), this one re-rotates from ANY current password — for when the
-// previous plaintext was lost. The new plaintext prints to stdout exactly
-// once and is never stored.
+// Default: generate a fresh random password (old behavior).
+// With --set <password>: set an exact password chosen by the owner
+// (e.g. the demo password admin123) — used 2026-10-07 on Hieu's explicit
+// decision to keep a memorable password for testing (audit finding #7 stays
+// open until real production).
+//
+// The new plaintext prints to stdout exactly once and is never stored.
 //
 // Usage:
 //   set -a; source .env; set +a
-//   pnpm exec tsx scripts/rotate-admin-password.ts
+//   pnpm exec tsx scripts/rotate-admin-password.ts [--set <password>]
 
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../lib/password';
@@ -30,7 +33,13 @@ async function main() {
   if (!user) throw new Error(`Admin user not found: ${EMAIL}`);
   if (user.role !== 'ADMIN') throw new Error(`User ${EMAIL} is not ADMIN`);
 
-  const newPassword = generatePassword();
+  const setIndex = process.argv.indexOf('--set');
+  const explicit = setIndex !== -1 ? process.argv[setIndex + 1] : undefined;
+  if (explicit !== undefined && explicit.length < 8) {
+    throw new Error('--set password must be at least 8 characters');
+  }
+
+  const newPassword = explicit ?? generatePassword();
   const newHash = await hashPassword(newPassword);
   await prisma.user.update({
     where: { email: EMAIL },
