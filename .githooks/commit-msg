@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Rejects commit messages that are not Conventional Commits.
+# Enabled by: git config core.hooksPath .githooks (pnpm install does it).
+exec bash "$(git rev-parse --show-toplevel)/scripts/git-conventions.sh" message "$1"

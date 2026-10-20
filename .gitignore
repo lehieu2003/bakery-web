@@ -43,3 +43,6 @@ next-env.d.ts
 
 # git worktrees (superpowers SDD)
 .worktrees/
+
+# Claude Code — personal settings
+.claude/settings.local.json

@@ -2,11 +2,54 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, dev]
   pull_request:
-    branches: [master]
+    branches: [master, dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  conventions:
+    # Branch/commit/PR-title rules (CONTRIBUTING.md) — PRs only.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: PR source branch allowed for target
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          if [ "$BASE" = "master" ]; then
+            case "$HEAD" in
+              release/*|hotfix/*|dev) ;;
+              *) echo "::error::PR vào master chỉ từ release/*, hotfix/* (hoặc dev). Nhận: $HEAD"; exit 1 ;;
+            esac
+          fi
+
+      - name: Branch name
+        env:
+          HEAD: ${{ github.head_ref }}
+        run: bash scripts/git-conventions.sh branch "$HEAD"
+
+      - name: PR title (squash commit message)
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: bash scripts/git-conventions.sh title "$TITLE"
+
+      - name: Commit messages
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git checkout -q "$HEAD_SHA"
+          bash scripts/git-conventions.sh commits "origin/$BASE"
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -24,6 +67,9 @@ jobs:
 
       - name: Generate Prisma client
         run: npx prisma generate
+
+      - name: Lint
+        run: pnpm lint
 
       - name: Typecheck
         run: pnpm typecheck
