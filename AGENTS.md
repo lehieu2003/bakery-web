@@ -8,13 +8,16 @@
 - Tests are under `tests/` with domain folders plus `tests/vitest/` for React/Vitest suites.
 
 ## Build, Test, and Development Commands
-- `npm run dev`: start local Next.js dev server at `http://localhost:3000`.
-- `npm run build`: generate Prisma client, then build production app.
-- `npm run start`: run production build locally.
-- `npm run lint`: run ESLint (Next.js core-web-vitals + TypeScript config).
-- `npm test`: run all tests (`test:node` and `test:vitest`).
-- `npm run test:node`: run `tsx --test tests/**/*.test.ts`.
-- `npm run test:vitest`: run Vitest once; use `npm run test:vitest:watch` for watch mode.
+Package manager is **pnpm** (see `packageManager` in `package.json`); do not use npm/yarn.
+- `pnpm dev`: start local Next.js dev server at `http://localhost:3000`.
+- `pnpm build`: generate Prisma client, then build production app.
+- `pnpm start`: run production build locally.
+- `pnpm lint`: run ESLint (Next.js core-web-vitals + TypeScript config).
+- `pnpm typecheck`: `tsc --noEmit`.
+- `pnpm test`: run all tests (`test:node` and `test:vitest`).
+- `pnpm run test:node`: run `tsx --test tests/**/*.test.ts`.
+- `pnpm run test:vitest`: run Vitest once; `pnpm run test:vitest:ci` excludes the known-failing baseline specs; `pnpm run test:vitest:watch` for watch mode.
+- `pnpm validate`: the pre-PR gate (`scripts/validate.sh`) — branch name, commit messages, lint, typecheck, tests, build.
 
 ## Coding Style & Naming Conventions
 - TypeScript strict mode is enabled; prefer explicit, typed contracts.
@@ -29,9 +32,10 @@
 - Current stack is mixed: Node test runner (`node:test` via `tsx`) and Vitest (`jsdom` + Testing Library for UI).
 - Name tests as `*.test.ts` or `*.test.tsx`.
 - For backend/API changes, add route-level tests; when consumer behavior changes, add service/hook/component tests.
-- Run verification in this order before opening a PR: `npm run lint` -> `npm test` -> `npm run build`.
+- Before opening a PR run `pnpm validate` (lint -> typecheck -> tests -> build); CI runs the same checks.
 
 ## Commit & Pull Request Guidelines
+- Branching, commit and PR rules are defined in `CONTRIBUTING.md` (task branches off `dev`, PRs into `dev`, `master` is production).
 - Follow Conventional Commit style seen in history, e.g. `feat(story-6.2): harden category admin integrity`.
 - Keep commits and PRs scoped to one feature/story.
 - PRs should include: summary, risk/impact notes, verification steps (commands run), and linked story/issue.
@@ -48,7 +52,7 @@
 - **Server-First:** Fetch data in Server Components whenever possible. Use `services/` directly in Server Components to avoid unnecessary internal fetch calls.
 - **Form Handling:** Use Server Actions for data mutations; ensure all inputs are validated with Zod schemas.
 - **Client Components:** Add `'use client'` only to components that require interactivity (hooks, event listeners).
-- **Prisma Safety:** Always run `npx prisma generate` after schema changes to sync types. Never modify existing migrations in `prisma/migrations/`.
+- **Prisma Safety:** Always run `pnpm prisma generate` after schema changes to sync types. Never modify existing migrations in `prisma/migrations/`.
 - **API Responses:** Standardize error responses using a consistent format (e.g., `{ success: false, message: string }`).
 
 ## Code Reusability & Inventory First

@@ -13,7 +13,9 @@
     "test:node": "tsx --test \"tests/**/*.test.ts\"",
     "test:vitest": "vitest run",
     "test:vitest:ci": "vitest run --exclude \"tests/vitest/membership-benefit-visibility.test.tsx\" --exclude \"tests/vitest/personalized-suggestions-section.test.tsx\"",
-    "test:vitest:watch": "vitest"
+    "test:vitest:watch": "vitest",
+    "validate": "bash scripts/validate.sh",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "dependencies": {
     "@dnd-kit/react": "^0.3.2",

@@ -86,6 +86,11 @@ export default function ProductDetailScreen({
 
   const [message, setMessage] = useState('');
   const [pickupDate, setPickupDate] = useState('');
+  // Earliest pickup is tomorrow; computed once (Date.now() is impure, so it
+  // must not run on every render).
+  const [minPickupDate] = useState(() =>
+    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  );
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -483,9 +488,7 @@ export default function ProductDetailScreen({
                   <input
                     type='date'
                     value={pickupDate}
-                    min={new Date(Date.now() + 24 * 60 * 60 * 1000)
-                      .toISOString()
-                      .slice(0, 10)}
+                    min={minPickupDate}
                     onChange={(e) => setPickupDate(e.target.value)}
                     className='w-full text-sm bg-card rounded-xl px-4 py-3 border border-border focus:outline-none focus:border-primary text-foreground transition-colors'
                   />

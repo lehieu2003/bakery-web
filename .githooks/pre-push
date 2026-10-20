@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Blocks direct pushes to master/dev (they only change through PRs) and
+# pushes of branches that break the naming rule.
+# Override for maintainers (e.g. creating dev the first time):
+#   ALLOW_PROTECTED_PUSH=1 git push ...
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+while read -r local_ref _local_sha remote_ref _remote_sha; do
+  [[ "$local_ref" == "(delete)" ]] && continue
+  target="${remote_ref#refs/heads/}"
+  if [[ "$target" == "master" || "$target" == "dev" ]]; then
+    if [[ "${ALLOW_PROTECTED_PUSH:-0}" != "1" ]]; then
+      echo "✖ Không push thẳng lên '$target' — tạo nhánh task và mở PR (xem CONTRIBUTING.md)." >&2
+      exit 1
+    fi
+    continue
+  fi
+  bash "$root/scripts/git-conventions.sh" branch "$target"
+done
