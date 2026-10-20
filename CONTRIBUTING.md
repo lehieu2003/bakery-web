@@ -13,6 +13,11 @@
 
 **Không commit / push trực tiếp lên `master` hay `dev`.**
 
+Repo private trên gói GitHub Free nên không bật được branch protection phía server. Thay vào đó,
+workflow `protected-branch-guard.yml` kiểm tra mọi push vào `master`/`dev`: commit phải là merge của
+một PR vào đúng nhánh đó. Push thẳng hoặc force push sẽ làm workflow fail và **tự tạo issue cảnh báo**.
+Khi nâng GitHub Pro, bật branch protection (bắt buộc PR + check `test` xanh) để chặn hẳn.
+
 Tên nhánh task: `<type>/<mô-tả-kebab-case>` — chữ thường, số, `.`, `_`, `-`.
 
 | type | Dùng cho | Tách từ → PR vào |

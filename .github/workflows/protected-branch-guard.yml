@@ -1,0 +1,66 @@
+# Branch protection needs GitHub Pro on private repos, so master/dev cannot be
+# locked server-side. This workflow is the detective control instead: every
+# push to master/dev must be the merge of a PR into that branch; a direct or
+# force push fails this run and opens an issue (CONTRIBUTING.md).
+name: Protected branch guard
+
+on:
+  push:
+    branches: [master, dev]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  guard:
+    # Creating the branch itself (first push of dev) is not a violation.
+    if: ${{ !github.event.created }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push must be a merged PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          FORCED: ${{ github.event.forced }}
+          PUSHER: ${{ github.event.pusher.name }}
+          COMPARE: ${{ github.event.compare }}
+        run: |
+          reason=""
+          if [ "$FORCED" = "true" ]; then
+            reason="force push"
+          else
+            # The commit→PR association can lag a few seconds after a merge.
+            merged=0
+            for attempt in 1 2 3 4; do
+              merged=$(gh api "repos/$REPO/commits/$SHA/pulls" \
+                --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$SHA\" and .base.ref == \"$BRANCH\")] | length")
+              [ "$merged" -gt 0 ] && break
+              sleep 15
+            done
+            [ "$merged" -gt 0 ] || reason="push trực tiếp không qua PR"
+          fi
+
+          if [ -z "$reason" ]; then
+            echo "OK: $SHA là merge của một PR vào $BRANCH."
+            exit 0
+          fi
+
+          short="${SHA:0:7}"
+          gh issue create -R "$REPO" \
+            --title "⚠ $reason vào $BRANCH ($short)" \
+            --body "$(printf '%s\n' \
+              "Phát hiện **$reason** vào nhánh bảo vệ \`$BRANCH\`." \
+              "" \
+              "- Người push: \`$PUSHER\`" \
+              "- Commit: $SHA" \
+              "- So sánh: $COMPARE" \
+              "- Run: ${GITHUB_SERVER_URL}/${REPO}/actions/runs/${GITHUB_RUN_ID}" \
+              "" \
+              "Quy trình (CONTRIBUTING.md): mọi thay đổi vào \`master\`/\`dev\` phải qua PR." \
+              "Kiểm tra thay đổi, rồi revert hoặc mở PR hợp thức hoá; đóng issue khi đã xử lý.")"
+          echo "::error::$reason vào $BRANCH ($short) — đã tạo issue."
+          exit 1
