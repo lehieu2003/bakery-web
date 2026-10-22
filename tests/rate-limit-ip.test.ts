@@ -11,7 +11,7 @@ const CONFIG = { maxRequests: 2, windowMs: 60_000 };
 
 test('allows requests under the limit and blocks at the limit', () => {
   __resetIpRateLimitForTests();
-  let clock = 1_000_000;
+  const clock = 1_000_000;
   const now = () => clock;
 
   assert.equal(checkIpRateLimit('1.1.1.1', 'chat', CONFIG, now).allowed, true);
@@ -23,7 +23,7 @@ test('allows requests under the limit and blocks at the limit', () => {
 
 test('one IP bursting does not throttle another IP', () => {
   __resetIpRateLimitForTests();
-  let clock = 2_000_000;
+  const clock = 2_000_000;
   const now = () => clock;
   const sameScope = { ...RATE_LIMITS.CHAT_PER_IP };
 
@@ -50,7 +50,7 @@ test('a blocked IP recovers when the window passes', () => {
 
 test('scopes are isolated for the same IP', () => {
   __resetIpRateLimitForTests();
-  let clock = 4_000_000;
+  const clock = 4_000_000;
   const now = () => clock;
 
   for (let i = 0; i < CONFIG.maxRequests; i++) {
@@ -62,7 +62,7 @@ test('scopes are isolated for the same IP', () => {
 
 test('the tracked-ip map stays bounded', () => {
   __resetIpRateLimitForTests();
-  let clock = 5_000_000;
+  const clock = 5_000_000;
   const now = () => clock;
   for (let i = 0; i < 12_000; i++) {
     checkIpRateLimit(`10.0.0.${i % 256}.${i % 200}`, 'chat', CONFIG, now);
@@ -76,7 +76,7 @@ test('enforceIpRateLimit reads the client IP from headers', () => {
   const request = {
     headers: new Headers({ 'x-forwarded-for': '4.4.4.4, 10.0.0.1' }),
   } as unknown as Request;
-  let clock = 6_000_000;
+  const clock = 6_000_000;
   const now = () => clock;
 
   const first = enforceIpRateLimit(request, 'chat', RATE_LIMITS.CHAT_PER_IP, now);
