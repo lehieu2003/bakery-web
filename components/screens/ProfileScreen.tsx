@@ -615,6 +615,12 @@ export default function ProfileScreen() {
               <LogOut size={15} />
               Sign Out
             </button>
+            <Link
+              href='/xoa-tai-khoan'
+              className='text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline'
+            >
+              Xóa tài khoản
+            </Link>
           </div>
         </div>
 

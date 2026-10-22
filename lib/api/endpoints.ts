@@ -18,6 +18,7 @@ export const ENDPOINTS = {
     REGISTER_VERIFY: `${API_BASE}/auth/verify-email`,
     RESET_PASSWORD: `${API_BASE}/auth/reset-password`,
     RESET_PASSWORD_VERIFY: `${API_BASE}/auth/reset-password/verify`,
+    DELETE_ACCOUNT: `${API_BASE}/auth/delete-account`,
   },
 
   // ============================================================================
