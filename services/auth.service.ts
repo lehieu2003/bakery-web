@@ -79,6 +79,21 @@ export const authService = {
   },
 
   /**
+   * Permanently delete (anonymize) the current account. The server revokes
+   * every session and clears the session cookie.
+   */
+  deleteAccount: async (password: string) => {
+    await http.post<{ deleted: boolean }>(
+      ENDPOINTS.AUTH.DELETE_ACCOUNT,
+      { password },
+      {
+        showErrorToast: false, // the form shows the reason inline
+        skipAuthRedirect: true,
+      },
+    );
+  },
+
+  /**
    * Send OTP for registration
    */
   register: async (data: RegisterRequest) => {

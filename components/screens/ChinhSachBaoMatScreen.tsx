@@ -58,7 +58,7 @@ const sections = [
     bullets: [
       'Quyền truy cập và xem lại thông tin cá nhân đang được lưu trữ.',
       'Quyền yêu cầu chỉnh sửa thông tin không chính xác.',
-      'Quyền yêu cầu xóa tài khoản và toàn bộ dữ liệu liên quan.',
+      'Quyền yêu cầu xóa tài khoản và dữ liệu cá nhân liên quan — tự thực hiện tại trang /xoa-tai-khoan hoặc trong ứng dụng (Tài khoản → Xóa tài khoản).',
       'Quyền từ chối nhận thông tin tiếp thị bất cứ lúc nào.',
     ],
   },
