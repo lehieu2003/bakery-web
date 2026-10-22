@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 # Blocks direct pushes to master/dev (they only change through PRs) and
-# pushes of branches that break the naming rule.
+# pushes of branches that break the naming rule. Tags must be vX.Y.Z.
 # Override for maintainers (e.g. creating dev the first time):
 #   ALLOW_PROTECTED_PUSH=1 git push ...
 set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
 while read -r local_ref _local_sha remote_ref _remote_sha; do
   [[ "$local_ref" == "(delete)" ]] && continue
+  if [[ "$remote_ref" == refs/tags/* ]]; then
+    tag="${remote_ref#refs/tags/}"
+    if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "✖ Tag không hợp lệ: \"$tag\" — dạng vX.Y.Z (ví dụ v1.1.0)." >&2
+      exit 1
+    fi
+    continue
+  fi
   target="${remote_ref#refs/heads/}"
   if [[ "$target" == "master" || "$target" == "dev" ]]; then
     if [[ "${ALLOW_PROTECTED_PUSH:-0}" != "1" ]]; then

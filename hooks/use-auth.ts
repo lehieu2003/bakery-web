@@ -82,6 +82,22 @@ export function useLogout() {
 }
 
 /**
+ * Hook for account deletion — on success the session is gone server-side,
+ * so local auth state is dropped the same way as logout.
+ */
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (password: string) => authService.deleteAccount(password),
+    onSuccess: () => {
+      queryClient.setQueryData(authKeys.user(), null);
+      queryClient.clear();
+    },
+  });
+}
+
+/**
  * Hook for registration (send OTP)
  */
 export function useRegister() {
