@@ -95,14 +95,23 @@ export interface PrepareReorderResponse {
 
 export interface GetMyOrdersOptions {
   skipAuthRedirect?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+/** One page of GET /api/orders, newest first. */
+export interface MyOrdersPage {
+  orders: Order[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
 export const orderService = {
-  getMyOrders: async (options?: GetMyOrdersOptions): Promise<Order[]> => {
-    const response = await http.get<{ orders: Order[] }>(ENDPOINTS.ORDERS, {
+  getMyOrders: async (options?: GetMyOrdersOptions): Promise<MyOrdersPage> => {
+    const response = await http.get<MyOrdersPage>(ENDPOINTS.ORDERS, {
+      params: { page: options?.page, limit: options?.limit },
       skipAuthRedirect: options?.skipAuthRedirect,
     });
-    return response.data!.orders;
+    return response.data!;
   },
 
   getOrderByNumber: async (orderNumber: string): Promise<Order> => {
@@ -115,11 +124,17 @@ export const orderService = {
 
   createOrder: async (
     payload: CreateOrderPayload,
+    options?: { idempotencyKey?: string },
   ): Promise<CreateOrderResponse> => {
     const response = await http.post<CreateOrderResponse>(
       ENDPOINTS.ORDERS,
       payload,
-      { showErrorToast: false },
+      {
+        showErrorToast: false,
+        ...(options?.idempotencyKey
+          ? { headers: { 'Idempotency-Key': options.idempotencyKey } }
+          : {}),
+      },
     );
     return response.data!;
   },

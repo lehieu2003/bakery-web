@@ -11,7 +11,10 @@ import { ApiError } from '@/lib/api/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { canSubmitOrderRequest } from '@/lib/checkout-utils';
+import {
+  canSubmitOrderRequest,
+  shouldKeepIdempotencyKey,
+} from '@/lib/checkout-utils';
 
 const PAYMENT_METHODS = [
   {
@@ -75,6 +78,8 @@ export default function CheckoutPaymentScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const isSubmittingRef = useRef(false);
+  /** Idempotency-Key of the checkout attempt in flight; see shouldKeepIdempotencyKey. */
+  const checkoutKeyRef = useRef<string | null>(null);
 
   const parseablePickupDates = cart
     .map((item) => item.pickupDate)
@@ -272,6 +277,7 @@ export default function CheckoutPaymentScreen() {
     setError('');
     setIncentiveAssistMessage('');
     setIncentiveError('');
+    const idempotencyKey = (checkoutKeyRef.current ??= crypto.randomUUID());
 
     try {
       const result = await orderService.createOrder({
@@ -296,7 +302,8 @@ export default function CheckoutPaymentScreen() {
           price: item.price,
           quantity: item.quantity,
         })),
-      });
+      }, { idempotencyKey });
+      checkoutKeyRef.current = null;
 
       // If payment gateway returned a URL, redirect to payment gateway
       if (result.paymentUrl) {
@@ -314,6 +321,9 @@ export default function CheckoutPaymentScreen() {
       clearCart();
       router.push(`/checkout/success?order=${result.order.orderNumber}`);
     } catch (caught) {
+      if (!shouldKeepIdempotencyKey(caught instanceof ApiError)) {
+        checkoutKeyRef.current = null;
+      }
       if (caught instanceof ApiError && caught.data?.error) {
         setError(caught.data.error);
       } else {

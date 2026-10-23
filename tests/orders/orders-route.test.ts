@@ -588,6 +588,7 @@ test('POST /api/orders applies incentive even when coupon is smaller than member
 test('GET /api/orders returns 401 when user is unauthenticated', async () => {
   const result = await handleGetOrdersRequest({} as never, {
     getCurrentUser: async () => null,
+    countOrdersByUserId: async () => 1,
     findOrdersByUserId: async () => [],
   });
 
@@ -599,6 +600,7 @@ test('GET /api/orders returns 401 when user is unauthenticated', async () => {
 test('GET /api/orders returns serialized orders for authenticated user', async () => {
   const result = await handleGetOrdersRequest({} as never, {
     getCurrentUser: async () => ({ id: 'u1' }),
+    countOrdersByUserId: async () => 1,
     findOrdersByUserId: async () => [
       {
         id: 'o1',
@@ -668,6 +670,7 @@ test('GET /api/orders returns serialized orders for authenticated user', async (
 test('GET /api/orders sanitizes invalid numeric fields to 0', async () => {
   const result = await handleGetOrdersRequest({} as never, {
     getCurrentUser: async () => ({ id: 'u1' }),
+    countOrdersByUserId: async () => 1,
     findOrdersByUserId: async () => [
       {
         id: 'o2',
@@ -1350,4 +1353,33 @@ test('a created gateway link is stored for later replays', async () => {
   const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps, undefined, KEY);
   assert.equal(result.body.data?.paymentUrl, 'https://pay.example/momo');
   assert.deepEqual(saved, [{ orderId: 'o1', payUrl: 'https://pay.example/momo' }]);
+});
+
+test('GET /api/orders pages newest-first with the admin paging contract', async () => {
+  const calls: Array<{ skip: number; take: number }> = [];
+  const request = {
+    nextUrl: new URL('http://localhost/api/orders?page=3&limit=500'),
+  } as never;
+  const result = await handleGetOrdersRequest(request, {
+    getCurrentUser: async () => ({ id: 'u1' }),
+    findOrdersByUserId: async (_userId, page) => { calls.push(page); return []; },
+    countOrdersByUserId: async () => 120,
+  });
+  assert.equal(result.status, 200);
+  // limit is capped at 50, so page 3 starts at 100.
+  assert.deepEqual(calls, [{ skip: 100, take: 50 }]);
+  assert.deepEqual(
+    (result.body as { data: { pagination: unknown } }).data.pagination,
+    { page: 3, limit: 50, total: 120, totalPages: 3 },
+  );
+});
+
+test('GET /api/orders without paging params returns the newest 20', async () => {
+  const calls: Array<{ skip: number; take: number }> = [];
+  await handleGetOrdersRequest({} as never, {
+    getCurrentUser: async () => ({ id: 'u1' }),
+    findOrdersByUserId: async (_userId, page) => { calls.push(page); return []; },
+    countOrdersByUserId: async () => 0,
+  });
+  assert.deepEqual(calls, [{ skip: 0, take: 20 }]);
 });

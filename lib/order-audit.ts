@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 type OrderAuditPayload = {
   orderId: string;
-  mutationType: 'STATUS_UPDATE' | 'PAYMENT_CALLBACK';
+  mutationType: 'STATUS_UPDATE' | 'PAYMENT_CALLBACK' | 'REFUND_MARKED';
   actorUserId?: string | null;
   actorRole?: UserRole | null;
   beforeData?: unknown;

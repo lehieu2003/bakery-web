@@ -58,6 +58,24 @@ test('orderService.createOrder posts to orders endpoint and returns data payload
   }
 });
 
+test('orderService.createOrder sends the Idempotency-Key header when given', async () => {
+  const originalPost = http.post;
+  let capturedConfig: unknown = null;
+  (http as { post: typeof http.post }).post = async (_url, _payload, config) => {
+    capturedConfig = config;
+    return { success: true, data: { order: { id: 'o1', orderNumber: 'BK1' } } as never };
+  };
+  try {
+    await orderService.createOrder(createPayload, { idempotencyKey: 'key-123456' });
+    assert.deepEqual(capturedConfig, {
+      showErrorToast: false,
+      headers: { 'Idempotency-Key': 'key-123456' },
+    });
+  } finally {
+    (http as { post: typeof http.post }).post = originalPost;
+  }
+});
+
 test('orderService.prepareReorder posts orderId to reorder endpoint and returns prepared data', async () => {
   const originalPost = http.post;
   let capturedUrl = '';

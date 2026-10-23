@@ -228,6 +228,8 @@ export interface Payment {
   transactionId: string | null;
   amount: number;
   status: string;
+  /** Gateway checkout link, kept for idempotent order retries. */
+  payUrl?: string | null;
   createdAt: string;
 }
 
