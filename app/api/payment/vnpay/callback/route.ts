@@ -7,6 +7,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyVNPayCallback, type VNPayVerifyResult } from '@/lib/payment/vnpay';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
+import {
+  cancelOrderAndRestoreStock,
+  confirmOrderUnlessCancelled,
+} from '@/lib/orders/stock';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 import {
   writePaymentCallbackAuditLog,
@@ -115,11 +119,18 @@ const defaultDeps: VNPayCallbackDeps = {
         return { applied: false, conflict };
       }
 
+      if (nextOrderStatus === 'CANCELLED') {
+        await cancelOrderAndRestoreStock(tx, orderId);
+      } else if (nextOrderStatus === 'CONFIRMED') {
+        // Paid after the order was cancelled: keep it cancelled (its stock
+        // is already back) and the coupon released. The PAID payment row
+        // still commits — it is what a refund follows up on — and the
+        // conflict is logged instead of notifying a confirmation.
+        if (!(await confirmOrderUnlessCancelled(tx, orderId))) {
+          return { applied: false, conflict: true };
+        }
+      }
       if (nextOrderStatus) {
-        await tx.order.update({
-          where: { id: orderId },
-          data: { status: nextOrderStatus },
-        });
         await applyCouponLifecycleForOrderStatus({
           orderId,
           status: nextOrderStatus,

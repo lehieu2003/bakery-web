@@ -27,6 +27,13 @@ import {
   applyCouponLifecycleForOrderStatus,
   reserveCouponRedemption,
 } from '@/lib/incentives/redemption-lifecycle';
+import {
+  OUT_OF_STOCK,
+  cancelOrderAndRestoreStock,
+  decrementStock,
+  sumQuantitiesBy,
+  type StockDecrement,
+} from '@/lib/orders/stock';
 import { Prisma } from '@prisma/client';
 import type { PaymentMethod } from '@/types/api.types';
 
@@ -82,6 +89,8 @@ type CreateOrderRouteDeps = {
       name: string;
       price: number;
       stock: number;
+      /** False means stock is never checked; absent means tracked. */
+      trackStock?: boolean;
       categoryIds: string[];
     }>
   >;
@@ -138,6 +147,7 @@ type CreateOrderRouteDeps = {
       subtotal: number;
       message: string | null;
     }>;
+    stockDecrements: StockDecrement[];
   }) => Promise<{
     id: string;
     orderNumber: string;
@@ -279,6 +289,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
           name: true,
           price: true,
           stock: true,
+          trackStock: true,
           categories: {
             select: {
               categoryId: true,
@@ -292,6 +303,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
           name: product.name,
           price: Number(product.price),
           stock: product.stock,
+          trackStock: product.trackStock,
           categoryIds: product.categories.map((category) => category.categoryId),
         })),
       ),
@@ -382,12 +394,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
   createOrderWithItems: (args) =>
     prisma.$transaction(
       async (tx) => {
-        for (const item of args.orderItems) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          });
-        }
+        await decrementStock(tx, args.stockDecrements);
 
         const created = await tx.order.create({
           data: {
@@ -466,10 +473,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
         },
       });
 
-      await tx.order.update({
-        where: { id: orderId },
-        data: { status: 'CANCELLED' },
-      });
+      await cancelOrderAndRestoreStock(tx, orderId);
 
       await applyCouponLifecycleForOrderStatus({
         orderId,
@@ -518,6 +522,22 @@ const getOrdersDeps: GetOrdersRouteDeps = {
       },
     }) as Promise<OrderReadModel[]>,
 };
+
+/**
+ * A gateway init that throws (network error, timeout, malformed reply) is a
+ * failed init like any other, so the caller cancels the order instead of
+ * leaving it PENDING with its stock and coupons held.
+ */
+async function settleGatewayInit(
+  init: () => Promise<{ payUrl: string } | { error: string }>,
+): Promise<{ payUrl: string } | { error: string }> {
+  try {
+    return await init();
+  } catch (error) {
+    console.error('Payment gateway init error:', error);
+    return { error: 'Payment gateway is unavailable. Please try again.' };
+  }
+}
 
 function resolveNormalizedIncentiveCodes(args: {
   incentiveCodeInput: unknown;
@@ -686,16 +706,6 @@ export async function handleCreateOrderRequest(
         },
       };
     }
-
-    if (product.stock < item.quantity!) {
-      return {
-        status: 400,
-        body: {
-          success: false,
-          error: `"${product.name}" is out of stock (available: ${product.stock})`,
-        },
-      };
-    }
   }
 
   const variantIds = Array.from(
@@ -728,15 +738,50 @@ export async function handleCreateOrderRequest(
         },
       };
     }
-    if (variant.stock <= 0) {
+  }
+
+  // Stock is checked on totals across lines: two variants of one product are
+  // separate lines drawing on the same product stock.
+  const stockLines = items.map((item) => ({
+    productId: item.productId!,
+    variantId: item.variantId || null,
+    quantity: item.quantity!,
+  }));
+  const stockDecrements: StockDecrement[] = [];
+  for (const [productId, quantity] of sumQuantitiesBy(
+    stockLines,
+    (line) => line.productId,
+  )) {
+    const product = productMap.get(productId)!;
+    const enforce = product.trackStock !== false;
+    if (enforce && product.stock < quantity) {
       return {
         status: 400,
         body: {
           success: false,
-          error: `Variant "${item.name}" is not available`,
+          error: `"${product.name}" is out of stock (available: ${product.stock})`,
         },
       };
     }
+    stockDecrements.push({ kind: 'product', id: productId, quantity, enforce });
+  }
+  for (const [variantId, quantity] of sumQuantitiesBy(
+    stockLines,
+    (line) => line.variantId,
+  )) {
+    const variant = variantMap.get(variantId)!;
+    const product = productMap.get(variant.productId)!;
+    const enforce = product.trackStock !== false;
+    if (enforce && variant.stock < quantity) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Variant "${product.name}" is not available`,
+        },
+      };
+    }
+    stockDecrements.push({ kind: 'variant', id: variantId, quantity, enforce });
   }
 
   const user = await deps.getCurrentUser(request);
@@ -920,8 +965,20 @@ export async function handleCreateOrderRequest(
       appliedIncentives,
       appliedIncentive: appliedIncentives[0] ?? null,
       orderItems: persistableOrderItems,
+      stockDecrements,
     });
   } catch (error) {
+    // A concurrent order took the stock between the check above and the
+    // transaction.
+    if (error instanceof Error && error.message === OUT_OF_STOCK) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: 'Some items just sold out. Please review your cart.',
+        },
+      };
+    }
     if (
       error instanceof Error &&
       error.message === INCENTIVE_USAGE_LIMIT_REACHED &&
@@ -981,19 +1038,20 @@ export async function handleCreateOrderRequest(
   const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
 
   if (paymentMethod === 'MOMO') {
-    await deps.createPaymentRecord({
-      orderId: order.id,
-      provider: 'MOMO',
-      amount: totalInt,
-    });
-
-    const result = await deps.createMoMoPayment({
-      orderId: order.id,
-      orderNumber,
-      amount: totalInt,
-      orderInfo: `Thanh toán đơn hàng #${orderNumber}`,
-      redirectUrl: successUrl,
-      ipnUrl: `${appUrl}/api/payment/momo/callback`,
+    const result = await settleGatewayInit(async () => {
+      await deps.createPaymentRecord({
+        orderId: order.id,
+        provider: 'MOMO',
+        amount: totalInt,
+      });
+      return deps.createMoMoPayment({
+        orderId: order.id,
+        orderNumber,
+        amount: totalInt,
+        orderInfo: `Thanh toán đơn hàng #${orderNumber}`,
+        redirectUrl: successUrl,
+        ipnUrl: `${appUrl}/api/payment/momo/callback`,
+      });
     });
 
     if ('error' in result) {
@@ -1036,18 +1094,19 @@ export async function handleCreateOrderRequest(
   }
 
   if (paymentMethod === 'VNPAY') {
-    await deps.createPaymentRecord({
-      orderId: order.id,
-      provider: 'VNPAY',
-      amount: totalInt,
-    });
-
-    const result = await deps.createVNPayPayment({
-      orderId: order.id,
-      orderNumber,
-      amount: totalInt,
-      description: `Thanh toán đơn hàng #${orderNumber}`,
-      redirectUrl: `${appUrl}/api/payment/vnpay/callback`,
+    const result = await settleGatewayInit(async () => {
+      await deps.createPaymentRecord({
+        orderId: order.id,
+        provider: 'VNPAY',
+        amount: totalInt,
+      });
+      return deps.createVNPayPayment({
+        orderId: order.id,
+        orderNumber,
+        amount: totalInt,
+        description: `Thanh toán đơn hàng #${orderNumber}`,
+        redirectUrl: `${appUrl}/api/payment/vnpay/callback`,
+      });
     });
 
     if ('error' in result) {
