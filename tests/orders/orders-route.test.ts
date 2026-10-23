@@ -6,6 +6,7 @@ import {
 } from '@/app/api/orders/route';
 import { INCENTIVE_PER_USER_LIMIT_REACHED } from '@/lib/incentives/redemption-lifecycle';
 import { OUT_OF_STOCK } from '@/lib/orders/stock';
+import { Prisma } from '@prisma/client';
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
@@ -84,6 +85,8 @@ function createDeps(): CreateOrderDeps {
       ],
     }),
     getDeliverySettings: async () => ({ deliveryFee: 0, freeDeliveryThreshold: 0 }),
+    findOrderByIdempotencyKey: async () => null,
+    savePaymentUrl: async () => undefined,
   };
 }
 
@@ -1206,4 +1209,145 @@ test('a throwing VNPay init cancels the order instead of stranding it', async ()
   assert.equal(result.status, 200);
   assert.equal(result.body.data?.paymentError, 'Payment gateway is unavailable. Please try again.');
   assert.deepEqual(cleanupCalls, ['o1']);
+});
+
+// ---------------------------------------------------------------------------
+// Idempotency-Key
+// ---------------------------------------------------------------------------
+
+type IdempotentSnapshot = NonNullable<
+  Awaited<ReturnType<CreateOrderDeps['findOrderByIdempotencyKey']>>
+>;
+
+const KEY = 'checkout-3f2a9c1e-key';
+
+function existingOrder(overrides: Partial<IdempotentSnapshot> = {}): IdempotentSnapshot {
+  return {
+    id: 'o-first',
+    orderNumber: 'BK-FIRST',
+    userId: null,
+    status: 'PENDING',
+    paymentMethod: 'COD',
+    total: 200000,
+    orderItems: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 2, subtotal: 200000 }],
+    payment: null,
+    ...overrides,
+  };
+}
+
+function failIfCalled(name: string) {
+  return async (): Promise<never> => { throw new Error(`${name} must not be called on a replay`); };
+}
+
+test('a malformed Idempotency-Key is rejected', async () => {
+  const result = await handleCreateOrderRequest(buildPayload('COD'), createDeps(), undefined, 'short');
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Invalid Idempotency-Key');
+});
+
+test('a first request stores its Idempotency-Key on the order', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  await handleCreateOrderRequest(buildPayload('COD'), deps, undefined, KEY);
+  assert.equal(captured!.idempotencyKey, KEY);
+});
+
+test('a retry returns the first order without re-checking stock or creating another', async () => {
+  const deps = withDeps(createDeps(), {
+    // The first attempt took the last items; a fresh check would now fail.
+    findProducts: async () => [{ id: 'p1', name: 'Cake A', price: 100000, stock: 0, categoryIds: [] }],
+    findOrderByIdempotencyKey: async (key) => (key === KEY ? existingOrder() : null),
+    createOrderWithItems: failIfCalled('createOrderWithItems'),
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps, undefined, KEY);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.order.orderNumber, 'BK-FIRST');
+  assert.equal(result.body.data?.paymentUrl, null);
+  assert.equal((result.body.data as { replayed?: boolean }).replayed, true);
+});
+
+test('a retried MoMo order returns its stored payment link instead of a new one', async () => {
+  const deps = withDeps(createDeps(), {
+    findOrderByIdempotencyKey: async () => existingOrder({
+      paymentMethod: 'MOMO',
+      payment: { status: 'PENDING', payUrl: 'https://pay.example/momo/first' },
+    }),
+    createOrderWithItems: failIfCalled('createOrderWithItems'),
+    createMoMoPayment: failIfCalled('createMoMoPayment'),
+    createPaymentRecord: failIfCalled('createPaymentRecord'),
+  });
+  const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps, undefined, KEY);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.paymentUrl, 'https://pay.example/momo/first');
+});
+
+test('a retried order whose link was never stored gets one, reusing its payment row', async () => {
+  const saved: Array<{ orderId: string; payUrl: string }> = [];
+  const deps = withDeps(createDeps(), {
+    findOrderByIdempotencyKey: async () => existingOrder({
+      paymentMethod: 'VNPAY',
+      payment: { status: 'PENDING', payUrl: null },
+    }),
+    createOrderWithItems: failIfCalled('createOrderWithItems'),
+    createPaymentRecord: failIfCalled('createPaymentRecord'),
+    savePaymentUrl: async (args) => { saved.push(args); },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('VNPAY'), deps, undefined, KEY);
+  assert.equal(result.body.data?.paymentUrl, 'https://pay.example/vnpay');
+  assert.deepEqual(saved, [{ orderId: 'o-first', payUrl: 'https://pay.example/vnpay' }]);
+});
+
+test('a retry of an order cancelled by a failed payment init reports the failure again', async () => {
+  const deps = withDeps(createDeps(), {
+    findOrderByIdempotencyKey: async () => existingOrder({
+      paymentMethod: 'MOMO',
+      status: 'CANCELLED',
+      payment: { status: 'FAILED', payUrl: null },
+    }),
+    createOrderWithItems: failIfCalled('createOrderWithItems'),
+    createMoMoPayment: failIfCalled('createMoMoPayment'),
+  });
+  const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps, undefined, KEY);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.paymentUrl, null);
+  assert.equal(result.body.data?.paymentError, 'This order was cancelled. Please place a new order.');
+});
+
+test('a key used by another customer is a conflict, not a replay', async () => {
+  const deps = withDeps(createDeps(), {
+    getCurrentUser: async () => ({ id: 'u-2' }),
+    findOrderByIdempotencyKey: async () => existingOrder({ userId: 'u-1' }),
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps, undefined, KEY);
+  assert.equal(result.status, 409);
+  assert.equal(result.body.success, false);
+});
+
+test('losing the unique-index race to a concurrent retry replays the winner', async () => {
+  let lookups = 0;
+  const deps = withDeps(createDeps(), {
+    // Not there when this request starts; there once its insert collides.
+    findOrderByIdempotencyKey: async () => (lookups++ === 0 ? null : existingOrder()),
+    createOrderWithItems: async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
+    },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps, undefined, KEY);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.order.orderNumber, 'BK-FIRST');
+});
+
+test('a created gateway link is stored for later replays', async () => {
+  const saved: Array<{ orderId: string; payUrl: string }> = [];
+  const deps = withDeps(createDeps(), {
+    savePaymentUrl: async (args) => { saved.push(args); },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps, undefined, KEY);
+  assert.equal(result.body.data?.paymentUrl, 'https://pay.example/momo');
+  assert.deepEqual(saved, [{ orderId: 'o1', payUrl: 'https://pay.example/momo' }]);
 });

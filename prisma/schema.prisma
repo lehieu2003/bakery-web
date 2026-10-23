@@ -508,6 +508,10 @@ model Order {
 
   paymentMethod PaymentMethod?
 
+  /// Client-generated per checkout attempt; a retried POST /api/orders with
+  /// the same key returns this order instead of creating a duplicate.
+  idempotencyKey String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -557,6 +561,10 @@ model Payment {
   amount Decimal @db.Decimal(10, 2)
 
   status String
+
+  /// Gateway checkout link, kept so an idempotent retry of the order can
+  /// return it (MoMo refuses a second create for the same orderId).
+  payUrl String?
 
   createdAt DateTime @default(now())
 

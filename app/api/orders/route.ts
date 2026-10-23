@@ -44,6 +44,8 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'VNPAY',
 ];
 const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+/** Client-generated per checkout attempt, e.g. a UUID. */
+const IDEMPOTENCY_KEY_REGEX = /^[A-Za-z0-9_-]{8,128}$/;
 
 type CreateOrderPayload = {
   customerName?: string;
@@ -138,6 +140,7 @@ type CreateOrderRouteDeps = {
     appliedIncentives?: AppliedIncentive[];
     appliedIncentive?: AppliedIncentive | null;
     paymentMethod: PaymentMethod;
+    idempotencyKey: string | null;
     orderItems: Array<{
       productId: string;
       variantId: string | null;
@@ -182,6 +185,27 @@ type CreateOrderRouteDeps = {
   getAppUrl: () => string;
   getMembershipConfig: () => Promise<MembershipRulesConfig>;
   getDeliverySettings: () => Promise<DeliverySettings>;
+  findOrderByIdempotencyKey: (
+    key: string,
+  ) => Promise<IdempotentOrderSnapshot | null>;
+  savePaymentUrl: (args: { orderId: string; payUrl: string }) => Promise<void>;
+};
+
+type IdempotentOrderSnapshot = {
+  id: string;
+  orderNumber: string;
+  userId: string | null;
+  status: string;
+  paymentMethod: PaymentMethod | null;
+  total: number;
+  orderItems: Array<{
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+    subtotal: number;
+  }>;
+  payment: { status: string; payUrl: string | null } | null;
 };
 
 export type OrderReadModel = {
@@ -410,6 +434,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
             discount: args.discount,
             total: args.total,
             paymentMethod: args.paymentMethod as never,
+            idempotencyKey: args.idempotencyKey,
             status: 'PENDING',
             orderItems: {
               create: args.orderItems,
@@ -489,6 +514,43 @@ const createOrderDeps: CreateOrderRouteDeps = {
   getAppUrl: () => process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   getMembershipConfig: getMembershipRulesConfig,
   getDeliverySettings: fetchDeliverySettings,
+  findOrderByIdempotencyKey: async (key) => {
+    const order = await prisma.order.findUnique({
+      where: { idempotencyKey: key },
+      select: {
+        id: true,
+        orderNumber: true,
+        userId: true,
+        status: true,
+        paymentMethod: true,
+        total: true,
+        orderItems: {
+          select: {
+            productId: true,
+            name: true,
+            price: true,
+            quantity: true,
+            subtotal: true,
+          },
+        },
+        payment: { select: { status: true, payUrl: true } },
+      },
+    });
+    if (!order) return null;
+    return {
+      ...order,
+      paymentMethod: order.paymentMethod as PaymentMethod | null,
+      total: Number(order.total),
+      orderItems: order.orderItems.map((item) => ({
+        ...item,
+        price: Number(item.price),
+        subtotal: Number(item.subtotal),
+      })),
+    };
+  },
+  savePaymentUrl: async ({ orderId, payUrl }) => {
+    await prisma.payment.update({ where: { orderId }, data: { payUrl } });
+  },
 };
 
 const getOrdersDeps: GetOrdersRouteDeps = {
@@ -586,12 +648,29 @@ export async function handleCreateOrderRequest(
   body: unknown,
   deps: CreateOrderRouteDeps = createOrderDeps,
   request?: NextRequest,
+  idempotencyKey?: string | null,
 ) {
   if (!body || typeof body !== 'object') {
     return {
       status: 400,
       body: { success: false, error: 'Missing required fields' },
     };
+  }
+
+  if (idempotencyKey != null && !IDEMPOTENCY_KEY_REGEX.test(idempotencyKey)) {
+    return {
+      status: 400,
+      body: { success: false, error: 'Invalid Idempotency-Key' },
+    };
+  }
+
+  const user = await deps.getCurrentUser(request);
+
+  // Replay before any validation: the first attempt already took the stock,
+  // so re-checking it could wrongly reject that attempt's own retry.
+  if (idempotencyKey) {
+    const existing = await deps.findOrderByIdempotencyKey(idempotencyKey);
+    if (existing) return respondToRetry(deps, existing, user);
   }
 
   const payload = body as CreateOrderPayload;
@@ -784,8 +863,6 @@ export async function handleCreateOrderRequest(
     stockDecrements.push({ kind: 'variant', id: variantId, quantity, enforce });
   }
 
-  const user = await deps.getCurrentUser(request);
-
   let addressSnapshot: string | null = null;
   if (addressId) {
     if (!user) {
@@ -962,12 +1039,23 @@ export async function handleCreateOrderRequest(
       discount: finalDiscount,
       total,
       paymentMethod,
+      idempotencyKey: idempotencyKey || null,
       appliedIncentives,
       appliedIncentive: appliedIncentives[0] ?? null,
       orderItems: persistableOrderItems,
       stockDecrements,
     });
   } catch (error) {
+    // A concurrent request with the same key won the race on the unique
+    // index; this one rolled back, so answer with the winner's order.
+    if (
+      idempotencyKey &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      const existing = await deps.findOrderByIdempotencyKey(idempotencyKey);
+      if (existing) return respondToRetry(deps, existing, user);
+    }
     // A concurrent order took the stock between the check above and the
     // transaction.
     if (error instanceof Error && error.message === OUT_OF_STOCK) {
@@ -1035,121 +1123,15 @@ export async function handleCreateOrderRequest(
       });
   }
 
-  const successUrl = `${appUrl}/checkout/success?order=${orderNumber}`;
-
-  if (paymentMethod === 'MOMO') {
-    const result = await settleGatewayInit(async () => {
-      await deps.createPaymentRecord({
-        orderId: order.id,
-        provider: 'MOMO',
-        amount: totalInt,
-      });
-      return deps.createMoMoPayment({
-        orderId: order.id,
-        orderNumber,
-        amount: totalInt,
-        orderInfo: `Thanh toán đơn hàng #${orderNumber}`,
-        redirectUrl: successUrl,
-        ipnUrl: `${appUrl}/api/payment/momo/callback`,
-      });
-    });
-
-    if ('error' in result) {
-      try {
-        await deps.handlePaymentInitFailure({
-          orderId: order.id,
-          provider: 'MOMO',
-          reason: 'PAYMENT_INIT_FAILED',
-        });
-      } catch (cleanupError) {
-        console.error('MoMo payment init failure cleanup error:', cleanupError);
-      }
-      return {
-        status: 200,
-        body: {
-          success: true,
-          data: buildOrderSuccessData({
-            order,
-            orderNumber,
-            paymentUrl: null,
-            paymentError: result.error,
-            appliedIncentives,
-          }),
-        },
-      };
-    }
-
-    return {
-      status: 200,
-      body: {
-        success: true,
-        data: buildOrderSuccessData({
-          order,
-          orderNumber,
-          paymentUrl: result.payUrl,
-          appliedIncentives,
-        }),
-      },
-    };
-  }
-
-  if (paymentMethod === 'VNPAY') {
-    const result = await settleGatewayInit(async () => {
-      await deps.createPaymentRecord({
-        orderId: order.id,
-        provider: 'VNPAY',
-        amount: totalInt,
-      });
-      return deps.createVNPayPayment({
-        orderId: order.id,
-        orderNumber,
-        amount: totalInt,
-        description: `Thanh toán đơn hàng #${orderNumber}`,
-        redirectUrl: `${appUrl}/api/payment/vnpay/callback`,
-      });
-    });
-
-    if ('error' in result) {
-      try {
-        await deps.handlePaymentInitFailure({
-          orderId: order.id,
-          provider: 'VNPAY',
-          reason: 'PAYMENT_INIT_FAILED',
-        });
-      } catch (cleanupError) {
-        console.error(
-          'VNPay payment init failure cleanup error:',
-          cleanupError,
-        );
-      }
-      return {
-        status: 200,
-        body: {
-          success: true,
-          data: buildOrderSuccessData({
-            order,
-            orderNumber,
-            paymentUrl: null,
-            paymentError: result.error,
-            appliedIncentives,
-          }),
-        },
-      };
-    }
-
-    return {
-      status: 200,
-      body: {
-        success: true,
-        data: buildOrderSuccessData({
-          order,
-          orderNumber,
-          paymentUrl: result.payUrl,
-          appliedIncentives,
-        }),
-      },
-    };
-  }
+  const payment =
+    paymentMethod === 'MOMO' || paymentMethod === 'VNPAY'
+      ? await startOnlinePayment(deps, {
+          order: { id: order.id, orderNumber },
+          provider: paymentMethod,
+          amount: totalInt,
+          createRecord: true,
+        })
+      : { paymentUrl: null };
 
   return {
     status: 200,
@@ -1158,9 +1140,147 @@ export async function handleCreateOrderRequest(
       data: buildOrderSuccessData({
         order,
         orderNumber,
-        paymentUrl: null,
+        paymentUrl: payment.paymentUrl,
+        paymentError: payment.paymentError,
         appliedIncentives,
       }),
+    },
+  };
+}
+
+/**
+ * Creates the gateway link for an order. A failed init cancels the order
+ * (releasing its stock and coupons); a created link is stored so an
+ * idempotent replay can hand out the same link — MoMo refuses a second
+ * create for the same orderId.
+ */
+async function startOnlinePayment(
+  deps: CreateOrderRouteDeps,
+  args: {
+    order: { id: string; orderNumber: string };
+    provider: 'MOMO' | 'VNPAY';
+    amount: number;
+    /** False on a replay whose payment row already exists. */
+    createRecord: boolean;
+  },
+): Promise<{ paymentUrl: string | null; paymentError?: string }> {
+  const { order, provider, amount } = args;
+  const appUrl = deps.getAppUrl();
+  const result = await settleGatewayInit(async () => {
+    if (args.createRecord) {
+      await deps.createPaymentRecord({ orderId: order.id, provider, amount });
+    }
+    const description = `Thanh toán đơn hàng #${order.orderNumber}`;
+    return provider === 'MOMO'
+      ? deps.createMoMoPayment({
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          amount,
+          orderInfo: description,
+          redirectUrl: `${appUrl}/checkout/success?order=${order.orderNumber}`,
+          ipnUrl: `${appUrl}/api/payment/momo/callback`,
+        })
+      : deps.createVNPayPayment({
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          amount,
+          description,
+          redirectUrl: `${appUrl}/api/payment/vnpay/callback`,
+        });
+  });
+
+  if ('error' in result) {
+    try {
+      await deps.handlePaymentInitFailure({
+        orderId: order.id,
+        provider,
+        reason: 'PAYMENT_INIT_FAILED',
+      });
+    } catch (cleanupError) {
+      console.error(`${provider} payment init failure cleanup error:`, cleanupError);
+    }
+    return { paymentUrl: null, paymentError: result.error };
+  }
+
+  try {
+    await deps.savePaymentUrl({ orderId: order.id, payUrl: result.payUrl });
+  } catch (error) {
+    // The customer still gets the link now; only a later replay loses it.
+    console.error(`${provider} payment URL save error:`, error);
+  }
+  return { paymentUrl: result.payUrl };
+}
+
+/** A key belongs to whoever created the order with it. */
+function respondToRetry(
+  deps: CreateOrderRouteDeps,
+  existing: IdempotentOrderSnapshot,
+  user: { id: string } | null,
+) {
+  if ((existing.userId ?? null) !== (user?.id ?? null)) {
+    return Promise.resolve({
+      status: 409,
+      body: {
+        success: false,
+        error: 'Idempotency-Key was already used for another order.',
+      },
+    });
+  }
+  return replayIdempotentOrder(deps, existing);
+}
+
+/**
+ * Answers a retried create with the order the first attempt made, so a
+ * request that timed out client-side never produces a second order.
+ */
+async function replayIdempotentOrder(
+  deps: CreateOrderRouteDeps,
+  existing: IdempotentOrderSnapshot,
+) {
+  let payment: { paymentUrl: string | null; paymentError?: string } = {
+    paymentUrl: null,
+  };
+  const provider =
+    existing.paymentMethod === 'MOMO' || existing.paymentMethod === 'VNPAY'
+      ? existing.paymentMethod
+      : null;
+
+  if (existing.status === 'CANCELLED') {
+    // Typically the first attempt's payment init failed and cancelled it.
+    payment = {
+      paymentUrl: null,
+      paymentError: 'This order was cancelled. Please place a new order.',
+    };
+  } else if (provider && existing.payment?.status === 'PENDING' && existing.payment.payUrl) {
+    payment = { paymentUrl: existing.payment.payUrl };
+  } else if (provider && (!existing.payment || existing.payment.status === 'PENDING')) {
+    // The first attempt died before its gateway link was stored.
+    payment = await startOnlinePayment(deps, {
+      order: { id: existing.id, orderNumber: existing.orderNumber },
+      provider,
+      amount: Math.round(existing.total),
+      createRecord: !existing.payment,
+    });
+  }
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      data: {
+        ...buildOrderSuccessData({
+          order: {
+            id: existing.id,
+            orderNumber: existing.orderNumber,
+            orderItems: existing.orderItems,
+          },
+          orderNumber: existing.orderNumber,
+          paymentUrl: payment.paymentUrl,
+          paymentError: payment.paymentError,
+          appliedIncentives: [],
+        }),
+        replayed: true,
+      },
     },
   };
 }
@@ -1265,6 +1385,7 @@ export async function POST(request: NextRequest) {
       body,
       createOrderDeps,
       request,
+      request.headers.get('idempotency-key'),
     );
     return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
