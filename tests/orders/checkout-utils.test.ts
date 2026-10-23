@@ -27,9 +27,15 @@ test('canSubmitOrderRequest blocks submission when in-flight request exists', ()
 });
 
 test('a network failure keeps the Idempotency-Key so the retry replays', () => {
-  assert.equal(shouldKeepIdempotencyKey(false), true);
+  assert.equal(shouldKeepIdempotencyKey(null), true);
 });
 
-test('a server-answered failure drops the Idempotency-Key', () => {
-  assert.equal(shouldKeepIdempotencyKey(true), false);
+test('a 5xx keeps the Idempotency-Key: the order may already exist', () => {
+  assert.equal(shouldKeepIdempotencyKey(500), true);
+  assert.equal(shouldKeepIdempotencyKey(504), true);
+});
+
+test('a 4xx drops the Idempotency-Key: no order was created', () => {
+  assert.equal(shouldKeepIdempotencyKey(400), false);
+  assert.equal(shouldKeepIdempotencyKey(409), false);
 });
