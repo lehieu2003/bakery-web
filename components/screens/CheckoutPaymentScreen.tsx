@@ -321,7 +321,9 @@ export default function CheckoutPaymentScreen() {
       clearCart();
       router.push(`/checkout/success?order=${result.order.orderNumber}`);
     } catch (caught) {
-      if (!shouldKeepIdempotencyKey(caught instanceof ApiError)) {
+      if (
+        !shouldKeepIdempotencyKey(caught instanceof ApiError ? caught.status : null)
+      ) {
         checkoutKeyRef.current = null;
       }
       if (caught instanceof ApiError && caught.data?.error) {
