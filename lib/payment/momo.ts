@@ -15,6 +15,9 @@ const MOMO_CONFIG = {
       : 'https://test-payment.momo.vn/v2/gateway/api/create',
 };
 
+/** The checkout request waits on this call, so it must not hang. */
+const MOMO_CREATE_TIMEOUT_MS = 15_000;
+
 interface MoMoCreatePaymentParams {
   orderId: string;
   orderNumber: string;
@@ -122,6 +125,7 @@ export async function createMoMoPayment(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(MOMO_CREATE_TIMEOUT_MS),
   });
 
   const data: MoMoCreatePaymentResponse = await response.json();

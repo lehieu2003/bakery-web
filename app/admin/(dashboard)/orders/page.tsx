@@ -18,6 +18,7 @@ import {
 } from '@/lib/admin-data';
 import type { OrderStatus, Order } from '@/types/api.types';
 import { cn } from '@/lib/utils';
+import { isAwaitingRefund } from '@/lib/orders/presentation';
 import { useOrders } from '@/hooks/admin/use-orders';
 
 const ALL_STATUSES: OrderStatus[] = [
@@ -292,12 +293,16 @@ export default function OrdersPage() {
                   <span
                     className={cn(
                       'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
-                      order.payment?.status === 'PAID'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-amber-50 text-amber-700 border-amber-200',
+                      isAwaitingRefund(order.status, order.payment?.status)
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : order.payment?.status === 'PAID'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200',
                     )}
                   >
-                    {order.payment?.status || 'N/A'}
+                    {isAwaitingRefund(order.status, order.payment?.status)
+                      ? 'NEEDS REFUND'
+                      : order.payment?.status || 'N/A'}
                   </span>
                   <p className='text-[10px] text-muted-foreground mt-0.5'>
                     {order.paymentMethod || 'N/A'}

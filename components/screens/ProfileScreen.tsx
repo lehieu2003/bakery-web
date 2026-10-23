@@ -347,6 +347,9 @@ export default function ProfileScreen() {
     data: ordersData,
     isLoading: ordersLoading,
     isError: ordersError,
+    hasNextPage: hasMoreOrders,
+    fetchNextPage: fetchMoreOrders,
+    isFetchingNextPage: isFetchingMoreOrders,
   } = useOrders({
     enabled: !!authUser,
   });
@@ -867,6 +870,7 @@ export default function ProfileScreen() {
                   const paymentStatus = getPaymentStatusPresentation(
                     order.payment?.status,
                     order.paymentMethod,
+                    order.status,
                   );
                   const canReorder = order.status === 'COMPLETED';
                   const feedbackForOrder =
@@ -1015,6 +1019,16 @@ export default function ProfileScreen() {
                 </div>
               )}
             </div>
+
+            {hasMoreOrders ? (
+              <button
+                onClick={() => fetchMoreOrders()}
+                disabled={isFetchingMoreOrders}
+                className='w-full mt-4 py-3 text-sm font-medium text-primary hover:underline disabled:opacity-60'
+              >
+                {isFetchingMoreOrders ? 'Loading…' : 'Load more orders'}
+              </button>
+            ) : null}
 
             <button
               onClick={() => router.push('/')}

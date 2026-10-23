@@ -5,6 +5,8 @@ import {
   handleGetOrdersRequest,
 } from '@/app/api/orders/route';
 import { INCENTIVE_PER_USER_LIMIT_REACHED } from '@/lib/incentives/redemption-lifecycle';
+import { OUT_OF_STOCK } from '@/lib/orders/stock';
+import { Prisma } from '@prisma/client';
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
@@ -83,6 +85,8 @@ function createDeps(): CreateOrderDeps {
       ],
     }),
     getDeliverySettings: async () => ({ deliveryFee: 0, freeDeliveryThreshold: 0 }),
+    findOrderByIdempotencyKey: async () => null,
+    savePaymentUrl: async () => undefined,
   };
 }
 
@@ -584,6 +588,7 @@ test('POST /api/orders applies incentive even when coupon is smaller than member
 test('GET /api/orders returns 401 when user is unauthenticated', async () => {
   const result = await handleGetOrdersRequest({} as never, {
     getCurrentUser: async () => null,
+    countOrdersByUserId: async () => 1,
     findOrdersByUserId: async () => [],
   });
 
@@ -595,6 +600,7 @@ test('GET /api/orders returns 401 when user is unauthenticated', async () => {
 test('GET /api/orders returns serialized orders for authenticated user', async () => {
   const result = await handleGetOrdersRequest({} as never, {
     getCurrentUser: async () => ({ id: 'u1' }),
+    countOrdersByUserId: async () => 1,
     findOrdersByUserId: async () => [
       {
         id: 'o1',
@@ -664,6 +670,7 @@ test('GET /api/orders returns serialized orders for authenticated user', async (
 test('GET /api/orders sanitizes invalid numeric fields to 0', async () => {
   const result = await handleGetOrdersRequest({} as never, {
     getCurrentUser: async () => ({ id: 'u1' }),
+    countOrdersByUserId: async () => 1,
     findOrdersByUserId: async () => [
       {
         id: 'o2',
@@ -974,9 +981,23 @@ test('delivery order under the threshold is charged the configured fee', async (
     getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
     createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
   });
-  await handleCreateOrderRequest(buildPayload('COD'), deps); // payload has customerAddress
+  await handleCreateOrderRequest(
+    { ...buildPayload('COD'), deliveryMethod: 'delivery' }, deps);
   assert.equal(captured!.deliveryFee, 30000);
   assert.equal(captured!.total, captured!.subtotal + 30000);
+});
+
+test('absent deliveryMethod is never charged the fee, even with an address', async () => {
+  // The preview quotes no fee without deliveryMethod; the charged total must
+  // match it, so the old address-presence heuristic must not come back.
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  await handleCreateOrderRequest(buildPayload('COD'), deps); // payload has customerAddress
+  assert.equal(captured!.deliveryFee, 0);
+  assert.equal(captured!.total, captured!.subtotal);
 });
 
 test('delivery order at/above the threshold ships free', async () => {
@@ -991,7 +1012,7 @@ test('delivery order at/above the threshold ships free', async () => {
     getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
     createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
   });
-  await handleCreateOrderRequest({ ...buildPayload('COD'), items: [{ productId: 'p1', name: 'Cake A', price: 500000, quantity: 1 }] }, deps);
+  await handleCreateOrderRequest({ ...buildPayload('COD'), deliveryMethod: 'delivery', items: [{ productId: 'p1', name: 'Cake A', price: 500000, quantity: 1 }] }, deps);
   assert.equal(captured!.deliveryFee, 0);
 });
 
@@ -1077,4 +1098,288 @@ test('invalid deliveryMethod value is rejected', async () => {
     { ...buildPayload('COD'), deliveryMethod: 'drone' }, createDeps());
   assert.equal(result.status, 400);
   assert.equal(result.body.error, 'Invalid delivery method');
+});
+
+test('stock is checked on the product total across lines', async () => {
+  // Two lines of p1 (stock 10) asking for 6 each: each fits alone, the
+  // total does not.
+  const payload = { ...buildPayload('COD'), items: [
+    { productId: 'p1', name: 'Cake A', price: 100000, quantity: 6, message: 'A' },
+    { productId: 'p1', name: 'Cake A', price: 100000, quantity: 6, message: 'B' },
+  ] };
+  const result = await handleCreateOrderRequest(payload, createDeps());
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, '"Cake A" is out of stock (available: 10)');
+});
+
+test('two variants of one product draw on the same product stock', async () => {
+  const deps = withDeps(createDeps(), {
+    findProducts: async () => [
+      { id: 'p1', name: 'Cake A', price: 100000, stock: 3, categoryIds: [] },
+    ],
+    findVariants: async () => [
+      { id: 'v1', productId: 'p1', name: '500g', price: 120000, stock: 5 },
+      { id: 'v2', productId: 'p1', name: '1kg', price: 200000, stock: 5 },
+    ],
+  });
+  const payload = { ...buildPayload('COD'), items: [
+    { productId: 'p1', name: 'Cake A', price: 1, quantity: 2, variantId: 'v1' },
+    { productId: 'p1', name: 'Cake A', price: 1, quantity: 2, variantId: 'v2' },
+  ] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, '"Cake A" is out of stock (available: 3)');
+});
+
+test('variant stock must cover the ordered quantity, not just be positive', async () => {
+  const deps = withDeps(createDeps(), {
+    findVariants: async () => [{ id: 'v1', productId: 'p1', name: '500g', price: 120000, stock: 1 }],
+  });
+  const payload = { ...buildPayload('COD'),
+    items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 2, variantId: 'v1' }] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Variant "Cake A" is not available');
+});
+
+test('stock decrements are summed per product and variant and sent to the transaction', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    findVariants: async () => [{ id: 'v1', productId: 'p1', name: '500g', price: 120000, stock: 5 }],
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const payload = { ...buildPayload('COD'), items: [
+    { productId: 'p1', name: 'Cake A', price: 1, quantity: 1, variantId: 'v1', message: 'A' },
+    { productId: 'p1', name: 'Cake A', price: 1, quantity: 2, variantId: 'v1', message: 'B' },
+  ] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 200);
+  assert.deepEqual(captured!.stockDecrements, [
+    { kind: 'product', id: 'p1', quantity: 3, enforce: true },
+    { kind: 'variant', id: 'v1', quantity: 3, enforce: true },
+  ]);
+});
+
+test('untracked products are orderable at zero stock and decremented without a floor', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    // The storefront lists trackStock=false products as available.
+    findProducts: async () => [
+      { id: 'p1', name: 'Cake A', price: 100000, stock: 0, trackStock: false, categoryIds: [] },
+    ],
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
+  assert.equal(result.status, 200);
+  assert.deepEqual(captured!.stockDecrements, [
+    { kind: 'product', id: 'p1', quantity: 2, enforce: false },
+  ]);
+});
+
+test('stock taken by a concurrent order during the transaction is a 400, not a 500', async () => {
+  const deps = withDeps(createDeps(), {
+    createOrderWithItems: async () => { throw new Error(OUT_OF_STOCK); },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Some items just sold out. Please review your cart.');
+});
+
+for (const failure of ['gateway', 'paymentRecord'] as const) {
+  test(`a throwing MoMo init (${failure}) cancels the order instead of stranding it`, async () => {
+    const deps = createDeps();
+    const cleanupCalls: string[] = [];
+    if (failure === 'gateway') {
+      deps.createMoMoPayment = async () => { throw new TypeError('fetch failed'); };
+    } else {
+      deps.createPaymentRecord = async () => { throw new Error('db down'); };
+    }
+    deps.handlePaymentInitFailure = async (args) => { cleanupCalls.push(args.orderId); };
+    const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps);
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data?.paymentUrl, null);
+    assert.equal(result.body.data?.paymentError, 'Payment gateway is unavailable. Please try again.');
+    assert.deepEqual(cleanupCalls, ['o1']);
+  });
+}
+
+test('a throwing VNPay init cancels the order instead of stranding it', async () => {
+  const deps = createDeps();
+  const cleanupCalls: string[] = [];
+  deps.createVNPayPayment = async () => { throw new Error('signing failed'); };
+  deps.handlePaymentInitFailure = async (args) => { cleanupCalls.push(args.orderId); };
+  const result = await handleCreateOrderRequest(buildPayload('VNPAY'), deps);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.paymentError, 'Payment gateway is unavailable. Please try again.');
+  assert.deepEqual(cleanupCalls, ['o1']);
+});
+
+// ---------------------------------------------------------------------------
+// Idempotency-Key
+// ---------------------------------------------------------------------------
+
+type IdempotentSnapshot = NonNullable<
+  Awaited<ReturnType<CreateOrderDeps['findOrderByIdempotencyKey']>>
+>;
+
+const KEY = 'checkout-3f2a9c1e-key';
+
+function existingOrder(overrides: Partial<IdempotentSnapshot> = {}): IdempotentSnapshot {
+  return {
+    id: 'o-first',
+    orderNumber: 'BK-FIRST',
+    userId: null,
+    status: 'PENDING',
+    paymentMethod: 'COD',
+    total: 200000,
+    orderItems: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 2, subtotal: 200000 }],
+    payment: null,
+    ...overrides,
+  };
+}
+
+function failIfCalled(name: string) {
+  return async (): Promise<never> => { throw new Error(`${name} must not be called on a replay`); };
+}
+
+test('a malformed Idempotency-Key is rejected', async () => {
+  const result = await handleCreateOrderRequest(buildPayload('COD'), createDeps(), undefined, 'short');
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Invalid Idempotency-Key');
+});
+
+test('a first request stores its Idempotency-Key on the order', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  await handleCreateOrderRequest(buildPayload('COD'), deps, undefined, KEY);
+  assert.equal(captured!.idempotencyKey, KEY);
+});
+
+test('a retry returns the first order without re-checking stock or creating another', async () => {
+  const deps = withDeps(createDeps(), {
+    // The first attempt took the last items; a fresh check would now fail.
+    findProducts: async () => [{ id: 'p1', name: 'Cake A', price: 100000, stock: 0, categoryIds: [] }],
+    findOrderByIdempotencyKey: async (key) => (key === KEY ? existingOrder() : null),
+    createOrderWithItems: failIfCalled('createOrderWithItems'),
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps, undefined, KEY);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.order.orderNumber, 'BK-FIRST');
+  assert.equal(result.body.data?.paymentUrl, null);
+  assert.equal((result.body.data as { replayed?: boolean }).replayed, true);
+});
+
+test('a retried MoMo order returns its stored payment link instead of a new one', async () => {
+  const deps = withDeps(createDeps(), {
+    findOrderByIdempotencyKey: async () => existingOrder({
+      paymentMethod: 'MOMO',
+      payment: { status: 'PENDING', payUrl: 'https://pay.example/momo/first' },
+    }),
+    createOrderWithItems: failIfCalled('createOrderWithItems'),
+    createMoMoPayment: failIfCalled('createMoMoPayment'),
+    createPaymentRecord: failIfCalled('createPaymentRecord'),
+  });
+  const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps, undefined, KEY);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.paymentUrl, 'https://pay.example/momo/first');
+});
+
+test('a retried order whose link was never stored gets one, reusing its payment row', async () => {
+  const saved: Array<{ orderId: string; payUrl: string }> = [];
+  const deps = withDeps(createDeps(), {
+    findOrderByIdempotencyKey: async () => existingOrder({
+      paymentMethod: 'VNPAY',
+      payment: { status: 'PENDING', payUrl: null },
+    }),
+    createOrderWithItems: failIfCalled('createOrderWithItems'),
+    createPaymentRecord: failIfCalled('createPaymentRecord'),
+    savePaymentUrl: async (args) => { saved.push(args); },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('VNPAY'), deps, undefined, KEY);
+  assert.equal(result.body.data?.paymentUrl, 'https://pay.example/vnpay');
+  assert.deepEqual(saved, [{ orderId: 'o-first', payUrl: 'https://pay.example/vnpay' }]);
+});
+
+test('a retry of an order cancelled by a failed payment init reports the failure again', async () => {
+  const deps = withDeps(createDeps(), {
+    findOrderByIdempotencyKey: async () => existingOrder({
+      paymentMethod: 'MOMO',
+      status: 'CANCELLED',
+      payment: { status: 'FAILED', payUrl: null },
+    }),
+    createOrderWithItems: failIfCalled('createOrderWithItems'),
+    createMoMoPayment: failIfCalled('createMoMoPayment'),
+  });
+  const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps, undefined, KEY);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.paymentUrl, null);
+  assert.equal(result.body.data?.paymentError, 'This order was cancelled. Please place a new order.');
+});
+
+test('a key used by another customer is a conflict, not a replay', async () => {
+  const deps = withDeps(createDeps(), {
+    getCurrentUser: async () => ({ id: 'u-2' }),
+    findOrderByIdempotencyKey: async () => existingOrder({ userId: 'u-1' }),
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps, undefined, KEY);
+  assert.equal(result.status, 409);
+  assert.equal(result.body.success, false);
+});
+
+test('losing the unique-index race to a concurrent retry replays the winner', async () => {
+  let lookups = 0;
+  const deps = withDeps(createDeps(), {
+    // Not there when this request starts; there once its insert collides.
+    findOrderByIdempotencyKey: async () => (lookups++ === 0 ? null : existingOrder()),
+    createOrderWithItems: async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
+    },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps, undefined, KEY);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.order.orderNumber, 'BK-FIRST');
+});
+
+test('a created gateway link is stored for later replays', async () => {
+  const saved: Array<{ orderId: string; payUrl: string }> = [];
+  const deps = withDeps(createDeps(), {
+    savePaymentUrl: async (args) => { saved.push(args); },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps, undefined, KEY);
+  assert.equal(result.body.data?.paymentUrl, 'https://pay.example/momo');
+  assert.deepEqual(saved, [{ orderId: 'o1', payUrl: 'https://pay.example/momo' }]);
+});
+
+test('GET /api/orders pages newest-first with the admin paging contract', async () => {
+  const calls: Array<{ skip: number; take: number }> = [];
+  const request = {
+    nextUrl: new URL('http://localhost/api/orders?page=3&limit=500'),
+  } as never;
+  const result = await handleGetOrdersRequest(request, {
+    getCurrentUser: async () => ({ id: 'u1' }),
+    findOrdersByUserId: async (_userId, page) => { calls.push(page); return []; },
+    countOrdersByUserId: async () => 120,
+  });
+  assert.equal(result.status, 200);
+  // limit is capped at 50, so page 3 starts at 100.
+  assert.deepEqual(calls, [{ skip: 100, take: 50 }]);
+  assert.deepEqual(
+    (result.body as { data: { pagination: unknown } }).data.pagination,
+    { page: 3, limit: 50, total: 120, totalPages: 3 },
+  );
+});
+
+test('GET /api/orders without paging params returns the newest 20', async () => {
+  const calls: Array<{ skip: number; take: number }> = [];
+  await handleGetOrdersRequest({} as never, {
+    getCurrentUser: async () => ({ id: 'u1' }),
+    findOrdersByUserId: async (_userId, page) => { calls.push(page); return []; },
+    countOrdersByUserId: async () => 0,
+  });
+  assert.deepEqual(calls, [{ skip: 0, take: 20 }]);
 });

@@ -26,7 +26,8 @@ Next.js (App Router) + Prisma/PostgreSQL + TypeScript strict. Là web shop + tra
 ## Tài nguyên agent trong repo
 
 - `.claude/skills/` — `start-task`, `validate`, `open-pr`, `release` (chỉ chạy khi người dùng yêu cầu).
-- `.claude/agents/code-reviewer.md` — review diff so với `origin/dev` trước PR lớn.
+  `code-review-and-quality` — tiêu chí review 5 trục (vendored từ addyosmani/agent-skills).
+- `.claude/agents/code-reviewer.md` — review diff so với `origin/dev` trước PR lớn, áp dụng skill `code-review-and-quality`.
 - `.agents/skills/` (BMAD), `_bmad/`, `docs/superpowers/` (plan/spec) — quy trình lập kế hoạch đang dùng;
   plan/spec mới đặt trong `docs/superpowers/{plans,specs}/YYYY-MM-DD-<tên>.md`.
 - `.claude/settings.local.json` — cấu hình cá nhân, không commit.
