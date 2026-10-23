@@ -56,6 +56,7 @@ export default function OrderDetailScreen({
   const payment = getPaymentStatusPresentation(
     order.payment?.status ?? null,
     order.paymentMethod,
+    order.status,
   );
 
   return (

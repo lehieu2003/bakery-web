@@ -81,6 +81,23 @@ export function useUpdateOrderStatus() {
 }
 
 /**
+ * Hook to record a manual gateway refund for a cancelled, paid order
+ */
+export function useMarkOrderRefunded() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string }) =>
+      ordersService.markRefunded(id, note),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: orderKeys.audits() });
+    },
+  });
+}
+
+/**
  * Hook to fetch order audit logs
  */
 export function useOrderAudit(id: string, page = 1, limit = 20) {

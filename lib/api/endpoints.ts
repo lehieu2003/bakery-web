@@ -68,6 +68,7 @@ export const ENDPOINTS = {
       INVESTIGATION: (id: string) => `${ADMIN_BASE}/orders/${id}/investigation`,
       UPDATE: (id: string) => `${ADMIN_BASE}/orders/${id}`,
       UPDATE_STATUS: (id: string) => `${ADMIN_BASE}/orders/${id}/status`,
+      REFUND: (id: string) => `${ADMIN_BASE}/orders/${id}/refund`,
     },
 
     // Customers

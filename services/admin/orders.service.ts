@@ -64,6 +64,21 @@ export const ordersService = {
   /**
    * Update order status only
    */
+  /**
+   * Record a refund already made on the MoMo/VNPay merchant portal for a
+   * cancelled, paid order.
+   */
+  markRefunded: async (id: string, note?: string) => {
+    await http.post(
+      ENDPOINTS.ADMIN.ORDERS.REFUND(id),
+      { note },
+      {
+        showSuccessToast: true,
+        successMessage: 'Đã ghi nhận hoàn tiền!',
+      },
+    );
+  },
+
   updateStatus: async (id: string, status: OrderStatus) => {
     const response = await http.patch<{ order: Order }>(
       ENDPOINTS.ADMIN.ORDERS.UPDATE_STATUS(id),

@@ -30,9 +30,11 @@ import {
 import {
   useOrder,
   useOrderAudit,
+  useMarkOrderRefunded,
   useOrderInvestigation,
   useUpdateOrder,
 } from '@/hooks/admin/use-orders';
+import { isAwaitingRefund } from '@/lib/orders/presentation';
 import type {
   OrderStatus,
   OrderItem,
@@ -67,6 +69,9 @@ export default function OrderDetailPage({
     error: investigationError,
   } = useOrderInvestigation(id);
   const updateMutation = useUpdateOrder();
+  const refundMutation = useMarkOrderRefunded();
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundNote, setRefundNote] = useState('');
 
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('');
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -349,6 +354,26 @@ export default function OrderDetailPage({
                   {order.payment?.status || order.paymentMethod || 'N/A'}
                 </p>
               </div>
+              {isAwaitingRefund(order.status, order.payment?.status) && (
+                <div className='rounded-lg border border-rose-200 bg-rose-50 p-3 space-y-2'>
+                  <p className='text-xs font-medium text-rose-700'>
+                    Needs refund
+                  </p>
+                  <p className='text-[11px] text-rose-700/80'>
+                    This order was cancelled after the customer paid. Refund it
+                    on the {order.payment?.provider ?? 'gateway'} merchant portal,
+                    then record it here.
+                  </p>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    className='h-7 text-xs'
+                    onClick={() => setRefundOpen(true)}
+                  >
+                    Mark as refunded
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -625,6 +650,14 @@ export default function OrderDetailPage({
             <AlertDialogDescription className='text-xs'>
               This action cannot be undone. Please provide a reason:
             </AlertDialogDescription>
+            {order.payment?.status === 'PAID' && (
+              <p className='text-xs text-rose-700'>
+                The customer has already paid via {order.payment.provider}.
+                Cancelling does not refund them: the order will be flagged
+                &ldquo;Needs refund&rdquo; until you refund it on the gateway
+                portal and mark it refunded.
+              </p>
+            )}
           </AlertDialogHeader>
           <textarea
             className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20'
@@ -642,6 +675,44 @@ export default function OrderDetailPage({
               disabled={updateMutation.isPending}
             >
               Cancel Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Refund Dialog */}
+      <AlertDialog open={refundOpen} onOpenChange={setRefundOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className='text-base'>
+              Mark as refunded?
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-xs'>
+              Only confirm after the refund has gone through on the{' '}
+              {order.payment?.provider ?? 'gateway'} merchant portal. Add the
+              refund reference for the audit log (optional):
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <textarea
+            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20'
+            placeholder='Refund reference / note...'
+            value={refundNote}
+            onChange={(e) => setRefundNote(e.target.value)}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel className='h-8 text-xs'>Back</AlertDialogCancel>
+            <AlertDialogAction
+              className='h-8 text-xs'
+              disabled={refundMutation.isPending}
+              onClick={async () => {
+                await refundMutation.mutateAsync({
+                  id: order.id,
+                  note: refundNote.trim() || undefined,
+                });
+                setRefundNote('');
+              }}
+            >
+              Mark as refunded
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

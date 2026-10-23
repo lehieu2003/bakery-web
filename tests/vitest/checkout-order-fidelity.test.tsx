@@ -204,6 +204,8 @@ describe('Checkout payment order payload fidelity', () => {
           }),
         ],
       }),
+      // Every attempt carries an Idempotency-Key.
+      { idempotencyKey: expect.any(String) },
     );
   });
 });
@@ -277,6 +279,8 @@ describe('Checkout delivery fee display fidelity', () => {
     });
     expect(orderService.createOrder).toHaveBeenCalledWith(
       expect.objectContaining({ deliveryMethod: 'delivery' }),
+      // Every attempt carries an Idempotency-Key.
+      { idempotencyKey: expect.any(String) },
     );
   });
 
@@ -330,6 +334,8 @@ describe('Checkout delivery fee display fidelity', () => {
     });
     expect(orderService.createOrder).toHaveBeenCalledWith(
       expect.objectContaining({ deliveryMethod: 'pickup' }),
+      // Every attempt carries an Idempotency-Key.
+      { idempotencyKey: expect.any(String) },
     );
   });
 });

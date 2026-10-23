@@ -18,7 +18,20 @@ const PAYMENT_STATUS_PRESENTATION: Record<string, StatusPresentation> = {
   PENDING: { label: 'Payment pending', tone: 'warning' },
   PAID: { label: 'Paid', tone: 'success' },
   FAILED: { label: 'Payment failed', tone: 'danger' },
+  REFUNDED: { label: 'Refunded', tone: 'info' },
 };
+
+/**
+ * A cancelled order whose payment went through: the money is still with the
+ * shop until an admin refunds it on the gateway portal and marks it
+ * REFUNDED (POST /api/admin/orders/[id]/refund).
+ */
+export function isAwaitingRefund(
+  orderStatus: string | null | undefined,
+  paymentStatus: string | null | undefined,
+): boolean {
+  return orderStatus === 'CANCELLED' && paymentStatus === 'PAID';
+}
 
 export function getOrderStatusPresentation(status: string): StatusPresentation {
   return (
@@ -32,7 +45,12 @@ export function getOrderStatusPresentation(status: string): StatusPresentation {
 export function getPaymentStatusPresentation(
   paymentStatus: string | null | undefined,
   paymentMethod?: string | null,
+  orderStatus?: string | null,
 ): StatusPresentation {
+  if (isAwaitingRefund(orderStatus, paymentStatus)) {
+    return { label: 'Refund pending', tone: 'warning' };
+  }
+
   if (paymentStatus && PAYMENT_STATUS_PRESENTATION[paymentStatus]) {
     return PAYMENT_STATUS_PRESENTATION[paymentStatus];
   }

@@ -255,8 +255,23 @@ export type OrderReadModel = {
 
 type GetOrdersRouteDeps = {
   getCurrentUser: (request: NextRequest) => Promise<{ id: string } | null>;
-  findOrdersByUserId: (userId: string) => Promise<OrderReadModel[]>;
+  findOrdersByUserId: (
+    userId: string,
+    page: { skip: number; take: number },
+  ) => Promise<OrderReadModel[]>;
+  countOrdersByUserId: (userId: string) => Promise<number>;
 };
+
+// Same paging contract as /api/admin/orders.
+const ORDERS_DEFAULT_PAGE = 1;
+const ORDERS_DEFAULT_LIMIT = 20;
+const ORDERS_MAX_LIMIT = 50;
+
+function parsePositiveInt(value: string | null, fallback: number, max?: number) {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return typeof max === 'number' ? Math.min(parsed, max) : parsed;
+}
 
 function generateOrderNumber(): string {
   const now = new Date();
@@ -555,11 +570,13 @@ const createOrderDeps: CreateOrderRouteDeps = {
 
 const getOrdersDeps: GetOrdersRouteDeps = {
   getCurrentUser: requireUserFromRequest,
-  findOrdersByUserId: async (userId) =>
+  findOrdersByUserId: async (userId, { skip, take }) =>
     prisma.order.findMany({
       where: {
         userId,
       },
+      skip,
+      take,
       include: {
         orderItems: {
           include: {
@@ -583,6 +600,7 @@ const getOrdersDeps: GetOrdersRouteDeps = {
         createdAt: 'desc',
       },
     }) as Promise<OrderReadModel[]>,
+  countOrdersByUserId: (userId) => prisma.order.count({ where: { userId } }),
 };
 
 /**
@@ -1327,13 +1345,30 @@ export async function handleGetOrdersRequest(
       };
     }
 
-    const orders = await deps.findOrdersByUserId(user.id);
+    // Clients that send no paging params get the newest page.
+    const searchParams = request.nextUrl?.searchParams;
+    const page = parsePositiveInt(
+      searchParams?.get('page') ?? null,
+      ORDERS_DEFAULT_PAGE,
+    );
+    const limit = parsePositiveInt(
+      searchParams?.get('limit') ?? null,
+      ORDERS_DEFAULT_LIMIT,
+      ORDERS_MAX_LIMIT,
+    );
+    const [orders, total] = await Promise.all([
+      deps.findOrdersByUserId(user.id, { skip: (page - 1) * limit, take: limit }),
+      deps.countOrdersByUserId(user.id),
+    ]);
 
     return {
       status: 200,
       body: {
         success: true,
-        data: { orders: orders.map(serializeOrder) },
+        data: {
+          orders: orders.map(serializeOrder),
+          pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        },
       },
     };
   } catch (error) {

@@ -37,6 +37,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
     ? getPaymentStatusPresentation(
         matchedOrder.payment?.status,
         matchedOrder.paymentMethod,
+        matchedOrder.status,
       )
     : null;
   const confirmationTitle = getConfirmationTitle({
