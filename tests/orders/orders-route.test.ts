@@ -974,9 +974,23 @@ test('delivery order under the threshold is charged the configured fee', async (
     getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
     createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
   });
-  await handleCreateOrderRequest(buildPayload('COD'), deps); // payload has customerAddress
+  await handleCreateOrderRequest(
+    { ...buildPayload('COD'), deliveryMethod: 'delivery' }, deps);
   assert.equal(captured!.deliveryFee, 30000);
   assert.equal(captured!.total, captured!.subtotal + 30000);
+});
+
+test('absent deliveryMethod is never charged the fee, even with an address', async () => {
+  // The preview quotes no fee without deliveryMethod; the charged total must
+  // match it, so the old address-presence heuristic must not come back.
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  await handleCreateOrderRequest(buildPayload('COD'), deps); // payload has customerAddress
+  assert.equal(captured!.deliveryFee, 0);
+  assert.equal(captured!.total, captured!.subtotal);
 });
 
 test('delivery order at/above the threshold ships free', async () => {
@@ -991,7 +1005,7 @@ test('delivery order at/above the threshold ships free', async () => {
     getDeliverySettings: async () => ({ deliveryFee: 30000, freeDeliveryThreshold: 500000 }),
     createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
   });
-  await handleCreateOrderRequest({ ...buildPayload('COD'), items: [{ productId: 'p1', name: 'Cake A', price: 500000, quantity: 1 }] }, deps);
+  await handleCreateOrderRequest({ ...buildPayload('COD'), deliveryMethod: 'delivery', items: [{ productId: 'p1', name: 'Cake A', price: 500000, quantity: 1 }] }, deps);
   assert.equal(captured!.deliveryFee, 0);
 });
 

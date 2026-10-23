@@ -103,11 +103,8 @@ export default function CheckoutPaymentScreen() {
   const discount = Math.round(subtotal * discountRate);
   const baseTotal = subtotal - discount;
   const deliveryMethod = checkoutInfo?.deliveryMethod;
-  // Same rule as the API routes: an absent method falls back to the
-  // address-presence heuristic.
-  const isDelivery = deliveryMethod
-    ? deliveryMethod === 'delivery'
-    : Boolean(checkoutInfo?.customerAddress);
+  // Same rule as the API routes: only an explicit 'delivery' pays the fee.
+  const isDelivery = deliveryMethod === 'delivery';
   const deliveryFee = isDelivery ? (previewPricing?.deliveryFee ?? 0) : 0;
   const availableIncentivesQuery = useAvailableIncentives({
     subtotal,

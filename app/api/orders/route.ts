@@ -868,11 +868,10 @@ export async function handleCreateOrderRequest(
 
   const deliveryAddress =
     addressSnapshot ?? (customerAddress?.trim() || null);
-  // Absent deliveryMethod keeps the legacy address-presence heuristic so
-  // existing mobile clients behave exactly as before.
-  const isDelivery = deliveryMethod
-    ? deliveryMethod === 'delivery'
-    : Boolean(deliveryAddress);
+  // Only an explicit 'delivery' pays the fee — the same rule as
+  // /api/incentives/preview. Clients that omit deliveryMethod were shown a
+  // fee-less preview, so charging a fee here would exceed the displayed total.
+  const isDelivery = deliveryMethod === 'delivery';
   const deliverySettings = await deps.getDeliverySettings();
   let deliveryFee = 0;
   if (isDelivery) {
