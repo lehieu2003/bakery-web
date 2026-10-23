@@ -276,7 +276,7 @@ function Pagination({
   return (
     <nav
       className='flex items-center justify-center gap-2 mt-10'
-      aria-label='Blog pagination'
+      aria-label='Phân trang blog'
     >
       <button
         onClick={() => onChange(page - 1)}

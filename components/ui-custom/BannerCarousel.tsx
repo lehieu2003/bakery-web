@@ -249,7 +249,7 @@ export default function BannerCarousel({
             <button
               onClick={handlePrev}
               disabled={isAnimating}
-              aria-label='Previous slide'
+              aria-label='Ảnh trước'
               className='p-3 rounded-full bg-black/30 hover:bg-black/50 text-white/90 hover:text-white border border-white/15 backdrop-blur-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed hover:border-white/30 cursor-pointer'
             >
               <ChevronLeft size={18} />
@@ -257,7 +257,7 @@ export default function BannerCarousel({
             <button
               onClick={handleNext}
               disabled={isAnimating}
-              aria-label='Next slide'
+              aria-label='Ảnh sau'
               className='p-3 rounded-full bg-black/30 hover:bg-black/50 text-white/90 hover:text-white border border-white/15 backdrop-blur-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed hover:border-white/30 cursor-pointer'
             >
               <ChevronRight size={18} />

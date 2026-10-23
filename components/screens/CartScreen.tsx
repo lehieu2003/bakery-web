@@ -119,7 +119,7 @@ export default function CartScreen() {
                         <button
                           onClick={() => removeFromCart(item.id)}
                           className='p-2 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-secondary flex-shrink-0'
-                          aria-label='Remove item'
+                          aria-label='Xóa sản phẩm'
                         >
                           <Trash2 size={16} />
                         </button>
@@ -133,7 +133,7 @@ export default function CartScreen() {
                           <button
                             onClick={() => updateQty(item.id, -1)}
                             className='p-1 text-muted-foreground hover:text-foreground transition-colors'
-                            aria-label='Decrease quantity'
+                            aria-label='Giảm số lượng'
                           >
                             <Minus size={14} />
                           </button>
@@ -143,7 +143,7 @@ export default function CartScreen() {
                           <button
                             onClick={() => updateQty(item.id, 1)}
                             className='p-1 text-muted-foreground hover:text-foreground transition-colors'
-                            aria-label='Increase quantity'
+                            aria-label='Tăng số lượng'
                           >
                             <Plus size={14} />
                           </button>

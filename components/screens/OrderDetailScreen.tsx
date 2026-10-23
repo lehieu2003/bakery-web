@@ -7,6 +7,8 @@ import { orderService } from '@/services/order.service';
 import {
   getOrderStatusPresentation,
   getPaymentStatusPresentation,
+  toVietnamesePaymentMethodLabel,
+  toVietnameseStatusLabel,
 } from '@/lib/orders/presentation';
 
 function formatVnd(amount: number) {
@@ -39,12 +41,12 @@ export default function OrderDetailScreen({
     return (
       <div className='min-h-screen bg-background flex items-center justify-center'>
         <div className='text-center'>
-          <p className='text-destructive mb-4'>Order not found</p>
+          <p className='text-destructive mb-4'>Không tìm thấy đơn hàng</p>
           <Link
             href='/profile'
             className='text-primary hover:underline text-sm font-medium'
           >
-            Back to Order History
+            Về lịch sử đơn hàng
           </Link>
         </div>
       </div>
@@ -67,7 +69,7 @@ export default function OrderDetailScreen({
           className='inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6'
         >
           <ArrowLeft size={16} />
-          Back to Order History
+          Về lịch sử đơn hàng
         </Link>
 
         <div className='flex items-center justify-between mb-6'>
@@ -77,14 +79,14 @@ export default function OrderDetailScreen({
           <span
             className={`px-3 py-1 rounded-full text-xs font-semibold border ${status.tone === 'success' ? 'bg-green-50 text-green-700 border-green-200' : status.tone === 'warning' ? 'bg-amber-50 text-amber-700 border-amber-200' : status.tone === 'danger' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-secondary text-foreground border-border'}`}
           >
-            {status.label}
+            {toVietnameseStatusLabel(status.label)}
           </span>
         </div>
 
         <div className='bg-card rounded-2xl border border-border/50 p-6 mb-6'>
           <h2 className='font-semibold text-foreground mb-4 flex items-center gap-2'>
             <ReceiptText size={18} />
-            Items
+            Sản phẩm
           </h2>
           <div className='space-y-3'>
             {order.orderItems.map((item) => (
@@ -112,58 +114,61 @@ export default function OrderDetailScreen({
 
         <div className='bg-card rounded-2xl border border-border/50 p-6 mb-6 text-sm'>
           <div className='flex justify-between py-1'>
-            <span className='text-muted-foreground'>Subtotal</span>
+            <span className='text-muted-foreground'>Tạm tính</span>
             <span>{formatVnd(order.subtotal)}</span>
           </div>
           {order.deliveryFee > 0 && (
             <div className='flex justify-between py-1'>
-              <span className='text-muted-foreground'>Delivery fee</span>
+              <span className='text-muted-foreground'>Phí giao hàng</span>
               <span>{formatVnd(order.deliveryFee)}</span>
             </div>
           )}
           {order.discount > 0 && (
             <div className='flex justify-between py-1'>
-              <span className='text-muted-foreground'>Discount</span>
+              <span className='text-muted-foreground'>Giảm giá</span>
               <span className='text-green-700'>
                 -{formatVnd(order.discount)}
               </span>
             </div>
           )}
           <div className='flex justify-between py-2 mt-2 border-t border-border font-semibold'>
-            <span>Total</span>
+            <span>Tổng cộng</span>
             <span>{formatVnd(order.total)}</span>
           </div>
         </div>
 
         <div className='bg-card rounded-2xl border border-border/50 p-6 text-sm space-y-2'>
           <div className='flex justify-between'>
-            <span className='text-muted-foreground'>Payment</span>
+            <span className='text-muted-foreground'>Thanh toán</span>
             <span>
-              {order.paymentMethod ?? '—'} · {payment.label}
+              {order.paymentMethod
+                ? toVietnamesePaymentMethodLabel(order.paymentMethod)
+                : '—'}{' '}
+              · {toVietnameseStatusLabel(payment.label)}
             </span>
           </div>
           <div className='flex justify-between'>
-            <span className='text-muted-foreground'>Customer</span>
+            <span className='text-muted-foreground'>Khách hàng</span>
             <span>
               {order.customerName} · {order.customerPhone}
             </span>
           </div>
           {order.customerAddress && (
             <div className='flex justify-between gap-6'>
-              <span className='text-muted-foreground'>Address</span>
+              <span className='text-muted-foreground'>Địa chỉ</span>
               <span className='text-right'>{order.customerAddress}</span>
             </div>
           )}
           {order.pickupDate && (
             <div className='flex justify-between'>
-              <span className='text-muted-foreground'>Pickup date</span>
+              <span className='text-muted-foreground'>Ngày nhận</span>
               <span>
                 {new Date(order.pickupDate).toLocaleDateString('vi-VN')}
               </span>
             </div>
           )}
           <div className='flex justify-between'>
-            <span className='text-muted-foreground'>Placed on</span>
+            <span className='text-muted-foreground'>Đặt lúc</span>
             <span>
               {new Date(order.createdAt).toLocaleString('vi-VN')}
             </span>

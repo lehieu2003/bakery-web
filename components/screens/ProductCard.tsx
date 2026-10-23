@@ -153,7 +153,7 @@ export default function ProductCard({ product }: { product: Product }) {
           onClick={handleToggleFavorite}
           disabled={isToggling}
           aria-label={
-            isFavorite ? 'Remove from favorite list' : 'Add to favorite list'
+            isFavorite ? 'Xoá khỏi danh sách yêu thích' : 'Thêm vào danh sách yêu thích'
           }
           className='absolute right-3 top-3 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-sm backdrop-blur transition hover:bg-white disabled:opacity-60'
         >

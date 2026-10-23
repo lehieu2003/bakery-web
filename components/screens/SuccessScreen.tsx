@@ -9,6 +9,7 @@ import {
   getConfirmationTitle,
   getOrderStatusPresentation,
   getPaymentStatusPresentation,
+  toVietnameseStatusLabel,
   toneToBadgeClass,
 } from '@/lib/orders/presentation';
 
@@ -113,7 +114,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
                   >
-                    {orderStatus.label}
+                    {toVietnameseStatusLabel(orderStatus.label)}
                   </span>
                 </div>
                 <div className='flex justify-between items-center'>
@@ -123,7 +124,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
                   >
-                    {paymentStatus.label}
+                    {toVietnameseStatusLabel(paymentStatus.label)}
                   </span>
                 </div>
                 <div className='flex justify-between items-center'>

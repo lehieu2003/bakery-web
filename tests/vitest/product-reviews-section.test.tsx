@@ -108,7 +108,7 @@ describe('ProductReviewsSection', () => {
     render(<ProductReviewsSection productId='p1' reviewCount={3} ratingAverage={4} />);
 
     expect(screen.getAllByText('★').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('(3 reviews)')).toBeInTheDocument();
+    expect(screen.getByText('(3 đánh giá)')).toBeInTheDocument();
     expect(screen.getByText(/ngon/)).toBeInTheDocument();
     // XSS pin: script markup must be inert text, not injected
     expect(screen.getByText('<script>alert(1)</script>').tagName).toBe('P');
@@ -165,13 +165,14 @@ describe('ProductReviewsSection singular count', () => {
     mockSubmitReview();
   });
 
-  test('uses singular "(1 review)" for a single review', () => {
+  test('uses the Vietnamese count label for a single review', () => {
     mockProductReviews([buildReview()]);
     render(
       <ProductReviewsSection productId='p1' reviewCount={1} ratingAverage={5} />,
     );
 
-    expect(screen.getByText('(1 review)')).toBeInTheDocument();
+    expect(screen.getByText('(1 đánh giá)')).toBeInTheDocument();
+    expect(screen.queryByText('(1 review)')).toBeNull();
     expect(screen.queryByText('(1 reviews)')).toBeNull();
   });
 });

@@ -66,6 +66,45 @@ export function getPaymentStatusPresentation(
   return { label: paymentStatus || 'No payment record', tone: 'neutral' };
 }
 
+/**
+ * Vietnamese display labels for storefront surfaces only. The English
+ * presentations above stay canonical (the admin pages and the confirmation
+ * title logic compare against them); storefront screens translate at render.
+ */
+const VI_STATUS_LABELS: Record<string, string> = {
+  Pending: 'Chờ xác nhận',
+  Confirmed: 'Đã xác nhận',
+  Processing: 'Đang chuẩn bị',
+  'Ready for pickup': 'Sẵn sàng nhận',
+  Completed: 'Hoàn tất',
+  Cancelled: 'Đã hủy',
+  'Payment pending': 'Chờ thanh toán',
+  Paid: 'Đã thanh toán',
+  'Payment failed': 'Thanh toán thất bại',
+  Refunded: 'Đã hoàn tiền',
+  'Refund pending': 'Chờ hoàn tiền',
+  'Pay on delivery': 'Thanh toán khi nhận',
+  'Bank transfer': 'Chuyển khoản',
+  Unknown: 'Không xác định',
+  'No payment record': 'Chưa có thanh toán',
+};
+
+export function toVietnameseStatusLabel(label: string): string {
+  return VI_STATUS_LABELS[label] ?? label;
+}
+
+/** Vietnamese display labels for raw payment-method enum values. */
+const VI_PAYMENT_METHOD_LABELS: Record<string, string> = {
+  COD: 'Tiền mặt',
+  MOMO: 'MoMo',
+  VNPAY: 'VNPAY',
+  BANK_TRANSFER: 'Chuyển khoản',
+};
+
+export function toVietnamesePaymentMethodLabel(method: string): string {
+  return VI_PAYMENT_METHOD_LABELS[method] ?? method;
+}
+
 export function toneToBadgeClass(tone: BadgeTone): string {
   const toneClasses: Record<BadgeTone, string> = {
     neutral: 'bg-secondary text-foreground border-border',

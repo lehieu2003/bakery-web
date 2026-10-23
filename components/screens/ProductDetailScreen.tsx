@@ -279,7 +279,7 @@ export default function ProductDetailScreen({
               <button
                 type='button'
                 onClick={() => setZoomOpen(true)}
-                aria-label='Zoom image'
+                aria-label='Phóng to ảnh'
                 className='absolute bottom-3 right-3 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60'
               >
                 <ZoomIn size={17} />
@@ -293,13 +293,13 @@ export default function ProductDetailScreen({
                 onClick={() => setZoomOpen(false)}
                 role='dialog'
                 aria-modal='true'
-                aria-label='Image zoom view'
+                aria-label='Xem ảnh phóng to'
               >
                 {/* Close button */}
                 <button
                   type='button'
                   onClick={() => setZoomOpen(false)}
-                  aria-label='Close zoom view'
+                  aria-label='Đóng xem ảnh phóng to'
                   className='absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60'
                 >
                   <X size={20} />
@@ -337,7 +337,7 @@ export default function ProductDetailScreen({
                           ? 'w-5 h-2 bg-primary'
                           : 'w-2 h-2 bg-border hover:bg-primary/40'
                       }`}
-                      aria-label={`Go to image ${i + 1}`}
+                      aria-label={`Ảnh ${i + 1}`}
                     />
                   ))}
                 </div>
