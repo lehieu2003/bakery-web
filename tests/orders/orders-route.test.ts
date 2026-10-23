@@ -5,6 +5,7 @@ import {
   handleGetOrdersRequest,
 } from '@/app/api/orders/route';
 import { INCENTIVE_PER_USER_LIMIT_REACHED } from '@/lib/incentives/redemption-lifecycle';
+import { OUT_OF_STOCK } from '@/lib/orders/stock';
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
@@ -1091,4 +1092,118 @@ test('invalid deliveryMethod value is rejected', async () => {
     { ...buildPayload('COD'), deliveryMethod: 'drone' }, createDeps());
   assert.equal(result.status, 400);
   assert.equal(result.body.error, 'Invalid delivery method');
+});
+
+test('stock is checked on the product total across lines', async () => {
+  // Two lines of p1 (stock 10) asking for 6 each: each fits alone, the
+  // total does not.
+  const payload = { ...buildPayload('COD'), items: [
+    { productId: 'p1', name: 'Cake A', price: 100000, quantity: 6, message: 'A' },
+    { productId: 'p1', name: 'Cake A', price: 100000, quantity: 6, message: 'B' },
+  ] };
+  const result = await handleCreateOrderRequest(payload, createDeps());
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, '"Cake A" is out of stock (available: 10)');
+});
+
+test('two variants of one product draw on the same product stock', async () => {
+  const deps = withDeps(createDeps(), {
+    findProducts: async () => [
+      { id: 'p1', name: 'Cake A', price: 100000, stock: 3, categoryIds: [] },
+    ],
+    findVariants: async () => [
+      { id: 'v1', productId: 'p1', name: '500g', price: 120000, stock: 5 },
+      { id: 'v2', productId: 'p1', name: '1kg', price: 200000, stock: 5 },
+    ],
+  });
+  const payload = { ...buildPayload('COD'), items: [
+    { productId: 'p1', name: 'Cake A', price: 1, quantity: 2, variantId: 'v1' },
+    { productId: 'p1', name: 'Cake A', price: 1, quantity: 2, variantId: 'v2' },
+  ] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, '"Cake A" is out of stock (available: 3)');
+});
+
+test('variant stock must cover the ordered quantity, not just be positive', async () => {
+  const deps = withDeps(createDeps(), {
+    findVariants: async () => [{ id: 'v1', productId: 'p1', name: '500g', price: 120000, stock: 1 }],
+  });
+  const payload = { ...buildPayload('COD'),
+    items: [{ productId: 'p1', name: 'Cake A', price: 100000, quantity: 2, variantId: 'v1' }] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Variant "Cake A" is not available');
+});
+
+test('stock decrements are summed per product and variant and sent to the transaction', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    findVariants: async () => [{ id: 'v1', productId: 'p1', name: '500g', price: 120000, stock: 5 }],
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const payload = { ...buildPayload('COD'), items: [
+    { productId: 'p1', name: 'Cake A', price: 1, quantity: 1, variantId: 'v1', message: 'A' },
+    { productId: 'p1', name: 'Cake A', price: 1, quantity: 2, variantId: 'v1', message: 'B' },
+  ] };
+  const result = await handleCreateOrderRequest(payload, deps);
+  assert.equal(result.status, 200);
+  assert.deepEqual(captured!.stockDecrements, [
+    { kind: 'product', id: 'p1', quantity: 3, enforce: true },
+    { kind: 'variant', id: 'v1', quantity: 3, enforce: true },
+  ]);
+});
+
+test('untracked products are orderable at zero stock and decremented without a floor', async () => {
+  let captured: CreateOrderWithItemsArgs | null = null;
+  const deps = withDeps(createDeps(), {
+    // The storefront lists trackStock=false products as available.
+    findProducts: async () => [
+      { id: 'p1', name: 'Cake A', price: 100000, stock: 0, trackStock: false, categoryIds: [] },
+    ],
+    createOrderWithItems: async (args) => { captured = args; return { id: 'o1', orderNumber: 'BK1', orderItems: [] }; },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
+  assert.equal(result.status, 200);
+  assert.deepEqual(captured!.stockDecrements, [
+    { kind: 'product', id: 'p1', quantity: 2, enforce: false },
+  ]);
+});
+
+test('stock taken by a concurrent order during the transaction is a 400, not a 500', async () => {
+  const deps = withDeps(createDeps(), {
+    createOrderWithItems: async () => { throw new Error(OUT_OF_STOCK); },
+  });
+  const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Some items just sold out. Please review your cart.');
+});
+
+for (const failure of ['gateway', 'paymentRecord'] as const) {
+  test(`a throwing MoMo init (${failure}) cancels the order instead of stranding it`, async () => {
+    const deps = createDeps();
+    const cleanupCalls: string[] = [];
+    if (failure === 'gateway') {
+      deps.createMoMoPayment = async () => { throw new TypeError('fetch failed'); };
+    } else {
+      deps.createPaymentRecord = async () => { throw new Error('db down'); };
+    }
+    deps.handlePaymentInitFailure = async (args) => { cleanupCalls.push(args.orderId); };
+    const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps);
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data?.paymentUrl, null);
+    assert.equal(result.body.data?.paymentError, 'Payment gateway is unavailable. Please try again.');
+    assert.deepEqual(cleanupCalls, ['o1']);
+  });
+}
+
+test('a throwing VNPay init cancels the order instead of stranding it', async () => {
+  const deps = createDeps();
+  const cleanupCalls: string[] = [];
+  deps.createVNPayPayment = async () => { throw new Error('signing failed'); };
+  deps.handlePaymentInitFailure = async (args) => { cleanupCalls.push(args.orderId); };
+  const result = await handleCreateOrderRequest(buildPayload('VNPAY'), deps);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data?.paymentError, 'Payment gateway is unavailable. Please try again.');
+  assert.deepEqual(cleanupCalls, ['o1']);
 });

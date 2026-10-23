@@ -5,6 +5,7 @@ import { mapAuthErrorToStatus } from '@/lib/rbac';
 import { requireAdmin } from '@/lib/session';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
 import { writeOrderAuditLogWithClient } from '@/lib/order-audit';
+import { cancelOrderAndRestoreStock } from '@/lib/orders/stock';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -119,6 +120,11 @@ const defaultDeps: OrderByIdDeps = {
     metadata,
   }) =>
     prisma.$transaction(async (tx) => {
+      // Cancelling gives the stock back, once, before the general update
+      // rewrites the (already CANCELLED) status.
+      if (payload.status === 'CANCELLED' && before.status !== 'CANCELLED') {
+        await cancelOrderAndRestoreStock(tx, orderId);
+      }
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
