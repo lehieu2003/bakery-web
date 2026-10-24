@@ -18,19 +18,19 @@ const LEVEL_COLORS: Record<
     bg: 'bg-slate-100',
     text: 'text-slate-700',
     border: 'border-slate-300',
-    color: '#94a3b8',
+    color: 'var(--color-slate-400)',
   },
   GOLD: {
     bg: 'bg-amber-100',
     text: 'text-amber-700',
     border: 'border-amber-300',
-    color: '#f59e0b',
+    color: 'var(--color-amber-500)',
   },
   PLATINUM: {
     bg: 'bg-pink-100',
     text: 'text-pink-700',
     border: 'border-pink-300',
-    color: '#ec4899',
+    color: 'var(--color-pink-500)',
   },
 };
 

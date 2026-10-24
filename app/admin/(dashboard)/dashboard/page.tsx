@@ -251,8 +251,8 @@ export default function DashboardPage() {
             >
               <defs>
                 <linearGradient id='revenueGrad' x1='0' y1='0' x2='0' y2='1'>
-                  <stop offset='5%' stopColor='#10b981' stopOpacity={0.2} />
-                  <stop offset='95%' stopColor='#10b981' stopOpacity={0} />
+                  <stop offset='5%' stopColor='var(--color-emerald-500)' stopOpacity={0.2} />
+                  <stop offset='95%' stopColor='var(--color-emerald-500)' stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -282,7 +282,7 @@ export default function DashboardPage() {
               <Area
                 type='monotone'
                 dataKey='revenue'
-                stroke='#10b981'
+                stroke='var(--color-emerald-500)'
                 strokeWidth={2}
                 fill='url(#revenueGrad)'
               />

@@ -161,3 +161,20 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* Color tokens for literals that previously lived in components (Đợt D1).
+   Values are copied verbatim from the replaced hex — no visual change. */
+@theme {
+  --color-on-roast: #f5ebe4;
+  --color-espresso: #3d1a0f;
+  --color-roast-700: #3a2015;
+  --color-roast-800: #2b1810;
+  --color-roast-900: #180e09;
+  --color-surface-soft: #faf8f5;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-rose-500: #f43f5e;
+  --color-pink-500: #ec4899;
+  --color-slate-400: #94a3b8;
+  --color-emerald-500: #10b981;
+}

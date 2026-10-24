@@ -20,7 +20,7 @@ interface BannerCarouselProps {
 // Single hero visual identity: roast-brown gradient + one gold accent,
 // matching the scroll-story band and footer via the --roast/--gold tokens.
 const HERO_THEME = {
-  bgGradient: 'from-[#2b1810] via-[#3a2015] to-[#180e09]',
+  bgGradient: 'from-roast-800 via-roast-700 to-roast-900',
   ambientGlow: 'rgba(232, 196, 154, 0.18)',
   accentColor: 'var(--gold)',
   badgeText: 'Bánh mới mỗi ngày',

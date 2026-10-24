@@ -178,7 +178,7 @@ export default function ChinhSachDoiTraScreen() {
       </section>
 
       {/* Contact CTA */}
-      <section className='bg-[#3d1a0f]/5 border border-[#3d1a0f]/20 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center gap-4'>
+      <section className='bg-espresso/5 border border-espresso/20 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center gap-4'>
         <div className='w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0'>
           <Phone size={18} className='text-primary' />
         </div>
