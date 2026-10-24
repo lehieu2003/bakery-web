@@ -135,7 +135,7 @@ test('POST maps a duplicate code (P2002) to 400', async () => {
     }) as never,
   );
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Coupon code already exists');
+  assert.equal(result.body.error, 'Mã coupon đã tồn tại');
 });
 
 test('PUT toggles isActive and audits the update', async () => {
@@ -258,7 +258,7 @@ test('PUT maps a code collision (P2002) to 400', async () => {
     }) as never,
   );
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Coupon code already exists');
+  assert.equal(result.body.error, 'Mã coupon đã tồn tại');
 });
 
 test('PUT validates the merged window when only endAt is provided', async () => {
@@ -271,5 +271,5 @@ test('PUT validates the merged window when only endAt is provided', async () => 
     baseDeps({ findCouponById: async () => ({ ...fullRow }) }) as never,
   );
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'endAt must be after startAt');
+  assert.equal(result.body.error, 'Ngày kết thúc phải sau ngày bắt đầu');
 });

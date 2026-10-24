@@ -88,7 +88,7 @@ export async function handleAdminCouponPutRequest(
 
   const existing = await deps.findCouponById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Coupon not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy coupon' } };
   }
 
   const body = (await request.json()) as Record<string, unknown>;
@@ -106,7 +106,7 @@ export async function handleAdminCouponPutRequest(
       typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
     if (!CODE_PATTERN.test(code)) {
       return badRequest(
-        'Code must be 3-40 characters (letters, numbers, - or _)',
+        'Mã phải 3-40 ký tự (chữ, số, - hoặc _)',
       );
     }
     payload.code = code;
@@ -123,10 +123,10 @@ export async function handleAdminCouponPutRequest(
   if (body.value !== undefined) {
     const value = typeof body.value === 'number' ? body.value : NaN;
     if (!Number.isFinite(value) || value <= 0) {
-      return badRequest('value must be a positive number');
+      return badRequest('Giá trị phải là số dương');
     }
     if (resolvedType === 'PERCENTAGE' && value > 100) {
-      return badRequest('PERCENTAGE value must be at most 100');
+      return badRequest('Giá trị phần trăm tối đa là 100');
     }
     payload.value = value;
   }
@@ -189,7 +189,7 @@ export async function handleAdminCouponPutRequest(
     ? new Date(existing.endAt)
     : new Date(endAt.iso);
   if (resolvedEnd <= resolvedStart) {
-    return badRequest('endAt must be after startAt');
+    return badRequest('Ngày kết thúc phải sau ngày bắt đầu');
   }
   if (!startAt.skip) payload.startAt = startAt.iso;
   if (!endAt.skip) payload.endAt = endAt.iso;
@@ -199,7 +199,7 @@ export async function handleAdminCouponPutRequest(
     updated = await deps.updateCouponById(id, payload);
   } catch (error) {
     if ((error as { code?: string }).code === 'P2002') {
-      return badRequest('Coupon code already exists');
+      return badRequest('Mã coupon đã tồn tại');
     }
     throw error;
   }
@@ -214,7 +214,7 @@ export async function handleAdminCouponPutRequest(
       entity: 'coupon',
       entityId: id,
       mutationType: 'UPDATE',
-      summary: `Updated coupon ${existing.code}`,
+      summary: `Cập nhật coupon ${existing.code}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -236,7 +236,7 @@ export async function handleAdminCouponDeleteRequest(
 
   const existing = await deps.findCouponById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Coupon not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy coupon' } };
   }
 
   const redemptions = await deps.countRedemptions(id);
@@ -263,7 +263,7 @@ export async function handleAdminCouponDeleteRequest(
       entity: 'coupon',
       entityId: id,
       mutationType: 'DELETE',
-      summary: `Deleted coupon ${existing.code}`,
+      summary: `Xóa coupon ${existing.code}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

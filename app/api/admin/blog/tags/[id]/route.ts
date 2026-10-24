@@ -92,7 +92,7 @@ const defaultDeps: AdminBlogTagByIdDeps = {
 
 
 function parseTagUpdatePayload(raw: unknown, existingName: string) {
-  if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
+  if (!raw || typeof raw !== 'object') return { error: 'Dữ liệu không hợp lệ' } as const;
   const body = raw as Record<string, unknown>;
   const payload: BlogTagUpdatePayload = {};
 
@@ -122,7 +122,7 @@ export async function handleAdminBlogTagGetByIdRequest(
   const tag = await deps.findTagDetailById(id);
 
   if (!tag) {
-    return { status: 404, body: { success: false, error: 'Blog tag not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy thẻ bài viết' } };
   }
   return { status: 200, body: { success: true, data: tag } };
 }
@@ -136,7 +136,7 @@ export async function handleAdminBlogTagPutRequest(
   const { id } = await params;
   const existing = await deps.findTagById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Blog tag not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy thẻ bài viết' } };
   }
 
   const parsed = parseTagUpdatePayload(await request.json(), existing.name);
@@ -147,7 +147,7 @@ export async function handleAdminBlogTagPutRequest(
   if (parsed.payload.slug) {
     const duplicated = await deps.findTagBySlugExcludingId(parsed.payload.slug, id);
     if (duplicated) {
-      return { status: 400, body: { success: false, error: 'Slug already exists' } };
+      return { status: 400, body: { success: false, error: 'Slug đã tồn tại' } };
     }
   }
 
@@ -167,7 +167,7 @@ export async function handleAdminBlogTagPutRequest(
       entity: 'blog_tag',
       entityId: id,
       mutationType: 'UPDATE',
-      summary: `Updated blog tag ${id}`,
+      summary: `Cập nhật thẻ bài viết ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -189,7 +189,7 @@ export async function handleAdminBlogTagDeleteRequest(
   const { id } = await params;
   const existing = await deps.findTagById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Blog tag not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy thẻ bài viết' } };
   }
 
   await deps.deleteTagRelationsByTagId(id);
@@ -209,7 +209,7 @@ export async function handleAdminBlogTagDeleteRequest(
       entity: 'blog_tag',
       entityId: id,
       mutationType: 'DELETE',
-      summary: `Deleted blog tag ${id}`,
+      summary: `Xóa thẻ bài viết ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

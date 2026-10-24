@@ -30,7 +30,7 @@ export async function handleUploadDeleteRequest(
   if (!publicId) {
     return {
       status: 400,
-      body: { success: false, error: 'Public ID is required' },
+      body: { success: false, error: 'Thiếu Public ID' },
     };
   }
 

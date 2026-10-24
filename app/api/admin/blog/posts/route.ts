@@ -179,7 +179,7 @@ function parseListQuery(requestUrl: string) {
   }
 
   if (!ALLOWED_STATUSES.has(statusRaw as BlogPostStatus)) {
-    return { error: 'Invalid status filter' } as const;
+    return { error: 'Bộ lọc trạng thái không hợp lệ' } as const;
   }
 
   return {
@@ -225,7 +225,7 @@ function normalizeTagIds(raw: unknown) {
 
 function parseCreatePayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
@@ -242,7 +242,7 @@ function parseCreatePayload(raw: unknown) {
 
   const statusRaw = body.status ?? 'DRAFT';
   if (typeof statusRaw !== 'string' || !ALLOWED_STATUSES.has(statusRaw as BlogPostStatus)) {
-    return { error: 'Invalid post status' } as const;
+    return { error: 'Trạng thái bài viết không hợp lệ' } as const;
   }
   const status = statusRaw as BlogPostStatus;
 
@@ -350,13 +350,13 @@ export async function handleAdminBlogPostsPostRequest(
 
   const existing = await deps.findPostBySlug(parsed.payload.slug);
   if (existing) {
-    return { status: 400, body: { success: false, error: 'Slug already exists' } };
+    return { status: 400, body: { success: false, error: 'Slug đã tồn tại' } };
   }
 
   if (parsed.payload.categoryId) {
     const category = await deps.findCategoryById(parsed.payload.categoryId);
     if (!category) {
-      return { status: 400, body: { success: false, error: 'Category not found' } };
+      return { status: 400, body: { success: false, error: 'Không tìm thấy danh mục' } };
     }
   }
 
@@ -365,7 +365,7 @@ export async function handleAdminBlogPostsPostRequest(
     if (existingTags.length !== parsed.payload.tagIds.length) {
       return {
         status: 400,
-        body: { success: false, error: 'One or more tags do not exist' },
+        body: { success: false, error: 'Có thẻ bài viết không tồn tại' },
       };
     }
   }
@@ -393,7 +393,7 @@ export async function handleAdminBlogPostsPostRequest(
       entity: 'blog_post',
       entityId: postId,
       mutationType: 'CREATE',
-      summary: `Created blog post ${parsed.payload.title}`,
+      summary: `Tạo bài viết ${parsed.payload.title}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

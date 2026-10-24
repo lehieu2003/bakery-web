@@ -68,7 +68,7 @@ test("GET another user's order returns 404 without leaking data", async () => {
 
   assert.equal(result.status, 404);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Order not found');
+  assert.equal(result.body.error, 'Không tìm thấy đơn hàng');
 });
 
 test('GET own order returns the serialized order envelope', async () => {

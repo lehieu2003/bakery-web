@@ -191,7 +191,7 @@ export async function handleVNPayCallbackRequest(
     });
     return {
       status: 400,
-      body: { RspCode: '99', Message: 'Invalid payload' },
+      body: { RspCode: '99', Message: 'Dữ liệu không hợp lệ' },
     };
   }
 
@@ -228,7 +228,7 @@ export async function handleVNPayCallbackRequest(
     });
     return {
       status: 400,
-      body: { RspCode: '01', Message: 'Order not found' },
+      body: { RspCode: '01', Message: 'Không tìm thấy đơn hàng' },
     };
   }
 
@@ -262,7 +262,7 @@ export async function handleVNPayCallbackRequest(
     });
     return {
       status: 200,
-      body: { RspCode: '01', Message: 'Order not found' },
+      body: { RspCode: '01', Message: 'Không tìm thấy đơn hàng' },
     };
   }
 

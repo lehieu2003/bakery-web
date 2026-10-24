@@ -273,7 +273,7 @@ function normalizeOptionalString(raw: unknown, fieldName: string) {
 
 function parseCustomerPatchPayload(raw: unknown) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
@@ -286,7 +286,7 @@ function parseCustomerPatchPayload(raw: unknown) {
   ]);
   const hasUnknownKey = Object.keys(body).some((key) => !allowedKeys.has(key));
   if (hasUnknownKey) {
-    return { error: 'Invalid payload fields' } as const;
+    return { error: 'Trường dữ liệu không hợp lệ' } as const;
   }
 
   const payload: CustomerPatchPayload = {};
@@ -301,7 +301,7 @@ function parseCustomerPatchPayload(raw: unknown) {
 
   if (body.memberLevel !== undefined) {
     if (typeof body.memberLevel !== 'string' || !MEMBER_LEVELS.includes(body.memberLevel as MemberLevel)) {
-      return { error: 'Invalid memberLevel' } as const;
+      return { error: 'Hạng thành viên không hợp lệ' } as const;
     }
     payload.memberLevel = body.memberLevel as MemberLevel;
   }
@@ -342,7 +342,7 @@ export async function handleAdminCustomerGetByIdRequest(
 
   const row = await deps.findCustomerById(id);
   if (!row) {
-    return { status: 404, body: { success: false, error: 'Customer not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy khách hàng' } };
   }
 
   const [totalOrders, totalSpent, unreadPublishedNotifications] = await Promise.all([
@@ -377,14 +377,14 @@ export async function handleAdminCustomerPatchRequest(
 
   const existing = await deps.findCustomerById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Customer not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy khách hàng' } };
   }
 
   let rawBody: unknown;
   try {
     rawBody = await request.json();
   } catch {
-    return { status: 400, body: { success: false, error: 'Invalid JSON payload' } };
+    return { status: 400, body: { success: false, error: 'Dữ liệu JSON không hợp lệ' } };
   }
 
   const parsed = parseCustomerPatchPayload(rawBody);

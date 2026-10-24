@@ -65,7 +65,7 @@ export async function handleGetMembershipBenefitsRequest(
       },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch membership benefits';
+    const message = error instanceof Error ? error.message : 'Không tải được quyền lợi thành viên';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return {
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get membership benefits error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch membership benefits' },
+      { success: false, error: 'Không tải được quyền lợi thành viên' },
       { status: 500 },
     );
   }

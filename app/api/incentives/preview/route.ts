@@ -164,7 +164,7 @@ function resolveNormalizedIncentiveCodes(args: {
   if (normalizedSingle === '') {
     return {
       codes: [],
-      error: 'Incentive code is invalid. Please enter a non-empty code.',
+      error: 'Mã ưu đãi không hợp lệ. Vui lòng nhập mã.',
     };
   }
 
@@ -175,7 +175,7 @@ function resolveNormalizedIncentiveCodes(args: {
       if (normalized === '') {
         return {
           codes: [],
-          error: 'One or more incentive codes are invalid.',
+          error: 'Có mã ưu đãi không hợp lệ.',
         };
       }
       if (normalized) {
@@ -192,7 +192,7 @@ function resolveNormalizedIncentiveCodes(args: {
   if (uniqueCodes.length > 5) {
     return {
       codes: [],
-      error: 'You can apply up to 5 incentive codes per order.',
+      error: 'Tối đa 5 mã ưu đãi cho mỗi đơn.',
     };
   }
 
@@ -209,7 +209,7 @@ export async function handlePreviewIncentiveRequest(
       status: 400,
       body: {
         success: false,
-        error: 'Missing required fields',
+        error: 'Thiếu trường bắt buộc',
       },
     };
   }
@@ -220,7 +220,7 @@ export async function handlePreviewIncentiveRequest(
       status: 400,
       body: {
         success: false,
-        error: 'Missing required fields',
+        error: 'Thiếu trường bắt buộc',
       },
     };
   }
@@ -231,7 +231,7 @@ export async function handlePreviewIncentiveRequest(
         status: 400,
         body: {
           success: false,
-          error: 'Invalid item data',
+          error: 'Dữ liệu món không hợp lệ',
         },
       };
     }
@@ -246,7 +246,7 @@ export async function handlePreviewIncentiveRequest(
       status: 400,
       body: {
         success: false,
-        error: 'Invalid delivery method',
+        error: 'Phương thức nhận hàng không hợp lệ',
       },
     };
   }
@@ -276,7 +276,7 @@ export async function handlePreviewIncentiveRequest(
         status: 400,
         body: {
           success: false,
-          error: `Product "${item.productId}" is not available`,
+          error: `Sản phẩm "${item.productId}" hiện không khả dụng`,
         },
       };
     }
@@ -447,7 +447,7 @@ export async function handlePreviewIncentiveRequest(
       status: 400,
       body: {
         success: false,
-        error: 'Invalid order total',
+        error: 'Tổng tiền đơn hàng không hợp lệ',
       },
     };
   }
@@ -479,7 +479,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Preview incentive error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to preview incentive' },
+      { success: false, error: 'Không xem trước được mã ưu đãi' },
       { status: 500 },
     );
   }

@@ -120,7 +120,7 @@ function parseCustomerListQuery(requestUrl: string) {
   }
 
   if (!MEMBER_LEVELS.includes(levelRaw as MemberLevel)) {
-    return { error: 'Invalid member level filter' } as const;
+    return { error: 'Bộ lọc hạng thành viên không hợp lệ' } as const;
   }
 
   return {

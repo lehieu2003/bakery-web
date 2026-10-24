@@ -129,20 +129,20 @@ const defaultDeps: ProductAttributesRouteDeps = {
 export function normalizeAttributeValues(values: unknown): ParseError | ParseValuesSuccess {
   if (values === undefined) return { values: [] };
   if (!Array.isArray(values)) {
-    return { error: 'values must be an array' };
+    return { error: 'values phải là một mảng' };
   }
 
   const normalized: NormalizedValue[] = [];
 
   for (const [index, item] of values.entries()) {
     if (!item || typeof item !== 'object') {
-      return { error: `value at index ${index} is invalid` };
+      return { error: `Giá trị tại vị trí ${index} không hợp lệ` };
     }
 
     const value = item as ProductAttributeValueInput;
     const label = typeof value.label === 'string' ? value.label.trim() : '';
     if (!label) {
-      return { error: `value at index ${index} requires label` };
+      return { error: `Giá trị tại vị trí ${index} cần nhãn` };
     }
 
     const slugSource =
@@ -151,7 +151,7 @@ export function normalizeAttributeValues(values: unknown): ParseError | ParseVal
         : label;
     const slug = slugifyProductAttribute(slugSource);
     if (!slug) {
-      return { error: `value at index ${index} has invalid slug` };
+      return { error: `Giá trị tại vị trí ${index} có slug không hợp lệ` };
     }
 
     const valueText =
@@ -162,16 +162,16 @@ export function normalizeAttributeValues(values: unknown): ParseError | ParseVal
     const displayOrder = Number(value.displayOrder ?? index);
     if (!Number.isInteger(displayOrder) || displayOrder < 0) {
       return {
-        error: `value at index ${index} has invalid displayOrder`,
+        error: `Giá trị tại vị trí ${index} có thứ tự hiển thị không hợp lệ`,
       };
     }
 
     if (value.colorHex !== undefined && value.colorHex !== null && typeof value.colorHex !== 'string') {
-      return { error: `value at index ${index} has invalid colorHex` };
+      return { error: `Giá trị tại vị trí ${index} có màu không hợp lệ` };
     }
 
     if (value.imageUrl !== undefined && value.imageUrl !== null && typeof value.imageUrl !== 'string') {
-      return { error: `value at index ${index} has invalid imageUrl` };
+      return { error: `Giá trị tại vị trí ${index} có ảnh không hợp lệ` };
     }
 
     if (value.isActive !== undefined && typeof value.isActive !== 'boolean') {
@@ -196,13 +196,13 @@ export function normalizeAttributeValues(values: unknown): ParseError | ParseVal
   for (const row of normalized) {
     const slugKey = row.slug.toLowerCase();
     if (seenSlug.has(slugKey)) {
-      return { error: `Duplicate value slug: ${row.slug}` };
+      return { error: `Trùng slug giá trị: ${row.slug}` };
     }
     seenSlug.add(slugKey);
 
     const valueKey = row.value.toLowerCase();
     if (seenValue.has(valueKey)) {
-      return { error: `Duplicate value: ${row.value}` };
+      return { error: `Trùng giá trị: ${row.value}` };
     }
     seenValue.add(valueKey);
   }
@@ -212,7 +212,7 @@ export function normalizeAttributeValues(values: unknown): ParseError | ParseVal
 
 function parseCreatePayload(raw: unknown): ParseError | ParseCreateSuccess {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' };
+    return { error: 'Dữ liệu không hợp lệ' };
   }
 
   const body = raw as CreateProductAttributeRequest;
@@ -224,15 +224,15 @@ function parseCreatePayload(raw: unknown): ParseError | ParseCreateSuccess {
   const displayOrder = Number(body.displayOrder ?? 0);
 
   if (!name || !slug || !code || !body.type) {
-    return { error: 'Missing required fields' };
+    return { error: 'Thiếu trường bắt buộc' };
   }
 
   if (!ALLOWED_ATTRIBUTE_TYPES.has(body.type as ProductAttributeType)) {
-    return { error: 'Invalid attribute type' };
+    return { error: 'Loại thuộc tính không hợp lệ' };
   }
 
   if (!Number.isInteger(displayOrder) || displayOrder < 0) {
-    return { error: 'displayOrder must be a non-negative integer' };
+    return { error: 'Thứ tự hiển thị phải là số nguyên không âm' };
   }
 
   if (body.isRequired !== undefined && typeof body.isRequired !== 'boolean') {
@@ -306,14 +306,14 @@ export async function handleAdminProductAttributesPostRequest(
   if (existingSlug) {
     return {
       status: 400,
-      body: { success: false, error: 'Attribute slug already exists' },
+      body: { success: false, error: 'Thuộc tính đã tồn tại (slug)' },
     };
   }
 
   if (existingCode) {
     return {
       status: 400,
-      body: { success: false, error: 'Attribute code already exists' },
+      body: { success: false, error: 'Thuộc tính đã tồn tại (mã)' },
     };
   }
 

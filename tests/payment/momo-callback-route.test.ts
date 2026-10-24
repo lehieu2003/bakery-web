@@ -115,7 +115,7 @@ test('MoMo callback writes invalid_payload audit for malformed callback payload'
   const result = await handleMoMoCallbackRequest({ orderId: 'order-1' }, deps);
 
   assert.equal(result.status, 400);
-  assert.equal(result.body.message, 'Invalid payload');
+  assert.equal(result.body.message, 'Dữ liệu không hợp lệ');
   assert.equal(callbackAuditEvents[0]?.event, 'invalid_payload');
 });
 

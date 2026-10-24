@@ -128,13 +128,13 @@ export async function handleListReviewsRequest(
     };
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to fetch reviews';
+      error instanceof Error ? error.message : 'Không tải được reviews';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return reviewError(status, message);
     }
     console.error('List reviews error:', error);
-    return reviewError(500, 'Failed to fetch reviews');
+    return reviewError(500, 'Không tải được reviews');
   }
 }
 
@@ -183,7 +183,7 @@ export async function handleCreateReviewRequest(
 
     const product = await deps.findActiveProduct(params.id);
     if (!product) {
-      return reviewError(404, 'Product not found');
+      return reviewError(404, 'Không tìm thấy sản phẩm');
     }
 
     const review = await deps.upsertReview({

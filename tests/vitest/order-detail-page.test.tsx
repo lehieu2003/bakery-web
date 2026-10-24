@@ -90,7 +90,7 @@ describe('OrderDetailScreen', () => {
   });
 
   test('shows a not-found state when the fetch fails', async () => {
-    getOrderByNumber.mockRejectedValue(new Error('Order not found'));
+    getOrderByNumber.mockRejectedValue(new Error('Không tìm thấy đơn hàng'));
     renderWithClient(<OrderDetailScreen orderNumber="BK-GONE" />);
 
     expect(await screen.findByText('Không tìm thấy đơn hàng')).toBeInTheDocument();

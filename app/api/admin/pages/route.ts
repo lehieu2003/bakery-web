@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     if (!title || !slug || !content) {
       return NextResponse.json(
-        { success: false, error: 'Title, slug, and content are required' },
+        { success: false, error: 'Cần nhập tiêu đề, slug và nội dung' },
         { status: 400 },
       );
     }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.page.findUnique({ where: { slug } });
     if (existing) {
       return NextResponse.json(
-        { success: false, error: 'Slug already exists' },
+        { success: false, error: 'Slug đã tồn tại' },
         { status: 400 },
       );
     }
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       entity: 'page',
       entityId: page.id,
       mutationType: 'CREATE',
-      summary: `Created page ${title}`,
+      summary: `Tạo trang ${title}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

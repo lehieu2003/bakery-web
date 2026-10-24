@@ -363,7 +363,7 @@ export async function handlePrepareReorderRequest(
       status: 404,
       body: {
         success: false,
-        error: 'Order not found',
+        error: 'Không tìm thấy đơn hàng',
       },
     };
   }
@@ -373,7 +373,7 @@ export async function handlePrepareReorderRequest(
       status: 400,
       body: {
         success: false,
-        error: 'Reorder is available for completed orders only.',
+        error: 'Chỉ mua lại được từ đơn hàng đã hoàn tất.',
       },
     };
   }
@@ -402,14 +402,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (isJsonParseError(error)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid request payload' },
+        { success: false, error: 'Dữ liệu yêu cầu không hợp lệ' },
         { status: 400 },
       );
     }
 
     console.error('Prepare reorder error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to prepare reorder' },
+      { success: false, error: 'Không chuẩn bị được đơn mua lại' },
       { status: 500 },
     );
   }

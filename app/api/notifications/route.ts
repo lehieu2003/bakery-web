@@ -132,7 +132,7 @@ export async function handleGetNotificationsRequest(
       },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch notifications';
+    const message = error instanceof Error ? error.message : 'Không tải được notifications';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return {
@@ -151,6 +151,6 @@ export async function GET(request: NextRequest) {
     return toApiJson(result.body, result.status);
   } catch (error) {
     console.error('Get notifications error:', error);
-    return toApiJson(apiError('Failed to fetch notifications'), 500);
+    return toApiJson(apiError('Không tải được notifications'), 500);
   }
 }

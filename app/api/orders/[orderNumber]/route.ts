@@ -58,7 +58,7 @@ export async function handleGetOrderRequest(
     if (!order) {
       return {
         status: 404,
-        body: { success: false, error: 'Order not found' },
+        body: { success: false, error: 'Không tìm thấy đơn hàng' },
       };
     }
 
@@ -67,7 +67,7 @@ export async function handleGetOrderRequest(
       body: { success: true, data: { order: serializeOrder(order) } },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch order';
+    const message = error instanceof Error ? error.message : 'Không tải được đơn hàng';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return {
@@ -78,7 +78,7 @@ export async function handleGetOrderRequest(
     console.error('Get order error:', error);
     return {
       status: 500,
-      body: { success: false, error: 'Failed to fetch order' },
+      body: { success: false, error: 'Không tải được đơn hàng' },
     };
   }
 }

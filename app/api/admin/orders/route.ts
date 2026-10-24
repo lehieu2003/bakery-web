@@ -101,7 +101,7 @@ function parseOrderListQuery(requestUrl: string) {
   }
 
   if (!ORDER_STATUSES.includes(statusRaw as OrderStatus)) {
-    return { error: 'Invalid status filter' } as const;
+    return { error: 'Bộ lọc trạng thái không hợp lệ' } as const;
   }
 
   return {

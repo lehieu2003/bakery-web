@@ -198,7 +198,7 @@ function normalizeTagIds(raw: unknown) {
 
 function parseUpdatePayload(raw: unknown, existing: BlogPostRecord) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
   const body = raw as Record<string, unknown>;
   const payload: BlogPostUpdatePayload = {};
@@ -257,7 +257,7 @@ function parseUpdatePayload(raw: unknown, existing: BlogPostRecord) {
 
   if (body.status !== undefined) {
     if (typeof body.status !== 'string' || !ALLOWED_STATUSES.has(body.status as BlogPostStatus)) {
-      return { error: 'Invalid post status' } as const;
+      return { error: 'Trạng thái bài viết không hợp lệ' } as const;
     }
     payload.status = body.status as BlogPostStatus;
   }
@@ -299,7 +299,7 @@ export async function handleAdminBlogPostGetByIdRequest(
 
   const post = await deps.findPostDetailById(id);
   if (!post) {
-    return { status: 404, body: { success: false, error: 'Post not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy bài viết' } };
   }
 
   return {
@@ -321,7 +321,7 @@ export async function handleAdminBlogPostPutRequest(
 
   const existing = await deps.findPostById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Post not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy bài viết' } };
   }
 
   const parsed = parseUpdatePayload(await request.json(), existing);
@@ -332,14 +332,14 @@ export async function handleAdminBlogPostPutRequest(
   if (parsed.payload.slug && parsed.payload.slug !== existing.slug) {
     const slugExists = await deps.findPostBySlug(parsed.payload.slug);
     if (slugExists) {
-      return { status: 400, body: { success: false, error: 'Slug already exists' } };
+      return { status: 400, body: { success: false, error: 'Slug đã tồn tại' } };
     }
   }
 
   if (parsed.payload.categoryId) {
     const category = await deps.findCategoryById(parsed.payload.categoryId);
     if (!category) {
-      return { status: 400, body: { success: false, error: 'Category not found' } };
+      return { status: 400, body: { success: false, error: 'Không tìm thấy danh mục' } };
     }
   }
 
@@ -350,7 +350,7 @@ export async function handleAdminBlogPostPutRequest(
       if (tags.length !== requestedTagIds.length) {
         return {
           status: 400,
-          body: { success: false, error: 'One or more tags do not exist' },
+          body: { success: false, error: 'Có thẻ bài viết không tồn tại' },
         };
       }
     }
@@ -376,7 +376,7 @@ export async function handleAdminBlogPostPutRequest(
       entity: 'blog_post',
       entityId: id,
       mutationType: 'UPDATE',
-      summary: `Updated blog post ${id}`,
+      summary: `Cập nhật bài viết ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -405,7 +405,7 @@ export async function handleAdminBlogPostDeleteRequest(
   const existing = await deps.findPostById(id);
 
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Post not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy bài viết' } };
   }
 
   await deps.deletePostById(id);
@@ -424,7 +424,7 @@ export async function handleAdminBlogPostDeleteRequest(
       entity: 'blog_post',
       entityId: id,
       mutationType: 'DELETE',
-      summary: `Deleted blog post ${id}`,
+      summary: `Xóa bài viết ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

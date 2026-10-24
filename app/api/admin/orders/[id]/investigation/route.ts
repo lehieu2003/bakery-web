@@ -186,12 +186,12 @@ export async function handleAdminOrderInvestigationGetRequest(
     const { id } = await params;
     const normalizedId = id.trim();
     if (!normalizedId) {
-      return { status: 400, body: { success: false, error: 'Invalid order id' } };
+      return { status: 400, body: { success: false, error: 'Mã đơn hàng không hợp lệ' } };
     }
 
     const order = await deps.findOrderById(normalizedId);
     if (!order) {
-      return { status: 404, body: { success: false, error: 'Order not found' } };
+      return { status: 404, body: { success: false, error: 'Không tìm thấy đơn hàng' } };
     }
 
     const auditLogs = await deps.findOrderAuditLogs(order.id);
