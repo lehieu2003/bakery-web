@@ -216,7 +216,7 @@ describe('Order history quick reorder', () => {
     );
 
     const liveRegion = screen
-      .getByText(/Added 1 item\(s\) to cart from order #BK260406DONE\./i)
+      .getByText(/Đã thêm 1 món vào giỏ từ đơn #BK260406DONE\./i)
       .closest('[aria-live="polite"]');
     expect(liveRegion).toBeInTheDocument();
   });
