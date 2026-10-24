@@ -325,20 +325,24 @@ export default function ProductDetailScreen({
             {/* Counter + dots */}
             {getProductImages(selectedProduct).length > 1 && (
               <div className='flex items-center justify-between px-1'>
-                {/* Dot indicators */}
-                <div className='flex gap-1.5'>
+                {/* Dot indicators — 24×24 hit targets (WCAG 2.2), dot visual inside */}
+                <div className='flex gap-0'>
                   {getProductImages(selectedProduct).map((_, i) => (
                     <button
                       key={i}
                       type='button'
                       onClick={() => scrollTo(i)}
-                      className={`rounded-full transition-all ${
-                        i === activeImageIndex
-                          ? 'w-5 h-2 bg-primary'
-                          : 'w-2 h-2 bg-border hover:bg-primary/40'
-                      }`}
-                      aria-label={`Go to image ${i + 1}`}
-                    />
+                      className='flex h-6 w-6 items-center justify-center rounded-full'
+                      aria-label={`Ảnh ${i + 1}`}
+                    >
+                      <span
+                        className={`rounded-full transition-all ${
+                          i === activeImageIndex
+                            ? 'h-2 w-5 bg-primary'
+                            : 'h-2 w-2 bg-border hover:bg-primary/40'
+                        }`}
+                      />
+                    </button>
                   ))}
                 </div>
                 <span className='text-xs text-muted-foreground'>
