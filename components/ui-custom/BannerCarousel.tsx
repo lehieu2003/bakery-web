@@ -20,7 +20,7 @@ interface BannerCarouselProps {
 // Single hero visual identity: roast-brown gradient + one gold accent,
 // matching the scroll-story band and footer via the --roast/--gold tokens.
 const HERO_THEME = {
-  bgGradient: 'from-[#2b1810] via-[#3a2015] to-[#180e09]',
+  bgGradient: 'from-roast-800 via-roast-700 to-roast-900',
   ambientGlow: 'rgba(232, 196, 154, 0.18)',
   accentColor: 'var(--gold)',
   badgeText: 'Bánh mới mỗi ngày',
@@ -249,7 +249,7 @@ export default function BannerCarousel({
             <button
               onClick={handlePrev}
               disabled={isAnimating}
-              aria-label='Previous slide'
+              aria-label='Ảnh trước'
               className='p-3 rounded-full bg-black/30 hover:bg-black/50 text-white/90 hover:text-white border border-white/15 backdrop-blur-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed hover:border-white/30 cursor-pointer'
             >
               <ChevronLeft size={18} />
@@ -257,7 +257,7 @@ export default function BannerCarousel({
             <button
               onClick={handleNext}
               disabled={isAnimating}
-              aria-label='Next slide'
+              aria-label='Ảnh sau'
               className='p-3 rounded-full bg-black/30 hover:bg-black/50 text-white/90 hover:text-white border border-white/15 backdrop-blur-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed hover:border-white/30 cursor-pointer'
             >
               <ChevronRight size={18} />
@@ -273,7 +273,7 @@ export default function BannerCarousel({
                   key={index}
                   onClick={() => goToSlide(index)}
                   disabled={isAnimating}
-                  aria-label={`Go to slide ${index + 1}`}
+                  aria-label={`Ảnh banner ${index + 1}`}
                   className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                     isActive
                       ? 'w-7 bg-white shadow-sm'

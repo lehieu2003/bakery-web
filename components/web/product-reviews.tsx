@@ -93,12 +93,12 @@ export default function ProductReviewsSection({
   }
 
   return (
-    <section className='mt-8' aria-label='Product reviews'>
+    <section className='mt-8' aria-label='Đánh giá sản phẩm'>
       {hasStats && (
         <div className='flex items-center gap-2'>
           <StarRating rating={Math.round(ratingAverage ?? 0)} />
           <span className='text-sm text-muted-foreground'>
-            ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
+            ({reviewCount} đánh giá)
           </span>
         </div>
       )}
@@ -133,7 +133,7 @@ export default function ProductReviewsSection({
                 type='button'
                 aria-label={`${i} sao`}
                 onClick={() => setRating(i)}
-                className={`text-2xl leading-none transition-colors focus:outline-none ${
+                className={`rounded-full text-2xl leading-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   i <= rating ? 'text-amber-400' : 'text-border hover:text-amber-200'
                 }`}
               >
@@ -147,7 +147,7 @@ export default function ProductReviewsSection({
             maxLength={MAX_COMMENT_LENGTH}
             placeholder='Chia sẻ cảm nhận của bạn về sản phẩm...'
             rows={3}
-            className='w-full text-sm bg-background rounded-xl px-4 py-3 border border-border focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-colors resize-none'
+            className='w-full text-sm bg-background rounded-xl px-4 py-3 border border-border focus-visible:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-colors resize-none'
           />
           <div className='flex items-center justify-between gap-4'>
             <p className='text-xs text-muted-foreground'>

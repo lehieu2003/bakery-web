@@ -160,7 +160,7 @@ export default function DashboardPage() {
             <p className='font-serif text-xl font-semibold text-foreground'>
               {card.value}
             </p>
-            <p className='text-[10px] text-muted-foreground mt-1'>{card.sub}</p>
+            <p className='text-xs text-muted-foreground mt-1'>{card.sub}</p>
           </div>
         ))}
       </div>
@@ -174,7 +174,7 @@ export default function DashboardPage() {
               <p className='text-sm font-semibold text-foreground'>
                 Orders (Last {windowDays} days)
               </p>
-              <p className='text-[10px] text-muted-foreground'>
+              <p className='text-xs text-muted-foreground'>
                 Total: {totalWeekOrders} orders
               </p>
             </div>
@@ -204,18 +204,18 @@ export default function DashboardPage() {
               />
               <XAxis
                 dataKey='day'
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  fontSize: 11,
+                  fontSize: 12,
                   borderRadius: 8,
                   border: '1px solid var(--color-border)',
                 }}
@@ -239,7 +239,7 @@ export default function DashboardPage() {
               <p className='text-sm font-semibold text-foreground'>
                 Revenue (Last {windowDays} days)
               </p>
-              <p className='text-[10px] text-muted-foreground'>
+              <p className='text-xs text-muted-foreground'>
                 Total: {formatRevenue(totalWeekRevenue)}
               </p>
             </div>
@@ -251,8 +251,8 @@ export default function DashboardPage() {
             >
               <defs>
                 <linearGradient id='revenueGrad' x1='0' y1='0' x2='0' y2='1'>
-                  <stop offset='5%' stopColor='#10b981' stopOpacity={0.2} />
-                  <stop offset='95%' stopColor='#10b981' stopOpacity={0} />
+                  <stop offset='5%' stopColor='var(--color-emerald-500)' stopOpacity={0.2} />
+                  <stop offset='95%' stopColor='var(--color-emerald-500)' stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -261,19 +261,19 @@ export default function DashboardPage() {
               />
               <XAxis
                 dataKey='day'
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v) => `${v / 1000000}M`}
               />
               <Tooltip
                 contentStyle={{
-                  fontSize: 11,
+                  fontSize: 12,
                   borderRadius: 8,
                   border: '1px solid var(--color-border)',
                 }}
@@ -282,7 +282,7 @@ export default function DashboardPage() {
               <Area
                 type='monotone'
                 dataKey='revenue'
-                stroke='#10b981'
+                stroke='var(--color-emerald-500)'
                 strokeWidth={2}
                 fill='url(#revenueGrad)'
               />
@@ -320,12 +320,12 @@ export default function DashboardPage() {
                       {order.orderNumber}
                     </p>
                     <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}
                     >
                       {ORDER_STATUS_LABELS[order.status as OrderStatus]}
                     </span>
                   </div>
-                  <p className='text-[10px] text-muted-foreground mt-0.5'>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
                     {order.customerName} ·{' '}
                     {new Date(order.createdAt).toLocaleString('vi-VN')}
                   </p>

@@ -80,7 +80,7 @@ describe('OrderDetailScreen', () => {
     renderWithClient(<OrderDetailScreen orderNumber="BK260930TEST" />);
 
     expect(await screen.findByText('#BK260930TEST')).toBeInTheDocument();
-    expect(screen.getByText('Confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Đã xác nhận')).toBeInTheDocument();
     expect(screen.getByText(/Rose Garden Birthday Cake - Medium × 2/)).toBeInTheDocument();
     expect(screen.getByText(/Happy Birthday/)).toBeInTheDocument();
     expect(screen.getByText('30.000đ')).toBeInTheDocument(); // delivery fee, formatted
@@ -93,6 +93,6 @@ describe('OrderDetailScreen', () => {
     getOrderByNumber.mockRejectedValue(new Error('Order not found'));
     renderWithClient(<OrderDetailScreen orderNumber="BK-GONE" />);
 
-    expect(await screen.findByText(/Order not found/i)).toBeInTheDocument();
+    expect(await screen.findByText('Không tìm thấy đơn hàng')).toBeInTheDocument();
   });
 });

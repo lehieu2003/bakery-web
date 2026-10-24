@@ -1,7 +1,16 @@
 'use client';
 
 import Image from 'next/image';
-import { ChevronLeft, Heart, ShoppingBag, Star, ZoomIn, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  Heart,
+  Pause,
+  Play,
+  ShoppingBag,
+  Star,
+  ZoomIn,
+  X,
+} from 'lucide-react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useCategories, useProductDetail } from '@/hooks/use-products';
@@ -58,11 +67,27 @@ export default function ProductDetailScreen({
   );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const autoplayRef = useRef(
-    Autoplay({ delay: 3000, stopOnInteraction: false }),
+    Autoplay({
+      delay: 3000,
+      stopOnInteraction: false,
+      stopOnMouseEnter: true,
+      stopOnFocusIn: true,
+    }),
   );
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
     autoplayRef.current,
   ]);
+  const [autoPlayOn, setAutoPlayOn] = useState(true);
+
+  const toggleAutoPlay = () => {
+    if (autoPlayOn) {
+      autoplayRef.current.stop();
+      setAutoPlayOn(false);
+    } else {
+      autoplayRef.current.play();
+      setAutoPlayOn(true);
+    }
+  };
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -280,7 +305,7 @@ export default function ProductDetailScreen({
                 type='button'
                 onClick={() => setZoomOpen(true)}
                 aria-label='Zoom image'
-                className='absolute bottom-3 right-3 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60'
+                className='absolute bottom-3 right-3 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors focus-visible:outline-none focus:ring-2 focus:ring-white/60'
               >
                 <ZoomIn size={17} />
               </button>
@@ -300,7 +325,7 @@ export default function ProductDetailScreen({
                   type='button'
                   onClick={() => setZoomOpen(false)}
                   aria-label='Close zoom view'
-                  className='absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60'
+                  className='absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors focus-visible:outline-none focus:ring-2 focus:ring-white/60'
                 >
                   <X size={20} />
                 </button>
@@ -325,26 +350,44 @@ export default function ProductDetailScreen({
             {/* Counter + dots */}
             {getProductImages(selectedProduct).length > 1 && (
               <div className='flex items-center justify-between px-1'>
-                {/* Dot indicators */}
-                <div className='flex gap-1.5'>
+                {/* Dot indicators — 24×24 hit targets (WCAG 2.2), dot visual inside */}
+                <div className='flex gap-0'>
                   {getProductImages(selectedProduct).map((_, i) => (
                     <button
                       key={i}
                       type='button'
                       onClick={() => scrollTo(i)}
-                      className={`rounded-full transition-all focus:outline-none ${
-                        i === activeImageIndex
-                          ? 'w-5 h-2 bg-primary'
-                          : 'w-2 h-2 bg-border hover:bg-primary/40'
-                      }`}
-                      aria-label={`Go to image ${i + 1}`}
-                    />
+                      className='flex h-6 w-6 items-center justify-center rounded-full'
+                      aria-label={`Ảnh ${i + 1}`}
+                    >
+                      <span
+                        className={`rounded-full transition-all ${
+                          i === activeImageIndex
+                            ? 'h-2 w-5 bg-primary'
+                            : 'h-2 w-2 bg-border hover:bg-primary/40'
+                        }`}
+                      />
+                    </button>
                   ))}
                 </div>
-                <span className='text-xs text-muted-foreground'>
-                  {activeImageIndex + 1} /{' '}
-                  {getProductImages(selectedProduct).length}
-                </span>
+                <div className='flex items-center gap-2'>
+                  <span className='text-xs text-muted-foreground'>
+                    {activeImageIndex + 1} /{' '}
+                    {getProductImages(selectedProduct).length}
+                  </span>
+                  <button
+                    type='button'
+                    onClick={toggleAutoPlay}
+                    aria-label={
+                      autoPlayOn
+                        ? 'Tạm dừng tự động chuyển ảnh'
+                        : 'Tiếp tục tự động chuyển ảnh'
+                    }
+                    className='flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground'
+                  >
+                    {autoPlayOn ? <Pause size={14} /> : <Play size={14} />}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -356,7 +399,7 @@ export default function ProductDetailScreen({
                     key={i}
                     type='button'
                     onClick={() => scrollTo(i)}
-                    className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors focus:outline-none ${
+                    className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-secondary border-2 transition-colors ${
                       i === activeImageIndex
                         ? 'border-primary'
                         : 'border-border hover:border-primary/50'
@@ -474,7 +517,7 @@ export default function ProductDetailScreen({
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     maxLength={40}
-                    className='w-full text-sm bg-card rounded-xl px-4 py-3 border border-border focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-colors'
+                    className='w-full text-sm bg-card rounded-xl px-4 py-3 border border-border focus-visible:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground transition-colors'
                   />
                   <p className='text-xs text-muted-foreground mt-1.5 text-right'>
                     {message.length}/40
@@ -490,7 +533,7 @@ export default function ProductDetailScreen({
                     value={pickupDate}
                     min={minPickupDate}
                     onChange={(e) => setPickupDate(e.target.value)}
-                    className='w-full text-sm bg-card rounded-xl px-4 py-3 border border-border focus:outline-none focus:border-primary text-foreground transition-colors'
+                    className='w-full text-sm bg-card rounded-xl px-4 py-3 border border-border focus-visible:outline-none focus:border-primary text-foreground transition-colors'
                   />
                   <p className='text-xs text-muted-foreground mt-1.5'>
                     Bánh làm theo đơn nên vui lòng đặt trước ít nhất 1 ngày.
@@ -631,7 +674,7 @@ export default function ProductDetailScreen({
                 disabled={isToggling}
                 aria-label={
                   isFavorite
-                    ? 'Xoá khỏi danh sách yêu thích'
+                    ? 'Xóa khỏi danh sách yêu thích'
                     : 'Thêm vào danh sách yêu thích'
                 }
                 className='h-12 w-12 rounded-full border border-border bg-card text-foreground flex items-center justify-center transition-colors hover:border-primary/40 disabled:opacity-60'

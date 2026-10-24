@@ -80,7 +80,7 @@ export default function TestimonialsSection() {
   return (
     <section
       data-home-reveal
-      className='bg-[#faf8f5] px-4 py-16 lg:px-8'
+      className='bg-surface-soft px-4 py-16 lg:px-8'
       aria-labelledby='testimonials-heading'
     >
       <div className='mx-auto max-w-6xl'>
@@ -109,7 +109,7 @@ export default function TestimonialsSection() {
               role='listitem'
             >
               <div className='mb-5 flex items-center justify-between gap-4'>
-                <span className='rounded-full border border-primary/10 bg-secondary px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary'>
+                <span className='rounded-full border border-primary/10 bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary'>
                   {testimonial.context}
                 </span>
                 <RatingStars rating={testimonial.rating} />

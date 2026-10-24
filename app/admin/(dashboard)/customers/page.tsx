@@ -112,7 +112,7 @@ function CustomerDetailPanel({
                 </h3>
                 <span
                   className={cn(
-                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border mt-1',
+                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border mt-1',
                     levelBadge,
                   )}
                 >
@@ -152,7 +152,7 @@ function CustomerDetailPanel({
                   className='bg-muted/40 rounded-xl p-3 flex flex-col items-center text-center'
                 >
                   <Icon size={14} className='text-primary mb-1.5' />
-                  <p className='text-[11px] font-semibold text-foreground leading-tight'>
+                  <p className='text-xs font-semibold text-foreground leading-tight'>
                     {value}
                   </p>
                   <p className='text-[9px] text-muted-foreground mt-0.5 uppercase tracking-wide'>
@@ -165,7 +165,7 @@ function CustomerDetailPanel({
 
           {/* Membership progress */}
           <div className='px-6 py-4'>
-            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3'>
+            <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3'>
               Membership Progress
             </p>
             {memberLevel === 'PLATINUM' ? (
@@ -191,7 +191,7 @@ function CustomerDetailPanel({
                 const pct = Math.min((points / target) * 100, 100);
                 return (
                   <div>
-                    <div className='flex justify-between text-[10px] text-muted-foreground mb-1.5'>
+                    <div className='flex justify-between text-xs text-muted-foreground mb-1.5'>
                       <span>{points.toLocaleString()} pts</span>
                       <span>
                         {target.toLocaleString()} pts to{' '}
@@ -206,7 +206,7 @@ function CustomerDetailPanel({
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <p className='text-[10px] text-muted-foreground mt-1'>
+                    <p className='text-xs text-muted-foreground mt-1'>
                       {(target - points).toLocaleString()} more points needed
                     </p>
                   </div>
@@ -216,32 +216,32 @@ function CustomerDetailPanel({
           </div>
 
           <div className='px-6 py-4 border-t border-border'>
-            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
+            <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
               Operational Context
             </p>
             {detailLoading && (
-              <p className='text-[11px] text-muted-foreground mb-2'>
+              <p className='text-xs text-muted-foreground mb-2'>
                 Loading latest support data...
               </p>
             )}
-            <p className='text-[11px] text-muted-foreground'>
+            <p className='text-xs text-muted-foreground'>
               Unread published notifications: {unreadPublished}
             </p>
           </div>
 
           <div className='px-6 py-4 border-t border-border'>
-            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
+            <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
               Recent Orders
             </p>
             {recentOrders.length === 0 && (
-              <p className='text-[11px] text-muted-foreground'>
+              <p className='text-xs text-muted-foreground'>
                 No recent orders.
               </p>
             )}
             {recentOrders.slice(0, 5).map((order: NonNullable<Customer['recentOrders']>[number]) => (
               <div
                 key={order.id}
-                className='text-[11px] py-1.5 border-b border-border last:border-b-0'
+                className='text-xs py-1.5 border-b border-border last:border-b-0'
               >
                 <p className='font-medium text-foreground'>
                   {order.orderNumber}
@@ -254,18 +254,18 @@ function CustomerDetailPanel({
           </div>
 
           <div className='px-6 py-4 border-t border-border'>
-            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
+            <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
               Recent Payments
             </p>
             {recentPayments.length === 0 && (
-              <p className='text-[11px] text-muted-foreground'>
+              <p className='text-xs text-muted-foreground'>
                 No recent payments.
               </p>
             )}
             {recentPayments.slice(0, 5).map((payment: NonNullable<Customer['recentPayments']>[number]) => (
               <div
                 key={payment.paymentId}
-                className='text-[11px] py-1.5 border-b border-border last:border-b-0'
+                className='text-xs py-1.5 border-b border-border last:border-b-0'
               >
                 <p className='font-medium text-foreground'>
                   {payment.provider}
@@ -278,18 +278,18 @@ function CustomerDetailPanel({
           </div>
 
           <div className='px-6 py-4 border-t border-border'>
-            <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
+            <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2'>
               Recent Notifications
             </p>
             {recentNotifications.length === 0 && (
-              <p className='text-[11px] text-muted-foreground'>
+              <p className='text-xs text-muted-foreground'>
                 No notification reads.
               </p>
             )}
             {recentNotifications.slice(0, 5).map((notification: NonNullable<Customer['recentNotifications']>[number]) => (
               <div
                 key={notification.notificationId}
-                className='text-[11px] py-1.5 border-b border-border last:border-b-0'
+                className='text-xs py-1.5 border-b border-border last:border-b-0'
               >
                 <p className='font-medium text-foreground'>
                   {notification.title}
@@ -451,7 +451,7 @@ export default function CustomersPage() {
                       <p className='text-xs font-medium text-foreground'>
                         {customer.name || 'No name'}
                       </p>
-                      <p className='text-[10px] text-muted-foreground mt-0.5'>
+                      <p className='text-xs text-muted-foreground mt-0.5'>
                         {customer.email}
                       </p>
                     </div>
@@ -459,7 +459,7 @@ export default function CustomersPage() {
                 </td>
                 <td className='px-5 py-3.5 hidden sm:table-cell'>
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${MEMBER_LEVEL_COLORS[customer.level]}`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${MEMBER_LEVEL_COLORS[customer.level]}`}
                   >
                     <Crown size={9} />
                     {customer.level}

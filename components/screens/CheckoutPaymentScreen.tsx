@@ -385,7 +385,7 @@ export default function CheckoutPaymentScreen() {
                 setIncentiveCodeInput(e.target.value.toUpperCase());
               }}
               placeholder='Nhập mã giảm giá (không bắt buộc)'
-              className='w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+              className='w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-primary transition-colors'
             />
             <button
               type='button'

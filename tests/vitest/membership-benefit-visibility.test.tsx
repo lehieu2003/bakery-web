@@ -329,6 +329,8 @@ describe('Membership benefit visibility across purchase flow', () => {
       expect.objectContaining({
         incentiveCodes: ['TENPERCENT'],
       }),
+      // createOrder takes a second idempotency-key config argument.
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
 
     const liveRegion = screen

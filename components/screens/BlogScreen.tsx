@@ -50,7 +50,7 @@ function FeaturedPostCard({ post }: { post: BlogPost }) {
         {/* Overlay content */}
         <div className='absolute bottom-0 left-0 right-0 p-6 lg:p-8 text-white'>
           {post.category && (
-            <span className='inline-block px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-primary/90 text-primary-foreground mb-3'>
+            <span className='inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-widest uppercase bg-primary/90 text-primary-foreground mb-3'>
               {post.category.name}
             </span>
           )}
@@ -107,7 +107,7 @@ function BlogPostCard({ post }: { post: BlogPost }) {
         />
 
         {post.category && (
-          <span className='absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-widest uppercase bg-primary text-primary-foreground shadow-sm'>
+          <span className='absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold tracking-widest uppercase bg-primary text-primary-foreground shadow-sm'>
             {post.category.name}
           </span>
         )}
@@ -276,7 +276,7 @@ function Pagination({
   return (
     <nav
       className='flex items-center justify-center gap-2 mt-10'
-      aria-label='Blog pagination'
+      aria-label='Phân trang blog'
     >
       <button
         onClick={() => onChange(page - 1)}
@@ -400,7 +400,7 @@ export default function BlogScreen() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder='Tìm kiếm bài viết...'
-              className='w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
+              className='w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
             />
           </div>
           <button

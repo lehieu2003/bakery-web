@@ -18,19 +18,19 @@ const LEVEL_COLORS: Record<
     bg: 'bg-slate-100',
     text: 'text-slate-700',
     border: 'border-slate-300',
-    color: '#94a3b8',
+    color: 'var(--color-slate-400)',
   },
   GOLD: {
     bg: 'bg-amber-100',
     text: 'text-amber-700',
     border: 'border-amber-300',
-    color: '#f59e0b',
+    color: 'var(--color-amber-500)',
   },
   PLATINUM: {
     bg: 'bg-pink-100',
     text: 'text-pink-700',
     border: 'border-pink-300',
-    color: '#ec4899',
+    color: 'var(--color-pink-500)',
   },
 };
 
@@ -128,7 +128,7 @@ function MembershipForm({
                     {level.label}
                   </p>
                   <span
-                    className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${colors.bg} ${colors.text} ${colors.border}`}
+                    className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${colors.bg} ${colors.text} ${colors.border}`}
                   >
                     {level.level}
                   </span>
@@ -182,7 +182,7 @@ function MembershipForm({
                 value={pointsPerOrder}
                 onChange={(e) => setPointsPerOrder(Number(e.target.value))}
               />
-              <p className='text-[10px] text-muted-foreground mt-1'>
+              <p className='text-xs text-muted-foreground mt-1'>
                 Customer earns 1 point per {pointsPerOrder.toLocaleString()} VND
                 spent
               </p>
@@ -247,7 +247,7 @@ function MembershipForm({
                         +{pointsEarned} pts
                       </span>
                     </p>
-                    <p className='text-[10px] text-muted-foreground mt-0.5'>
+                    <p className='text-xs text-muted-foreground mt-0.5'>
                       (1 pt per {pointsPerOrder.toLocaleString()} VND spent)
                     </p>
                   </div>
@@ -281,7 +281,7 @@ function MembershipForm({
                           {next ? ` – ${next.minPoints - 1}` : '+'} pts
                         </span>
                       </div>
-                      <p className='text-[10px] text-muted-foreground mt-0.5'>
+                      <p className='text-xs text-muted-foreground mt-0.5'>
                         {level.discountPercent}% off all orders
                       </p>
                     </div>

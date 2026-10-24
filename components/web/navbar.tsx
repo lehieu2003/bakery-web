@@ -319,7 +319,7 @@ export default function WebNavbar() {
             {item.content}
           </p>
 
-          <p className='text-[11px] text-gray-400 mt-1.5'>
+          <p className='text-xs text-gray-400 mt-1.5'>
             {formatNotificationTime(item.publishedAt || item.createdAt)}
           </p>
         </div>
@@ -389,7 +389,7 @@ export default function WebNavbar() {
           <Link
             href='/'
             className='order-1 flex-shrink-0'
-            aria-label='Go to home'
+            aria-label='Về trang chủ'
           >
             <Image
               src='/images/bakery-log.svg'
@@ -413,13 +413,13 @@ export default function WebNavbar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
-                className='w-full border border-gray-200 rounded-md px-4 py-2.5 pr-10 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
+                className='w-full border border-gray-200 rounded-md px-4 py-2.5 pr-10 text-sm text-gray-700 placeholder:text-gray-400 focus-visible:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
                 autoComplete='off'
               />
               <button
                 type='submit'
                 className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors'
-                aria-label='Search'
+                aria-label='Tìm kiếm'
               >
                 {searchFetching ? (
                   <Loader2 size={18} className='animate-spin' />
@@ -507,12 +507,12 @@ export default function WebNavbar() {
                 <PopoverTrigger asChild>
                   <button
                     className='relative hidden items-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:flex'
-                    aria-label='Notifications'
+                    aria-label='Thông báo'
                   >
                     <div className='relative'>
                       <Bell size={24} />
                       {unreadCount > 0 && (
-                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center px-1'>
+                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1'>
                           {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                       )}
@@ -572,12 +572,12 @@ export default function WebNavbar() {
                 <PopoverTrigger asChild>
                   <button
                     className='relative hidden items-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:flex'
-                    aria-label='Favorite products'
+                    aria-label='Sản phẩm yêu thích'
                   >
                     <div className='relative'>
                       <Heart size={24} />
                       {wishlistCount > 0 && (
-                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center px-1'>
+                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1'>
                           {wishlistCount > 99 ? '99+' : wishlistCount}
                         </span>
                       )}
@@ -671,12 +671,12 @@ export default function WebNavbar() {
             <Link
               href='/cart'
               className='relative hidden items-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:flex'
-              aria-label={`Shopping cart, ${cartCount} items`}
+              aria-label={`Giỏ hàng, ${cartCount} sản phẩm`}
             >
               <div className='relative'>
                 <ShoppingCart size={26} />
                 {cartCount > 0 && (
-                  <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center px-1'>
+                  <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1'>
                     {cartCount}
                   </span>
                 )}
@@ -691,7 +691,7 @@ export default function WebNavbar() {
               <Link
                 href='/profile'
                 className='hidden items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 hover:border-primary/50 transition-colors md:flex'
-                aria-label='Profile'
+                aria-label='Trang cá nhân'
               >
                 <div className='w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-xs flex-shrink-0'>
                   {user.name.charAt(0)}
@@ -704,7 +704,7 @@ export default function WebNavbar() {
               <Link
                 href='/auth'
                 className='hidden md:flex items-center gap-1.5 px-4 py-2 rounded-md border border-gray-200 text-sm font-medium text-gray-600 hover:border-primary hover:text-primary transition-colors'
-                aria-label='Sign in'
+                aria-label='Đăng nhập'
               >
                 <User size={15} />
                 Đăng nhập
@@ -715,7 +715,7 @@ export default function WebNavbar() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className='md:hidden p-2 rounded-md hover:bg-gray-100 transition-colors'
-              aria-label='Toggle menu'
+              aria-label='Mở/đóng menu'
             >
               {mobileMenuOpen ? (
                 <X size={20} className='text-gray-600' />
@@ -748,7 +748,7 @@ export default function WebNavbar() {
                   ? 'translate-x-0 opacity-100'
                   : 'pointer-events-none -translate-x-2 opacity-0'
               }`}
-              aria-label='Go to home'
+              aria-label='Về trang chủ'
               tabIndex={isNavFixed ? 0 : -1}
             >
               <Image
@@ -761,7 +761,7 @@ export default function WebNavbar() {
             </Link>
             <nav
               className='flex flex-1 items-center justify-center overflow-x-auto scrollbar-hide'
-              aria-label='Category navigation'
+              aria-label='Điều hướng danh mục'
             >
               {navLinks.map((link) => (
                 <div

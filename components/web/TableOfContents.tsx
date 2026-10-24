@@ -109,7 +109,7 @@ export default function TableOfContents({ content }: TableOfContentsProps) {
         <List size={14} />
         Nội dung bài viết
       </h3>
-      <nav aria-label='Table of contents'>
+      <nav aria-label='Mục lục'>
         <ul className='space-y-0.5'>
           {headings.map(({ id, text }) => {
             const isActive = activeId === id;

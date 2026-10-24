@@ -137,7 +137,7 @@ function SavedAddressPicker({
                 {savedAddress.fullName}
               </span>
               {savedAddress.isDefault && (
-                <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
+                <span className='text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
                   Mặc định
                 </span>
               )}
@@ -188,7 +188,7 @@ function SavedAddressPicker({
                 onChange={(e) => setStreet(e.target.value)}
                 placeholder='Đường'
                 aria-label='Đường'
-                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-primary transition-colors'
               />
               <input
                 type='text'
@@ -196,7 +196,7 @@ function SavedAddressPicker({
                 onChange={(e) => setWard(e.target.value)}
                 placeholder='Phường/Xã'
                 aria-label='Phường/Xã'
-                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-primary transition-colors'
               />
               <input
                 type='text'
@@ -204,7 +204,7 @@ function SavedAddressPicker({
                 onChange={(e) => setDistrict(e.target.value)}
                 placeholder='Quận/Huyện'
                 aria-label='Quận/Huyện'
-                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-primary transition-colors'
               />
               <input
                 type='text'
@@ -212,7 +212,7 @@ function SavedAddressPicker({
                 onChange={(e) => setProvince(e.target.value)}
                 placeholder='Tỉnh/Thành phố'
                 aria-label='Tỉnh/Thành phố'
-                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+                className='px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-primary transition-colors'
               />
             </div>
           )}
@@ -315,7 +315,7 @@ export default function CheckoutInfoScreen() {
   const memberLabel =
     membershipBenefitsQuery.data?.benefits.currentTier.label ??
     user?.level ??
-    'Member';
+    'Thành viên';
   const membershipPoints =
     membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
   const eligibilityMessage = membershipBenefitsQuery.isLoading
@@ -464,7 +464,7 @@ export default function CheckoutInfoScreen() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder='Họ và tên của bạn'
-              className='w-full px-5 py-3.5 rounded-2xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
+              className='w-full px-5 py-3.5 rounded-2xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-primary transition-colors'
             />
           </div>
 
@@ -481,7 +481,7 @@ export default function CheckoutInfoScreen() {
               }}
               onBlur={() => validatePhone(phone)}
               placeholder='0909 xxx xxx'
-              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors ${
+              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground transition-colors ${
                 phoneError
                   ? 'border-destructive focus:border-destructive'
                   : 'border-border focus:border-primary'
@@ -505,7 +505,7 @@ export default function CheckoutInfoScreen() {
               }}
               onBlur={() => validateEmail(email)}
               placeholder='you@example.com'
-              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors ${
+              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground transition-colors ${
                 emailError
                   ? 'border-destructive focus:border-destructive'
                   : 'border-border focus:border-primary'
@@ -567,7 +567,7 @@ export default function CheckoutInfoScreen() {
                   : 'Không bắt buộc khi nhận tại cửa hàng'
               }
               rows={3}
-              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors resize-none ${
+              className={`w-full px-5 py-3.5 rounded-2xl border bg-card text-sm text-foreground placeholder:text-muted-foreground transition-colors resize-none ${
                 addressError
                   ? 'border-destructive focus:border-destructive'
                   : 'border-border focus:border-primary'

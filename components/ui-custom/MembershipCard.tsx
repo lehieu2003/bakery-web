@@ -51,7 +51,7 @@ export default function MembershipCard({ user }: { user: User }) {
         <div>
           <div className='flex items-center gap-2 mb-0.5'>
             <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${config.badge}`}
+              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${config.badge}`}
             >
               {config.label}
             </span>
@@ -78,10 +78,10 @@ export default function MembershipCard({ user }: { user: User }) {
               width: `${progress}%`,
               color:
                 user.level === 'gold'
-                  ? '#D97706'
+                  ? 'var(--color-amber-600)'
                   : user.level === 'platinum'
-                    ? '#F43F5E'
-                    : '#94A3B8',
+                    ? 'var(--color-rose-500)'
+                    : 'var(--color-slate-400)',
             }}
           />
         </div>

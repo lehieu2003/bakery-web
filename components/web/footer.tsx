@@ -48,7 +48,7 @@ export default function WebFooter() {
         ];
 
   return (
-    <footer className='bg-roast text-[#f5ebe4]'>
+    <footer className='bg-roast text-on-roast'>
       {/* Order CTA banner */}
       <div className='border-b border-white/10'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-6'>
@@ -83,18 +83,18 @@ export default function WebFooter() {
       <div className='max-w-7xl mx-auto px-6 lg:px-8 py-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10'>
         {/* Brand column */}
         <div className='lg:col-span-1'>
-          <Link href='/' aria-label='Phương Loan Bakery home'>
+          <Link href='/' aria-label='Trang chủ Phương Loan Bakery'>
             <p
               className='font-serif text-2xl font-bold text-white tracking-tight'
               style={{ fontFamily: 'Georgia, serif' }}
             >
               Phương Loan Bakery
             </p>
-            <p className='text-[10px] tracking-widest text-primary/70 uppercase font-light mt-0.5'>
+            <p className='text-xs tracking-widest text-primary/70 uppercase font-light mt-0.5'>
               Artisan Bakery
             </p>
           </Link>
-          <p className='text-sm text-[#f5ebe4]/70 leading-relaxed mt-5 text-pretty'>
+          <p className='text-sm text-on-roast/70 leading-relaxed mt-5 text-pretty'>
             Mỗi chiếc bánh là một tác phẩm nghệ thuật — được làm thủ công từ
             những nguyên liệu tươi ngon nhất, gửi gắm tình yêu vào từng lớp kem.
           </p>
@@ -124,7 +124,7 @@ export default function WebFooter() {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className='text-sm text-[#f5ebe4]/75 hover:text-white transition-colors'
+                  className='text-sm text-on-roast/75 hover:text-white transition-colors'
                 >
                   {link.label}
                 </Link>
@@ -151,7 +151,7 @@ export default function WebFooter() {
               <li key={link.label}>
                 <Link
                   href={link.href}
-                  className='text-sm text-[#f5ebe4]/75 hover:text-white transition-colors'
+                  className='text-sm text-on-roast/75 hover:text-white transition-colors'
                 >
                   {link.label}
                 </Link>
@@ -169,7 +169,7 @@ export default function WebFooter() {
             <li>
               <a
                 href='tel:19007799'
-                className='flex items-start gap-3 text-sm text-[#f5ebe4]/75 hover:text-white transition-colors group'
+                className='flex items-start gap-3 text-sm text-on-roast/75 hover:text-white transition-colors group'
               >
                 <Phone
                   size={15}
@@ -181,7 +181,7 @@ export default function WebFooter() {
             <li>
               <a
                 href='mailto:hello@phuongloan.vn'
-                className='flex items-start gap-3 text-sm text-[#f5ebe4]/75 hover:text-white transition-colors group'
+                className='flex items-start gap-3 text-sm text-on-roast/75 hover:text-white transition-colors group'
               >
                 <Mail
                   size={15}
@@ -191,7 +191,7 @@ export default function WebFooter() {
               </a>
             </li>
             <li>
-              <div className='flex items-start gap-3 text-sm text-[#f5ebe4]/75'>
+              <div className='flex items-start gap-3 text-sm text-on-roast/75'>
                 <MapPin size={15} className='text-primary mt-0.5 shrink-0' />
                 <span className='leading-relaxed'>
                   TT. Chợ Chùa, Nghĩa Hành,
@@ -200,7 +200,7 @@ export default function WebFooter() {
                 </span>
               </div>
             </li>
-            <li className='text-sm text-[#f5ebe4]/75'>
+            <li className='text-sm text-on-roast/75'>
               <span className='text-primary/70 text-xs uppercase tracking-wider font-medium'>
                 Giờ mở cửa
               </span>
@@ -213,11 +213,11 @@ export default function WebFooter() {
       {/* Bottom bar */}
       <div className='border-t border-white/10'>
         <div className='max-w-7xl mx-auto px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3'>
-          <p className='text-xs text-[#f5ebe4]/50'>
+          <p className='text-xs text-on-roast/50'>
             &copy; {new Date().getFullYear()} Phương Loan Bakery Artisan Bakery.
             All rights reserved.
           </p>
-          <p className='text-xs text-[#f5ebe4]/40 italic font-serif'>
+          <p className='text-xs text-on-roast/40 italic font-serif'>
             Handcrafted with love in Quảng Ngãi
           </p>
         </div>

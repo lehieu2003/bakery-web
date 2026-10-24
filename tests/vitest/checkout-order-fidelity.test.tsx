@@ -503,6 +503,6 @@ describe('Profile order history fidelity', () => {
     expect(screen.getByText('Cake A - 500g × 2')).toBeInTheDocument();
     expect(screen.getByText('Happy Birthday')).toBeInTheDocument();
     expect(screen.getByText('Happy Birthday')).toHaveClass('italic');
-    expect(screen.getByText(/Pickup: 2026-10-05/)).toBeInTheDocument();
+    expect(screen.getByText(/Ngày nhận: 2026-10-05/)).toBeInTheDocument();
   });
 });

@@ -286,11 +286,11 @@ export default function NotificationsAdminPage() {
                         <p className='text-xs font-medium text-foreground truncate'>
                           {item.title}
                         </p>
-                        <p className='text-[11px] text-muted-foreground line-clamp-2 mt-0.5'>
+                        <p className='text-xs text-muted-foreground line-clamp-2 mt-0.5'>
                           {item.content}
                         </p>
                         {item.linkUrl && (
-                          <p className='text-[10px] text-primary truncate mt-1 font-mono'>
+                          <p className='text-xs text-primary truncate mt-1 font-mono'>
                             {item.linkUrl}
                           </p>
                         )}
@@ -299,7 +299,7 @@ export default function NotificationsAdminPage() {
                   </td>
                   <td className='px-5 py-3.5 hidden md:table-cell'>
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${status.className}`}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${status.className}`}
                     >
                       {status.icon}
                       {status.label}

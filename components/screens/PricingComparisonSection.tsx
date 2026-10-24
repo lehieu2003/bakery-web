@@ -251,7 +251,7 @@ export default function PricingComparisonSection() {
                         {plan.label}
                       </span>
                       {plan.badge && (
-                        <span className='rounded-full bg-amber-400 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white'>
+                        <span className='rounded-full bg-amber-400 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white'>
                           {plan.badge}
                         </span>
                       )}
@@ -261,7 +261,7 @@ export default function PricingComparisonSection() {
                     </p>
                     <div className='mt-4 space-y-2'>
                       <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${plan.badgeClass}`}
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${plan.badgeClass}`}
                       >
                         {plan.discount}
                       </span>

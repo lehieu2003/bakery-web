@@ -61,7 +61,7 @@ export function FloatingOrderSummary() {
           <div className='relative inline-block'>
             <ShoppingBag className='size-5' />
             {hasItems && (
-              <span className='absolute -top-2 -right-2.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center border-2 border-primary shadow-sm leading-tight'>
+              <span className='absolute -top-2 -right-2.5 bg-destructive text-destructive-foreground text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center border-2 border-primary shadow-sm leading-tight'>
                 {cartCount > 99 ? '99+' : cartCount}
               </span>
             )}
@@ -69,7 +69,7 @@ export function FloatingOrderSummary() {
 
           {/* Vertical Text Indicator */}
           <span
-            className='text-[11px] font-bold tracking-wider uppercase opacity-90 my-1'
+            className='text-xs font-bold tracking-wider uppercase opacity-90 my-1'
             style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
           >
             Đơn hàng
@@ -77,7 +77,7 @@ export function FloatingOrderSummary() {
 
           {/* Short Price Preview */}
           {hasItems && (
-            <span className='text-[11px] font-bold text-amber-300 bg-black/25 px-1.5 py-0.5 rounded whitespace-nowrap'>
+            <span className='text-xs font-bold text-amber-300 bg-black/25 px-1.5 py-0.5 rounded whitespace-nowrap'>
               {cartTotal >= 1000000
                 ? `${(cartTotal / 1000000).toFixed(1)}Tr`
                 : `${Math.round(cartTotal / 1000)}k`}
@@ -194,12 +194,12 @@ export function FloatingOrderSummary() {
                       </p>
                     )}
                     {(item.size || item.flavor) && (
-                      <p className='text-[11px] text-muted-foreground mt-0.5'>
+                      <p className='text-xs text-muted-foreground mt-0.5'>
                         {[item.size, item.flavor].filter(Boolean).join(' • ')}
                       </p>
                     )}
                     {item.message && (
-                      <p className='text-[11px] text-muted-foreground italic mt-0.5 line-clamp-1'>
+                      <p className='text-xs text-muted-foreground italic mt-0.5 line-clamp-1'>
                         &ldquo;{item.message}&rdquo;
                       </p>
                     )}

@@ -240,7 +240,7 @@ export default function OrderDetailPage({
                     <p className='text-xs font-semibold text-foreground'>
                       {item.product?.name || item.name}
                     </p>
-                    <p className='text-[10px] text-muted-foreground mt-0.5'>
+                    <p className='text-xs text-muted-foreground mt-0.5'>
                       Qty: {item.quantity} · {formatVND(Number(item.price))}{' '}
                       each
                     </p>
@@ -296,7 +296,7 @@ export default function OrderDetailPage({
             </h2>
             <div className='space-y-2.5'>
               <div>
-                <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                   Name
                 </p>
                 <p className='text-xs text-foreground font-medium'>
@@ -304,14 +304,14 @@ export default function OrderDetailPage({
                 </p>
               </div>
               <div>
-                <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                   Phone
                 </p>
                 <p className='text-xs text-foreground'>{order.customerPhone}</p>
               </div>
               {order.customerEmail && (
                 <div>
-                  <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                  <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                     Email
                   </p>
                   <p className='text-xs text-foreground'>
@@ -321,7 +321,7 @@ export default function OrderDetailPage({
               )}
               {order.customerAddress && (
                 <div>
-                  <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                  <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                     Address
                   </p>
                   <p className='text-xs text-foreground'>
@@ -339,7 +339,7 @@ export default function OrderDetailPage({
             </h2>
             <div className='space-y-2.5'>
               <div>
-                <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                   Method
                 </p>
                 <p className='text-xs text-foreground font-medium'>
@@ -347,7 +347,7 @@ export default function OrderDetailPage({
                 </p>
               </div>
               <div>
-                <p className='text-[10px] text-muted-foreground uppercase tracking-wide'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                   Status
                 </p>
                 <p className='text-xs text-foreground'>
@@ -359,7 +359,7 @@ export default function OrderDetailPage({
                   <p className='text-xs font-medium text-rose-700'>
                     Needs refund
                   </p>
-                  <p className='text-[11px] text-rose-700/80'>
+                  <p className='text-xs text-rose-700/80'>
                     This order was cancelled after the customer paid. Refund it
                     on the {order.payment?.provider ?? 'gateway'} merchant portal,
                     then record it here.
@@ -460,7 +460,7 @@ export default function OrderDetailPage({
           <div className='space-y-4'>
             <div className='grid sm:grid-cols-2 gap-3'>
               <div className='rounded-lg border border-border p-3'>
-                <p className='text-[10px] text-muted-foreground uppercase tracking-wide mb-1'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide mb-1'>
                   Current Order State
                 </p>
                 <p className='text-xs font-medium text-foreground'>
@@ -468,13 +468,13 @@ export default function OrderDetailPage({
                 </p>
               </div>
               <div className='rounded-lg border border-border p-3'>
-                <p className='text-[10px] text-muted-foreground uppercase tracking-wide mb-1'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide mb-1'>
                   Current Payment State
                 </p>
                 <p className='text-xs font-medium text-foreground'>
                   {investigation?.payment?.status ?? 'N/A'}
                 </p>
-                <p className='text-[10px] text-muted-foreground mt-0.5'>
+                <p className='text-xs text-muted-foreground mt-0.5'>
                   {investigation?.payment?.provider ?? 'Unknown provider'}
                 </p>
               </div>
@@ -495,11 +495,11 @@ export default function OrderDetailPage({
                         <p className='text-xs font-medium text-foreground'>
                           {event.provider} · {event.event}
                         </p>
-                        <p className='text-[10px] text-muted-foreground'>
+                        <p className='text-xs text-muted-foreground'>
                           {new Date(event.createdAt).toLocaleString('vi-VN')}
                         </p>
                       </div>
-                      <p className='text-[11px] text-muted-foreground mt-1'>
+                      <p className='text-xs text-muted-foreground mt-1'>
                         Status: {event.incomingStatus ?? 'N/A'} · Outcome:{' '}
                         {event.outcome ?? 'N/A'} · Tx:{' '}
                         {event.transactionId ?? 'N/A'}
@@ -525,7 +525,7 @@ export default function OrderDetailPage({
                     .map((attempt: OrderInvestigationAttempt) => (
                       <div
                         key={attempt.callbackEventId}
-                        className='text-[11px] text-muted-foreground'
+                        className='text-xs text-muted-foreground'
                       >
                         {new Date(attempt.createdAt).toLocaleString('vi-VN')} ·{' '}
                         {attempt.provider} · {attempt.outcome} · incoming:{' '}
@@ -660,7 +660,7 @@ export default function OrderDetailPage({
             )}
           </AlertDialogHeader>
           <textarea
-            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20'
+            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus-visible:outline-none focus:ring-2 focus:ring-primary/20'
             placeholder='Reason for cancellation...'
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
@@ -694,7 +694,7 @@ export default function OrderDetailPage({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <textarea
-            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20'
+            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus-visible:outline-none focus:ring-2 focus:ring-primary/20'
             placeholder='Refund reference / note...'
             value={refundNote}
             onChange={(e) => setRefundNote(e.target.value)}

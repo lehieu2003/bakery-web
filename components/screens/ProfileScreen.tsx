@@ -17,6 +17,7 @@ import { useAuth } from '@/providers/auth-provider';
 import {
   getOrderStatusPresentation,
   getPaymentStatusPresentation,
+  toVietnameseStatusLabel,
   toneToBadgeClass,
 } from '@/lib/orders/presentation';
 import { ApiError } from '@/lib/api/client';
@@ -28,37 +29,37 @@ const LEVEL_BENEFITS: Record<
   { discount: string; perks: string[] }
 > = {
   silver: {
-    discount: '5% off all orders',
-    perks: ['Birthday cake discount', 'Early sale access'],
+    discount: 'Giảm 5% cho mọi đơn hàng',
+    perks: ['Giảm giá bánh sinh nhật', 'Nhận thông báo khuyến mãi sớm'],
   },
   gold: {
-    discount: '10% off all orders',
+    discount: 'Giảm 10% cho mọi đơn hàng',
     perks: [
-      'Birthday cake discount',
-      'Early sale access',
-      'Free custom message',
-      'Priority pickup',
+      'Giảm giá bánh sinh nhật',
+      'Nhận thông báo khuyến mãi sớm',
+      'Viết chữ trên bánh miễn phí',
+      'Ưu tiên nhận bánh tại cửa hàng',
     ],
   },
   platinum: {
-    discount: '15% off all orders',
+    discount: 'Giảm 15% cho mọi đơn hàng',
     perks: [
-      'Birthday cake discount',
-      'Early sale access',
-      'Free custom message',
-      'Priority pickup',
-      'Complimentary tasting box',
-      'Dedicated order manager',
+      'Giảm giá bánh sinh nhật',
+      'Nhận thông báo khuyến mãi sớm',
+      'Viết chữ trên bánh miễn phí',
+      'Ưu tiên nhận bánh tại cửa hàng',
+      'Hộp dùng thử miễn phí',
+      'Nhân viên chăm sóc đơn riêng',
     ],
   },
 };
 
 const MOCK_POINT_HISTORY = [
-  { label: 'Order #BK20341', date: '15 Mar', points: 90, type: 'earn' },
-  { label: 'Order #BK20280', date: '01 Mar', points: 41, type: 'earn' },
-  { label: 'Referral Bonus', date: '20 Feb', points: 50, type: 'earn' },
-  { label: 'Order #BK20210', date: '14 Feb', points: 76, type: 'earn' },
-  { label: 'Redeemed Discount', date: '14 Feb', points: -100, type: 'redeem' },
+  { label: 'Đơn #BK20341', date: '15 thg 3', points: 90, type: 'earn' },
+  { label: 'Đơn #BK20280', date: '01 thg 3', points: 41, type: 'earn' },
+  { label: 'Thưởng giới thiệu', date: '20 thg 2', points: 50, type: 'earn' },
+  { label: 'Đơn #BK20210', date: '14 thg 2', points: 76, type: 'earn' },
+  { label: 'Đổi điểm lấy giảm giá', date: '14 thg 2', points: -100, type: 'redeem' },
 ];
 
 type ReorderFeedbackState = {
@@ -157,7 +158,7 @@ function SavedAddressesSection() {
       province: form.values.province.trim(),
     };
     if (Object.values(values).some((value) => !value)) {
-      setActionError('All six fields are required (1-200 characters).');
+      setActionError('Vui lòng điền đủ cả sáu trường (1-200 ký tự).');
       return;
     }
 
@@ -171,7 +172,7 @@ function SavedAddressesSection() {
       setActionError('');
     } catch (error) {
       setActionError(
-        describeActionError(error, 'Could not save this address. Please try again.'),
+        describeActionError(error, 'Không thể lưu địa chỉ này. Vui lòng thử lại.'),
       );
     }
   };
@@ -184,7 +185,7 @@ function SavedAddressesSection() {
       setActionError(
         describeActionError(
           error,
-          'Could not set this address as default. Please try again.',
+          'Không thể đặt địa chỉ này làm mặc định. Vui lòng thử lại.',
         ),
       );
     }
@@ -198,7 +199,7 @@ function SavedAddressesSection() {
       setActionError(
         describeActionError(
           error,
-          'Could not delete this address. Please try again.',
+          'Không thể xóa địa chỉ này. Vui lòng thử lại.',
         ),
       );
     }
@@ -208,14 +209,14 @@ function SavedAddressesSection() {
     <div className='bg-card rounded-2xl border border-border/50 p-6'>
       <div className='flex items-center justify-between mb-4'>
         <h2 className='font-serif text-lg font-semibold text-foreground'>
-          Saved Addresses
+          Địa chỉ đã lưu
         </h2>
         {!form ? (
           <button
             onClick={openAddForm}
             className='text-sm font-medium text-primary hover:opacity-80'
           >
-            Add address
+            Thêm địa chỉ
           </button>
         ) : null}
       </div>
@@ -224,12 +225,12 @@ function SavedAddressesSection() {
         <div className='space-y-3'>
           {(
             [
-              ['fullName', 'Full Name'],
-              ['phone', 'Phone'],
-              ['street', 'Street'],
-              ['ward', 'Ward'],
-              ['district', 'District'],
-              ['province', 'Province'],
+              ['fullName', 'Họ tên'],
+              ['phone', 'Số điện thoại'],
+              ['street', 'Đường'],
+              ['ward', 'Phường/Xã'],
+              ['district', 'Quận/Huyện'],
+              ['province', 'Tỉnh/Thành phố'],
             ] as Array<[keyof AddressFormValues, string]>
           ).map(([field, label]) => (
             <label key={field} className='block'>
@@ -245,7 +246,7 @@ function SavedAddressesSection() {
                 }
                 disabled={isSavingAddress}
                 className={ADDRESS_INPUT_CLASS}
-                placeholder={`Your ${label.toLowerCase()}`}
+                placeholder={`Nhập ${label.toLowerCase()}`}
               />
             </label>
           ))}
@@ -257,26 +258,26 @@ function SavedAddressesSection() {
               className='rounded-full bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60'
             >
               {isSavingAddress
-                ? 'Saving...'
+                ? 'Đang lưu…'
                 : form.addressId
-                  ? 'Save Changes'
-                  : 'Save Address'}
+                  ? 'Lưu thay đổi'
+                  : 'Lưu địa chỉ'}
             </button>
             <button
               onClick={() => setForm(null)}
               disabled={isSavingAddress}
               className='rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary disabled:opacity-60'
             >
-              Cancel
+              Hủy
             </button>
           </div>
         </div>
       ) : addressesQuery.isLoading ? (
         <p className='text-sm text-muted-foreground'>
-          Loading saved addresses...
+          Đang tải địa chỉ đã lưu…
         </p>
       ) : addresses.length === 0 ? (
-        <p className='text-sm text-muted-foreground'>No saved addresses yet.</p>
+        <p className='text-sm text-muted-foreground'>Chưa có địa chỉ đã lưu.</p>
       ) : (
         <div className='space-y-3'>
           {addresses.map((address) => (
@@ -289,8 +290,9 @@ function SavedAddressesSection() {
                   {address.fullName}
                 </p>
                 {address.isDefault && (
-                  <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
-                    Default
+                  <span className='text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
+                    Mặc định
+
                   </span>
                 )}
               </div>
@@ -306,7 +308,7 @@ function SavedAddressesSection() {
                   disabled={isDeletingAddress}
                   className='rounded-full border border-primary/30 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60'
                 >
-                  Edit
+                  Sửa
                 </button>
                 {!address.isDefault && (
                   <button
@@ -314,7 +316,7 @@ function SavedAddressesSection() {
                     disabled={isDeletingAddress}
                     className='rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60'
                   >
-                    Set as default
+                    Đặt làm mặc định
                   </button>
                 )}
                 <button
@@ -322,7 +324,7 @@ function SavedAddressesSection() {
                   disabled={isDeletingAddress}
                   className='rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60'
                 >
-                  Delete
+                  Xóa
                 </button>
               </div>
             </div>
@@ -383,10 +385,10 @@ export default function ProfileScreen() {
         <div className='border-b border-border/60 bg-card'>
           <div className='max-w-7xl mx-auto px-6 lg:px-8 py-10'>
             <h1 className='font-serif text-3xl font-semibold text-foreground'>
-              Membership
+              Thành viên
             </h1>
             <p className='text-muted-foreground text-sm mt-1'>
-              Join our exclusive club and enjoy premium rewards.
+              Tham gia câu lạc bộ độc quyền và nhận ưu đãi cao cấp.
             </p>
           </div>
         </div>
@@ -395,24 +397,24 @@ export default function ProfileScreen() {
           {/* Left CTA */}
           <div className='flex-1'>
             <h2 className='font-serif text-2xl font-semibold text-foreground mb-3'>
-              Join Our Membership Club
+              Tham gia câu lạc bộ thành viên
             </h2>
             <p className='text-muted-foreground text-sm leading-relaxed mb-8 max-w-md'>
-              Earn points on every order, unlock exclusive discounts up to 15%,
-              and enjoy personalised bakery experiences at every tier.
+              Tích điểm với mỗi đơn hàng, mở khóa ưu đãi giảm giá đến 15% và
+              trải nghiệm dịch vụ bánh cao cấp ở mọi hạng thành viên.
             </p>
             <div className='flex gap-4'>
               <Link
                 href='/auth'
                 className='px-8 py-3.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-md'
               >
-                Sign In
+                Đăng nhập
               </Link>
               <Link
                 href='/auth'
                 className='px-8 py-3.5 border border-primary text-primary rounded-full text-sm font-medium hover:bg-primary/8 transition-colors'
               >
-                Create Account
+                Tạo tài khoản
               </Link>
             </div>
           </div>
@@ -450,7 +452,7 @@ export default function ProfileScreen() {
                   className={`flex-1 rounded-2xl border ${s.border} ${s.bg} p-5`}
                 >
                   <span
-                    className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${s.badge}`}
+                    className={`text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-full ${s.badge}`}
                   >
                     {level}
                   </span>
@@ -542,8 +544,8 @@ export default function ProfileScreen() {
       const addedUnits = result.items.reduce((sum, item) => sum + item.quantity, 0);
       const baseMessage =
         addedUnits > 0
-          ? `Added ${addedUnits} item(s) to cart from order #${result.sourceOrderNumber}.`
-          : `No items from order #${result.sourceOrderNumber} could be added to cart.`;
+          ? `Đã thêm ${addedUnits} món vào giỏ từ đơn #${result.sourceOrderNumber}.`
+          : `Không thể thêm món nào từ đơn #${result.sourceOrderNumber} vào giỏ.`;
 
       const tone: ReorderFeedbackState['tone'] = result.items.length
         ? result.unavailableItems.length
@@ -551,7 +553,7 @@ export default function ProfileScreen() {
           : 'success'
         : 'warning';
       const message = result.unavailableItems.length
-        ? `${baseMessage} ${result.unavailableItems.length} item(s) need your attention below.`
+        ? `${baseMessage} ${result.unavailableItems.length} món cần bạn xem lại bên dưới.`
         : baseMessage;
 
       setReorderFeedback({
@@ -565,7 +567,7 @@ export default function ProfileScreen() {
       const message =
         error instanceof ApiError && error.data?.error
           ? error.data.error
-          : 'Could not prepare reorder right now. Please try again.';
+          : 'Không thể chuẩn bị đặt lại đơn lúc này. Vui lòng thử lại.';
 
       setReorderFeedback({
         orderId,
@@ -597,9 +599,9 @@ export default function ProfileScreen() {
                 {displayName}
               </p>
               <span
-                className={`text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/60 ${lc.text} inline-block mt-1`}
+                className={`text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/60 ${lc.text} inline-block mt-1`}
               >
-                {userLevel} member
+                Thành viên hạng {userLevel}
               </span>
             </div>
           </div>
@@ -608,15 +610,15 @@ export default function ProfileScreen() {
               <p className={`font-serif text-3xl font-bold ${lc.text}`}>
                 {userPoints.toLocaleString()}
               </p>
-              <p className={`text-sm ${lc.text} opacity-70`}>loyalty points</p>
+              <p className={`text-sm ${lc.text} opacity-70`}>điểm tích luỹ</p>
             </div>
             <button
               onClick={handleLogout}
               className='flex items-center gap-2 px-4 py-2 rounded-full border border-current/20 text-sm font-medium text-muted-foreground hover:bg-background/60 transition-colors'
-              aria-label='Sign out'
+              aria-label='Đăng xuất'
             >
               <LogOut size={15} />
-              Sign Out
+              Đăng xuất
             </button>
             <Link
               href='/xoa-tai-khoan'
@@ -638,8 +640,8 @@ export default function ProfileScreen() {
             </div>
             <p className={`text-xs ${lc.text} opacity-70`}>
               {userLevel !== 'platinum'
-                ? '60 points to Platinum'
-                : 'You have reached our highest tier. Thank you for your loyalty.'}
+                ? 'Còn 60 điểm nữa để lên hạng Platinum'
+                : 'Bạn đã đạt hạng cao nhất của chúng tôi. Cảm ơn sự gắn bó của bạn.'}
             </p>
           </div>
         </div>
@@ -651,7 +653,7 @@ export default function ProfileScreen() {
           <div className='bg-card rounded-2xl border border-border/50 p-6'>
             <div className='flex items-center justify-between mb-4'>
               <h2 className='font-serif text-lg font-semibold text-foreground'>
-                Profile Settings
+                Cài đặt hồ sơ
               </h2>
               {!isEditingProfile ? (
                 <button
@@ -663,14 +665,14 @@ export default function ProfileScreen() {
                   }
                   className='text-sm font-medium text-primary hover:opacity-80'
                 >
-                  Edit
+                  Sửa
                 </button>
               ) : null}
             </div>
 
             <div className='space-y-3'>
               <label className='block'>
-                <span className='text-xs text-muted-foreground'>Name</span>
+                <span className='text-xs text-muted-foreground'>Họ tên</span>
                 <input
                   value={profileName}
                   onChange={(e) =>
@@ -681,12 +683,12 @@ export default function ProfileScreen() {
                   }
                   disabled={!isEditingProfile || isUpdatingProfile}
                   className='mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60'
-                  placeholder='Your name'
+                  placeholder='Tên của bạn'
                 />
               </label>
 
               <label className='block'>
-                <span className='text-xs text-muted-foreground'>Phone</span>
+                <span className='text-xs text-muted-foreground'>Số điện thoại</span>
                 <input
                   value={profilePhone}
                   onChange={(e) =>
@@ -697,13 +699,13 @@ export default function ProfileScreen() {
                   }
                   disabled={!isEditingProfile || isUpdatingProfile}
                   className='mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60'
-                  placeholder='Your phone number'
+                  placeholder='Số điện thoại của bạn'
                 />
               </label>
 
               <label className='block'>
                 <span className='text-xs text-muted-foreground'>
-                  Membership Tier
+                  Hạng thành viên
                 </span>
                 <input
                   value={authUser.memberLevel ?? 'SILVER'}
@@ -714,7 +716,7 @@ export default function ProfileScreen() {
 
               <label className='block'>
                 <span className='text-xs text-muted-foreground'>
-                  Loyalty Points
+                  Điểm tích luỹ
                 </span>
                 <input
                   value={String(userPoints)}
@@ -731,7 +733,7 @@ export default function ProfileScreen() {
                   disabled={isUpdatingProfile}
                   className='rounded-full bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60'
                 >
-                  {isUpdatingProfile ? 'Saving...' : 'Save'}
+                  {isUpdatingProfile ? 'Đang lưu…' : 'Lưu'}
                 </button>
                 <button
                   onClick={() => {
@@ -740,7 +742,7 @@ export default function ProfileScreen() {
                   disabled={isUpdatingProfile}
                   className='rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary disabled:opacity-60'
                 >
-                  Cancel
+                  Hủy
                 </button>
               </div>
             ) : null}
@@ -750,7 +752,7 @@ export default function ProfileScreen() {
 
           <div className='bg-card rounded-2xl border border-border/50 p-6'>
             <h2 className='font-serif text-lg font-semibold text-foreground mb-5'>
-              Membership Benefits
+              Quyền lợi thành viên
             </h2>
             <div className='space-y-3'>
               {(['silver', 'gold', 'platinum'] as MemberLevel[]).map(
@@ -771,8 +773,9 @@ export default function ProfileScreen() {
                           {level}
                         </span>
                         {isCurrent && (
-                          <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
-                            Current
+                          <span className='text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
+                            Hiện tại
+
                           </span>
                         )}
                       </div>
@@ -785,7 +788,7 @@ export default function ProfileScreen() {
                         {LEVEL_BENEFITS[level].perks.map((perk) => (
                           <span
                             key={perk}
-                            className={`text-[10px] px-2 py-0.5 rounded-full ${isUnlocked ? 'bg-background text-foreground border border-border' : 'bg-border/40 text-muted-foreground'}`}
+                            className={`text-xs px-2 py-0.5 rounded-full ${isUnlocked ? 'bg-background text-foreground border border-border' : 'bg-border/40 text-muted-foreground'}`}
                           >
                             {perk}
                           </span>
@@ -801,7 +804,7 @@ export default function ProfileScreen() {
           {/* Points history */}
           <div className='bg-card rounded-2xl border border-border/50 p-6'>
             <h2 className='font-serif text-lg font-semibold text-foreground mb-5'>
-              Points History
+              Lịch sử điểm
             </h2>
             <div className='space-y-3'>
               {MOCK_POINT_HISTORY.map((entry, i) => (
@@ -833,7 +836,7 @@ export default function ProfileScreen() {
         <div className='lg:col-span-2'>
           <div className='bg-card rounded-2xl border border-border/50 p-6'>
             <h2 className='font-serif text-lg font-semibold text-foreground mb-6'>
-              Order History
+              Lịch sử đơn hàng
             </h2>
             <div className='space-y-3'>
               {ordersLoading ? (
@@ -854,18 +857,18 @@ export default function ProfileScreen() {
               ) : ordersError ? (
                 <div className='text-center py-12 text-muted-foreground'>
                   <p className='text-sm text-amber-700'>
-                    Could not load order history right now.
+                    Không tải được lịch sử đơn hàng lúc này.
                   </p>
                   <p className='text-xs mt-1'>
-                    Please refresh the page or try again in a few minutes.
+                    Vui lòng tải lại trang hoặc thử lại sau vài phút.
                   </p>
                 </div>
               ) : orders.length > 0 ? (
                 orders.map((order: Order) => {
                   const itemsText =
                     order.orderItems.length > 1
-                      ? `${order.orderItems[0].name} +${order.orderItems.length - 1} more`
-                      : order.orderItems[0]?.name || 'No items';
+                      ? `${order.orderItems[0].name} +${order.orderItems.length - 1} món khác`
+                      : order.orderItems[0]?.name || 'Chưa có món nào';
                   const orderStatus = getOrderStatusPresentation(order.status);
                   const paymentStatus = getPaymentStatusPresentation(
                     order.payment?.status,
@@ -892,7 +895,7 @@ export default function ProfileScreen() {
                         <Link
                           href={`/orders/${order.orderNumber}`}
                           className='flex items-center gap-5 flex-1 min-w-0'
-                          aria-label={`View order ${order.orderNumber}`}
+                          aria-label={`Xem đơn ${order.orderNumber}`}
                         >
                           <div className='w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0'>
                             <span className='font-serif text-xs font-semibold text-muted-foreground'>
@@ -905,14 +908,14 @@ export default function ProfileScreen() {
                             </p>
                             <div className='mt-1 flex flex-wrap gap-1.5'>
                               <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
                               >
-                                {orderStatus.label}
+                                {toVietnameseStatusLabel(orderStatus.label)}
                               </span>
                               <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
                               >
-                                {paymentStatus.label}
+                                {toVietnameseStatusLabel(paymentStatus.label)}
                               </span>
                             </div>
                             <p className='text-xs text-muted-foreground mt-0.5'>
@@ -920,17 +923,12 @@ export default function ProfileScreen() {
                             </p>
                             <p className='text-xs text-muted-foreground'>
                               {new Date(order.createdAt).toLocaleDateString(
-                                'en-GB',
-                                {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  year: 'numeric',
-                                },
+                                'vi-VN',
                               )}
                             </p>
                             {order.pickupDate ? (
                               <p className='text-xs text-muted-foreground'>
-                                Pickup: {order.pickupDate}
+                                Ngày nhận: {order.pickupDate}
                               </p>
                             ) : null}
                             <div className='mt-2 space-y-0.5'>
@@ -955,8 +953,7 @@ export default function ProfileScreen() {
                               {order.total.toLocaleString('vi-VN')}đ
                             </p>
                             <p className='text-xs text-muted-foreground'>
-                              {order.orderItems.length} item
-                              {order.orderItems.length > 1 ? 's' : ''}
+                              {order.orderItems.length} món
                             </p>
                           </div>
                         {canReorder ? (
@@ -967,11 +964,11 @@ export default function ProfileScreen() {
                                 isPreparingReorder && activeReorderOrderId === order.id
                               }
                               className='rounded-full border border-primary/30 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60'
-                              aria-label={`Reorder order ${order.orderNumber}`}
+                              aria-label={`Đặt lại đơn ${order.orderNumber}`}
                             >
                               {isPreparingReorder && activeReorderOrderId === order.id
-                                ? 'Preparing...'
-                                : 'Reorder'}
+                                ? 'Đang chuẩn bị…'
+                                : 'Đặt lại'}
                             </button>
                           ) : null}
                           <ChevronRight
@@ -1002,7 +999,7 @@ export default function ProfileScreen() {
                               href='/cart'
                               className='mt-3 inline-flex text-xs font-semibold underline underline-offset-2'
                             >
-                              Review cart
+                              Xem giỏ hàng
                             </Link>
                           ) : null}
                         </div>
@@ -1012,9 +1009,9 @@ export default function ProfileScreen() {
                 })
               ) : (
                 <div className='text-center py-12 text-muted-foreground'>
-                  <p className='text-sm'>No orders yet</p>
+                  <p className='text-sm'>Chưa có đơn hàng</p>
                   <p className='text-xs mt-1'>
-                    Start shopping to see your order history
+                    Bắt đầu mua sắm để xem lịch sử đơn hàng của bạn
                   </p>
                 </div>
               )}
@@ -1026,7 +1023,7 @@ export default function ProfileScreen() {
                 disabled={isFetchingMoreOrders}
                 className='w-full mt-4 py-3 text-sm font-medium text-primary hover:underline disabled:opacity-60'
               >
-                {isFetchingMoreOrders ? 'Loading…' : 'Load more orders'}
+                {isFetchingMoreOrders ? 'Đang tải…' : 'Xem thêm đơn hàng'}
               </button>
             ) : null}
 
@@ -1034,7 +1031,7 @@ export default function ProfileScreen() {
               onClick={() => router.push('/')}
               className='w-full mt-6 py-3.5 border border-border text-muted-foreground rounded-full text-sm font-medium hover:bg-secondary hover:text-foreground transition-colors'
             >
-              Place a New Order
+              Đặt đơn mới
             </button>
           </div>
         </div>

@@ -211,7 +211,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
     <div className='space-y-6'>
       <div>
         <div className='mb-2 flex items-center justify-between'>
-          <p className='text-[11px] font-bold uppercase tracking-widest text-foreground'>
+          <p className='text-xs font-bold uppercase tracking-widest text-foreground'>
             Bộ lọc nhanh
           </p>
           {hasActiveFilters && (
@@ -224,9 +224,9 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                 setInStockOnly(false);
                 setPage(1);
               }}
-              className='text-[11px] font-medium text-primary'
+              className='text-xs font-medium text-primary'
             >
-              Xoá lọc
+              Xóa lọc
             </button>
           )}
         </div>
@@ -275,7 +275,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
           }`}
         >
           Chỉ hiện còn hàng
-          <span className='text-[11px] font-semibold'>
+          <span className='text-xs font-semibold'>
             {inStockOnly ? 'ON' : 'OFF'}
           </span>
         </button>
@@ -285,7 +285,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
         const selectedValueSlugs = selectedFilters[group.slug] || [];
         return (
           <div key={group.id}>
-            <p className='mb-2.5 text-[11px] font-bold uppercase tracking-widest text-foreground'>
+            <p className='mb-2.5 text-xs font-bold uppercase tracking-widest text-foreground'>
               {group.name}
             </p>
             <div className='space-y-2'>
@@ -342,7 +342,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
             className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-5'
           >
             <ChevronLeft size={16} />
-            {parentCategory ? `Back to ${parentCategory.name}` : 'Back to Home'}
+            {parentCategory ? `Về ${parentCategory.name}` : 'Về trang chủ'}
           </Link>
           <h1 className='font-serif text-4xl font-semibold text-foreground mb-2'>
             {title}
@@ -384,7 +384,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
 
                 <div className='p-4 space-y-6'>
                   <div>
-                    <p className='mb-2 text-[11px] font-bold uppercase tracking-widest text-foreground'>
+                    <p className='mb-2 text-xs font-bold uppercase tracking-widest text-foreground'>
                       Từ khóa
                     </p>
                     <div className='relative'>
@@ -412,7 +412,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
                   {/* Sub-categories */}
                   {subCategories.length > 0 && (
                     <div>
-                      <p className='text-[11px] font-bold text-foreground uppercase tracking-widest mb-2.5'>
+                      <p className='text-xs font-bold text-foreground uppercase tracking-widest mb-2.5'>
                         Danh mục con
                       </p>
                       <div className='flex flex-wrap gap-2'>
@@ -452,7 +452,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
 
                   {/* Sort */}
                   <div>
-                    <p className='text-[11px] font-bold text-foreground uppercase tracking-widest mb-2.5'>
+                    <p className='text-xs font-bold text-foreground uppercase tracking-widest mb-2.5'>
                       Sắp xếp theo
                     </p>
                     <div className='space-y-1'>

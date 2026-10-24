@@ -673,7 +673,7 @@ export default function CategoriesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className='font-serif text-base'>
-              Xoá danh mục?
+              Xóa danh mục?
             </AlertDialogTitle>
             <AlertDialogDescription className='text-xs'>
               Danh mục sẽ bị xoá vĩnh viễn. Đảm bảo không còn sản phẩm hoặc danh
@@ -690,7 +690,7 @@ export default function CategoriesPage() {
               {deleteMutation.isPending && (
                 <Loader2 className='w-3 h-3 animate-spin mr-1' />
               )}
-              Xoá
+              Xóa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -68,7 +68,7 @@ export default function AdminTopbar({ onMenuClick, title }: AdminTopbarProps) {
           <DropdownMenuContent align='end' className='w-44'>
             <div className='px-2 py-1.5'>
               <p className='text-xs font-medium'>{user?.name || 'Admin'}</p>
-              <p className='text-[10px] text-muted-foreground'>
+              <p className='text-xs text-muted-foreground'>
                 {user?.email || 'Loading...'}
               </p>
             </div>
