@@ -180,7 +180,7 @@ export default function SearchScreen() {
               }}
               className='text-xs font-medium text-primary'
             >
-              Xoá lọc
+              Xóa lọc
             </button>
           )}
         </div>
