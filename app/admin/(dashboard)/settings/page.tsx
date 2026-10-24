@@ -178,7 +178,7 @@ function SettingsForm({ initialSettings }: SettingsFormProps) {
             <p className='text-xs font-medium text-foreground'>
               Allow Delivery
             </p>
-            <p className='text-[10px] text-muted-foreground mt-0.5'>
+            <p className='text-xs text-muted-foreground mt-0.5'>
               Enable delivery option for customers at checkout
             </p>
           </div>

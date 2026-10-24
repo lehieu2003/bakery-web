@@ -238,12 +238,12 @@ export default function PagesAdminPage() {
                 </td>
                 <td className='px-5 py-3.5 hidden md:table-cell'>
                   {page.isPublished ? (
-                    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600'>
+                    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600'>
                       <Globe size={10} />
                       Published
                     </span>
                   ) : (
-                    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground'>
+                    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground'>
                       <EyeOff size={10} />
                       Draft
                     </span>

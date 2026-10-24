@@ -112,7 +112,7 @@ function ProductCard({ product }: { product: SuggestedProduct }) {
             {product.name}
           </p>
           {product.shortDescription && (
-            <p className='text-[10px] text-muted-foreground line-clamp-1 mt-0.5'>
+            <p className='text-xs text-muted-foreground line-clamp-1 mt-0.5'>
               {product.shortDescription}
             </p>
           )}
@@ -123,7 +123,7 @@ function ProductCard({ product }: { product: SuggestedProduct }) {
               {product.price.toLocaleString('vi-VN')}đ
             </p>
             {product.comparePrice && product.comparePrice > product.price && (
-              <p className='text-[10px] text-muted-foreground line-through leading-none mt-0.5'>
+              <p className='text-xs text-muted-foreground line-through leading-none mt-0.5'>
                 {product.comparePrice.toLocaleString('vi-VN')}đ
               </p>
             )}
@@ -246,7 +246,7 @@ export default function ChatbotBubble() {
                 <p className='text-sm font-semibold leading-tight'>
                   Phương Loan Bakery
                 </p>
-                <p className='text-[11px] opacity-75 leading-tight'>
+                <p className='text-xs opacity-75 leading-tight'>
                   Trợ lý tư vấn bánh
                 </p>
               </div>
@@ -343,7 +343,7 @@ export default function ChatbotBubble() {
                 )}
               </button>
             </div>
-            <p className='text-[10px] text-muted-foreground text-center mt-1.5'>
+            <p className='text-xs text-muted-foreground text-center mt-1.5'>
               Enter để gửi · Shift+Enter xuống dòng
             </p>
           </div>
@@ -358,7 +358,7 @@ export default function ChatbotBubble() {
       >
         {open ? <X size={22} /> : <MessageCircle size={22} />}
         {!open && unread > 0 && (
-          <span className='absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center'>
+          <span className='absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center'>
             {unread > 9 ? '9+' : unread}
           </span>
         )}

@@ -107,11 +107,11 @@ function SortableBannerCard({
             <p className='text-xs font-medium text-foreground line-clamp-1'>
               {banner.description || 'No description'}
             </p>
-            <p className='text-[10px] text-muted-foreground truncate'>
+            <p className='text-xs text-muted-foreground truncate'>
               {banner.linkUrl || 'No link'}
             </p>
           </div>
-          <span className='text-[10px] text-muted-foreground shrink-0'>
+          <span className='text-xs text-muted-foreground shrink-0'>
             #{banner.displayOrder}
           </span>
         </div>
@@ -124,7 +124,7 @@ function SortableBannerCard({
               className='scale-75 origin-left'
               disabled={updatePending}
             />
-            <span className='text-[10px] text-muted-foreground'>
+            <span className='text-xs text-muted-foreground'>
               {banner.isActive ? 'Active' : 'Inactive'}
             </span>
           </div>

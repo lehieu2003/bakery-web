@@ -549,7 +549,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                     <p className='text-xs font-medium text-foreground'>
                       Status: Active
                     </p>
-                    <p className='text-[10px] text-muted-foreground mt-0.5'>
+                    <p className='text-xs text-muted-foreground mt-0.5'>
                       Active products appear in the store
                     </p>
                   </div>
@@ -611,7 +611,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
               <h2 className='font-serif text-sm font-semibold text-foreground'>
                 Media
               </h2>
-              <span className='text-[10px] text-muted-foreground'>
+              <span className='text-xs text-muted-foreground'>
                 {images.length} / 10 ảnh
               </span>
             </div>
@@ -700,14 +700,14 @@ export default function ProductForm({ productId }: { productId?: string }) {
                     }}
                   />
                   <Upload size={16} className='text-muted-foreground' />
-                  <span className='text-[10px] text-muted-foreground text-center leading-tight'>
+                  <span className='text-xs text-muted-foreground text-center leading-tight'>
                     Thêm ảnh
                   </span>
                 </label>
               )}
             </div>
 
-            <p className='text-[10px] text-muted-foreground'>
+            <p className='text-xs text-muted-foreground'>
               Ảnh đầu tiên hoặc ảnh được đánh dấu sẽ là ảnh chính. Tối đa 10 ảnh, mỗi ảnh tối đa 10MB.
             </p>
           </div>
@@ -753,7 +753,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                   >
                     <div>
                       {idx === 0 && (
-                        <Label className='text-[10px] font-medium text-muted-foreground'>
+                        <Label className='text-xs font-medium text-muted-foreground'>
                           Name
                         </Label>
                       )}
@@ -770,7 +770,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                     </div>
                     <div>
                       {idx === 0 && (
-                        <Label className='text-[10px] font-medium text-muted-foreground'>
+                        <Label className='text-xs font-medium text-muted-foreground'>
                           SKU
                         </Label>
                       )}
@@ -787,7 +787,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                     </div>
                     <div>
                       {idx === 0 && (
-                        <Label className='text-[10px] font-medium text-muted-foreground'>
+                        <Label className='text-xs font-medium text-muted-foreground'>
                           Price
                         </Label>
                       )}
@@ -808,7 +808,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                     </div>
                     <div>
                       {idx === 0 && (
-                        <Label className='text-[10px] font-medium text-muted-foreground'>
+                        <Label className='text-xs font-medium text-muted-foreground'>
                           Stock
                         </Label>
                       )}
@@ -868,7 +868,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
                           {attribute.name}
                         </p>
                         {attribute.description && (
-                          <p className='mt-0.5 text-[10px] text-muted-foreground'>
+                          <p className='mt-0.5 text-xs text-muted-foreground'>
                             {attribute.description}
                           </p>
                         )}

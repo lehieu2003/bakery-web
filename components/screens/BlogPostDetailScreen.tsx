@@ -120,7 +120,7 @@ export default function BlogPostDetailScreen({ slug }: { slug: string }) {
           {post.category && (
             <Link
               href={`/blog?category=${post.category.slug}`}
-              className='inline-block px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-primary/10 text-primary mb-4 hover:bg-primary/20 transition-colors'
+              className='inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-widest uppercase bg-primary/10 text-primary mb-4 hover:bg-primary/20 transition-colors'
             >
               {post.category.name}
             </Link>

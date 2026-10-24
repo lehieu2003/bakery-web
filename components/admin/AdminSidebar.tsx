@@ -151,7 +151,7 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
             className='h-10 w-auto'
             priority
           />
-          <p className='text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5'>
+          <p className='text-xs text-muted-foreground uppercase tracking-widest mt-0.5'>
             Admin Panel
           </p>
         </div>
@@ -221,7 +221,7 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
             <p className='text-xs font-medium text-sidebar-foreground truncate'>
               {user?.name}
             </p>
-            <p className='text-[10px] text-muted-foreground truncate'>
+            <p className='text-xs text-muted-foreground truncate'>
               {user?.email}
             </p>
           </div>

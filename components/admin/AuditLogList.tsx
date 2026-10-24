@@ -72,10 +72,10 @@ export default function AuditLogList({
           {logs.map((log) => (
             <div key={log.id} className='px-5 py-4 space-y-2'>
               <div className='flex items-center justify-between gap-3'>
-                <span className='inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-medium bg-muted text-foreground border-border'>
+                <span className='inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-muted text-foreground border-border'>
                   {log.mutationType}
                 </span>
-                <span className='text-[10px] text-muted-foreground'>
+                <span className='text-xs text-muted-foreground'>
                   {toReadableDate(log.createdAt)}
                 </span>
               </div>
@@ -85,11 +85,11 @@ export default function AuditLogList({
               </p>
 
               {log.metadata ? (
-                <details className='text-[11px]'>
+                <details className='text-xs'>
                   <summary className='cursor-pointer text-muted-foreground hover:text-foreground'>
                     Metadata
                   </summary>
-                  <pre className='mt-2 p-2 rounded-md bg-muted/40 border border-border overflow-auto text-[10px] leading-4'>
+                  <pre className='mt-2 p-2 rounded-md bg-muted/40 border border-border overflow-auto text-xs leading-4'>
                     {stringifyMetadata(log.metadata)}
                   </pre>
                 </details>

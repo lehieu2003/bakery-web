@@ -160,7 +160,7 @@ export default function DashboardPage() {
             <p className='font-serif text-xl font-semibold text-foreground'>
               {card.value}
             </p>
-            <p className='text-[10px] text-muted-foreground mt-1'>{card.sub}</p>
+            <p className='text-xs text-muted-foreground mt-1'>{card.sub}</p>
           </div>
         ))}
       </div>
@@ -174,7 +174,7 @@ export default function DashboardPage() {
               <p className='text-sm font-semibold text-foreground'>
                 Orders (Last {windowDays} days)
               </p>
-              <p className='text-[10px] text-muted-foreground'>
+              <p className='text-xs text-muted-foreground'>
                 Total: {totalWeekOrders} orders
               </p>
             </div>
@@ -239,7 +239,7 @@ export default function DashboardPage() {
               <p className='text-sm font-semibold text-foreground'>
                 Revenue (Last {windowDays} days)
               </p>
-              <p className='text-[10px] text-muted-foreground'>
+              <p className='text-xs text-muted-foreground'>
                 Total: {formatRevenue(totalWeekRevenue)}
               </p>
             </div>
@@ -320,12 +320,12 @@ export default function DashboardPage() {
                       {order.orderNumber}
                     </p>
                     <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}
                     >
                       {ORDER_STATUS_LABELS[order.status as OrderStatus]}
                     </span>
                   </div>
-                  <p className='text-[10px] text-muted-foreground mt-0.5'>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
                     {order.customerName} ·{' '}
                     {new Date(order.createdAt).toLocaleString('vi-VN')}
                   </p>

@@ -222,7 +222,7 @@ export default function AuthScreen() {
                           },
                         })}
                         placeholder='hello@example.com'
-                        className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.email ? 'border-destructive' : 'border-input'}`}
+                        className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.email ? 'border-destructive' : 'border-input'}`}
                         autoComplete='email'
                       />
                       {loginErrors.email && (
@@ -261,7 +261,8 @@ export default function AuthScreen() {
                             },
                           })}
                           placeholder='Nhập mật khẩu'
-                          className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.password ? 'border-destructive' : 'border-input'}`}
+                          className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.password ? 'border-destructive' : 'border-input'}`}
+
                           autoComplete='current-password'
                         />
                         <button
@@ -333,7 +334,7 @@ export default function AuthScreen() {
                           },
                         })}
                         placeholder='hello@example.com'
-                        className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.email ? 'border-destructive' : 'border-input'}`}
+                        className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.email ? 'border-destructive' : 'border-input'}`}
                         autoComplete='email'
                       />
                       {forgotErrors.email && (
@@ -363,7 +364,8 @@ export default function AuthScreen() {
                               },
                             })}
                             placeholder='Nhập mã OTP 6 chữ số'
-                            className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.otp ? 'border-destructive' : 'border-input'}`}
+                            className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.otp ? 'border-destructive' : 'border-input'}`}
+
                             maxLength={6}
                           />
                           {forgotErrors.otp && (
@@ -393,7 +395,8 @@ export default function AuthScreen() {
                                 },
                               })}
                               placeholder='Nhập mật khẩu mới'
-                              className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.newPassword ? 'border-destructive' : 'border-input'}`}
+                              className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.newPassword ? 'border-destructive' : 'border-input'}`}
+
                               autoComplete='new-password'
                             />
                             <button
@@ -543,7 +546,7 @@ export default function AuthScreen() {
                             },
                           })}
                           placeholder='hello@example.com'
-                          className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.email ? 'border-destructive' : 'border-input'}`}
+                          className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.email ? 'border-destructive' : 'border-input'}`}
                           autoComplete='email'
                         />
                         {registerErrors.email && (
@@ -627,7 +630,8 @@ export default function AuthScreen() {
                             },
                           })}
                           placeholder='Nhập mã OTP 6 chữ số'
-                          className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.otp ? 'border-destructive' : 'border-input'}`}
+                          className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.otp ? 'border-destructive' : 'border-input'}`}
+
                           maxLength={6}
                         />
                         {registerErrors.otp && (
@@ -653,7 +657,8 @@ export default function AuthScreen() {
                           type='text'
                           {...registerRegister('name')}
                           placeholder='Nguyễn Thị Linh'
-                          className='w-full h-11 px-4 rounded-xl border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all'
+                          className='w-full h-11 px-4 rounded-xl border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all'
+
                           autoComplete='name'
                         />
                       </div>
@@ -679,7 +684,8 @@ export default function AuthScreen() {
                               },
                             })}
                             placeholder='Tối thiểu 8 ký tự'
-                            className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.password ? 'border-destructive' : 'border-input'}`}
+                            className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.password ? 'border-destructive' : 'border-input'}`}
+
                             autoComplete='new-password'
                           />
                           <button
