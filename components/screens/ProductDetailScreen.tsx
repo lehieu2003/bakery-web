@@ -1,7 +1,16 @@
 'use client';
 
 import Image from 'next/image';
-import { ChevronLeft, Heart, ShoppingBag, Star, ZoomIn, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  Heart,
+  Pause,
+  Play,
+  ShoppingBag,
+  Star,
+  ZoomIn,
+  X,
+} from 'lucide-react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCart } from '@/lib/cart-store';
 import { useCategories, useProductDetail } from '@/hooks/use-products';
@@ -58,11 +67,27 @@ export default function ProductDetailScreen({
   );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const autoplayRef = useRef(
-    Autoplay({ delay: 3000, stopOnInteraction: false }),
+    Autoplay({
+      delay: 3000,
+      stopOnInteraction: false,
+      stopOnMouseEnter: true,
+      stopOnFocusIn: true,
+    }),
   );
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
     autoplayRef.current,
   ]);
+  const [autoPlayOn, setAutoPlayOn] = useState(true);
+
+  const toggleAutoPlay = () => {
+    if (autoPlayOn) {
+      autoplayRef.current.stop();
+      setAutoPlayOn(false);
+    } else {
+      autoplayRef.current.play();
+      setAutoPlayOn(true);
+    }
+  };
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -345,10 +370,24 @@ export default function ProductDetailScreen({
                     </button>
                   ))}
                 </div>
-                <span className='text-xs text-muted-foreground'>
-                  {activeImageIndex + 1} /{' '}
-                  {getProductImages(selectedProduct).length}
-                </span>
+                <div className='flex items-center gap-2'>
+                  <span className='text-xs text-muted-foreground'>
+                    {activeImageIndex + 1} /{' '}
+                    {getProductImages(selectedProduct).length}
+                  </span>
+                  <button
+                    type='button'
+                    onClick={toggleAutoPlay}
+                    aria-label={
+                      autoPlayOn
+                        ? 'Tạm dừng tự động chuyển ảnh'
+                        : 'Tiếp tục tự động chuyển ảnh'
+                    }
+                    className='flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground'
+                  >
+                    {autoPlayOn ? <Pause size={14} /> : <Play size={14} />}
+                  </button>
+                </div>
               </div>
             )}
 
