@@ -226,7 +226,7 @@ export default function CategoryScreen({ slugPath }: CategoryScreenProps) {
               }}
               className='text-xs font-medium text-primary'
             >
-              Xoá lọc
+              Xóa lọc
             </button>
           )}
         </div>

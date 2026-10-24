@@ -674,7 +674,7 @@ export default function ProductDetailScreen({
                 disabled={isToggling}
                 aria-label={
                   isFavorite
-                    ? 'Xoá khỏi danh sách yêu thích'
+                    ? 'Xóa khỏi danh sách yêu thích'
                     : 'Thêm vào danh sách yêu thích'
                 }
                 className='h-12 w-12 rounded-full border border-border bg-card text-foreground flex items-center justify-center transition-colors hover:border-primary/40 disabled:opacity-60'

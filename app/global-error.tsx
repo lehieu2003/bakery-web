@@ -8,7 +8,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html lang='en'>
+    <html lang='vi'>
       <body>
         <main className='mx-auto max-w-xl px-6 py-20 text-center'>
           <h1 className='text-2xl font-semibold'>Lỗi ứng dụng</h1>
