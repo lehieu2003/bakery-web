@@ -11,15 +11,15 @@ export default function GlobalError({
     <html lang='en'>
       <body>
         <main className='mx-auto max-w-xl px-6 py-20 text-center'>
-          <h1 className='text-2xl font-semibold'>Application error</h1>
+          <h1 className='text-2xl font-semibold'>Lỗi ứng dụng</h1>
           <p className='mt-2 text-sm text-muted-foreground'>
-            {error.message || 'A fatal error occurred.'}
+            {error.message || 'Đã xảy ra lỗi nghiêm trọng.'}
           </p>
           <button
             onClick={reset}
             className='mt-6 rounded-md border px-4 py-2 text-sm hover:bg-muted'
           >
-            Reload
+            Tải lại trang
           </button>
         </main>
       </body>

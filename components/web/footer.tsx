@@ -83,7 +83,7 @@ export default function WebFooter() {
       <div className='max-w-7xl mx-auto px-6 lg:px-8 py-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10'>
         {/* Brand column */}
         <div className='lg:col-span-1'>
-          <Link href='/' aria-label='Phương Loan Bakery home'>
+          <Link href='/' aria-label='Trang chủ Phương Loan Bakery'>
             <p
               className='font-serif text-2xl font-bold text-white tracking-tight'
               style={{ fontFamily: 'Georgia, serif' }}

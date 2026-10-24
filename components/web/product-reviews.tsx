@@ -93,12 +93,12 @@ export default function ProductReviewsSection({
   }
 
   return (
-    <section className='mt-8' aria-label='Product reviews'>
+    <section className='mt-8' aria-label='Đánh giá sản phẩm'>
       {hasStats && (
         <div className='flex items-center gap-2'>
           <StarRating rating={Math.round(ratingAverage ?? 0)} />
           <span className='text-sm text-muted-foreground'>
-            ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
+            ({reviewCount} đánh giá)
           </span>
         </div>
       )}

@@ -144,7 +144,7 @@ export default function AuthScreen() {
     return score;
   };
   const strength = passwordStrength(regPassword);
-  const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][strength];
+  const strengthLabel = ['', 'Yếu', 'Trung bình', 'Tốt', 'Mạnh'][strength];
   const strengthColor = [
     '',
     'bg-red-400',
@@ -162,7 +162,7 @@ export default function AuthScreen() {
           className='flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-8 transition-colors'
         >
           <ArrowLeft size={16} />
-          Back to home
+          Về trang chủ
         </Link>
 
         {/* Card */}
@@ -179,7 +179,7 @@ export default function AuthScreen() {
                     : 'text-muted-foreground hover:text-foreground bg-secondary/50'
                 }`}
               >
-                {t === 'login' ? 'Sign In' : 'Create Account'}
+                {t === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
               </button>
             ))}
           </div>
@@ -190,10 +190,10 @@ export default function AuthScreen() {
                 {/* Header */}
                 <div className='mb-7'>
                   <h1 className='font-serif text-2xl font-semibold text-foreground text-balance'>
-                    Welcome back
+                    Chào mừng trở lại
                   </h1>
                   <p className='text-sm text-muted-foreground mt-1'>
-                    Sign in to your Phương Loan Bakery account
+                    Đăng nhập vào tài khoản Phương Loan Bakery của bạn
                   </p>
                 </div>
 
@@ -215,10 +215,10 @@ export default function AuthScreen() {
                         id='login-email'
                         type='email'
                         {...loginRegister('email', {
-                          required: 'Email is required',
+                          required: 'Vui lòng nhập email',
                           pattern: {
                             value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                            message: 'Invalid email address',
+                            message: 'Địa chỉ email không hợp lệ',
                           },
                         })}
                         placeholder='hello@example.com'
@@ -239,14 +239,14 @@ export default function AuthScreen() {
                           htmlFor='login-password'
                           className='text-sm font-medium text-foreground'
                         >
-                          Password
+                          Mật khẩu
                         </label>
                         <button
                           type='button'
                           onClick={() => setForgotMode(true)}
                           className='text-xs text-primary hover:underline'
                         >
-                          Forgot password?
+                          Quên mật khẩu?
                         </button>
                       </div>
                       <div className='relative'>
@@ -254,13 +254,13 @@ export default function AuthScreen() {
                           id='login-password'
                           type={loginShowPw ? 'text' : 'password'}
                           {...loginRegister('password', {
-                            required: 'Password is required',
+                            required: 'Vui lòng nhập mật khẩu',
                             minLength: {
                               value: 6,
-                              message: 'Password must be at least 6 characters',
+                              message: 'Mật khẩu phải có ít nhất 6 ký tự',
                             },
                           })}
-                          placeholder='Enter your password'
+                          placeholder='Nhập mật khẩu'
                           className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${loginErrors.password ? 'border-destructive' : 'border-input'}`}
                           autoComplete='current-password'
                         />
@@ -269,7 +269,7 @@ export default function AuthScreen() {
                           onClick={() => setLoginShowPw(!loginShowPw)}
                           className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
                           aria-label={
-                            loginShowPw ? 'Hide password' : 'Show password'
+                            loginShowPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'
                           }
                         >
                           {loginShowPw ? (
@@ -300,7 +300,7 @@ export default function AuthScreen() {
                       disabled={loginMutation.isPending}
                       className='w-full h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed'
                     >
-                      {loginMutation.isPending ? 'Signing In...' : 'Sign In'}
+                      {loginMutation.isPending ? 'Đang đăng nhập…' : 'Đăng nhập'}
                     </button>
                   </form>
                 ) : (
@@ -326,10 +326,10 @@ export default function AuthScreen() {
                         id='forgot-email'
                         type='email'
                         {...forgotRegister('email', {
-                          required: 'Email is required',
+                          required: 'Vui lòng nhập email',
                           pattern: {
                             value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                            message: 'Invalid email address',
+                            message: 'Địa chỉ email không hợp lệ',
                           },
                         })}
                         placeholder='hello@example.com'
@@ -350,19 +350,19 @@ export default function AuthScreen() {
                             htmlFor='forgot-otp'
                             className='text-sm font-medium text-foreground'
                           >
-                            OTP Code
+                            Mã OTP
                           </label>
                           <input
                             id='forgot-otp'
                             type='text'
                             {...forgotRegister('otp', {
-                              required: 'OTP is required',
+                              required: 'Vui lòng nhập mã OTP',
                               pattern: {
                                 value: /^[0-9]{6}$/,
-                                message: 'OTP must be 6 digits',
+                                message: 'Mã OTP phải có 6 chữ số',
                               },
                             })}
-                            placeholder='Enter 6-digit OTP'
+                            placeholder='Nhập mã OTP 6 chữ số'
                             className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.otp ? 'border-destructive' : 'border-input'}`}
                             maxLength={6}
                           />
@@ -378,21 +378,21 @@ export default function AuthScreen() {
                             htmlFor='forgot-password'
                             className='text-sm font-medium text-foreground'
                           >
-                            New Password
+                            Mật khẩu mới
                           </label>
                           <div className='relative'>
                             <input
                               id='forgot-password'
                               type={forgotShowPw ? 'text' : 'password'}
                               {...forgotRegister('newPassword', {
-                                required: 'New password is required',
+                                required: 'Vui lòng nhập mật khẩu mới',
                                 minLength: {
                                   value: 6,
                                   message:
-                                    'New password must be at least 6 characters',
+                                    'Mật khẩu mới phải có ít nhất 6 ký tự',
                                 },
                               })}
-                              placeholder='Enter your new password'
+                              placeholder='Nhập mật khẩu mới'
                               className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${forgotErrors.newPassword ? 'border-destructive' : 'border-input'}`}
                               autoComplete='new-password'
                             />
@@ -401,7 +401,7 @@ export default function AuthScreen() {
                               onClick={() => setForgotShowPw(!forgotShowPw)}
                               className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
                               aria-label={
-                                forgotShowPw ? 'Hide password' : 'Show password'
+                                forgotShowPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'
                               }
                             >
                               {forgotShowPw ? (
@@ -442,7 +442,7 @@ export default function AuthScreen() {
                         }}
                         className='flex-1 h-11 rounded-full border border-input text-foreground text-sm font-semibold tracking-wide hover:bg-muted transition-all'
                       >
-                        Back to Sign In
+                        Về đăng nhập
                       </button>
                       <button
                         type='submit'
@@ -454,11 +454,11 @@ export default function AuthScreen() {
                       >
                         {forgotOtpSent
                           ? resetPasswordVerifyMutation.isPending
-                            ? 'Resetting...'
-                            : 'Reset Password'
+                            ? 'Đang đặt lại…'
+                            : 'Đặt lại mật khẩu'
                           : resetPasswordMutation.isPending
-                            ? 'Sending...'
-                            : 'Send OTP Code'}
+                            ? 'Đang gửi…'
+                            : 'Gửi mã OTP'}
                       </button>
                     </div>
                   </form>
@@ -467,17 +467,17 @@ export default function AuthScreen() {
                 {/* Divider */}
                 <div className='flex items-center gap-3 my-6'>
                   <span className='flex-1 h-px bg-border/60' />
-                  <span className='text-xs text-muted-foreground'>or</span>
+                  <span className='text-xs text-muted-foreground'>hoặc</span>
                   <span className='flex-1 h-px bg-border/60' />
                 </div>
 
                 <p className='text-center text-sm text-muted-foreground'>
-                  {"Don't have an account? "}
+                  {'Chưa có tài khoản? '}
                   <button
                     onClick={() => setTab('register')}
                     className='text-primary font-medium hover:underline'
                   >
-                    Create one
+                    Tạo tài khoản
                   </button>
                 </p>
               </>
@@ -486,19 +486,19 @@ export default function AuthScreen() {
                 {/* Header */}
                 <div className='mb-7'>
                   <h1 className='font-serif text-2xl font-semibold text-foreground text-balance'>
-                    Join Phương Loan Bakery
+                    Tham gia Phương Loan Bakery
                   </h1>
                   <p className='text-sm text-muted-foreground mt-1'>
-                    Create an account to earn points and enjoy member savings
+                    Tạo tài khoản để tích điểm và nhận ưu đãi thành viên
                   </p>
                 </div>
 
                 {/* Membership perks teaser */}
                 <div className='bg-secondary/70 rounded-xl p-4 mb-6 space-y-2'>
                   {[
-                    'Up to 15% off every order',
-                    'Earn points on every purchase',
-                    'Exclusive member-only offers',
+                    'Giảm đến 15% cho mỗi đơn hàng',
+                    'Tích điểm với mỗi lần mua hàng',
+                    'Ưu đãi độc quyền dành riêng cho thành viên',
                   ].map((perk) => (
                     <div key={perk} className='flex items-center gap-2.5'>
                       <span className='w-4 h-4 rounded-full bg-primary/15 flex items-center justify-center shrink-0'>
@@ -536,10 +536,10 @@ export default function AuthScreen() {
                           id='reg-email'
                           type='email'
                           {...registerRegister('email', {
-                            required: 'Email is required',
+                            required: 'Vui lòng nhập email',
                             pattern: {
                               value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                              message: 'Invalid email address',
+                              message: 'Địa chỉ email không hợp lệ',
                             },
                           })}
                           placeholder='hello@example.com'
@@ -572,17 +572,17 @@ export default function AuthScreen() {
                             )}
                           </button>
                           <span className='text-xs text-muted-foreground leading-relaxed'>
-                            I agree to the{' '}
+                            Tôi đồng ý với{' '}
                             <span className='text-primary'>
-                              Terms of Service
+                              Điều khoản sử dụng
                             </span>{' '}
-                            and{' '}
-                            <span className='text-primary'>Privacy Policy</span>
+                            và{' '}
+                            <span className='text-primary'>Chính sách bảo mật</span>
                           </span>
                         </label>
                         {!agreed && registerMutation.isError && (
                           <p className='text-xs text-destructive pl-7'>
-                            You must agree to the terms
+                            Bạn cần đồng ý với điều khoản
                           </p>
                         )}
                       </div>
@@ -602,8 +602,8 @@ export default function AuthScreen() {
                         className='w-full h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed'
                       >
                         {registerMutation.isPending
-                          ? 'Sending...'
-                          : 'Send OTP Code'}
+                          ? 'Đang gửi…'
+                          : 'Gửi mã OTP'}
                       </button>
                     </>
                   ) : (
@@ -614,19 +614,19 @@ export default function AuthScreen() {
                           htmlFor='reg-otp'
                           className='text-sm font-medium text-foreground'
                         >
-                          OTP Code
+                          Mã OTP
                         </label>
                         <input
                           id='reg-otp'
                           type='text'
                           {...registerRegister('otp', {
-                            required: 'OTP is required',
+                            required: 'Vui lòng nhập mã OTP',
                             pattern: {
                               value: /^[0-9]{6}$/,
-                              message: 'OTP must be 6 digits',
+                              message: 'Mã OTP phải có 6 chữ số',
                             },
                           })}
-                          placeholder='Enter 6-digit OTP'
+                          placeholder='Nhập mã OTP 6 chữ số'
                           className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.otp ? 'border-destructive' : 'border-input'}`}
                           maxLength={6}
                         />
@@ -636,7 +636,7 @@ export default function AuthScreen() {
                           </p>
                         )}
                         <p className='text-xs text-muted-foreground'>
-                          Check your email for the OTP code
+                          Vui lòng kiểm tra email để nhận mã OTP
                         </p>
                       </div>
 
@@ -646,13 +646,13 @@ export default function AuthScreen() {
                           htmlFor='reg-name'
                           className='text-sm font-medium text-foreground'
                         >
-                          Full Name (Optional)
+                          Họ tên (không bắt buộc)
                         </label>
                         <input
                           id='reg-name'
                           type='text'
                           {...registerRegister('name')}
-                          placeholder='Nguyen Thi Linh'
+                          placeholder='Nguyễn Thị Linh'
                           className='w-full h-11 px-4 rounded-xl border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all'
                           autoComplete='name'
                         />
@@ -664,21 +664,21 @@ export default function AuthScreen() {
                           htmlFor='reg-password'
                           className='text-sm font-medium text-foreground'
                         >
-                          Password
+                          Mật khẩu
                         </label>
                         <div className='relative'>
                           <input
                             id='reg-password'
                             type={regShowPw ? 'text' : 'password'}
                             {...registerRegister('password', {
-                              required: 'Password is required',
+                              required: 'Vui lòng nhập mật khẩu',
                               minLength: {
                                 value: 8,
                                 message:
-                                  'Password must be at least 8 characters',
+                                  'Mật khẩu phải có ít nhất 8 ký tự',
                               },
                             })}
-                            placeholder='Minimum 8 characters'
+                            placeholder='Tối thiểu 8 ký tự'
                             className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${registerErrors.password ? 'border-destructive' : 'border-input'}`}
                             autoComplete='new-password'
                           />
@@ -687,7 +687,7 @@ export default function AuthScreen() {
                             onClick={() => setRegShowPw(!regShowPw)}
                             className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
                             aria-label={
-                              regShowPw ? 'Hide password' : 'Show password'
+                              regShowPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'
                             }
                           >
                             {regShowPw ? (
@@ -735,7 +735,7 @@ export default function AuthScreen() {
                           onClick={() => setOtpSent(false)}
                           className='flex-1 h-11 rounded-full border border-input text-foreground text-sm font-semibold tracking-wide hover:bg-muted transition-all'
                         >
-                          Back
+                          Quay lại
                         </button>
                         <button
                           type='submit'
@@ -743,8 +743,8 @@ export default function AuthScreen() {
                           className='flex-1 h-11 rounded-full bg-primary text-white text-sm font-semibold tracking-wide shadow-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed'
                         >
                           {registerVerifyMutation.isPending
-                            ? 'Creating...'
-                            : 'Create Account'}
+                            ? 'Đang tạo…'
+                            : 'Tạo tài khoản'}
                         </button>
                       </div>
                     </>
@@ -752,12 +752,12 @@ export default function AuthScreen() {
                 </form>
 
                 <p className='text-center text-sm text-muted-foreground mt-5'>
-                  Already have an account?{' '}
+                  Đã có tài khoản?{' '}
                   <button
                     onClick={() => setTab('login')}
                     className='text-primary font-medium hover:underline'
                   >
-                    Sign in
+                    Đăng nhập
                   </button>
                 </p>
               </>

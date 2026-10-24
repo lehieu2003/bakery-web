@@ -315,7 +315,7 @@ export default function CheckoutInfoScreen() {
   const memberLabel =
     membershipBenefitsQuery.data?.benefits.currentTier.label ??
     user?.level ??
-    'Member';
+    'Thành viên';
   const membershipPoints =
     membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
   const eligibilityMessage = membershipBenefitsQuery.isLoading

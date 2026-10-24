@@ -136,12 +136,12 @@ describe('Order history quick reorder', () => {
 
     expect(
       screen.getByRole('button', {
-        name: /Reorder order BK260406DONE/i,
+        name: /Đặt lại đơn BK260406DONE/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', {
-        name: /Reorder order BK260406PEND/i,
+        name: /Đặt lại đơn BK260406PEND/i,
       }),
     ).not.toBeInTheDocument();
   });
@@ -180,7 +180,7 @@ describe('Order history quick reorder', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: /Reorder order BK260406DONE/i,
+        name: /Đặt lại đơn BK260406DONE/i,
       }),
     );
 
@@ -205,12 +205,12 @@ describe('Order history quick reorder', () => {
     });
 
     expect(
-      screen.getByText(/Added 1 item\(s\) to cart from order #BK260406DONE\./i),
+      screen.getByText(/Đã thêm 1 món vào giỏ từ đơn #BK260406DONE\./i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Seasonal Tart: Seasonal Tart is no longer available\./i),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Review cart/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Xem giỏ hàng/i })).toHaveAttribute(
       'href',
       '/cart',
     );
