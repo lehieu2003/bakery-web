@@ -245,7 +245,7 @@ export default function CartScreen() {
                     {['MoMo', 'ZaloPay', 'VNPAY', 'Tiền mặt'].map((method) => (
                       <span
                         key={method}
-                        className='text-[10px] font-semibold text-muted-foreground border border-border rounded-full px-2 py-0.5'
+                        className='text-xs font-semibold text-muted-foreground border border-border rounded-full px-2 py-0.5'
                       >
                         {method}
                       </span>

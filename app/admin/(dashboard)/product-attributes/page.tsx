@@ -258,13 +258,13 @@ export default function ProductAttributesPage() {
                       <p className='text-sm font-medium text-foreground'>
                         {attribute.name}
                       </p>
-                      <p className='mt-1 text-[11px] font-mono text-muted-foreground'>
+                      <p className='mt-1 text-xs font-mono text-muted-foreground'>
                         {attribute.code} · {attribute.slug}
                       </p>
                     </div>
                   </td>
                   <td className='px-4 py-4 align-top'>
-                    <span className='rounded-full border border-border px-2 py-1 text-[10px] font-semibold tracking-wide text-muted-foreground'>
+                    <span className='rounded-full border border-border px-2 py-1 text-xs font-semibold tracking-wide text-muted-foreground'>
                       {attribute.type}
                     </span>
                   </td>
@@ -274,7 +274,7 @@ export default function ProductAttributesPage() {
                         attribute.values!.map((value: ProductAttributeValue) => (
                           <span
                             key={value.id}
-                            className='rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary'
+                            className='rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary'
                           >
                             {value.label}
                           </span>
@@ -287,7 +287,7 @@ export default function ProductAttributesPage() {
                     </div>
                   </td>
                   <td className='px-4 py-4 align-top'>
-                    <div className='space-y-1 text-[11px] text-muted-foreground'>
+                    <div className='space-y-1 text-xs text-muted-foreground'>
                       <p>{attribute.isActive ? 'Active' : 'Inactive'}</p>
                       <p>{attribute.isFilterable ? 'Filterable' : 'Hidden'}</p>
                     </div>

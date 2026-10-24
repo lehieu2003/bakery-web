@@ -137,7 +137,7 @@ function SavedAddressPicker({
                 {savedAddress.fullName}
               </span>
               {savedAddress.isDefault && (
-                <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
+                <span className='text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
                   Mặc định
                 </span>
               )}

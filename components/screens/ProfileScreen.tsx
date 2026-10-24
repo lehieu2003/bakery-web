@@ -290,8 +290,9 @@ function SavedAddressesSection() {
                   {address.fullName}
                 </p>
                 {address.isDefault && (
-                  <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
+                  <span className='text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
                     Mặc định
+
                   </span>
                 )}
               </div>
@@ -451,7 +452,7 @@ export default function ProfileScreen() {
                   className={`flex-1 rounded-2xl border ${s.border} ${s.bg} p-5`}
                 >
                   <span
-                    className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${s.badge}`}
+                    className={`text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-full ${s.badge}`}
                   >
                     {level}
                   </span>
@@ -598,7 +599,7 @@ export default function ProfileScreen() {
                 {displayName}
               </p>
               <span
-                className={`text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/60 ${lc.text} inline-block mt-1`}
+                className={`text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/60 ${lc.text} inline-block mt-1`}
               >
                 Thành viên hạng {userLevel}
               </span>
@@ -772,8 +773,9 @@ export default function ProfileScreen() {
                           {level}
                         </span>
                         {isCurrent && (
-                          <span className='text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
+                          <span className='text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold'>
                             Hiện tại
+
                           </span>
                         )}
                       </div>
@@ -786,7 +788,7 @@ export default function ProfileScreen() {
                         {LEVEL_BENEFITS[level].perks.map((perk) => (
                           <span
                             key={perk}
-                            className={`text-[10px] px-2 py-0.5 rounded-full ${isUnlocked ? 'bg-background text-foreground border border-border' : 'bg-border/40 text-muted-foreground'}`}
+                            className={`text-xs px-2 py-0.5 rounded-full ${isUnlocked ? 'bg-background text-foreground border border-border' : 'bg-border/40 text-muted-foreground'}`}
                           >
                             {perk}
                           </span>
@@ -906,12 +908,12 @@ export default function ProfileScreen() {
                             </p>
                             <div className='mt-1 flex flex-wrap gap-1.5'>
                               <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
                               >
                                 {toVietnameseStatusLabel(orderStatus.label)}
                               </span>
                               <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
                               >
                                 {toVietnameseStatusLabel(paymentStatus.label)}
                               </span>

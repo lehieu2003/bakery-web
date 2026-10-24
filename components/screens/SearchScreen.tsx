@@ -166,7 +166,7 @@ export default function SearchScreen() {
     <div className='space-y-6'>
       <div>
         <div className='mb-2 flex items-center justify-between'>
-          <p className='text-[11px] font-bold uppercase tracking-widest text-foreground'>
+          <p className='text-xs font-bold uppercase tracking-widest text-foreground'>
             Bộ lọc nhanh
           </p>
           {hasActiveFilters && (
@@ -178,7 +178,7 @@ export default function SearchScreen() {
                 setInStockOnly(false);
                 setPage(1);
               }}
-              className='text-[11px] font-medium text-primary'
+              className='text-xs font-medium text-primary'
             >
               Xoá lọc
             </button>
@@ -230,7 +230,7 @@ export default function SearchScreen() {
           }`}
         >
           Chỉ hiện còn hàng
-          <span className='text-[11px] font-semibold'>
+          <span className='text-xs font-semibold'>
             {inStockOnly ? 'ON' : 'OFF'}
           </span>
         </button>
@@ -240,7 +240,7 @@ export default function SearchScreen() {
         const selectedValueSlugs = selectedFilters[group.slug] || [];
         return (
           <div key={group.id}>
-            <p className='mb-2.5 text-[11px] font-bold uppercase tracking-widest text-foreground'>
+            <p className='mb-2.5 text-xs font-bold uppercase tracking-widest text-foreground'>
               {group.name}
             </p>
             <div className='space-y-2'>

@@ -204,7 +204,7 @@ export default function OrdersPage() {
             setPage(1);
           }}
           className={cn(
-            'px-3 py-1 rounded-full text-[10px] font-medium border transition-all',
+            'px-3 py-1 rounded-full text-xs font-medium border transition-all',
             statusFilter === 'ALL'
               ? 'bg-foreground text-background border-foreground'
               : 'bg-card text-muted-foreground border-border hover:border-foreground/30',
@@ -220,7 +220,7 @@ export default function OrdersPage() {
               setPage(1);
             }}
             className={cn(
-              'px-3 py-1 rounded-full text-[10px] font-medium border transition-all',
+              'px-3 py-1 rounded-full text-xs font-medium border transition-all',
               statusFilter === s
                 ? `${ORDER_STATUS_COLORS[s]} border-current`
                 : 'bg-card text-muted-foreground border-border hover:border-foreground/30',
@@ -267,7 +267,7 @@ export default function OrdersPage() {
                   <p className='text-xs font-semibold text-foreground'>
                     {order.orderNumber}
                   </p>
-                  <p className='text-[10px] text-muted-foreground mt-0.5 sm:hidden'>
+                  <p className='text-xs text-muted-foreground mt-0.5 sm:hidden'>
                     {order.customerName}
                   </p>
                 </td>
@@ -275,7 +275,7 @@ export default function OrdersPage() {
                   <p className='text-xs font-medium text-foreground'>
                     {order.customerName}
                   </p>
-                  <p className='text-[10px] text-muted-foreground mt-0.5'>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
                     {order.customerPhone}
                   </p>
                 </td>
@@ -284,7 +284,7 @@ export default function OrdersPage() {
                     {formatVND(Number(order.total))}
                   </p>
                   {Number(order.discount) > 0 && (
-                    <p className='text-[10px] text-emerald-600 mt-0.5'>
+                    <p className='text-xs text-emerald-600 mt-0.5'>
                       -{formatVND(Number(order.discount))}
                     </p>
                   )}
@@ -292,7 +292,7 @@ export default function OrdersPage() {
                 <td className='px-5 py-3.5 hidden md:table-cell'>
                   <span
                     className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
+                      'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
                       isAwaitingRefund(order.status, order.payment?.status)
                         ? 'bg-rose-50 text-rose-700 border-rose-200'
                         : order.payment?.status === 'PAID'
@@ -304,19 +304,19 @@ export default function OrdersPage() {
                       ? 'NEEDS REFUND'
                       : order.payment?.status || 'N/A'}
                   </span>
-                  <p className='text-[10px] text-muted-foreground mt-0.5'>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
                     {order.paymentMethod || 'N/A'}
                   </p>
                 </td>
                 <td className='px-5 py-3.5'>
                   <span
-                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}
                   >
                     {ORDER_STATUS_LABELS[order.status as OrderStatus]}
                   </span>
                 </td>
                 <td className='px-5 py-3.5 hidden lg:table-cell'>
-                  <span className='text-[10px] text-muted-foreground'>
+                  <span className='text-xs text-muted-foreground'>
                     {new Date(order.createdAt).toLocaleString('vi-VN')}
                   </span>
                 </td>

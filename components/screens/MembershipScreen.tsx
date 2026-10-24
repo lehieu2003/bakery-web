@@ -186,7 +186,7 @@ export default function MembershipScreen() {
                 className={`relative rounded-2xl p-6 transition-all duration-200 ${tier.cardClass}`}
               >
                 {tier.featured && (
-                  <span className='absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-1 rounded-full shadow'>
+                  <span className='absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-white text-xs font-bold uppercase tracking-widest px-4 py-1 rounded-full shadow'>
                     Phổ biến nhất
                   </span>
                 )}
@@ -207,7 +207,7 @@ export default function MembershipScreen() {
                     <p className='text-xs text-gray-500'>{tier.subtitle}</p>
                   </div>
                   <span
-                    className={`ml-auto text-[11px] font-semibold px-3 py-1 rounded-full ${tier.badgeClass}`}
+                    className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${tier.badgeClass}`}
                   >
                     {tier.discount}% off
                   </span>

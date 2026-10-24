@@ -112,7 +112,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
                     Trạng thái đơn
                   </span>
                   <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${toneToBadgeClass(orderStatus.tone)}`}
                   >
                     {toVietnameseStatusLabel(orderStatus.label)}
                   </span>
@@ -122,7 +122,7 @@ export default function SuccessScreen({ orderNumber }: SuccessScreenProps) {
                     Thanh toán
                   </span>
                   <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${toneToBadgeClass(paymentStatus.tone)}`}
                   >
                     {toVietnameseStatusLabel(paymentStatus.label)}
                   </span>

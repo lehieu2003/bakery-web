@@ -184,7 +184,7 @@ function AdminCouponsPageContent() {
                   </td>
                   <td className='px-4 py-3'>
                     <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${coupon.isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-secondary text-muted-foreground border-border'}`}
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${coupon.isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-secondary text-muted-foreground border-border'}`}
                     >
                       {coupon.isActive ? 'Active' : 'Inactive'}
                     </span>

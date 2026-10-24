@@ -353,7 +353,7 @@ export default function BlogPostsAdminPage() {
                         <p className='text-xs font-medium text-foreground truncate'>
                           {post.title}
                         </p>
-                        <p className='text-[10px] text-muted-foreground font-mono truncate'>
+                        <p className='text-xs text-muted-foreground font-mono truncate'>
                           {post.slug}
                         </p>
                       </div>
@@ -366,7 +366,7 @@ export default function BlogPostsAdminPage() {
                   </td>
                   <td className='px-5 py-3.5 hidden sm:table-cell'>
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${st.className}`}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${st.className}`}
                     >
                       {st.icon}
                       {st.label}
@@ -585,7 +585,7 @@ export default function BlogPostsAdminPage() {
                       key={tag.id}
                       type='button'
                       onClick={() => toggleTag(tag.id)}
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border ${
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
                         formTagIds.includes(tag.id)
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'

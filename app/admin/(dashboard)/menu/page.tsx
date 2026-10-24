@@ -283,7 +283,7 @@ export default function MenuAdminPage() {
                   </div>
                 </td>
                 <td className='px-5 py-3.5 hidden sm:table-cell'>
-                  <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted'>
+                  <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted'>
                     {typeIcons[item.type]}
                     {typeLabels[item.type]}
                   </span>

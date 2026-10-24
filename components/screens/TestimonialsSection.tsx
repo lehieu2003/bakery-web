@@ -109,7 +109,7 @@ export default function TestimonialsSection() {
               role='listitem'
             >
               <div className='mb-5 flex items-center justify-between gap-4'>
-                <span className='rounded-full border border-primary/10 bg-secondary px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary'>
+                <span className='rounded-full border border-primary/10 bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary'>
                   {testimonial.context}
                 </span>
                 <RatingStars rating={testimonial.rating} />

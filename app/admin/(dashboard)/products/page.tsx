@@ -395,7 +395,7 @@ export default function ProductsPage() {
                         <p className='text-xs font-medium text-foreground line-clamp-1'>
                           {product.name}
                         </p>
-                        <p className='text-[10px] text-muted-foreground mt-0.5'>
+                        <p className='text-xs text-muted-foreground mt-0.5'>
                           {product.slug}
                         </p>
                       </div>
@@ -414,7 +414,7 @@ export default function ProductsPage() {
                   <td className='px-3 py-3'>
                     <span
                       className={cn(
-                        'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
+                        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
                         product.isActive
                           ? 'bg-green-50 text-green-700 border-green-200'
                           : 'bg-muted text-muted-foreground border-border',

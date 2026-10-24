@@ -319,7 +319,7 @@ export default function WebNavbar() {
             {item.content}
           </p>
 
-          <p className='text-[11px] text-gray-400 mt-1.5'>
+          <p className='text-xs text-gray-400 mt-1.5'>
             {formatNotificationTime(item.publishedAt || item.createdAt)}
           </p>
         </div>
@@ -512,7 +512,7 @@ export default function WebNavbar() {
                     <div className='relative'>
                       <Bell size={24} />
                       {unreadCount > 0 && (
-                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center px-1'>
+                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1'>
                           {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                       )}
@@ -577,7 +577,7 @@ export default function WebNavbar() {
                     <div className='relative'>
                       <Heart size={24} />
                       {wishlistCount > 0 && (
-                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center px-1'>
+                        <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1'>
                           {wishlistCount > 99 ? '99+' : wishlistCount}
                         </span>
                       )}
@@ -676,7 +676,7 @@ export default function WebNavbar() {
               <div className='relative'>
                 <ShoppingCart size={26} />
                 {cartCount > 0 && (
-                  <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center px-1'>
+                  <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1'>
                     {cartCount}
                   </span>
                 )}
