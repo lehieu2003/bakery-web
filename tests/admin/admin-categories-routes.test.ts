@@ -53,7 +53,7 @@ test('admin categories create validates displayOrder', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.match(String(result.body.error), /displayOrder/);
+  assert.match(String(result.body.error), /thứ tự hiển thị/i);
 });
 
 test('admin categories create rejects non-boolean visibility flags', async () => {
@@ -95,7 +95,7 @@ test('admin categories create rejects unknown parent category', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Parent category not found');
+  assert.equal(result.body.error, 'Không tìm thấy danh mục cha');
 });
 
 test('admin categories create writes admin action audit with correlation metadata', async () => {
@@ -162,7 +162,7 @@ test('admin category update blocks descendant-parent cycle', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.match(String(result.body.error), /descendant category/);
+  assert.match(String(result.body.error), /danh mục con/);
 });
 
 test('admin category update rejects non-boolean visibility flags', async () => {
@@ -293,5 +293,5 @@ test('admin category reorder rejects non-root categories', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.match(String(result.body.error), /root categories/);
+  assert.match(String(result.body.error), /danh mục gốc/);
 });

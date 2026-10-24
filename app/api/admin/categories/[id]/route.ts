@@ -155,7 +155,7 @@ const defaultDeps: CategoryDetailDeps = {
 
 function parseUpdatePayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
@@ -212,7 +212,7 @@ function parseUpdatePayload(raw: unknown) {
   if (body.displayOrder !== undefined) {
     const displayOrder = Number(body.displayOrder);
     if (!Number.isInteger(displayOrder) || displayOrder < 0) {
-      return { error: 'displayOrder must be a non-negative integer' } as const;
+      return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
     }
     payload.displayOrder = displayOrder;
   }
@@ -277,7 +277,7 @@ export async function handleAdminCategoryDetailGetRequest(
   if (!category) {
     return {
       status: 404,
-      body: { success: false, error: 'Category not found' },
+      body: { success: false, error: 'Không tìm thấy danh mục' },
     };
   }
 
@@ -307,7 +307,7 @@ export async function handleAdminCategoryUpdateRequest(
   if (!existing) {
     return {
       status: 404,
-      body: { success: false, error: 'Category not found' },
+      body: { success: false, error: 'Không tìm thấy danh mục' },
     };
   }
 
@@ -316,7 +316,7 @@ export async function handleAdminCategoryUpdateRequest(
     if (slugExists) {
       return {
         status: 400,
-        body: { success: false, error: 'Slug already exists' },
+        body: { success: false, error: 'Slug đã tồn tại' },
       };
     }
   }
@@ -326,7 +326,7 @@ export async function handleAdminCategoryUpdateRequest(
     if (parsed.payload.parentId === id) {
       return {
         status: 400,
-        body: { success: false, error: 'A category cannot be its own parent' },
+        body: { success: false, error: 'Danh mục không thể là danh mục cha của chính nó' },
       };
     }
 
@@ -337,7 +337,7 @@ export async function handleAdminCategoryUpdateRequest(
           status: 400,
           body: {
             success: false,
-            error: 'Cannot set a descendant category as parent',
+            error: 'Không thể chọn danh mục con làm danh mục cha',
           },
         };
       }
@@ -346,7 +346,7 @@ export async function handleAdminCategoryUpdateRequest(
       if (!parent) {
         return {
           status: 400,
-          body: { success: false, error: 'Parent category not found' },
+          body: { success: false, error: 'Không tìm thấy danh mục cha' },
         };
       }
       nextLevel = parent.level + 1;
@@ -406,7 +406,7 @@ export async function handleAdminCategoryUpdateRequest(
   if (!updatedCategory) {
     return {
       status: 404,
-      body: { success: false, error: 'Category not found' },
+      body: { success: false, error: 'Không tìm thấy danh mục' },
     };
   }
 
@@ -424,7 +424,7 @@ export async function handleAdminCategoryUpdateRequest(
       entity: 'category',
       entityId: id,
       mutationType: 'UPDATE',
-      summary: `Updated category ${id}`,
+      summary: `Cập nhật danh mục ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -452,7 +452,7 @@ export async function handleAdminCategoryDeleteRequest(
   if (!category) {
     return {
       status: 404,
-      body: { success: false, error: 'Category not found' },
+      body: { success: false, error: 'Không tìm thấy danh mục' },
     };
   }
 
@@ -497,7 +497,7 @@ export async function handleAdminCategoryDeleteRequest(
       entity: 'category',
       entityId: id,
       mutationType: 'DELETE',
-      summary: `Deleted category ${id}`,
+      summary: `Xóa danh mục ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -527,7 +527,7 @@ export async function GET(
     console.error('Get category error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: message || 'Failed to fetch category' },
+      { success: false, error: message || 'Không tải được category' },
       { status: mapAuthErrorToStatus(message) },
     );
   }

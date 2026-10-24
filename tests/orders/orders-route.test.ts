@@ -142,7 +142,7 @@ test('POST /api/orders rejects missing required fields', async () => {
   const result = await handleCreateOrderRequest({}, createDeps());
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Missing required fields');
+  assert.equal(result.body.error, 'Thiếu trường bắt buộc');
 });
 
 test('POST /api/orders rejects invalid Vietnamese phone number', async () => {
@@ -151,7 +151,7 @@ test('POST /api/orders rejects invalid Vietnamese phone number', async () => {
     createDeps(),
   );
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Invalid phone number');
+  assert.equal(result.body.error, 'Số điện thoại không hợp lệ');
 });
 
 test('POST /api/orders rejects invalid payment method', async () => {
@@ -160,7 +160,7 @@ test('POST /api/orders rejects invalid payment method', async () => {
 
   const result = await handleCreateOrderRequest(payload, createDeps());
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Invalid payment method');
+  assert.equal(result.body.error, 'Phương thức thanh toán không hợp lệ');
 });
 
 test('POST /api/orders rejects invalid item quantity bounds', async () => {
@@ -169,7 +169,7 @@ test('POST /api/orders rejects invalid item quantity bounds', async () => {
   const result = await handleCreateOrderRequest(payload, createDeps());
 
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Invalid item quantity');
+  assert.equal(result.body.error, 'Số lượng món không hợp lệ');
 });
 
 test('POST /api/orders rejects unavailable product', async () => {
@@ -178,7 +178,7 @@ test('POST /api/orders rejects unavailable product', async () => {
   const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
 
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Product "Cake A" is not available');
+  assert.equal(result.body.error, 'Sản phẩm \"Cake A\" hiện không khả dụng');
 });
 
 test('POST /api/orders returns success envelope with paymentUrl=null for COD', async () => {
@@ -290,7 +290,7 @@ test('POST /api/orders rejects blank incentive code input', async () => {
   assert.equal(result.status, 400);
   assert.equal(
     result.body.error,
-    'Incentive code is invalid. Please enter a non-empty code.',
+    'Mã ưu đãi không hợp lệ. Vui lòng nhập mã.',
   );
 });
 
@@ -1097,7 +1097,7 @@ test('invalid deliveryMethod value is rejected', async () => {
   const result = await handleCreateOrderRequest(
     { ...buildPayload('COD'), deliveryMethod: 'drone' }, createDeps());
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Invalid delivery method');
+  assert.equal(result.body.error, 'Phương thức nhận hàng không hợp lệ');
 });
 
 test('stock is checked on the product total across lines', async () => {
@@ -1182,7 +1182,7 @@ test('stock taken by a concurrent order during the transaction is a 400, not a 5
   });
   const result = await handleCreateOrderRequest(buildPayload('COD'), deps);
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Some items just sold out. Please review your cart.');
+  assert.equal(result.body.error, 'Có món vừa hết hàng. Vui lòng kiểm tra lại giỏ hàng.');
 });
 
 for (const failure of ['gateway', 'paymentRecord'] as const) {
@@ -1198,7 +1198,7 @@ for (const failure of ['gateway', 'paymentRecord'] as const) {
     const result = await handleCreateOrderRequest(buildPayload('MOMO'), deps);
     assert.equal(result.status, 200);
     assert.equal(result.body.data?.paymentUrl, null);
-    assert.equal(result.body.data?.paymentError, 'Payment gateway is unavailable. Please try again.');
+    assert.equal(result.body.data?.paymentError, 'Cổng thanh toán đang bận. Vui lòng thử lại.');
     assert.deepEqual(cleanupCalls, ['o1']);
   });
 }
@@ -1210,7 +1210,7 @@ test('a throwing VNPay init cancels the order instead of stranding it', async ()
   deps.handlePaymentInitFailure = async (args) => { cleanupCalls.push(args.orderId); };
   const result = await handleCreateOrderRequest(buildPayload('VNPAY'), deps);
   assert.equal(result.status, 200);
-  assert.equal(result.body.data?.paymentError, 'Payment gateway is unavailable. Please try again.');
+  assert.equal(result.body.data?.paymentError, 'Cổng thanh toán đang bận. Vui lòng thử lại.');
   assert.deepEqual(cleanupCalls, ['o1']);
 });
 
@@ -1245,7 +1245,7 @@ function failIfCalled(name: string) {
 test('a malformed Idempotency-Key is rejected', async () => {
   const result = await handleCreateOrderRequest(buildPayload('COD'), createDeps(), undefined, 'short');
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Invalid Idempotency-Key');
+  assert.equal(result.body.error, 'Mã chống gửi trùng không hợp lệ');
 });
 
 test('a first request stores its Idempotency-Key on the order', async () => {

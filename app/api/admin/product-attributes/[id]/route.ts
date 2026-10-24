@@ -191,18 +191,18 @@ const defaultDeps: DetailDeps = {
 
 function normalizeValues(values: unknown): ParseError | ParseValuesSuccess {
   if (values === undefined) return { values: undefined };
-  if (!Array.isArray(values)) return { error: 'values must be an array' };
+  if (!Array.isArray(values)) return { error: 'values phải là một mảng' };
 
   const normalized: NormalizedValue[] = [];
   for (const [index, item] of values.entries()) {
     if (!item || typeof item !== 'object') {
-      return { error: `value at index ${index} is invalid` };
+      return { error: `Giá trị tại vị trí ${index} không hợp lệ` };
     }
 
     const value = item as ProductAttributeValueInput;
     const label = typeof value.label === 'string' ? value.label.trim() : '';
     if (!label) {
-      return { error: `value at index ${index} requires label` };
+      return { error: `Giá trị tại vị trí ${index} cần nhãn` };
     }
 
     const slugSource =
@@ -211,7 +211,7 @@ function normalizeValues(values: unknown): ParseError | ParseValuesSuccess {
         : label;
     const slug = slugifyProductAttribute(slugSource);
     if (!slug) {
-      return { error: `value at index ${index} has invalid slug` };
+      return { error: `Giá trị tại vị trí ${index} có slug không hợp lệ` };
     }
 
     const valueText =
@@ -222,7 +222,7 @@ function normalizeValues(values: unknown): ParseError | ParseValuesSuccess {
     const displayOrder = Number(value.displayOrder ?? index);
     if (!Number.isInteger(displayOrder) || displayOrder < 0) {
       return {
-        error: `value at index ${index} has invalid displayOrder`,
+        error: `Giá trị tại vị trí ${index} có thứ tự hiển thị không hợp lệ`,
       };
     }
 
@@ -231,11 +231,11 @@ function normalizeValues(values: unknown): ParseError | ParseValuesSuccess {
     }
 
     if (value.colorHex !== undefined && value.colorHex !== null && typeof value.colorHex !== 'string') {
-      return { error: `value at index ${index} has invalid colorHex` };
+      return { error: `Giá trị tại vị trí ${index} có màu không hợp lệ` };
     }
 
     if (value.imageUrl !== undefined && value.imageUrl !== null && typeof value.imageUrl !== 'string') {
-      return { error: `value at index ${index} has invalid imageUrl` };
+      return { error: `Giá trị tại vị trí ${index} có ảnh không hợp lệ` };
     }
 
     normalized.push({
@@ -256,13 +256,13 @@ function normalizeValues(values: unknown): ParseError | ParseValuesSuccess {
   for (const row of normalized) {
     const slugKey = row.slug.toLowerCase();
     if (seenSlug.has(slugKey)) {
-      return { error: `Duplicate value slug: ${row.slug}` };
+      return { error: `Trùng slug giá trị: ${row.slug}` };
     }
     seenSlug.add(slugKey);
 
     const valueKey = row.value.toLowerCase();
     if (seenValue.has(valueKey)) {
-      return { error: `Duplicate value: ${row.value}` };
+      return { error: `Trùng giá trị: ${row.value}` };
     }
     seenValue.add(valueKey);
   }
@@ -272,7 +272,7 @@ function normalizeValues(values: unknown): ParseError | ParseValuesSuccess {
 
 function parseUpdatePayload(raw: unknown): ParseError | ParseUpdateSuccess {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' };
+    return { error: 'Dữ liệu không hợp lệ' };
   }
 
   const body = raw as UpdateProductAttributeRequest;
@@ -290,14 +290,14 @@ function parseUpdatePayload(raw: unknown): ParseError | ParseUpdateSuccess {
   }
 
   if (body.type !== undefined && !ALLOWED_ATTRIBUTE_TYPES.has(body.type as ProductAttributeType)) {
-    return { error: 'Invalid attribute type' };
+    return { error: 'Loại thuộc tính không hợp lệ' };
   }
 
   if (
     body.displayOrder !== undefined &&
     (!Number.isInteger(body.displayOrder) || Number(body.displayOrder) < 0)
   ) {
-    return { error: 'displayOrder must be a non-negative integer' };
+    return { error: 'Thứ tự hiển thị phải là số nguyên không âm' };
   }
 
   if (body.isRequired !== undefined && typeof body.isRequired !== 'boolean') {
@@ -355,7 +355,7 @@ export async function handleAdminProductAttributeDetailGetRequest(
   if (!attribute) {
     return {
       status: 404,
-      body: { success: false, error: 'Attribute not found' },
+      body: { success: false, error: 'Không tìm thấy thuộc tính' },
     };
   }
 
@@ -377,7 +377,7 @@ export async function handleAdminProductAttributeUpdateRequest(
   if (!existing) {
     return {
       status: 404,
-      body: { success: false, error: 'Attribute not found' },
+      body: { success: false, error: 'Không tìm thấy thuộc tính' },
     };
   }
 
@@ -394,7 +394,7 @@ export async function handleAdminProductAttributeUpdateRequest(
     if (slugExists) {
       return {
         status: 400,
-        body: { success: false, error: 'Attribute slug already exists' },
+        body: { success: false, error: 'Thuộc tính đã tồn tại (slug)' },
       };
     }
   }
@@ -404,7 +404,7 @@ export async function handleAdminProductAttributeUpdateRequest(
     if (codeExists) {
       return {
         status: 400,
-        body: { success: false, error: 'Attribute code already exists' },
+        body: { success: false, error: 'Thuộc tính đã tồn tại (mã)' },
       };
     }
   }
@@ -429,7 +429,7 @@ export async function handleAdminProductAttributeUpdateRequest(
         );
 
         if (assignedCount > 0) {
-          throw new Error('Cannot remove attribute values assigned to products');
+          throw new Error('Không thể xóa giá trị đang được gán cho sản phẩm');
         }
 
         await deps.deleteValuesByIds(
@@ -471,7 +471,7 @@ export async function handleAdminProductAttributeDeleteRequest(
   if (!existing) {
     return {
       status: 404,
-      body: { success: false, error: 'Attribute not found' },
+      body: { success: false, error: 'Không tìm thấy thuộc tính' },
     };
   }
 
@@ -516,7 +516,7 @@ export async function PUT(
     console.error('Admin update product attribute error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     const status =
-      message === 'Cannot remove attribute values assigned to products'
+      message === 'Không thể xóa giá trị đang được gán cho sản phẩm'
         ? 400
         : mapAuthErrorToStatus(message);
 

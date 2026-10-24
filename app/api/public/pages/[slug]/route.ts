@@ -30,7 +30,7 @@ export async function handleGetPublicPageBySlugRequest(
   if (!slug) {
     return {
       status: 400,
-      body: { success: false as const, error: 'Invalid page slug' },
+      body: { success: false as const, error: 'Slug trang không hợp lệ' },
     };
   }
 
@@ -39,7 +39,7 @@ export async function handleGetPublicPageBySlugRequest(
   if (!page) {
     return {
       status: 404,
-      body: { success: false as const, error: 'Page not found' },
+      body: { success: false as const, error: 'Không tìm thấy trang' },
     };
   }
 
@@ -61,7 +61,7 @@ export async function GET(
   } catch (error) {
     console.error('Get public page error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch page' },
+      { success: false, error: 'Không tải được trang' },
       { status: 500 },
     );
   }

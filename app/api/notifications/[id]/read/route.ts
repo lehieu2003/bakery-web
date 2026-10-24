@@ -70,7 +70,7 @@ export async function handleMarkNotificationAsReadRequest(
     if (!notification) {
       return {
         status: 404,
-        body: { success: false, error: 'Notification not found' },
+        body: { success: false, error: 'Không tìm thấy thông báo' },
       };
     }
 
@@ -90,7 +90,7 @@ export async function handleMarkNotificationAsReadRequest(
       },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to mark notification as read';
+    const message = error instanceof Error ? error.message : 'Không đánh dấu được thông báo đã đọc';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return {
@@ -117,7 +117,7 @@ export async function POST(
   } catch (error) {
     console.error('Mark notification as read error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to mark notification as read' },
+      { success: false, error: 'Không đánh dấu được thông báo đã đọc' },
       { status: 500 },
     );
   }

@@ -202,7 +202,7 @@ function normalizeOptionalString(raw: unknown, fieldName: string) {
 
 function parseOrderPatchPayload(raw: unknown, existing: OrderDetailRow) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
   const body = raw as Record<string, unknown>;
   const payload: OrderPatchPayload = {};
@@ -210,7 +210,7 @@ function parseOrderPatchPayload(raw: unknown, existing: OrderDetailRow) {
 
   if (body.status !== undefined) {
     if (typeof body.status !== 'string' || !ORDER_STATUSES.includes(body.status as OrderStatus)) {
-      return { error: 'Invalid status' } as const;
+      return { error: 'Trạng thái không hợp lệ' } as const;
     }
     const nextStatus = body.status as OrderStatus;
     if (nextStatus !== existing.status) {
@@ -277,7 +277,7 @@ export async function handleAdminOrderGetByIdRequest(
   const order = await deps.findOrderById(id);
 
   if (!order) {
-    return { status: 404, body: { success: false, error: 'Order not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy đơn hàng' } };
   }
 
   return { status: 200, body: { success: true, data: order } };
@@ -293,14 +293,14 @@ export async function handleAdminOrderPatchRequest(
   const existing = await deps.findOrderById(id);
 
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Order not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy đơn hàng' } };
   }
 
   let rawBody: unknown;
   try {
     rawBody = await request.json();
   } catch {
-    return { status: 400, body: { success: false, error: 'Invalid JSON payload' } };
+    return { status: 400, body: { success: false, error: 'Dữ liệu JSON không hợp lệ' } };
   }
 
   const parsed = parseOrderPatchPayload(rawBody, existing);

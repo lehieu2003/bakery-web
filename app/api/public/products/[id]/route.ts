@@ -96,7 +96,7 @@ export async function handleGetPublicProductRequest(
     const product = await deps.findProductDetail(params.id);
 
     if (!product) {
-      return productDetailError(404, 'Product not found');
+      return productDetailError(404, 'Không tìm thấy sản phẩm');
     }
 
     const stats = await deps.getReviewStats(product.id);
@@ -119,7 +119,7 @@ export async function handleGetPublicProductRequest(
     };
   } catch (error) {
     console.error('Get public product error:', error);
-    return productDetailError(500, 'Failed to fetch product');
+    return productDetailError(500, 'Không tải được sản phẩm');
   }
 }
 

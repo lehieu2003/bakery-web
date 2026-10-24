@@ -25,7 +25,7 @@ export async function GET(
 
     if (!page) {
       return NextResponse.json(
-        { success: false, error: 'Page not found' },
+        { success: false, error: 'Không tìm thấy trang' },
         { status: 404 },
       );
     }
@@ -58,7 +58,7 @@ export async function PUT(
     const existing = await prisma.page.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
-        { success: false, error: 'Page not found' },
+        { success: false, error: 'Không tìm thấy trang' },
         { status: 404 },
       );
     }
@@ -80,7 +80,7 @@ export async function PUT(
       });
       if (slugExists) {
         return NextResponse.json(
-          { success: false, error: 'Slug already exists' },
+          { success: false, error: 'Slug đã tồn tại' },
           { status: 400 },
         );
       }
@@ -107,7 +107,7 @@ export async function PUT(
       entity: 'page',
       entityId: id,
       mutationType: 'UPDATE',
-      summary: `Updated page ${id}`,
+      summary: `Cập nhật trang ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -143,7 +143,7 @@ export async function DELETE(
     const existing = await prisma.page.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
-        { success: false, error: 'Page not found' },
+        { success: false, error: 'Không tìm thấy trang' },
         { status: 404 },
       );
     }
@@ -155,7 +155,7 @@ export async function DELETE(
       entity: 'page',
       entityId: id,
       mutationType: 'DELETE',
-      summary: `Deleted page ${id}`,
+      summary: `Xóa trang ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

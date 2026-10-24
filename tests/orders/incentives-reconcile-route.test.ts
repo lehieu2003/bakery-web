@@ -59,7 +59,7 @@ test('reconcile endpoint returns 503 when token is not configured', async () => 
 
   assert.equal(result.status, 503);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Reconcile token is not configured');
+  assert.equal(result.body.error, 'Chưa cấu hình token đối soát');
 });
 
 test('reconcile endpoint returns 401 when token is missing', async () => {
@@ -125,7 +125,7 @@ test('reconcile endpoint validates POST payload', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid reconciliation payload');
+  assert.equal(result.body.error, 'Dữ liệu đối soát không hợp lệ');
 });
 
 test('reconcile endpoint uses POST body overrides when provided', async () => {

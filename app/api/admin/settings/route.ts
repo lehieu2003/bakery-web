@@ -324,7 +324,7 @@ function stringifySettingValue(
 
 function parseStoreSettingsUpdatePayload(raw: unknown) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
@@ -335,7 +335,7 @@ function parseStoreSettingsUpdatePayload(raw: unknown) {
 
   const hasUnknownKey = Object.keys(body).some((key) => !allowedKeys.has(key));
   if (hasUnknownKey) {
-    return { error: 'Invalid payload fields' } as const;
+    return { error: 'Trường dữ liệu không hợp lệ' } as const;
   }
 
   const parsed: StoreSettingsUpdatePayload = {};
@@ -423,7 +423,7 @@ function parseStoreSettingsUpdatePayload(raw: unknown) {
   }
 
   if (Object.keys(parsed).length === 0) {
-    return { error: 'Payload must include at least one updatable setting' } as const;
+    return { error: 'Payload cần ít nhất một trường cài đặt để cập nhật' } as const;
   }
 
   return { payload: parsed } as const;
@@ -470,7 +470,7 @@ export async function handleAdminSettingsPutRequest(
   } catch {
     return {
       status: 400,
-      body: { success: false, error: 'Invalid JSON payload' },
+      body: { success: false, error: 'Dữ liệu JSON không hợp lệ' },
     };
   }
 

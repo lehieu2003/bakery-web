@@ -47,7 +47,7 @@ const defaultDeps: CategoryReorderDeps = {
 
 function parseReorderPayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const items = (raw as { items?: unknown }).items;
@@ -58,17 +58,17 @@ function parseReorderPayload(raw: unknown) {
   const normalized: ReorderItem[] = [];
   for (const item of items) {
     if (!item || typeof item !== 'object') {
-      return { error: 'Each item must be an object' } as const;
+      return { error: 'Mỗi mục phải là một object' } as const;
     }
 
     const row = item as { id?: unknown; displayOrder?: unknown };
     if (typeof row.id !== 'string' || !row.id.trim()) {
-      return { error: 'Each item.id must be a non-empty string' } as const;
+      return { error: 'Mã của mỗi mục không được để trống' } as const;
     }
 
     const displayOrder = Number(row.displayOrder);
     if (!Number.isInteger(displayOrder) || displayOrder < 0) {
-      return { error: 'Each item.displayOrder must be a non-negative integer' } as const;
+      return { error: 'Thứ tự hiển thị của mỗi mục phải là số nguyên không âm' } as const;
     }
 
     normalized.push({ id: row.id.trim(), displayOrder });
@@ -104,14 +104,14 @@ export async function handleAdminCategoryReorderRequest(
   if (categories.length !== parsed.items.length) {
     return {
       status: 400,
-      body: { success: false, error: 'One or more categories do not exist' },
+      body: { success: false, error: 'Có danh mục không tồn tại' },
     };
   }
 
   if (categories.some((category) => category.parentId !== null)) {
     return {
       status: 400,
-      body: { success: false, error: 'Only root categories can be reordered' },
+      body: { success: false, error: 'Chỉ danh mục gốc mới được sắp xếp lại' },
     };
   }
 

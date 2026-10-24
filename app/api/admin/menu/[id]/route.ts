@@ -96,7 +96,7 @@ const defaultDeps: AdminMenuByIdDeps = {
 
 function parseMenuUpdatePayload(raw: unknown, existing: MenuItemRecord) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
@@ -104,7 +104,7 @@ function parseMenuUpdatePayload(raw: unknown, existing: MenuItemRecord) {
   let type: MenuTargetType = existing.type as MenuTargetType;
   if (body.type !== undefined) {
     if (typeof body.type !== 'string' || !ALLOWED_TYPES.has(body.type as MenuTargetType)) {
-      return { error: 'Invalid menu type' } as const;
+      return { error: 'Loại menu không hợp lệ' } as const;
     }
     type = body.type as MenuTargetType;
   }
@@ -120,11 +120,11 @@ function parseMenuUpdatePayload(raw: unknown, existing: MenuItemRecord) {
   let displayOrder = existing.displayOrder;
   if (body.displayOrder !== undefined) {
     if (typeof body.displayOrder !== 'number') {
-      return { error: 'displayOrder must be a non-negative integer' } as const;
+      return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
     }
     const value = body.displayOrder;
     if (!Number.isInteger(value) || value < 0) {
-      return { error: 'displayOrder must be a non-negative integer' } as const;
+      return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
     }
     displayOrder = value;
   }
@@ -225,7 +225,7 @@ export async function handleAdminMenuGetByIdRequest(
   if (!menuItem) {
     return {
       status: 404,
-      body: { success: false, error: 'Menu item not found' },
+      body: { success: false, error: 'Không tìm thấy mục menu' },
     };
   }
 
@@ -250,7 +250,7 @@ export async function handleAdminMenuUpdateRequest(
   if (!existing) {
     return {
       status: 404,
-      body: { success: false, error: 'Menu item not found' },
+      body: { success: false, error: 'Không tìm thấy mục menu' },
     };
   }
 
@@ -267,7 +267,7 @@ export async function handleAdminMenuUpdateRequest(
     if (!parent) {
       return {
         status: 400,
-        body: { success: false, error: 'Parent menu item not found' },
+        body: { success: false, error: 'Không tìm thấy mục menu cha' },
       };
     }
   }
@@ -275,7 +275,7 @@ export async function handleAdminMenuUpdateRequest(
   if (await createsParentCycle(id, parsed.payload.parentId ?? null, deps)) {
     return {
       status: 400,
-      body: { success: false, error: 'Parent relationship creates a cycle' },
+      body: { success: false, error: 'Quan hệ cha-con tạo thành vòng lặp' },
     };
   }
 
@@ -284,7 +284,7 @@ export async function handleAdminMenuUpdateRequest(
     if (!category) {
       return {
         status: 400,
-        body: { success: false, error: 'Category not found' },
+        body: { success: false, error: 'Không tìm thấy danh mục' },
       };
     }
   }
@@ -294,7 +294,7 @@ export async function handleAdminMenuUpdateRequest(
     if (!page) {
       return {
         status: 400,
-        body: { success: false, error: 'Page not found' },
+        body: { success: false, error: 'Không tìm thấy trang' },
       };
     }
   }
@@ -320,7 +320,7 @@ export async function handleAdminMenuDeleteRequest(
   if (!existing) {
     return {
       status: 404,
-      body: { success: false, error: 'Menu item not found' },
+      body: { success: false, error: 'Không tìm thấy mục menu' },
     };
   }
 

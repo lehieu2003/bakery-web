@@ -101,7 +101,7 @@ function normalizeOptionalString(raw: unknown, fieldName: string) {
 }
 
 function parseCategoryUpdatePayload(raw: unknown, existingName: string) {
-  if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
+  if (!raw || typeof raw !== 'object') return { error: 'Dữ liệu không hợp lệ' } as const;
   const body = raw as Record<string, unknown>;
   const payload: BlogCategoryUpdatePayload = {};
 
@@ -133,7 +133,7 @@ function parseCategoryUpdatePayload(raw: unknown, existingName: string) {
       !Number.isInteger(body.displayOrder) ||
       body.displayOrder < 0
     ) {
-      return { error: 'displayOrder must be a non-negative integer' } as const;
+      return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
     }
     payload.displayOrder = body.displayOrder;
   }
@@ -157,7 +157,7 @@ export async function handleAdminBlogCategoryGetByIdRequest(
   const category = await deps.findCategoryDetailById(id);
 
   if (!category) {
-    return { status: 404, body: { success: false, error: 'Blog category not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy danh mục bài viết' } };
   }
 
   return { status: 200, body: { success: true, data: category } };
@@ -172,7 +172,7 @@ export async function handleAdminBlogCategoryPutRequest(
   const { id } = await params;
   const existing = await deps.findCategoryById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Blog category not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy danh mục bài viết' } };
   }
 
   const parsed = parseCategoryUpdatePayload(await request.json(), existing.name);
@@ -183,7 +183,7 @@ export async function handleAdminBlogCategoryPutRequest(
   if (parsed.payload.slug) {
     const duplicated = await deps.findCategoryBySlugExcludingId(parsed.payload.slug, id);
     if (duplicated) {
-      return { status: 400, body: { success: false, error: 'Slug already exists' } };
+      return { status: 400, body: { success: false, error: 'Slug đã tồn tại' } };
     }
   }
 
@@ -203,7 +203,7 @@ export async function handleAdminBlogCategoryPutRequest(
       entity: 'blog_category',
       entityId: id,
       mutationType: 'UPDATE',
-      summary: `Updated blog category ${id}`,
+      summary: `Cập nhật danh mục bài viết ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -225,7 +225,7 @@ export async function handleAdminBlogCategoryDeleteRequest(
   const { id } = await params;
   const existing = await deps.findCategoryById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Blog category not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy danh mục bài viết' } };
   }
 
   const postCount = await deps.countPostsByCategoryId(id);
@@ -252,7 +252,7 @@ export async function handleAdminBlogCategoryDeleteRequest(
       entity: 'blog_category',
       entityId: id,
       mutationType: 'DELETE',
-      summary: `Deleted blog category ${id}`,
+      summary: `Xóa danh mục bài viết ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

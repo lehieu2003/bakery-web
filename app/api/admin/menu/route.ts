@@ -82,28 +82,28 @@ const defaultDeps: AdminMenuDeps = {
 
 function normalizeMenuPayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   if (!title) {
-    return { error: 'Title is required' } as const;
+    return { error: 'Cần nhập tiêu đề' } as const;
   }
 
   const typeRaw = typeof body.type === 'string' ? body.type : 'LINK';
   if (!ALLOWED_TYPES.has(typeRaw as MenuTargetType)) {
-    return { error: 'Invalid menu type' } as const;
+    return { error: 'Loại menu không hợp lệ' } as const;
   }
   const type = typeRaw as MenuTargetType;
 
   const displayOrderRaw = body.displayOrder ?? 0;
   if (typeof displayOrderRaw !== 'number') {
-    return { error: 'displayOrder must be a non-negative integer' } as const;
+    return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
   }
   const displayOrder = displayOrderRaw;
   if (!Number.isInteger(displayOrder) || displayOrder < 0) {
-    return { error: 'displayOrder must be a non-negative integer' } as const;
+    return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
   }
 
   if (body.isActive !== undefined && typeof body.isActive !== 'boolean') {
@@ -182,7 +182,7 @@ export async function handleAdminMenuPostRequest(
     if (!parent) {
       return {
         status: 400,
-        body: { success: false, error: 'Parent menu item not found' },
+        body: { success: false, error: 'Không tìm thấy mục menu cha' },
       };
     }
   }
@@ -192,7 +192,7 @@ export async function handleAdminMenuPostRequest(
     if (!category) {
       return {
         status: 400,
-        body: { success: false, error: 'Category not found' },
+        body: { success: false, error: 'Không tìm thấy danh mục' },
       };
     }
   }
@@ -202,7 +202,7 @@ export async function handleAdminMenuPostRequest(
     if (!page) {
       return {
         status: 400,
-        body: { success: false, error: 'Page not found' },
+        body: { success: false, error: 'Không tìm thấy trang' },
       };
     }
   }

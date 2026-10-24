@@ -45,7 +45,7 @@ export async function GET(
 
     if (!notification) {
       return NextResponse.json(
-        { success: false, error: 'Notification not found' },
+        { success: false, error: 'Không tìm thấy thông báo' },
         { status: 404 },
       );
     }
@@ -76,14 +76,14 @@ export async function PUT(
     const existing = await prisma.notification.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
-        { success: false, error: 'Notification not found' },
+        { success: false, error: 'Không tìm thấy thông báo' },
         { status: 404 },
       );
     }
 
     if (body.status !== undefined && !isValidStatus(body.status)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid notification status' },
+        { success: false, error: 'Trạng thái thông báo không hợp lệ' },
         { status: 400 },
       );
     }
@@ -97,7 +97,7 @@ export async function PUT(
       const parsedPublishedAt = parseDateValue(body.publishedAt);
       if (body.publishedAt !== null && parsedPublishedAt === null) {
         return NextResponse.json(
-          { success: false, error: 'Invalid publishedAt value' },
+          { success: false, error: 'Ngày xuất bản không hợp lệ' },
           { status: 400 },
         );
       }
@@ -168,7 +168,7 @@ export async function DELETE(
     const existing = await prisma.notification.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
-        { success: false, error: 'Notification not found' },
+        { success: false, error: 'Không tìm thấy thông báo' },
         { status: 404 },
       );
     }

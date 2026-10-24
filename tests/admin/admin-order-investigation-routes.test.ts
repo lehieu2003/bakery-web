@@ -118,7 +118,7 @@ test('admin order investigation GET returns 404 when order does not exist', asyn
 
   assert.equal(result.status, 404);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Order not found');
+  assert.equal(result.body.error, 'Không tìm thấy đơn hàng');
 });
 
 test('admin order investigation GET returns 400 for malformed order id', async () => {
@@ -129,7 +129,7 @@ test('admin order investigation GET returns 400 for malformed order id', async (
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid order id');
+  assert.equal(result.body.error, 'Mã đơn hàng không hợp lệ');
 });
 
 test('admin order investigation GET returns callback timeline, reconciliation attempts, and audit trail', async () => {

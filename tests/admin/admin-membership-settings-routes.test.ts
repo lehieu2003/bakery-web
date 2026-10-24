@@ -89,7 +89,7 @@ test('admin settings PUT rejects malformed json payload', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid JSON payload');
+  assert.equal(result.body.error, 'Dữ liệu JSON không hợp lệ');
 });
 
 test('admin settings PUT rejects unknown payload fields', async () => {
@@ -106,7 +106,7 @@ test('admin settings PUT rejects unknown payload fields', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid payload fields');
+  assert.equal(result.body.error, 'Trường dữ liệu không hợp lệ');
 });
 
 test('admin settings PUT normalizes legacy min_order_delivery key and writes audit updates', async () => {
@@ -312,7 +312,7 @@ test('admin membership PUT rejects invalid threshold order', async () => {
   assert.equal(result.body.success, false);
   assert.match(
     String(result.body.error),
-    /strictly increasing/i,
+    /tăng dần/,
   );
 });
 
@@ -335,7 +335,7 @@ test('admin membership PUT rejects malformed json payload', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid JSON payload');
+  assert.equal(result.body.error, 'Dữ liệu JSON không hợp lệ');
 });
 
 test('admin membership PUT updates changed keys and returns refreshed config', async () => {

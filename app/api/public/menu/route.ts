@@ -90,7 +90,7 @@ export async function GET() {
   } catch (error) {
     console.error('Get public menu error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch menu' },
+      { success: false, error: 'Không tải được menu' },
       { status: 500 },
     );
   }

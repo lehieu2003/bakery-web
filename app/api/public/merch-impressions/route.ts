@@ -32,7 +32,7 @@ export async function handlePostMerchImpressionRequest(body: unknown) {
   if (!isValidPayload(body)) {
     return {
       status: 400,
-      body: { success: false, error: 'Invalid impression payload' },
+      body: { success: false, error: 'Dữ liệu lượt xem không hợp lệ' },
     };
   }
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Post merch impression error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to track merch impression' },
+      { success: false, error: 'Không ghi nhận được lượt xem' },
       { status: 500 },
     );
   }

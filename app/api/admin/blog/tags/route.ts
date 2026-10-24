@@ -75,7 +75,7 @@ const defaultDeps: AdminBlogTagsDeps = {
 
 
 function parseTagPayload(raw: unknown) {
-  if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
+  if (!raw || typeof raw !== 'object') return { error: 'Dữ liệu không hợp lệ' } as const;
   const body = raw as Record<string, unknown>;
 
   const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -107,7 +107,7 @@ export async function handleAdminBlogTagsPostRequest(
 
   const existing = await deps.findTagBySlug(parsed.payload.slug);
   if (existing) {
-    return { status: 400, body: { success: false, error: 'Slug already exists' } };
+    return { status: 400, body: { success: false, error: 'Slug đã tồn tại' } };
   }
 
   const tag = await deps.createTag(parsed.payload);
@@ -130,7 +130,7 @@ export async function handleAdminBlogTagsPostRequest(
       entity: 'blog_tag',
       entityId: tagId,
       mutationType: 'CREATE',
-      summary: `Created blog tag ${parsed.payload.name}`,
+      summary: `Tạo thẻ bài viết ${parsed.payload.name}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

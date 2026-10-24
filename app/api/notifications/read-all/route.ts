@@ -81,7 +81,7 @@ export async function handleMarkAllNotificationsAsReadRequest(
       },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to mark notifications as read';
+    const message = error instanceof Error ? error.message : 'Không đánh dấu được thông báo đã đọc';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return {
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Mark all notifications as read error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to mark notifications as read' },
+      { success: false, error: 'Không đánh dấu được thông báo đã đọc' },
       { status: 500 },
     );
   }

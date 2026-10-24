@@ -34,7 +34,7 @@ test('admin blog post create rejects invalid status', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid post status');
+  assert.equal(result.body.error, 'Trạng thái bài viết không hợp lệ');
 });
 
 test('admin blog post create rejects unknown tag ids', async () => {
@@ -57,7 +57,7 @@ test('admin blog post create rejects unknown tag ids', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'One or more tags do not exist');
+  assert.equal(result.body.error, 'Có thẻ bài viết không tồn tại');
 });
 
 test('admin blog post create de-duplicates tag ids', async () => {
@@ -173,7 +173,7 @@ test('admin blog post status rejects invalid status', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid status');
+  assert.equal(result.body.error, 'Trạng thái không hợp lệ');
 });
 
 test('admin blog category create rejects non-numeric displayOrder', async () => {
@@ -192,7 +192,7 @@ test('admin blog category create rejects non-numeric displayOrder', async () => 
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'displayOrder must be a non-negative integer');
+  assert.equal(result.body.error, 'Thứ tự hiển thị phải là số nguyên không âm');
 });
 
 test('admin blog category update rejects non-boolean isActive', async () => {

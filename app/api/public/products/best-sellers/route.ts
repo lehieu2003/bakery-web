@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get best-sellers error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch best sellers' },
+      { success: false, error: 'Không tải được sản phẩm bán chạy' },
       { status: 500 },
     );
   }

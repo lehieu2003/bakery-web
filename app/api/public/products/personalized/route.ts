@@ -274,7 +274,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get personalized products error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch personalized products' },
+      { success: false, error: 'Không tải được sản phẩm gợi ý' },
       { status: 500 },
     );
   }

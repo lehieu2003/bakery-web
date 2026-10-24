@@ -141,30 +141,30 @@ function getCurrentMembershipKeys() {
 
 function parseMembershipUpdatePayload(raw: unknown) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
   const allowedKeys = new Set(['levels', 'pointsPerOrder']);
   const hasUnknownKey = Object.keys(body).some((key) => !allowedKeys.has(key));
   if (hasUnknownKey) {
-    return { error: 'Invalid payload fields' } as const;
+    return { error: 'Trường dữ liệu không hợp lệ' } as const;
   }
 
   const parsed: MembershipUpdatePayload = {};
 
   if (body.levels !== undefined) {
     if (!Array.isArray(body.levels)) {
-      return { error: 'levels must be an array' } as const;
+      return { error: 'levels phải là một mảng' } as const;
     }
     if (body.levels.length !== MEMBERSHIP_LEVELS.length) {
-      return { error: 'levels must include exactly SILVER, GOLD, and PLATINUM' } as const;
+      return { error: 'levels phải đủ 3 hạng SILVER, GOLD và PLATINUM' } as const;
     }
 
     const levelMap = new Map<MemberLevel, MembershipLevelConfig>();
     for (const row of body.levels) {
       if (!row || typeof row !== 'object' || Array.isArray(row)) {
-        return { error: 'Each level must be an object' } as const;
+        return { error: 'Mỗi hạng phải là một object' } as const;
       }
 
       const item = row as Record<string, unknown>;
@@ -173,12 +173,12 @@ function parseMembershipUpdatePayload(raw: unknown) {
         typeof levelRaw !== 'string' ||
         !MEMBERSHIP_LEVELS.includes(levelRaw as MemberLevel)
       ) {
-        return { error: 'Invalid membership level' } as const;
+        return { error: 'Hạng thành viên không hợp lệ' } as const;
       }
       const level = levelRaw as MemberLevel;
 
       if (!Number.isInteger(item.minPoints) || (item.minPoints as number) < 0) {
-        return { error: `minPoints for ${level} must be a non-negative integer` } as const;
+        return { error: `minPoints của ${level} phải là số nguyên không âm` } as const;
       }
 
       if (
@@ -186,7 +186,7 @@ function parseMembershipUpdatePayload(raw: unknown) {
         (item.discountPercent as number) < 0 ||
         (item.discountPercent as number) > 100
       ) {
-        return { error: `discountPercent for ${level} must be an integer between 0 and 100` } as const;
+        return { error: `discountPercent của ${level} phải là số nguyên từ 0 đến 100` } as const;
       }
 
       levelMap.set(level, {
@@ -197,7 +197,7 @@ function parseMembershipUpdatePayload(raw: unknown) {
     }
 
     if (levelMap.size !== MEMBERSHIP_LEVELS.length) {
-      return { error: 'levels must not contain duplicates' } as const;
+      return { error: 'levels không được trùng nhau' } as const;
     }
 
     const ordered = MEMBERSHIP_LEVELS.map((level) => levelMap.get(level)!);
@@ -206,7 +206,7 @@ function parseMembershipUpdatePayload(raw: unknown) {
       !(ordered[1].minPoints < ordered[2].minPoints)
     ) {
       return {
-        error: 'Membership thresholds must be strictly increasing from SILVER to PLATINUM',
+        error: 'Điểm tối thiểu phải tăng dần từ SILVER lên PLATINUM',
       } as const;
     }
 
@@ -221,7 +221,7 @@ function parseMembershipUpdatePayload(raw: unknown) {
   }
 
   if (!parsed.levels && parsed.pointsPerOrder === undefined) {
-    return { error: 'Payload must include levels or pointsPerOrder' } as const;
+    return { error: 'Payload cần levels hoặc pointsPerOrder' } as const;
   }
 
   return { payload: parsed } as const;
@@ -323,7 +323,7 @@ export async function handleAdminMembershipPutRequest(
   } catch {
     return {
       status: 400,
-      body: { success: false, error: 'Invalid JSON payload' },
+      body: { success: false, error: 'Dữ liệu JSON không hợp lệ' },
     };
   }
 

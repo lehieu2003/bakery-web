@@ -362,13 +362,13 @@ export async function handleAdminDashboardGetRequest(
     };
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to fetch dashboard data';
+      error instanceof Error ? error.message : 'Không tải được dashboard data';
     const status = mapAuthErrorToStatus(message);
     return {
       status,
       body: {
         success: false,
-        error: status === 500 ? 'Failed to fetch dashboard data' : message,
+        error: status === 500 ? 'Không tải được dashboard data' : message,
       },
     };
   }

@@ -140,7 +140,7 @@ test('POST /api/orders/reorder rejects non-completed orders', async () => {
   assert.equal(result.body.success, false);
   assert.equal(
     result.body.error,
-    'Reorder is available for completed orders only.',
+    'Chỉ mua lại được từ đơn hàng đã hoàn tất.',
   );
 });
 
@@ -165,7 +165,7 @@ test('POST /api/orders/reorder returns 404 when order is not found', async () =>
 
   assert.equal(result.status, 404);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Order not found');
+  assert.equal(result.body.error, 'Không tìm thấy đơn hàng');
 });
 
 test('POST /api/orders/reorder returns 401 when unauthenticated', async () => {
@@ -193,5 +193,5 @@ test('POST /api/orders/reorder returns 400 when request body is invalid JSON', a
   const body = await response.json();
   assert.equal(response.status, 400);
   assert.equal(body.success, false);
-  assert.equal(body.error, 'Invalid request payload');
+  assert.equal(body.error, 'Dữ liệu yêu cầu không hợp lệ');
 });

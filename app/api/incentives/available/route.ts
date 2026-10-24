@@ -126,7 +126,7 @@ function parseSubtotal(request: NextRequest): { subtotal: number | null; error?:
 
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed < 0) {
-    return { subtotal: null, error: 'Invalid subtotal query parameter' };
+    return { subtotal: null, error: 'Tham số tổng phụ không hợp lệ' };
   }
 
   return { subtotal: parsed };
@@ -176,7 +176,7 @@ function parseCartItems(request: NextRequest): {
         : Number(quantityRaw.trim());
 
     if (!productId || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
-      return { items: [], error: 'Invalid cart query parameter' };
+      return { items: [], error: 'Tham số giỏ hàng không hợp lệ' };
     }
 
     const current = quantityByProductId.get(productId) ?? 0;
@@ -316,7 +316,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get available incentives error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch available incentives' },
+      { success: false, error: 'Không tải được mã ưu đãi' },
       { status: 500 },
     );
   }

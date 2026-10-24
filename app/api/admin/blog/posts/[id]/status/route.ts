@@ -92,13 +92,13 @@ export async function handleAdminBlogPostStatusPatchRequest(
   const statusRaw = (body as Record<string, unknown>).status;
 
   if (typeof statusRaw !== 'string' || !ALLOWED_STATUSES.has(statusRaw as BlogPostStatus)) {
-    return { status: 400, body: { success: false, error: 'Invalid status' } };
+    return { status: 400, body: { success: false, error: 'Trạng thái không hợp lệ' } };
   }
 
   const status = statusRaw as BlogPostStatus;
   const existing = await deps.findPostById(id);
   if (!existing) {
-    return { status: 404, body: { success: false, error: 'Post not found' } };
+    return { status: 404, body: { success: false, error: 'Không tìm thấy bài viết' } };
   }
 
   const publishedAt =
@@ -122,7 +122,7 @@ export async function handleAdminBlogPostStatusPatchRequest(
       entity: 'blog_post',
       entityId: id,
       mutationType: 'STATUS_UPDATE',
-      summary: `Updated blog post status to ${status}`,
+      summary: `Chuyển trạng thái bài viết sang ${status}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

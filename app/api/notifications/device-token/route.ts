@@ -139,12 +139,12 @@ export async function handleRegisterDeviceTokenRequest(
     try {
       body = await request.json();
     } catch {
-      return { status: 400, body: apiError('Invalid request payload') };
+      return { status: 400, body: apiError('Dữ liệu yêu cầu không hợp lệ') };
     }
 
     const payload = parseRegisterInput(body);
     if (!payload) {
-      return { status: 400, body: apiError('Invalid request payload') };
+      return { status: 400, body: apiError('Dữ liệu yêu cầu không hợp lệ') };
     }
 
     const saved = await deps.upsertToken({ userId: user.id, input: payload });
@@ -198,12 +198,12 @@ export async function handleRevokeDeviceTokenRequest(
     try {
       body = await request.json();
     } catch {
-      return { status: 400, body: apiError('Invalid request payload') };
+      return { status: 400, body: apiError('Dữ liệu yêu cầu không hợp lệ') };
     }
 
     const payload = parseRevokeInput(body);
     if (!payload) {
-      return { status: 400, body: apiError('Invalid request payload') };
+      return { status: 400, body: apiError('Dữ liệu yêu cầu không hợp lệ') };
     }
 
     const result = await deps.revokeToken({ userId: user.id, token: payload.token });

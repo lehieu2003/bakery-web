@@ -63,7 +63,7 @@ export async function handleRefreshRequest(
       status: 401,
       body: {
         success: false,
-        error: 'Token reuse detected. All sessions have been revoked.',
+        error: 'Phát hiện dùng lại token. Mọi phiên đăng nhập đã bị thu hồi.',
       },
     };
   }
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Refresh error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to refresh session' },
+      { success: false, error: 'Không làm mới được phiên đăng nhập' },
       { status: 500 },
     );
   }

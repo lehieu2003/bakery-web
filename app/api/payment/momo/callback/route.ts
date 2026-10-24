@@ -220,7 +220,7 @@ export async function handleMoMoCallbackRequest(
   if (!payload) {
     return {
       status: 400,
-      body: { resultCode: 1, message: 'Invalid payload' },
+      body: { resultCode: 1, message: 'Dữ liệu không hợp lệ' },
     };
   }
 
@@ -260,7 +260,7 @@ export async function handleMoMoCallbackRequest(
     });
     return {
       status: 400,
-      body: { resultCode: 1, message: 'Invalid payload' },
+      body: { resultCode: 1, message: 'Dữ liệu không hợp lệ' },
     };
   }
 

@@ -49,7 +49,7 @@ export async function handleUpdateAddressRequest(
     }
 
     if (updates.phone !== undefined && !PHONE_PATTERN.test(updates.phone)) {
-      return addressError(400, 'Invalid phone number');
+      return addressError(400, 'Số điện thoại không hợp lệ');
     }
 
     if (

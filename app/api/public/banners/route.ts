@@ -34,7 +34,7 @@ export async function GET() {
   } catch (error) {
     console.error('Get public banners error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch banners' },
+      { success: false, error: 'Không tải được banner' },
       { status: 500 },
     );
   }
