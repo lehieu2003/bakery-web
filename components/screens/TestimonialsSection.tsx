@@ -80,7 +80,7 @@ export default function TestimonialsSection() {
   return (
     <section
       data-home-reveal
-      className='bg-[#faf8f5] px-4 py-16 lg:px-8'
+      className='bg-surface-soft px-4 py-16 lg:px-8'
       aria-labelledby='testimonials-heading'
     >
       <div className='mx-auto max-w-6xl'>

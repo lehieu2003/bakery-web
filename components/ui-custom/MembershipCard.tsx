@@ -78,10 +78,10 @@ export default function MembershipCard({ user }: { user: User }) {
               width: `${progress}%`,
               color:
                 user.level === 'gold'
-                  ? '#D97706'
+                  ? 'var(--color-amber-600)'
                   : user.level === 'platinum'
-                    ? '#F43F5E'
-                    : '#94A3B8',
+                    ? 'var(--color-rose-500)'
+                    : 'var(--color-slate-400)',
             }}
           />
         </div>
