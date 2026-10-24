@@ -400,7 +400,7 @@ export default function BlogScreen() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder='Tìm kiếm bài viết...'
-              className='w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
+              className='w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
             />
           </div>
           <button

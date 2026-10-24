@@ -413,7 +413,7 @@ export default function WebNavbar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
-                className='w-full border border-gray-200 rounded-md px-4 py-2.5 pr-10 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
+                className='w-full border border-gray-200 rounded-md px-4 py-2.5 pr-10 text-sm text-gray-700 placeholder:text-gray-400 focus-visible:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors'
                 autoComplete='off'
               />
               <button

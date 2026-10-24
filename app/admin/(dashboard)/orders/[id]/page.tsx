@@ -660,7 +660,7 @@ export default function OrderDetailPage({
             )}
           </AlertDialogHeader>
           <textarea
-            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20'
+            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus-visible:outline-none focus:ring-2 focus:ring-primary/20'
             placeholder='Reason for cancellation...'
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
@@ -694,7 +694,7 @@ export default function OrderDetailPage({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <textarea
-            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20'
+            className='w-full h-20 px-3 py-2 text-xs border border-border rounded-lg resize-none focus-visible:outline-none focus:ring-2 focus:ring-primary/20'
             placeholder='Refund reference / note...'
             value={refundNote}
             onChange={(e) => setRefundNote(e.target.value)}

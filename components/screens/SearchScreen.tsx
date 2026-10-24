@@ -308,7 +308,7 @@ export default function SearchScreen() {
               onChange={handleInputChange}
               placeholder='Bạn tìm gì ở Phương Loan Bakery?'
               autoFocus
-              className='w-full border border-border rounded-xl px-5 py-3.5 pr-12 text-sm text-foreground placeholder:text-muted-foreground bg-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors'
+              className='w-full border border-border rounded-xl px-5 py-3.5 pr-12 text-sm text-foreground placeholder:text-muted-foreground bg-background focus-visible:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors'
             />
             <button
               type='submit'

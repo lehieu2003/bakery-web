@@ -153,3 +153,11 @@
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/* Keyboard focus is always visible (WCAG 2.4.7). Components that suppress
+   the outline opt out via focus-visible:outline-none and must provide their
+   own focus-visible style. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

@@ -75,7 +75,7 @@ export default function LoginScreenAdmin() {
                   },
                 })}
                 placeholder='hello@example.com'
-                className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${
+                className={`w-full h-11 px-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${
                   errors.email ? 'border-destructive' : 'border-input'
                 }`}
                 autoComplete='email'
@@ -107,7 +107,7 @@ export default function LoginScreenAdmin() {
                     },
                   })}
                   placeholder='Enter your password'
-                  className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${
+                  className={`w-full h-11 px-4 pr-11 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${
                     errors.password ? 'border-destructive' : 'border-input'
                   }`}
                   autoComplete='current-password'
