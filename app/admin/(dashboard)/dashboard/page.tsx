@@ -204,18 +204,18 @@ export default function DashboardPage() {
               />
               <XAxis
                 dataKey='day'
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  fontSize: 11,
+                  fontSize: 12,
                   borderRadius: 8,
                   border: '1px solid var(--color-border)',
                 }}
@@ -261,19 +261,19 @@ export default function DashboardPage() {
               />
               <XAxis
                 dataKey='day'
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v) => `${v / 1000000}M`}
               />
               <Tooltip
                 contentStyle={{
-                  fontSize: 11,
+                  fontSize: 12,
                   borderRadius: 8,
                   border: '1px solid var(--color-border)',
                 }}
