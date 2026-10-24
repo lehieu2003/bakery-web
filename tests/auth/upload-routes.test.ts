@@ -36,7 +36,7 @@ test('upload route validates payload boundary', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'No file(s) provided');
+  assert.equal(result.body.error, 'Chưa chọn file nào');
 });
 
 test('upload delete route returns 401 for unauthenticated caller', async () => {
@@ -61,6 +61,6 @@ test('upload delete route returns 400 for missing publicId', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Public ID is required');
+  assert.equal(result.body.error, 'Thiếu Public ID');
 });
 

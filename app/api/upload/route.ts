@@ -28,7 +28,7 @@ export function validateUploadPayload(
   body: unknown,
 ): UploadPayloadValidationResult {
   if (typeof body !== 'object' || body === null) {
-    return { ok: false, error: 'Invalid request body' };
+    return { ok: false, error: 'Dữ liệu yêu cầu không hợp lệ' };
   }
 
   const { file, files } = body as { file?: unknown; files?: unknown };
@@ -39,7 +39,7 @@ export function validateUploadPayload(
   } else if (Array.isArray(files) && files.length > 0) {
     candidates = files;
   } else {
-    return { ok: false, error: 'No file(s) provided' };
+    return { ok: false, error: 'Chưa chọn file nào' };
   }
 
   if (candidates.length > MAX_UPLOAD_FILES) {
@@ -66,7 +66,7 @@ export function validateUploadPayload(
     if (decodedBytes > MAX_UPLOAD_FILE_BYTES) {
       return {
         ok: false,
-        error: 'File too large. Maximum size is 5MB per file',
+        error: 'File quá lớn. Tối đa 5MB mỗi file',
       };
     }
   }
@@ -148,7 +148,7 @@ export async function handleUploadRequest(
 
   return {
     status: 400,
-    body: { success: false, error: 'Invalid request' },
+    body: { success: false, error: 'Yêu cầu không hợp lệ' },
   };
 }
 

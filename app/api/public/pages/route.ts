@@ -49,7 +49,7 @@ export async function GET() {
   } catch (error) {
     console.error('Get public pages error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch pages' },
+      { success: false, error: 'Không tải được trang' },
       { status: 500 },
     );
   }

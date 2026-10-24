@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     if (status) {
       if (!isValidStatus(status)) {
         return NextResponse.json(
-          { success: false, error: 'Invalid notification status' },
+          { success: false, error: 'Trạng thái thông báo không hợp lệ' },
           { status: 400 },
         );
       }
@@ -102,14 +102,14 @@ export async function POST(request: NextRequest) {
 
     if (!title || !content) {
       return NextResponse.json(
-        { success: false, error: 'Title and content are required' },
+        { success: false, error: 'Cần nhập tiêu đề và nội dung' },
         { status: 400 },
       );
     }
 
     if (status !== undefined && !isValidStatus(status)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid notification status' },
+        { success: false, error: 'Trạng thái thông báo không hợp lệ' },
         { status: 400 },
       );
     }
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       parsedPublishedAt === null
     ) {
       return NextResponse.json(
-        { success: false, error: 'Invalid publishedAt value' },
+        { success: false, error: 'Ngày xuất bản không hợp lệ' },
         { status: 400 },
       );
     }

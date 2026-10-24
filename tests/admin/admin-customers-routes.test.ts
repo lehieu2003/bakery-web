@@ -26,7 +26,7 @@ test('admin customers list rejects invalid member level filter', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid member level filter');
+  assert.equal(result.body.error, 'Bộ lọc hạng thành viên không hợp lệ');
 });
 
 test('admin customers list normalizes pagination and includes compatibility level alias', async () => {
@@ -174,7 +174,7 @@ test('admin customer patch rejects invalid member level', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid memberLevel');
+  assert.equal(result.body.error, 'Hạng thành viên không hợp lệ');
 });
 
 test('admin customer patch rejects unknown payload fields', async () => {
@@ -206,7 +206,7 @@ test('admin customer patch rejects unknown payload fields', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid payload fields');
+  assert.equal(result.body.error, 'Trường dữ liệu không hợp lệ');
 });
 
 test('admin customer patch rejects malformed json payload', async () => {
@@ -242,7 +242,7 @@ test('admin customer patch rejects malformed json payload', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid JSON payload');
+  assert.equal(result.body.error, 'Dữ liệu JSON không hợp lệ');
 });
 
 test('admin customer patch no-op returns existing customer summary', async () => {

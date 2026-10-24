@@ -70,7 +70,7 @@ test('GET /api/incentives/available rejects invalid subtotal query', async () =>
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid subtotal query parameter');
+  assert.equal(result.body.error, 'Tham số tổng phụ không hợp lệ');
 });
 
 test('GET /api/incentives/available filters by active window, usage, and subtotal', async () => {
@@ -147,7 +147,7 @@ test('GET /api/incentives/available rejects invalid cart query', async () => {
   );
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid cart query parameter');
+  assert.equal(result.body.error, 'Tham số giỏ hàng không hợp lệ');
 });test('GET /api/incentives/available reads cart quantities from cart query', async () => {
   const deps = createDeps([
     createIncentive({

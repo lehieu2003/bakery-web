@@ -51,16 +51,16 @@ export default function CheckoutPaymentScreen() {
     enabled: Boolean(user),
   });
   const discountPercent =
-    membershipBenefitsQuery.data?.benefits.currentTier.discountPercent ?? 0;
+    membershipBenefitsQuery.data?.benefits.currentTier?.discountPercent ?? 0;
   const memberLabel =
-    membershipBenefitsQuery.data?.benefits.currentTier.label ??
+    membershipBenefitsQuery.data?.benefits.currentTier?.label ??
     user?.level ??
     'thành viên';
   const membershipPoints =
-    membershipBenefitsQuery.data?.user.points ?? user?.points ?? 0;
+    membershipBenefitsQuery.data?.user?.points ?? user?.points ?? 0;
   const eligibilityMessage = membershipBenefitsQuery.isLoading
     ? 'Đang kiểm tra ưu đãi thành viên...'
-    : membershipBenefitsQuery.data?.benefits.eligibility.message ??
+    : membershipBenefitsQuery.data?.benefits.eligibility?.message ??
       'Tạm thời không hiển thị được ưu đãi thành viên.';
   const [payMethod, setPayMethod] = useState<
     'COD' | 'MOMO' | 'VNPAY' | 'BANK_TRANSFER'

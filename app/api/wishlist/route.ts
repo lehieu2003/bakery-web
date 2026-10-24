@@ -41,14 +41,14 @@ export async function GET(request: NextRequest) {
       data: { wishlist },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch wishlist';
+    const message = error instanceof Error ? error.message : 'Không tải được danh sách yêu thích';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return NextResponse.json({ success: false, error: message }, { status });
     }
     console.error('Get wishlist error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch wishlist' },
+      { success: false, error: 'Không tải được danh sách yêu thích' },
       { status: 500 },
     );
   }
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     if (!productId) {
       return NextResponse.json(
-        { success: false, error: 'Missing required field: productId' },
+        { success: false, error: 'Thiếu trường bắt buộc: productId' },
         { status: 400 },
       );
     }
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     if (!product) {
       return NextResponse.json(
-        { success: false, error: 'Product not found' },
+        { success: false, error: 'Không tìm thấy sản phẩm' },
         { status: 404 },
       );
     }
@@ -115,14 +115,14 @@ export async function POST(request: NextRequest) {
       data: { item, isFavorite: true },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to add product to wishlist';
+    const message = error instanceof Error ? error.message : 'Không thêm được sản phẩm vào yêu thích';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return NextResponse.json({ success: false, error: message }, { status });
     }
     console.error('Add wishlist error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to add product to wishlist' },
+      { success: false, error: 'Không thêm được sản phẩm vào yêu thích' },
       { status: 500 },
     );
   }
@@ -138,7 +138,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!productId) {
       return NextResponse.json(
-        { success: false, error: 'Missing required field: productId' },
+        { success: false, error: 'Thiếu trường bắt buộc: productId' },
         { status: 400 },
       );
     }
@@ -155,14 +155,14 @@ export async function DELETE(request: NextRequest) {
       data: { productId, removed: true, isFavorite: false },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to remove product from wishlist';
+    const message = error instanceof Error ? error.message : 'Không xóa được sản phẩm khỏi yêu thích';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return NextResponse.json({ success: false, error: message }, { status });
     }
     console.error('Remove wishlist error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to remove product from wishlist' },
+      { success: false, error: 'Không xóa được sản phẩm khỏi yêu thích' },
       { status: 500 },
     );
   }

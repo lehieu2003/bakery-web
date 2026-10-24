@@ -95,14 +95,14 @@ const defaultDeps: CouponsRouteDeps = {
 
 function parseCouponPayload(raw: unknown): { error: string } | { payload: CouponCreatePayload } {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' };
+    return { error: 'Dữ liệu không hợp lệ' };
   }
 
   const body = raw as Record<string, unknown>;
 
   const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
   if (!/^[A-Z0-9_-]{3,40}$/.test(code)) {
-    return { error: 'Code must be 3-40 characters (letters, numbers, - or _)' };
+    return { error: 'Mã phải 3-40 ký tự (chữ, số, - hoặc _)' };
   }
 
   const type = body.type;
@@ -112,10 +112,10 @@ function parseCouponPayload(raw: unknown): { error: string } | { payload: Coupon
 
   const value = typeof body.value === 'number' ? body.value : NaN;
   if (!Number.isFinite(value) || value <= 0) {
-    return { error: 'value must be a positive number' };
+    return { error: 'Giá trị phải là số dương' };
   }
   if (type === 'PERCENTAGE' && value > 100) {
-    return { error: 'PERCENTAGE value must be at most 100' };
+    return { error: 'Giá trị phần trăm tối đa là 100' };
   }
 
   const parseDate = (input: unknown): string | null => {
@@ -127,10 +127,10 @@ function parseCouponPayload(raw: unknown): { error: string } | { payload: Coupon
   const startAt = parseDate(body.startAt);
   const endAt = parseDate(body.endAt);
   if (!startAt || !endAt) {
-    return { error: 'startAt and endAt must be valid dates' };
+    return { error: 'startAt và endAt phải là ngày hợp lệ' };
   }
   if (new Date(endAt) <= new Date(startAt)) {
-    return { error: 'endAt must be after startAt' };
+    return { error: 'Ngày kết thúc phải sau ngày bắt đầu' };
   }
 
   const parseOptionalAmount = (input: unknown): number | null | { error: string } => {
@@ -209,7 +209,7 @@ export async function handleAdminCouponsPostRequest(
     if ((error as { code?: string }).code === 'P2002') {
       return {
         status: 400,
-        body: { success: false, error: 'Coupon code already exists' },
+        body: { success: false, error: 'Mã coupon đã tồn tại' },
       };
     }
     throw error;
@@ -226,7 +226,7 @@ export async function handleAdminCouponsPostRequest(
       entityId:
         typeof coupon.id === 'string' ? coupon.id : 'unknown',
       mutationType: 'CREATE',
-      summary: `Created coupon ${parsed.payload.code}`,
+      summary: `Tạo coupon ${parsed.payload.code}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation({ headers, method: 'POST' }, '/api/admin/coupons'),
@@ -247,7 +247,7 @@ export async function GET(request: NextRequest) {
     console.error('Get coupons error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: message || 'Failed to fetch coupons' },
+      { success: false, error: message || 'Không tải được coupons' },
       { status: mapAuthErrorToStatus(message) },
     );
   }

@@ -39,7 +39,7 @@ export async function GET() {
   } catch (error) {
     console.error('Get public categories error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch categories' },
+      { success: false, error: 'Không tải được danh mục' },
       { status: 500 },
     );
   }

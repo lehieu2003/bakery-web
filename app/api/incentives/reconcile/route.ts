@@ -95,7 +95,7 @@ export async function handleIncentivesReconcileRequest(
       status: 503,
       body: {
         success: false,
-        error: 'Reconcile token is not configured',
+        error: 'Chưa cấu hình token đối soát',
       },
     };
   }
@@ -114,7 +114,7 @@ export async function handleIncentivesReconcileRequest(
         status: 503,
         body: {
           success: false,
-          error: 'Reconcile token is not configured',
+          error: 'Chưa cấu hình token đối soát',
         },
       };
     }
@@ -139,7 +139,7 @@ export async function handleIncentivesReconcileRequest(
         status: 400,
         body: {
           success: false,
-          error: 'Invalid reconciliation payload',
+          error: 'Dữ liệu đối soát không hợp lệ',
         },
       };
     }
@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to reconcile stale incentives',
+        error: 'Không đối soát được mã ưu đãi',
       },
       { status: 500 },
     );
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to reconcile stale incentives',
+        error: 'Không đối soát được mã ưu đãi',
       },
       { status: 500 },
     );

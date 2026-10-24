@@ -98,7 +98,7 @@ test('VNPay callback returns order not found when payment is missing', async () 
 
   assert.equal(result.status, 200);
   assert.equal(result.body.RspCode, '01');
-  assert.equal(result.body.Message, 'Order not found');
+  assert.equal(result.body.Message, 'Không tìm thấy đơn hàng');
 });
 
 test('VNPay callback applies PAID transition on success status (00)', async () => {

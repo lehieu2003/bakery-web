@@ -195,6 +195,6 @@ export async function GET(request: NextRequest) {
     return toApiJson(result.body, result.status);
   } catch (error) {
     console.error('Get public products error:', error);
-    return toApiJson(apiError('Failed to fetch products'), 500);
+    return toApiJson(apiError('Không tải được sản phẩm'), 500);
   }
 }

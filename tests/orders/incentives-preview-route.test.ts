@@ -60,7 +60,7 @@ test('POST /api/incentives/preview rejects missing required fields', async () =>
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Missing required fields');
+  assert.equal(result.body.error, 'Thiếu trường bắt buộc');
 });
 
 test('POST /api/incentives/preview returns recalculated total and coupon discount', async () => {
@@ -260,7 +260,7 @@ test('preview rejects invalid deliveryMethod values', async () => {
   );
 
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Invalid delivery method');
+  assert.equal(result.body.error, 'Phương thức nhận hàng không hợp lệ');
 });
 
 test('preview prices items from an owned variant and applies the fee threshold to it', async () => {

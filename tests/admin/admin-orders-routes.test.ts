@@ -33,7 +33,7 @@ test('admin orders list rejects invalid status filter', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid status filter');
+  assert.equal(result.body.error, 'Bộ lọc trạng thái không hợp lệ');
 });
 
 test('admin order patch blocks invalid status transition', async () => {
@@ -178,7 +178,7 @@ test('admin order patch returns 400 on invalid JSON payload', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid JSON payload');
+  assert.equal(result.body.error, 'Dữ liệu JSON không hợp lệ');
 });
 
 test('admin order status endpoint delegates to shared patch handler', async () => {
@@ -232,7 +232,7 @@ test('admin order status endpoint rejects non-status fields', async () => {
   assert.equal(delegated, false);
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Only status can be updated via this endpoint');
+  assert.equal(result.body.error, 'Endpoint này chỉ cho phép cập nhật trạng thái');
 });
 
 test('admin order audit handler enforces auth and normalizes pagination', async () => {

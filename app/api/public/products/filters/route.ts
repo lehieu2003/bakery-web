@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get public product filters error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch product filters' },
+      { success: false, error: 'Không tải được bộ lọc sản phẩm' },
       { status: 500 },
     );
   }

@@ -94,7 +94,7 @@ const defaultDeps: BannerByIdDeps = {
 
 function parseUpdatePayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
@@ -140,11 +140,11 @@ function parseUpdatePayload(raw: unknown) {
 
   if (body.displayOrder !== undefined) {
     if (typeof body.displayOrder !== 'number') {
-      return { error: 'displayOrder must be a non-negative integer' } as const;
+      return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
     }
     const displayOrder = body.displayOrder;
     if (!Number.isInteger(displayOrder) || displayOrder < 0) {
-      return { error: 'displayOrder must be a non-negative integer' } as const;
+      return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
     }
     payload.displayOrder = displayOrder;
   }
@@ -170,7 +170,7 @@ export async function handleAdminBannerGetByIdRequest(
   if (!banner) {
     return {
       status: 404,
-      body: { success: false, error: 'Banner not found' },
+      body: { success: false, error: 'Không tìm thấy banner' },
     };
   }
 
@@ -195,7 +195,7 @@ export async function handleAdminBannerUpdateRequest(
   if (!existing) {
     return {
       status: 404,
-      body: { success: false, error: 'Banner not found' },
+      body: { success: false, error: 'Không tìm thấy banner' },
     };
   }
 
@@ -223,7 +223,7 @@ export async function handleAdminBannerUpdateRequest(
       entity: 'banner',
       entityId: id,
       mutationType: 'UPDATE',
-      summary: `Updated banner ${id}`,
+      summary: `Cập nhật banner ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -254,7 +254,7 @@ export async function handleAdminBannerDeleteRequest(
   if (!existing) {
     return {
       status: 404,
-      body: { success: false, error: 'Banner not found' },
+      body: { success: false, error: 'Không tìm thấy banner' },
     };
   }
 
@@ -274,7 +274,7 @@ export async function handleAdminBannerDeleteRequest(
       entity: 'banner',
       entityId: id,
       mutationType: 'DELETE',
-      summary: `Deleted banner ${id}`,
+      summary: `Xóa banner ${id}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(
@@ -305,7 +305,7 @@ export async function GET(
     console.error('Get banner error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: message || 'Failed to fetch banner' },
+      { success: false, error: message || 'Không tải được banner' },
       { status: mapAuthErrorToStatus(message) },
     );
   }

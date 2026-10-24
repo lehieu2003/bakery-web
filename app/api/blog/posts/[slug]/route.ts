@@ -61,7 +61,7 @@ export async function handleGetPublicBlogPostBySlugRequest(
   if (!slug) {
     return {
       status: 400,
-      body: { success: false as const, error: 'Invalid blog post slug' },
+      body: { success: false as const, error: 'Slug bài viết không hợp lệ' },
     };
   }
 

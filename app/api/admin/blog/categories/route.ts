@@ -85,7 +85,7 @@ function normalizeOptionalString(raw: unknown, fieldName: string) {
 }
 
 function parseCategoryPayload(raw: unknown) {
-  if (!raw || typeof raw !== 'object') return { error: 'Invalid payload' } as const;
+  if (!raw || typeof raw !== 'object') return { error: 'Dữ liệu không hợp lệ' } as const;
   const body = raw as Record<string, unknown>;
 
   const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -96,7 +96,7 @@ function parseCategoryPayload(raw: unknown) {
 
   const displayOrderRaw = body.displayOrder ?? 0;
   if (typeof displayOrderRaw !== 'number' || !Number.isInteger(displayOrderRaw) || displayOrderRaw < 0) {
-    return { error: 'displayOrder must be a non-negative integer' } as const;
+    return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
   }
 
   if (body.isActive !== undefined && typeof body.isActive !== 'boolean') {
@@ -140,7 +140,7 @@ export async function handleAdminBlogCategoriesPostRequest(
 
   const existing = await deps.findCategoryBySlug(parsed.payload.slug);
   if (existing) {
-    return { status: 400, body: { success: false, error: 'Slug already exists' } };
+    return { status: 400, body: { success: false, error: 'Slug đã tồn tại' } };
   }
 
   const category = await deps.createCategory(parsed.payload);
@@ -163,7 +163,7 @@ export async function handleAdminBlogCategoriesPostRequest(
       entity: 'blog_category',
       entityId: categoryId,
       mutationType: 'CREATE',
-      summary: `Created blog category ${parsed.payload.name}`,
+      summary: `Tạo danh mục bài viết ${parsed.payload.name}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation(

@@ -124,13 +124,13 @@ export async function handleListAddressesRequest(
     };
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to fetch addresses';
+      error instanceof Error ? error.message : 'Không tải được addresses';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return addressError(status, message);
     }
     console.error('List addresses error:', error);
-    return addressError(500, 'Failed to fetch addresses');
+    return addressError(500, 'Không tải được addresses');
   }
 }
 
@@ -159,7 +159,7 @@ export async function handleCreateAddressRequest(
     }
 
     if (!PHONE_PATTERN.test(fields.phone)) {
-      return addressError(400, 'Invalid phone number');
+      return addressError(400, 'Số điện thoại không hợp lệ');
     }
 
     if (

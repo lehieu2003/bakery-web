@@ -98,7 +98,7 @@ export async function handleGetRelatedProductsRequest(
   if (!current) {
     return {
       status: 404,
-      body: { success: false, error: 'Product not found' },
+      body: { success: false, error: 'Không tìm thấy sản phẩm' },
     };
   }
 
@@ -131,7 +131,7 @@ export async function GET(
   } catch (error) {
     console.error('Related products error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch related products' },
+      { success: false, error: 'Không tải được sản phẩm liên quan' },
       { status: 500 },
     );
   }

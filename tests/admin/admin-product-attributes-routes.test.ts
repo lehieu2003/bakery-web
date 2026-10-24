@@ -17,7 +17,7 @@ test('normalizeAttributeValues rejects invalid label payload', () => {
   const result = normalizeAttributeValues([{ label: ' ' }]);
 
   assert.equal('error' in result, true);
-  assert.match(String((result as { error: string }).error), /requires label/);
+  assert.match(String((result as { error: string }).error), /cần nhãn/);
 });
 
 test('normalizeAttributeValues rejects duplicate slug/value payload', () => {
@@ -27,7 +27,7 @@ test('normalizeAttributeValues rejects duplicate slug/value payload', () => {
   ]);
 
   assert.equal('error' in duplicateSlug, true);
-  assert.match(String((duplicateSlug as { error: string }).error), /Duplicate value slug/);
+  assert.match(String((duplicateSlug as { error: string }).error), /Trùng slug giá trị/);
 
   const duplicateValue = normalizeAttributeValues([
     { label: 'Red', value: 'red' },
@@ -35,7 +35,7 @@ test('normalizeAttributeValues rejects duplicate slug/value payload', () => {
   ]);
 
   assert.equal('error' in duplicateValue, true);
-  assert.match(String((duplicateValue as { error: string }).error), /Duplicate value/);
+  assert.match(String((duplicateValue as { error: string }).error), /Trùng giá trị/);
 });
 
 test('admin product-attributes create validates attribute type', async () => {
@@ -57,7 +57,7 @@ test('admin product-attributes create validates attribute type', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid attribute type');
+  assert.equal(result.body.error, 'Loại thuộc tính không hợp lệ');
 });
 
 test('admin product-attributes create rejects duplicate code', async () => {
@@ -79,7 +79,7 @@ test('admin product-attributes create rejects duplicate code', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Attribute code already exists');
+  assert.equal(result.body.error, 'Thuộc tính đã tồn tại (mã)');
 });
 
 test('admin product-attributes create rejects non-boolean flags', async () => {
@@ -133,7 +133,7 @@ test('admin product-attribute update prevents deleting values assigned to produc
         withTransaction: async (fn) => fn({} as never),
       },
     ),
-    /Cannot remove attribute values assigned to products/,
+    /Không thể xóa giá trị/,
   );
 });
 

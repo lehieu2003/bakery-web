@@ -45,7 +45,7 @@ test('admin banners create rejects non-numeric displayOrder', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'displayOrder must be a non-negative integer');
+  assert.equal(result.body.error, 'Thứ tự hiển thị phải là số nguyên không âm');
 });
 
 test('admin banners reorder rejects duplicate IDs', async () => {
@@ -82,7 +82,7 @@ test('admin banners reorder rejects non-numeric displayOrder entries', async () 
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.match(String(result.body.error), /displayOrder/);
+  assert.match(String(result.body.error), /thứ tự hiển thị/i);
 });
 
 test('admin menu create validates PAGE target requirements', async () => {
@@ -126,7 +126,7 @@ test('admin menu create rejects non-numeric displayOrder', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'displayOrder must be a non-negative integer');
+  assert.equal(result.body.error, 'Thứ tự hiển thị phải là số nguyên không âm');
 });
 
 test('admin menu update preserves existing link URL on partial mutation', async () => {
@@ -197,7 +197,7 @@ test('admin menu update rejects non-numeric displayOrder', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'displayOrder must be a non-negative integer');
+  assert.equal(result.body.error, 'Thứ tự hiển thị phải là số nguyên không âm');
 });
 
 test('admin menu update fails closed on pre-existing cyclic parent graph', async () => {
@@ -233,5 +233,5 @@ test('admin menu update fails closed on pre-existing cyclic parent graph', async
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Parent relationship creates a cycle');
+  assert.equal(result.body.error, 'Quan hệ cha-con tạo thành vòng lặp');
 });

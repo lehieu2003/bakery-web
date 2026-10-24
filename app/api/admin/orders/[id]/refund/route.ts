@@ -75,7 +75,7 @@ export async function handleMarkRefundedRequest(
       status: 409,
       body: {
         success: false,
-        error: 'Order is not awaiting a refund (it must be cancelled with a paid payment).',
+        error: 'Đơn hàng không ở trạng thái chờ hoàn tiền.',
       },
     };
   }

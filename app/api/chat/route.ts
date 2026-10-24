@@ -360,7 +360,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Too many requests. Please try again later.',
+        error: 'Bạn đang thao tác quá nhanh. Vui lòng thử lại sau.',
       },
       {
         status: 429,

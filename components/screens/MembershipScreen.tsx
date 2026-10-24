@@ -16,7 +16,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+import { useMembershipBenefits } from '@/hooks/use-membership-benefits';
+
 /* ─── Tier data ─────────────────────────────────────────── */
+// Styling, marketing copy and the first benefit line stay static; the tier
+// numbers (minPoints / discount / points range) are merged from
+// /api/membership/benefits so admin edits in "Thành viên" show up here.
 const TIERS = [
   {
     key: 'silver',
@@ -140,6 +145,36 @@ const JOIN_CONDITIONS = [
 
 /* ─── Component ─────────────────────────────────────────── */
 export default function MembershipScreen() {
+  const { data: benefitsData } = useMembershipBenefits();
+  const apiTiers = benefitsData?.benefits.tiers;
+  const pointsPerOrder = benefitsData?.benefits.pointsPerOrder ?? 10000;
+
+  const tiers = TIERS.map((tier, index) => {
+    const api = apiTiers?.find((t) => t.level.toLowerCase() === tier.key);
+    if (!api) return tier;
+    const nextKey = TIERS[index + 1]?.key;
+    const nextApi = apiTiers?.find((t) => t.level.toLowerCase() === nextKey);
+    return {
+      ...tier,
+      minPoints: api.minPoints,
+      maxPoints: nextApi ? nextApi.minPoints - 1 : null,
+      discount: api.discountPercent,
+      benefits: [
+        `Giảm ${api.discountPercent}% trên mỗi đơn hàng`,
+        ...tier.benefits.slice(1),
+      ],
+    };
+  });
+
+  const earnSteps = EARN_STEPS.map((step) =>
+    step.title === 'Tích điểm tự động'
+      ? {
+          ...step,
+          desc: `Cứ mỗi ${pointsPerOrder.toLocaleString('vi-VN')}đ trong đơn hàng, bạn nhận được 1 điểm thưởng.`,
+        }
+      : step,
+  );
+
   return (
     <div className='py-10 space-y-20'>
       {/* Hero */}
@@ -178,7 +213,7 @@ export default function MembershipScreen() {
           </p>
         </div>
         <div className='grid md:grid-cols-3 gap-6'>
-          {TIERS.map((tier) => {
+          {tiers.map((tier) => {
             const Icon = tier.icon;
             return (
               <div
@@ -281,7 +316,7 @@ export default function MembershipScreen() {
           </p>
         </div>
         <div className='grid md:grid-cols-3 gap-6'>
-          {EARN_STEPS.map((step, i) => {
+          {earnSteps.map((step, i) => {
             const Icon = step.icon;
             return (
               <div

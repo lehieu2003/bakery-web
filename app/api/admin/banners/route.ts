@@ -72,13 +72,13 @@ const defaultDeps: BannersRouteDeps = {
 
 function parseBannerCreatePayload(raw: unknown) {
   if (!raw || typeof raw !== 'object') {
-    return { error: 'Invalid payload' } as const;
+    return { error: 'Dữ liệu không hợp lệ' } as const;
   }
 
   const body = raw as Record<string, unknown>;
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   if (!title) {
-    return { error: 'Title is required' } as const;
+    return { error: 'Cần nhập tiêu đề' } as const;
   }
 
   if (body.isActive !== undefined && typeof body.isActive !== 'boolean') {
@@ -87,12 +87,12 @@ function parseBannerCreatePayload(raw: unknown) {
 
   const displayOrderRaw = body.displayOrder ?? 0;
   if (typeof displayOrderRaw !== 'number') {
-    return { error: 'displayOrder must be a non-negative integer' } as const;
+    return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
   }
 
   const displayOrder = displayOrderRaw;
   if (!Number.isInteger(displayOrder) || displayOrder < 0) {
-    return { error: 'displayOrder must be a non-negative integer' } as const;
+    return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
   }
 
   if (
@@ -187,7 +187,7 @@ export async function handleAdminBannersPostRequest(
       entity: 'banner',
       entityId: bannerId,
       mutationType: 'CREATE',
-      summary: `Created banner ${parsed.payload.title}`,
+      summary: `Tạo banner ${parsed.payload.title}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation({ headers, method }, '/api/admin/banners'),
@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
     console.error('Get banners error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: message || 'Failed to fetch banners' },
+      { success: false, error: message || 'Không tải được banner' },
       { status: mapAuthErrorToStatus(message) },
     );
   }

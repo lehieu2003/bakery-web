@@ -615,7 +615,7 @@ async function settleGatewayInit(
     return await init();
   } catch (error) {
     console.error('Payment gateway init error:', error);
-    return { error: 'Payment gateway is unavailable. Please try again.' };
+    return { error: 'Cổng thanh toán đang bận. Vui lòng thử lại.' };
   }
 }
 
@@ -627,7 +627,7 @@ function resolveNormalizedIncentiveCodes(args: {
   if (normalizedSingle === '') {
     return {
       codes: [],
-      error: 'Incentive code is invalid. Please enter a non-empty code.',
+      error: 'Mã ưu đãi không hợp lệ. Vui lòng nhập mã.',
     };
   }
 
@@ -638,7 +638,7 @@ function resolveNormalizedIncentiveCodes(args: {
       if (normalized === '') {
         return {
           codes: [],
-          error: 'One or more incentive codes are invalid.',
+          error: 'Có mã ưu đãi không hợp lệ.',
         };
       }
       if (normalized) {
@@ -655,7 +655,7 @@ function resolveNormalizedIncentiveCodes(args: {
   if (uniqueCodes.length > 5) {
     return {
       codes: [],
-      error: 'You can apply up to 5 incentive codes per order.',
+      error: 'Tối đa 5 mã ưu đãi cho mỗi đơn.',
     };
   }
 
@@ -671,14 +671,14 @@ export async function handleCreateOrderRequest(
   if (!body || typeof body !== 'object') {
     return {
       status: 400,
-      body: { success: false, error: 'Missing required fields' },
+      body: { success: false, error: 'Thiếu trường bắt buộc' },
     };
   }
 
   if (idempotencyKey != null && !IDEMPOTENCY_KEY_REGEX.test(idempotencyKey)) {
     return {
       status: 400,
-      body: { success: false, error: 'Invalid Idempotency-Key' },
+      body: { success: false, error: 'Mã chống gửi trùng không hợp lệ' },
     };
   }
 
@@ -709,7 +709,7 @@ export async function handleCreateOrderRequest(
   if (!customerName || !customerPhone || !paymentMethod || !items?.length) {
     return {
       status: 400,
-      body: { success: false, error: 'Missing required fields' },
+      body: { success: false, error: 'Thiếu trường bắt buộc' },
     };
   }
 
@@ -717,14 +717,14 @@ export async function handleCreateOrderRequest(
   if (!VN_PHONE_REGEX.test(cleanPhone)) {
     return {
       status: 400,
-      body: { success: false, error: 'Invalid phone number' },
+      body: { success: false, error: 'Số điện thoại không hợp lệ' },
     };
   }
 
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return {
       status: 400,
-      body: { success: false, error: 'Invalid payment method' },
+      body: { success: false, error: 'Phương thức thanh toán không hợp lệ' },
     };
   }
 
@@ -735,7 +735,7 @@ export async function handleCreateOrderRequest(
   ) {
     return {
       status: 400,
-      body: { success: false, error: 'Invalid delivery method' },
+      body: { success: false, error: 'Phương thức nhận hàng không hợp lệ' },
     };
   }
 
@@ -743,13 +743,13 @@ export async function handleCreateOrderRequest(
     if (!item.productId || !item.name || !item.price || !item.quantity) {
       return {
         status: 400,
-        body: { success: false, error: 'Invalid item data' },
+        body: { success: false, error: 'Dữ liệu món không hợp lệ' },
       };
     }
     if (item.quantity < 1 || item.quantity > 100) {
       return {
         status: 400,
-        body: { success: false, error: 'Invalid item quantity' },
+        body: { success: false, error: 'Số lượng món không hợp lệ' },
       };
     }
     if (
@@ -757,7 +757,7 @@ export async function handleCreateOrderRequest(
     ) {
       return {
         status: 400,
-        body: { success: false, error: 'Invalid item message' },
+        body: { success: false, error: 'Ghi chú món không hợp lệ' },
       };
     }
   }
@@ -768,7 +768,7 @@ export async function handleCreateOrderRequest(
     if (Number.isNaN(parsedPickupDate.getTime())) {
       return {
         status: 400,
-        body: { success: false, error: 'Invalid pickup date' },
+        body: { success: false, error: 'Ngày nhận không hợp lệ' },
       };
     }
     pickupDate = parsedPickupDate;
@@ -799,7 +799,7 @@ export async function handleCreateOrderRequest(
         status: 400,
         body: {
           success: false,
-          error: `Product "${item.name}" is not available`,
+          error: `Sản phẩm "${item.name}" hiện không khả dụng`,
         },
       };
     }
@@ -886,14 +886,14 @@ export async function handleCreateOrderRequest(
     if (!user) {
       return {
         status: 400,
-        body: { success: false, error: 'Invalid address' },
+        body: { success: false, error: 'Địa chỉ không hợp lệ' },
       };
     }
     const address = await deps.findUserAddress(user.id, addressId);
     if (!address) {
       return {
         status: 400,
-        body: { success: false, error: 'Invalid address' },
+        body: { success: false, error: 'Địa chỉ không hợp lệ' },
       };
     }
     addressSnapshot = `${address.street}, ${address.ward}, ${address.district}, ${address.province}`;
@@ -1027,7 +1027,7 @@ export async function handleCreateOrderRequest(
   if (total <= 0) {
     return {
       status: 400,
-      body: { success: false, error: 'Invalid order total' },
+      body: { success: false, error: 'Tổng tiền đơn hàng không hợp lệ' },
     };
   }
 
@@ -1081,7 +1081,7 @@ export async function handleCreateOrderRequest(
         status: 400,
         body: {
           success: false,
-          error: 'Some items just sold out. Please review your cart.',
+          error: 'Có món vừa hết hàng. Vui lòng kiểm tra lại giỏ hàng.',
         },
       };
     }
@@ -1240,7 +1240,7 @@ function respondToRetry(
       status: 409,
       body: {
         success: false,
-        error: 'Idempotency-Key was already used for another order.',
+        error: 'Yêu cầu đã được xử lý cho đơn hàng khác. Vui lòng thử lại.',
       },
     });
   }
@@ -1372,7 +1372,7 @@ export async function handleGetOrdersRequest(
       },
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch orders';
+    const message = error instanceof Error ? error.message : 'Không tải được danh sách đơn hàng';
     const status = mapAuthErrorToStatus(message);
     if (status !== 500) {
       return {
@@ -1383,7 +1383,7 @@ export async function handleGetOrdersRequest(
     console.error('Get orders error:', error);
     return {
       status: 500,
-      body: { success: false, error: 'Failed to fetch orders' },
+      body: { success: false, error: 'Không tải được danh sách đơn hàng' },
     };
   }
 }
@@ -1405,7 +1405,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Too many requests. Please try again later.',
+        error: 'Bạn đang thao tác quá nhanh. Vui lòng thử lại sau.',
       },
       {
         status: 429,
@@ -1426,7 +1426,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Create order error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to create order' },
+      { success: false, error: 'Không tạo được đơn hàng' },
       { status: 500 },
     );
   }

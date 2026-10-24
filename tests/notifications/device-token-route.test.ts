@@ -58,7 +58,7 @@ test('POST /api/notifications/device-token validates payload', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid request payload');
+  assert.equal(result.body.error, 'Dữ liệu yêu cầu không hợp lệ');
 });
 
 test('POST /api/notifications/device-token registers token idempotently', async () => {
@@ -139,7 +139,7 @@ test('POST /api/notifications/device-token returns 400 for malformed JSON body',
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid request payload');
+  assert.equal(result.body.error, 'Dữ liệu yêu cầu không hợp lệ');
 });
 
 test('DELETE /api/notifications/device-token returns 401 for unauthenticated user', async () => {
@@ -211,7 +211,7 @@ test('DELETE /api/notifications/device-token validates payload', async () => {
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid request payload');
+  assert.equal(result.body.error, 'Dữ liệu yêu cầu không hợp lệ');
 });
 
 test('DELETE /api/notifications/device-token returns 400 for malformed JSON body', async () => {
@@ -230,7 +230,7 @@ test('DELETE /api/notifications/device-token returns 400 for malformed JSON body
 
   assert.equal(result.status, 400);
   assert.equal(result.body.success, false);
-  assert.equal(result.body.error, 'Invalid request payload');
+  assert.equal(result.body.error, 'Dữ liệu yêu cầu không hợp lệ');
 });
 
 test('DELETE /api/notifications/device-token returns safe success when token not found', async () => {

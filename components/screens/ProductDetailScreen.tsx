@@ -59,9 +59,9 @@ export default function ProductDetailScreen({
     enabled: Boolean(user),
   });
   const memberDiscountPercent =
-    membershipBenefitsQuery.data?.benefits.currentTier.discountPercent ?? 0;
+    membershipBenefitsQuery.data?.benefits.currentTier?.discountPercent ?? 0;
   const memberTierLabel =
-    membershipBenefitsQuery.data?.benefits.currentTier.label ?? '';
+    membershipBenefitsQuery.data?.benefits.currentTier?.label ?? '';
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null,
   );

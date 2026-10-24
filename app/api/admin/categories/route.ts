@@ -136,7 +136,7 @@ function normalizeCreatePayload(raw: unknown) {
   }
 
   if (!Number.isInteger(displayOrder) || displayOrder < 0) {
-    return { error: 'displayOrder must be a non-negative integer' } as const;
+    return { error: 'Thứ tự hiển thị phải là số nguyên không âm' } as const;
   }
 
   return {
@@ -187,7 +187,7 @@ export async function handleAdminCategoriesPostRequest(
   if (!parsed || 'error' in parsed) {
     return {
       status: 400,
-      body: { success: false, error: parsed?.error ?? 'Invalid payload' },
+      body: { success: false, error: parsed?.error ?? 'Dữ liệu không hợp lệ' },
     };
   }
 
@@ -195,7 +195,7 @@ export async function handleAdminCategoriesPostRequest(
   if (existingSlug) {
     return {
       status: 400,
-      body: { success: false, error: 'Slug already exists' },
+      body: { success: false, error: 'Slug đã tồn tại' },
     };
   }
 
@@ -205,7 +205,7 @@ export async function handleAdminCategoriesPostRequest(
     if (!parent) {
       return {
         status: 400,
-        body: { success: false, error: 'Parent category not found' },
+        body: { success: false, error: 'Không tìm thấy danh mục cha' },
       };
     }
     parentLevel = parent.level;
@@ -236,7 +236,7 @@ export async function handleAdminCategoriesPostRequest(
       entity: 'category',
       entityId: categoryId,
       mutationType: 'CREATE',
-      summary: `Created category ${parsed.payload.name}`,
+      summary: `Tạo danh mục ${parsed.payload.name}`,
       actorUserId: admin.id,
       actorRole: admin.role,
       correlation: buildRequestCorrelation({ headers, method }, '/api/admin/categories'),

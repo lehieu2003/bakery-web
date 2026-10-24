@@ -34,11 +34,11 @@ export async function handleAdminOrderStatusPatchRequest(
   try {
     rawBody = await request.json();
   } catch {
-    return { status: 400, body: { success: false, error: 'Invalid JSON payload' } };
+    return { status: 400, body: { success: false, error: 'Dữ liệu JSON không hợp lệ' } };
   }
 
   if (!rawBody || typeof rawBody !== 'object' || Array.isArray(rawBody)) {
-    return { status: 400, body: { success: false, error: 'Invalid payload' } };
+    return { status: 400, body: { success: false, error: 'Dữ liệu không hợp lệ' } };
   }
 
   const payload = rawBody as Record<string, unknown>;
@@ -46,7 +46,7 @@ export async function handleAdminOrderStatusPatchRequest(
   if (keys.some((key) => key !== 'status')) {
     return {
       status: 400,
-      body: { success: false, error: 'Only status can be updated via this endpoint' },
+      body: { success: false, error: 'Endpoint này chỉ cho phép cập nhật trạng thái' },
     };
   }
 
