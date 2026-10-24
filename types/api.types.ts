@@ -575,21 +575,23 @@ export interface MembershipBenefitTier {
 }
 
 export interface MembershipBenefitsResponse {
+  /** null for guests — they only get the tier catalogue + pointsPerOrder. */
   user: {
     id: string;
     memberLevel: MemberLevel;
     points: number;
-  };
+  } | null;
   benefits: {
     tiers: MembershipBenefitTier[];
-    currentTier: Omit<MembershipBenefitTier, 'isEligible'>;
-    nextTier: {
+    /** Absent in the guest payload. */
+    currentTier?: Omit<MembershipBenefitTier, 'isEligible'>;
+    nextTier?: {
       level: MemberLevel;
       label: string;
       minPoints: number;
       pointsNeeded: number;
     } | null;
-    eligibility: {
+    eligibility?: {
       isHighestTier: boolean;
       message: string;
     };
