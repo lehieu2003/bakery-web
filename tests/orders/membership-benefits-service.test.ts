@@ -47,6 +47,9 @@ test('membershipBenefitsService.getCurrent uses membership benefits endpoint', a
       skipAuthRedirect: true,
       showErrorToast: false,
     });
+    if (!result.user) {
+      assert.fail('service response must carry a user');
+    }
     assert.equal(result.user.memberLevel, 'GOLD');
   } finally {
     (http as { get: typeof http.get }).get = originalGet;

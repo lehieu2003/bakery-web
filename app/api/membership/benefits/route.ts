@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
+import { mapAuthErrorToStatus } from '@/lib/rbac';
+import { getCurrentUserFromRequest } from '@/lib/session';
 import {
   buildMembershipBenefitsView,
   getMembershipRulesConfig,
@@ -17,7 +18,8 @@ type MembershipBenefitsRouteDeps = {
 };
 
 const defaultDeps: MembershipBenefitsRouteDeps = {
-  getCurrentUser: requireUserFromRequest,
+  // Nullable variant: guests must reach the catalogue branch, not throw 401.
+  getCurrentUser: getCurrentUserFromRequest,
   getMembershipConfig: getMembershipRulesConfig,
 };
 
@@ -27,15 +29,32 @@ export async function handleGetMembershipBenefitsRequest(
 ) {
   try {
     const user = await deps.getCurrentUser(request);
+    const config = await deps.getMembershipConfig();
 
     if (!user) {
+      // Guests still get the tier catalogue so the marketing page can render
+      // live admin-configured numbers — only the user-specific slice is
+      // omitted.
+      const guestBenefits = buildMembershipBenefitsView({
+        config,
+        memberLevel: null,
+        points: 0,
+      });
       return {
-        status: 401,
-        body: { success: false, error: 'Unauthorized' },
+        status: 200,
+        body: {
+          success: true,
+          data: {
+            user: null,
+            benefits: {
+              tiers: guestBenefits.tiers,
+              pointsPerOrder: config.pointsPerOrder,
+            },
+          },
+        },
       };
     }
 
-    const config = await deps.getMembershipConfig();
     const points = Number.isFinite(user.points) && (user.points ?? 0) > 0
       ? Number(user.points)
       : 0;
