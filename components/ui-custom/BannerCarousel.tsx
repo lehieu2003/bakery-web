@@ -273,7 +273,7 @@ export default function BannerCarousel({
                   key={index}
                   onClick={() => goToSlide(index)}
                   disabled={isAnimating}
-                  aria-label={`Go to slide ${index + 1}`}
+                  aria-label={`Ảnh banner ${index + 1}`}
                   className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                     isActive
                       ? 'w-7 bg-white shadow-sm'

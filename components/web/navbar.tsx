@@ -671,7 +671,7 @@ export default function WebNavbar() {
             <Link
               href='/cart'
               className='relative hidden items-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:flex'
-              aria-label={`Shopping cart, ${cartCount} items`}
+              aria-label={`Giỏ hàng, ${cartCount} sản phẩm`}
             >
               <div className='relative'>
                 <ShoppingCart size={26} />
