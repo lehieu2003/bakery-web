@@ -27,6 +27,7 @@ async function main() {
 
   const user = await prisma.user.findUnique({ where: { email: EMAIL } });
   if (!user) throw new Error(`Admin user not found: ${EMAIL}`);
+  if (!user.password) throw new Error(`Admin user has no password set: ${EMAIL}`);
 
   const currentIsDemo = await verifyPassword(LEGACY_DEMO_PASSWORD, user.password);
   if (!currentIsDemo) {
