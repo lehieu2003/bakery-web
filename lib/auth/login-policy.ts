@@ -4,7 +4,9 @@ type LoginCandidate = {
   isActive: boolean;
 };
 
-export function canAuthenticateWithPassword(user: LoginCandidate): boolean {
+export function canAuthenticateWithPassword<T extends LoginCandidate>(
+  user: T,
+): user is T & { password: string } {
   if (!user.password) {
     return false;
   }

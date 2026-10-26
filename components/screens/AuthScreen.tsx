@@ -15,14 +15,17 @@ import type {
   RegisterVerifyRequest,
   ResetPasswordVerifyRequest,
 } from '@/types/api.types';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/providers/auth-provider';
+import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
 
 type Tab = 'login' | 'register';
 
 export default function AuthScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const oauthError = searchParams.get('error');
   const { setUser } = useAuth();
   const [tab, setTab] = useState<Tab>('login');
   const loginMutation = useLogin();
@@ -197,6 +200,14 @@ export default function AuthScreen() {
                   </p>
                 </div>
 
+                {oauthError && (
+                  <div className='mb-5 bg-destructive/10 border border-destructive/50 rounded-xl p-3'>
+                    <p className='text-xs text-destructive font-medium'>
+                      Đăng nhập Google không thành công: {decodeURIComponent(oauthError)}
+                    </p>
+                  </div>
+                )}
+
                 {!forgotMode ? (
                   <form
                     onSubmit={handleLoginSubmit(onLoginSubmit)}
@@ -303,6 +314,14 @@ export default function AuthScreen() {
                     >
                       {loginMutation.isPending ? 'Đang đăng nhập…' : 'Đăng nhập'}
                     </button>
+
+                    <div className='flex items-center gap-3 pt-2'>
+                      <span className='flex-1 h-px bg-border/60' />
+                      <span className='text-xs text-muted-foreground'>hoặc tiếp tục với</span>
+                      <span className='flex-1 h-px bg-border/60' />
+                    </div>
+
+                    <GoogleLoginButton />
                   </form>
                 ) : (
                   <form
@@ -608,6 +627,14 @@ export default function AuthScreen() {
                           ? 'Đang gửi…'
                           : 'Gửi mã OTP'}
                       </button>
+
+                      <div className='flex items-center gap-3 pt-2'>
+                        <span className='flex-1 h-px bg-border/60' />
+                        <span className='text-xs text-muted-foreground'>hoặc tiếp tục với</span>
+                        <span className='flex-1 h-px bg-border/60' />
+                      </div>
+
+                      <GoogleLoginButton />
                     </>
                   ) : (
                     <>

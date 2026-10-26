@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import AuthScreen from '@/components/screens/AuthScreen';
 
 export const metadata: Metadata = {
@@ -11,5 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default function AuthPage() {
-  return <AuthScreen />;
+  return (
+    <Suspense fallback={null}>
+      <AuthScreen />
+    </Suspense>
+  );
 }
