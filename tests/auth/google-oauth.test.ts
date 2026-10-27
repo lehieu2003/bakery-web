@@ -6,6 +6,15 @@ import {
   getAppUrl,
 } from '@/lib/auth/google-oauth';
 import { canAuthenticateWithPassword } from '@/lib/auth/login-policy';
+import { assertGoogleEmailVerified } from '@/lib/auth/google-oauth';
+
+test('assertGoogleEmailVerified only accepts an email Google marked verified', () => {
+  const info = { sub: 's1', email: 'customer@example.com' };
+
+  assert.doesNotThrow(() => assertGoogleEmailVerified({ ...info, email_verified: true }));
+  assert.throws(() => assertGoogleEmailVerified({ ...info, email_verified: false }));
+  assert.throws(() => assertGoogleEmailVerified(info));
+});
 
 test('generateOAuthState creates high-entropy random state', () => {
   const state1 = generateOAuthState();

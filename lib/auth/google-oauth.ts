@@ -94,7 +94,32 @@ export async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUs
   return response.json();
 }
 
+/**
+ * Accounts are linked by email below, so the email must be one Google has
+ * verified for this Google account — otherwise an unverified address could
+ * sign in as the existing user who owns it.
+ */
+export function assertGoogleEmailVerified(info: GoogleUserInfo): void {
+  if (info.email_verified !== true) {
+    throw new Error('Email Google chưa được xác thực.');
+  }
+}
+
+/**
+ * Audiences (OAuth client IDs) whose ID tokens this app accepts: the web
+ * client plus any extra mobile client IDs. Empty means misconfigured.
+ */
+export function getAllowedGoogleAudiences(): string[] {
+  return [
+    process.env.GOOGLE_CLIENT_ID,
+    ...(process.env.GOOGLE_MOBILE_CLIENT_IDS ?? '').split(','),
+  ]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+}
+
 export async function upsertGoogleUser(info: GoogleUserInfo) {
+  assertGoogleEmailVerified(info);
   const normalizedEmail = info.email.trim().toLowerCase();
 
   // 1. Check if user with this googleId already exists
