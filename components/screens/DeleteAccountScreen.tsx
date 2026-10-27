@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { UserX } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
-import { useDeleteAccount } from '@/hooks/use-auth';
+import { useDeleteAccount, useRequestDeleteAccountOtp } from '@/hooks/use-auth';
 import { ApiError } from '@/lib/api/client';
 
 const erased = [
@@ -24,26 +24,36 @@ export default function DeleteAccountScreen() {
   const router = useRouter();
   const { user, isAuthenticated, logout: clearAuthUser } = useAuth();
   const { mutate: deleteAccount, isPending } = useDeleteAccount();
-  const [password, setPassword] = useState('');
+  const { mutate: requestOtp, isPending: isSendingOtp } = useRequestDeleteAccountOtp();
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   const isAdmin = user?.role === 'ADMIN';
 
+  const describeError = (err: unknown) =>
+    err instanceof ApiError ? err.message : 'Đã có lỗi xảy ra, vui lòng thử lại.';
+
+  // A code, not the password: accounts created through Google have none.
+  const handleSendOtp = () => {
+    setError(null);
+    requestOtp(undefined, {
+      onSuccess: () => setOtpSent(true),
+      onError: (err) => setError(describeError(err)),
+    });
+  };
+
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    deleteAccount(password, {
+    deleteAccount(otp.trim(), {
       onSuccess: () => {
         clearAuthUser();
         setDone(true);
       },
-      onError: (err) => {
-        setError(
-          err instanceof ApiError ? err.message : 'Đã có lỗi xảy ra, vui lòng thử lại.',
-        );
-      },
+      onError: (err) => setError(describeError(err)),
     });
   };
 
@@ -134,17 +144,36 @@ export default function DeleteAccountScreen() {
           <p className='text-sm text-foreground'>
             Đang đăng nhập: <span className='font-semibold'>{user?.email}</span>
           </p>
-          <label className='block'>
-            <span className='text-sm font-medium text-foreground'>Nhập mật khẩu để xác nhận</span>
-            <input
-              type='password'
-              autoComplete='current-password'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className='mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm'
-              required
-            />
-          </label>
+          <div>
+            <p className='text-sm font-medium text-foreground'>Xác nhận bằng mã gửi qua email</p>
+            <p className='text-xs text-muted-foreground mt-1'>
+              {otpSent
+                ? 'Mã gồm 6 chữ số, có hiệu lực trong 5 phút.'
+                : 'Chúng tôi sẽ gửi mã xác nhận đến email ở trên.'}
+            </p>
+            <div className='mt-2 flex gap-2'>
+              <input
+                type='text'
+                inputMode='numeric'
+                autoComplete='one-time-code'
+                maxLength={6}
+                placeholder='Mã xác nhận'
+                aria-label='Mã xác nhận'
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                disabled={!otpSent}
+                className='flex-1 min-w-0 rounded-xl border border-border bg-background px-4 py-2.5 text-sm tracking-widest disabled:opacity-50'
+              />
+              <button
+                type='button'
+                onClick={handleSendOtp}
+                disabled={isSendingOtp}
+                className='shrink-0 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground disabled:opacity-50'
+              >
+                {isSendingOtp ? 'Đang gửi…' : otpSent ? 'Gửi lại mã' : 'Gửi mã'}
+              </button>
+            </div>
+          </div>
           <label className='flex items-start gap-2 text-sm text-muted-foreground'>
             <input
               type='checkbox'
@@ -161,7 +190,7 @@ export default function DeleteAccountScreen() {
           )}
           <button
             type='submit'
-            disabled={!password || !confirmed || isPending}
+            disabled={otp.length !== 6 || !confirmed || isPending}
             className='w-full px-5 py-2.5 rounded-full bg-destructive text-white text-sm font-medium disabled:opacity-50'
           >
             {isPending ? 'Đang xóa…' : 'Xóa tài khoản vĩnh viễn'}
