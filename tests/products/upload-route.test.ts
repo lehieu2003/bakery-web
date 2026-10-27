@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { NextRequest } from 'next/server';
+import { CLOUDINARY_IMAGE_UPLOAD_OPTIONS } from '@/lib/cloudinary';
+
+test('cloudinary stores every upload as an image', () => {
+  assert.equal(CLOUDINARY_IMAGE_UPLOAD_OPTIONS.resource_type, 'image');
+});
 
 import {
   handleUploadRequest,
