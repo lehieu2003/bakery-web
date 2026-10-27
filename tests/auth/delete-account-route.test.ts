@@ -1,9 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  anonymizedUserData,
   deletedUserEmail,
   handleDeleteAccountRequest,
 } from '@/app/api/auth/delete-account/route';
+
+test('a deleted account keeps no personal identifier, including its Google link', () => {
+  const data = anonymizedUserData('u1', 'unusable-hash');
+
+  assert.equal(data.googleId, null);
+  assert.equal(data.email, deletedUserEmail('u1'));
+  assert.equal(data.name, null);
+  assert.equal(data.phone, null);
+  assert.equal(data.isActive, false);
+});
 
 const customer = { id: 'u1', role: 'CUSTOMER' as const };
 

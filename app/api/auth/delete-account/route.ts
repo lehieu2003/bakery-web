@@ -42,6 +42,25 @@ export function deletedUserEmail(userId: string) {
   return `deleted-${userId}@deleted.invalid`;
 }
 
+/**
+ * What is left of the user row. The Google link goes too: it identifies the
+ * person, and a later Google sign-in must start a fresh account instead of
+ * finding this deactivated one.
+ */
+export function anonymizedUserData(userId: string, unusablePassword: string) {
+  return {
+    email: deletedUserEmail(userId),
+    password: unusablePassword,
+    googleId: null,
+    name: null,
+    phone: null,
+    points: 0,
+    memberLevel: 'SILVER' as const,
+    emailVerifiedAt: null,
+    isActive: false,
+  };
+}
+
 const defaultDeps: DeleteAccountDeps = {
   getCurrentUser,
   getPasswordHash: async (userId) => {
@@ -68,16 +87,7 @@ const defaultDeps: DeleteAccountDeps = {
       prisma.deviceToken.deleteMany({ where: { userId } }),
       prisma.user.update({
         where: { id: userId },
-        data: {
-          email: deletedUserEmail(userId),
-          password,
-          name: null,
-          phone: null,
-          points: 0,
-          memberLevel: 'SILVER',
-          emailVerifiedAt: null,
-          isActive: false,
-        },
+        data: anonymizedUserData(userId, password),
       }),
     ]);
   },
