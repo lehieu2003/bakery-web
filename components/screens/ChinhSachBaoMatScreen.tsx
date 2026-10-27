@@ -1,4 +1,5 @@
 import { Shield, ChevronRight } from 'lucide-react';
+import { SHOP_PHONE } from '@/lib/shop-contact';
 
 const sections = [
   {
@@ -75,7 +76,7 @@ const sections = [
     title: 'Liên hệ về quyền riêng tư',
     paragraphs: [
       'Nếu bạn có câu hỏi hoặc yêu cầu liên quan đến chính sách bảo mật, vui lòng liên hệ:',
-      'Email: privacy@phuongloan.vn | Hotline: 1900 779907 | Địa chỉ: TT. Chợ Chùa, Nghĩa Hành, Quảng Ngãi.',
+      `Email: privacy@phuongloan.vn | Hotline: ${SHOP_PHONE.display} | Địa chỉ: TT. Chợ Chùa, Nghĩa Hành, Quảng Ngãi.`,
     ],
   },
 ];

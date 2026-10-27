@@ -1,5 +1,6 @@
 import { MapPin, Phone, Clock, Navigation } from 'lucide-react';
 import type { Metadata } from 'next';
+import { SHOP_PHONE } from '@/lib/shop-contact';
 
 export const metadata: Metadata = {
   title: 'Cửa hàng',
@@ -10,7 +11,6 @@ export const metadata: Metadata = {
 const STORE = {
   name: 'Bánh Kem Phương Loan',
   address: '2QXG+RXV, ĐT624, TT. Chợ Chùa, Nghĩa Hành, Quảng Ngãi, Vietnam',
-  phone: '+84 978 780 176',
   hours: '8:00 - 21:00',
   mapEmbed:
     'https://www.google.com/maps?q=15.049699221301797,108.77759515458729&z=16&output=embed',
@@ -70,10 +70,10 @@ export default function StorePage() {
                     Điện thoại
                   </p>
                   <a
-                    href={`tel:${STORE.phone}`}
+                    href={`tel:${SHOP_PHONE.tel}`}
                     className='text-sm text-foreground hover:text-primary transition-colors font-medium'
                   >
-                    {STORE.phone}
+                    {SHOP_PHONE.display}
                   </a>
                 </div>
               </div>
@@ -105,7 +105,7 @@ export default function StorePage() {
                 Chỉ đường
               </a>
               <a
-                href={`tel:${STORE.phone}`}
+                href={`tel:${SHOP_PHONE.tel}`}
                 className='flex items-center justify-center gap-2 flex-1 px-4 py-3 rounded-xl border border-primary text-primary text-sm font-semibold hover:bg-primary/5 transition-colors'
               >
                 <Phone size={15} />

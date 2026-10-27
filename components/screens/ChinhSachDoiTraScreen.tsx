@@ -1,4 +1,5 @@
 import { RefreshCw, CheckCircle, XCircle, Phone, Info } from 'lucide-react';
+import { SHOP_PHONE } from '@/lib/shop-contact';
 
 const acceptedCases = [
   'Sản phẩm bị hư hỏng, biến dạng do lỗi đóng gói hoặc vận chuyển.',
@@ -25,7 +26,7 @@ const steps = [
     step: '02',
     title: 'Liên hệ Phương Loan Bakery',
     description:
-      'Gọi hotline 1900 779907 hoặc nhắn tin Zalo/Facebook kèm ảnh chụp và mã đơn hàng trong vòng 2 tiếng.',
+      `Gọi hotline ${SHOP_PHONE.display} hoặc nhắn tin Zalo/Facebook kèm ảnh chụp và mã đơn hàng trong vòng 2 tiếng.`,
   },
   {
     step: '03',
@@ -189,10 +190,10 @@ export default function ChinhSachDoiTraScreen() {
           <p className='text-sm text-muted-foreground mt-1'>
             Liên hệ hotline{' '}
             <a
-              href='tel:19007799'
+              href={`tel:${SHOP_PHONE.tel}`}
               className='text-primary font-semibold hover:underline'
             >
-              1900 779907
+              {SHOP_PHONE.display}
             </a>{' '}
             hoặc email{' '}
             <a
