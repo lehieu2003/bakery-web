@@ -5,6 +5,10 @@
     {
       "path": "/api/cron/expire-unpaid-orders",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/incentives/reconcile",
+      "schedule": "30 17 * * *"
     }
   ]
 }

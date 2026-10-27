@@ -20,9 +20,23 @@ type ReconcileDeps = {
   }) => Promise<{ scanned: number; released: number; threshold: Date }>;
 };
 
+/**
+ * Vercel Cron can only send `Authorization: Bearer $CRON_SECRET`, so the
+ * scheduled run uses CRON_SECRET unless a dedicated token is configured.
+ */
+export function reconcileToken(env: {
+  INCENTIVES_RECONCILE_TOKEN?: string;
+  CRON_SECRET?: string;
+}): string | null {
+  return env.INCENTIVES_RECONCILE_TOKEN?.trim() || env.CRON_SECRET?.trim() || null;
+}
+
 const defaultDeps: ReconcileDeps = {
   getConfig: () => ({
-    token: process.env.INCENTIVES_RECONCILE_TOKEN?.trim() || null,
+    token: reconcileToken({
+      INCENTIVES_RECONCILE_TOKEN: process.env.INCENTIVES_RECONCILE_TOKEN,
+      CRON_SECRET: process.env.CRON_SECRET,
+    }),
     defaultOlderThanMinutes: Number.parseInt(
       process.env.INCENTIVES_RECONCILE_OLDER_THAN_MINUTES ?? '30',
       10,
