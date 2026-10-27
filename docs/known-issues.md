@@ -8,10 +8,13 @@ Các vấn đề đã biết, chưa xử lý. Mỗi mục ghi nguyên nhân, ph�
 thanh toán), nhưng không có lịch nào gọi nó: không có trong `vercel.json`, workflow hay tài liệu. Hệ quả:
 lượt dùng coupon của đơn online bỏ dở không bao giờ được trả lại.
 
-- [ ] Thêm vào `crons` của `vercel.json`. Vercel Cron chỉ gửi `Authorization: Bearer $CRON_SECRET`, nên
-      đặt `INCENTIVES_RECONCILE_TOKEN` bằng cùng giá trị `CRON_SECRET` (route đã nhận Bearer token).
-- [ ] Gói Hobby chỉ cho mỗi cron chạy một lần mỗi ngày; cân nhắc khi chọn ngưỡng
-      `INCENTIVES_RECONCILE_OLDER_THAN_MINUTES`.
+- [x] Thêm vào `crons` của `vercel.json` (hằng ngày 00:30 giờ VN); route dùng `CRON_SECRET` khi không đặt
+      `INCENTIVES_RECONCILE_TOKEN` (đã làm 2026-10-27).
+- [x] Job chỉ giải phóng reservation của đơn MoMo/VNPay còn `PENDING` và đơn đã hủy. Trước đó nó giải phóng
+      mọi reservation cũ hơn 30 phút, kể cả đơn COD/chuyển khoản đang chờ admin xác nhận — lượt coupon của
+      các đơn đó sẽ không bao giờ được tính.
+- [ ] Đơn MoMo/VNPay bỏ dở vẫn giữ tồn kho (job chỉ trả coupon, không hủy đơn). Xử lý khi bật thanh toán thật,
+      có thể mở rộng `/api/cron/expire-unpaid-orders` cho hai phương thức này.
 
 Đơn chuyển khoản chưa thanh toán đã có job riêng `/api/cron/expire-unpaid-orders` (chạy hằng ngày
 00:00 giờ VN, hủy đơn sau `UNPAID_BANK_TRANSFER_TTL_HOURS`, trả kho và coupon).
