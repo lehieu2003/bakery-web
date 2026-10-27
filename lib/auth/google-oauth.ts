@@ -118,6 +118,20 @@ export function getAllowedGoogleAudiences(): string[] {
     .filter((value): value is string => Boolean(value));
 }
 
+/**
+ * What Google sign-in does with an existing account that has the same email.
+ * Register creates the account inactive and unverified until its email OTP
+ * is entered; Google has now verified that email, so such a pending signup
+ * is activated. Only a verified account that is inactive was locked.
+ */
+export function googleLinkAction(user: {
+  isActive: boolean;
+  emailVerifiedAt: Date | null;
+}): 'link' | 'activate' | 'locked' {
+  if (user.isActive) return 'link';
+  return user.emailVerifiedAt ? 'locked' : 'activate';
+}
+
 export async function upsertGoogleUser(info: GoogleUserInfo) {
   assertGoogleEmailVerified(info);
   const normalizedEmail = info.email.trim().toLowerCase();
@@ -140,7 +154,8 @@ export async function upsertGoogleUser(info: GoogleUserInfo) {
   });
 
   if (user) {
-    if (!user.isActive) {
+    const action = googleLinkAction(user);
+    if (action === 'locked') {
       throw new Error('Tài khoản này đã bị khóa.');
     }
     // Link googleId and ensure email is verified
@@ -150,6 +165,7 @@ export async function upsertGoogleUser(info: GoogleUserInfo) {
         googleId: info.sub,
         emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
         name: user.name || info.name,
+        ...(action === 'activate' ? { isActive: true } : {}),
       },
     });
     return user;

@@ -6,7 +6,17 @@ import {
   getAppUrl,
 } from '@/lib/auth/google-oauth';
 import { canAuthenticateWithPassword } from '@/lib/auth/login-policy';
-import { assertGoogleEmailVerified } from '@/lib/auth/google-oauth';
+import { assertGoogleEmailVerified, googleLinkAction } from '@/lib/auth/google-oauth';
+
+test('google sign-in activates a signup whose email OTP was never completed', () => {
+  assert.equal(googleLinkAction({ isActive: false, emailVerifiedAt: null }), 'activate');
+});
+
+test('google sign-in links a verified account and refuses a locked one', () => {
+  const verifiedAt = new Date('2026-10-01T00:00:00.000Z');
+  assert.equal(googleLinkAction({ isActive: true, emailVerifiedAt: verifiedAt }), 'link');
+  assert.equal(googleLinkAction({ isActive: false, emailVerifiedAt: verifiedAt }), 'locked');
+});
 
 test('assertGoogleEmailVerified only accepts an email Google marked verified', () => {
   const info = { sub: 's1', email: 'customer@example.com' };
