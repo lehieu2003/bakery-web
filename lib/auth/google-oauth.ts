@@ -94,7 +94,46 @@ export async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUs
   return response.json();
 }
 
+/**
+ * Accounts are linked by email below, so the email must be one Google has
+ * verified for this Google account — otherwise an unverified address could
+ * sign in as the existing user who owns it.
+ */
+export function assertGoogleEmailVerified(info: GoogleUserInfo): void {
+  if (info.email_verified !== true) {
+    throw new Error('Email Google chưa được xác thực.');
+  }
+}
+
+/**
+ * Audiences (OAuth client IDs) whose ID tokens this app accepts: the web
+ * client plus any extra mobile client IDs. Empty means misconfigured.
+ */
+export function getAllowedGoogleAudiences(): string[] {
+  return [
+    process.env.GOOGLE_CLIENT_ID,
+    ...(process.env.GOOGLE_MOBILE_CLIENT_IDS ?? '').split(','),
+  ]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+}
+
+/**
+ * What Google sign-in does with an existing account that has the same email.
+ * Register creates the account inactive and unverified until its email OTP
+ * is entered; Google has now verified that email, so such a pending signup
+ * is activated. Only a verified account that is inactive was locked.
+ */
+export function googleLinkAction(user: {
+  isActive: boolean;
+  emailVerifiedAt: Date | null;
+}): 'link' | 'activate' | 'locked' {
+  if (user.isActive) return 'link';
+  return user.emailVerifiedAt ? 'locked' : 'activate';
+}
+
 export async function upsertGoogleUser(info: GoogleUserInfo) {
+  assertGoogleEmailVerified(info);
   const normalizedEmail = info.email.trim().toLowerCase();
 
   // 1. Check if user with this googleId already exists
@@ -115,7 +154,8 @@ export async function upsertGoogleUser(info: GoogleUserInfo) {
   });
 
   if (user) {
-    if (!user.isActive) {
+    const action = googleLinkAction(user);
+    if (action === 'locked') {
       throw new Error('Tài khoản này đã bị khóa.');
     }
     // Link googleId and ensure email is verified
@@ -125,6 +165,7 @@ export async function upsertGoogleUser(info: GoogleUserInfo) {
         googleId: info.sub,
         emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
         name: user.name || info.name,
+        ...(action === 'activate' ? { isActive: true } : {}),
       },
     });
     return user;

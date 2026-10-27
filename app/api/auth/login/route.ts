@@ -9,6 +9,7 @@ import { verifyPassword } from '@/lib/password';
 import { createSession, setSessionCookie } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { canAuthenticateWithPassword } from '@/lib/auth/login-policy';
+import { checkCredentialRequest } from '@/lib/auth/request-origin';
 
 /**
  * Login with email + password (no OTP required)
@@ -23,6 +24,14 @@ export async function POST(request: NextRequest) {
         status: authRateLimit.status,
         headers: { 'Retry-After': String(authRateLimit.retryAfterSec) },
       },
+    );
+  }
+
+  const credentialCheck = checkCredentialRequest(request);
+  if (!credentialCheck.ok) {
+    return NextResponse.json(
+      { success: false, error: 'Yêu cầu không hợp lệ' },
+      { status: credentialCheck.status },
     );
   }
 

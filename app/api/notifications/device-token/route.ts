@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { apiError, apiSuccess, toApiJson } from '@/lib/api-response';
 import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
@@ -22,6 +23,33 @@ type DeviceTokenDeps = {
   }) => Promise<{ count: number }>;
 };
 
+/**
+ * Push fan-out per user is capped (FCM multicast takes at most 500 tokens),
+ * and rows are never deleted, so keep only the most recently registered
+ * devices active.
+ */
+export const MAX_ACTIVE_DEVICE_TOKENS = 10;
+const MAX_TOKEN_LENGTH = 4096;
+const MAX_DEVICE_FIELD_LENGTH = 128;
+
+export async function deactivateSurplusDeviceTokens(
+  tx: Prisma.TransactionClient,
+  userId: string,
+) {
+  const surplus = await tx.deviceToken.findMany({
+    where: { userId, isActive: true },
+    orderBy: { lastRegistered: 'desc' },
+    skip: MAX_ACTIVE_DEVICE_TOKENS,
+    select: { id: true },
+  });
+  if (surplus.length === 0) return;
+
+  await tx.deviceToken.updateMany({
+    where: { id: { in: surplus.map((row) => row.id) } },
+    data: { isActive: false, deactivatedAt: new Date() },
+  });
+}
+
 class DeviceTokenOwnershipError extends Error {
   constructor() {
     super('Device token already belongs to another user');
@@ -42,40 +70,34 @@ const defaultDeps: DeviceTokenDeps = {
         throw new DeviceTokenOwnershipError();
       }
 
-      if (existing) {
-        return tx.deviceToken.update({
-          where: { id: existing.id },
-          data: {
-            platform: input.platform,
-            deviceId: input.deviceId,
-            appVersion: input.appVersion,
-            isActive: true,
-            deactivatedAt: null,
-            lastRegistered: new Date(),
-          },
-          select: {
-            id: true,
-            isActive: true,
-            updatedAt: true,
-          },
-        });
-      }
+      const select = { id: true, isActive: true, updatedAt: true } as const;
+      const saved = existing
+        ? await tx.deviceToken.update({
+            where: { id: existing.id },
+            data: {
+              platform: input.platform,
+              deviceId: input.deviceId,
+              appVersion: input.appVersion,
+              isActive: true,
+              deactivatedAt: null,
+              lastRegistered: new Date(),
+            },
+            select,
+          })
+        : await tx.deviceToken.create({
+            data: {
+              userId,
+              token: input.token,
+              platform: input.platform,
+              deviceId: input.deviceId,
+              appVersion: input.appVersion,
+              isActive: true,
+            },
+            select,
+          });
 
-      return tx.deviceToken.create({
-        data: {
-          userId,
-          token: input.token,
-          platform: input.platform,
-          deviceId: input.deviceId,
-          appVersion: input.appVersion,
-          isActive: true,
-        },
-        select: {
-          id: true,
-          isActive: true,
-          updatedAt: true,
-        },
-      });
+      await deactivateSurplusDeviceTokens(tx, userId);
+      return saved;
     }),
   revokeToken: ({ userId, token }) =>
     prisma.deviceToken.updateMany({
@@ -106,6 +128,13 @@ function parseRegisterInput(body: unknown): RegisterDeviceTokenInput | null {
 
   if (!token || !platform) return null;
   if (!['ios', 'android', 'web'].includes(platform)) return null;
+  if (
+    token.length > MAX_TOKEN_LENGTH ||
+    deviceId.length > MAX_DEVICE_FIELD_LENGTH ||
+    appVersion.length > MAX_DEVICE_FIELD_LENGTH
+  ) {
+    return null;
+  }
 
   return {
     token,

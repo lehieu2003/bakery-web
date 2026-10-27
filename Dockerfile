@@ -6,16 +6,21 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN apt-get update -y \
   && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
+# pnpm at the exact version pinned by package.json's packageManager, fetched
+# at build time so the migrate container needs no network to run it.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+COPY package.json ./
+RUN corepack enable && corepack install
 
 FROM base AS deps
-COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM base AS migrate
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json prisma.config.ts ./
+COPY package.json pnpm-lock.yaml prisma.config.ts ./
 COPY prisma ./prisma
-CMD ["npx", "prisma", "migrate", "deploy"]
+CMD ["pnpm", "exec", "prisma", "migrate", "deploy"]
 
 FROM base AS builder
 ARG NEXT_PUBLIC_SUPABASE_URL
@@ -27,7 +32,7 @@ ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHAB
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN pnpm build
 
 FROM base AS runner
 ENV NODE_ENV=production

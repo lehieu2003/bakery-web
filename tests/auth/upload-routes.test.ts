@@ -3,8 +3,10 @@ import test from 'node:test';
 
 import {
   handleUploadDeleteRouteRequest,
+  UPLOAD_DELETE_POLICY,
 } from '@/app/api/upload/delete/route';
 import { handleUploadPostRequest } from '@/app/api/upload/route';
+import { hasPolicyAccess } from '@/lib/authorization-policy';
 
 function createRequest(body?: unknown) {
   return {
@@ -51,6 +53,12 @@ test('upload delete route returns 401 for unauthenticated caller', async () => {
   assert.equal(result.body.success, false);
   assert.equal(result.body.error, 'Unauthorized');
   assert.equal('data' in result.body, false);
+});
+
+test('upload delete is admin-only so customers cannot destroy storefront images', () => {
+  assert.equal(UPLOAD_DELETE_POLICY, 'ADMIN_ONLY');
+  assert.equal(hasPolicyAccess('CUSTOMER', UPLOAD_DELETE_POLICY), false);
+  assert.equal(hasPolicyAccess('ADMIN', UPLOAD_DELETE_POLICY), true);
 });
 
 test('upload delete route returns 400 for missing publicId', async () => {

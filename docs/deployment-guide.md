@@ -25,6 +25,8 @@
 
 - PostgreSQL must be reachable from deployment environment
 - Apply Prisma migrations before traffic cutover
+- Keep the database in the same region as the app: see [Known Issues](./known-issues.md) for the
+  current Vercel `sin1` ↔ VPS latency problem
 
 ## Suggested CI Checks (to add)
 

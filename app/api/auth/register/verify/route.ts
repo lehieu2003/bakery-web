@@ -3,7 +3,8 @@ import { randomUUID } from 'crypto';
 import { verifyOtp } from '@/lib/otp';
 import { checkAuthRateLimit, validateEmail } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
-import { hashPassword } from '@/lib/password';
+import { hashPassword, validatePassword } from '@/lib/password';
+import { registerVerifyStateError } from '@/lib/auth/registration-utils';
 import { createSession } from '@/lib/session';
 import { emailService } from '@/lib/email';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
@@ -45,10 +46,10 @@ export async function POST(request: Request) {
 
     const normalizedEmail = validation.normalized!;
 
-    // Validate password
-    if (password.length < 8) {
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.valid) {
       return NextResponse.json(
-        { success: false, error: 'Mật khẩu phải có ít nhất 8 ký tự' },
+        { success: false, error: passwordCheck.message },
         { status: 400 },
       );
     }
@@ -58,16 +59,10 @@ export async function POST(request: Request) {
       where: { email: normalizedEmail },
     });
 
-    if (!existingUser) {
+    const stateError = registerVerifyStateError(existingUser);
+    if (stateError || !existingUser) {
       return NextResponse.json(
-        { success: false, error: 'OTP không hợp lệ hoặc đã hết hạn' },
-        { status: 400 },
-      );
-    }
-
-    if (existingUser.emailVerifiedAt) {
-      return NextResponse.json(
-        { success: false, error: 'Email đã được xác thực trước đó' },
+        { success: false, error: stateError },
         { status: 400 },
       );
     }

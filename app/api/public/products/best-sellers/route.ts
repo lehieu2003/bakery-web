@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { PUBLIC_PRODUCT_CARD_ARGS } from '@/lib/products/public-product-query';
 
 function normalizePositiveInt(value: string | null, fallback: number, max?: number) {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -42,29 +43,15 @@ const defaultDeps: BestSellersDeps = {
   },
   findFallbackProducts: (limit) =>
     prisma.product.findMany({
+      ...PUBLIC_PRODUCT_CARD_ARGS,
       where: { isActive: true },
-      include: {
-        categories: {
-          include: {
-            category: { select: { id: true, name: true, slug: true } },
-          },
-        },
-        images: { orderBy: { displayOrder: 'asc' } },
-      },
       orderBy: { createdAt: 'desc' },
       take: limit,
     }),
   findRankedProducts: (productIds) =>
     prisma.product.findMany({
+      ...PUBLIC_PRODUCT_CARD_ARGS,
       where: { id: { in: productIds }, isActive: true },
-      include: {
-        categories: {
-          include: {
-            category: { select: { id: true, name: true, slug: true } },
-          },
-        },
-        images: { orderBy: { displayOrder: 'asc' } },
-      },
     }),
 };
 

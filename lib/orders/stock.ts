@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { OrderStatus, Prisma } from '@prisma/client';
 
 type TxClient = Prisma.TransactionClient;
 
@@ -57,14 +57,20 @@ export async function decrementStock(
 /**
  * Cancels the order and gives its stock back, exactly once: the status flip
  * is conditional, so a concurrent or repeated cancel restores nothing.
- * Returns false when the order was already cancelled.
+ * Returns false when the order was already cancelled — or, with
+ * `onlyIfStatus`, when it has moved on from that status (e.g. an admin
+ * confirmed it meanwhile).
  */
 export async function cancelOrderAndRestoreStock(
   tx: TxClient,
   orderId: string,
+  options: { onlyIfStatus?: Exclude<OrderStatus, 'CANCELLED'> } = {},
 ): Promise<boolean> {
   const cancelled = await tx.order.updateMany({
-    where: { id: orderId, status: { not: 'CANCELLED' } },
+    where: {
+      id: orderId,
+      status: options.onlyIfStatus ?? { not: 'CANCELLED' },
+    },
     data: { status: 'CANCELLED' },
   });
   if (cancelled.count === 0) return false;

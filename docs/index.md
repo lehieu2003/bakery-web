@@ -25,6 +25,7 @@
 - [Data Models](./data-models.md)
 - [TanStack Query Flow](./tanstack-query-flow.md)
 - [TanStack Query Q&A](./tanstack-query-qa.md)
+- [Known Issues](./known-issues.md)
 
 ## Existing Documentation
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { PUBLIC_PRODUCT_OMIT } from '@/lib/products/public-product-query';
 
 export type PublicProductReviewRecord = {
   id?: string;
@@ -44,34 +46,41 @@ export type PublicProductDetailDeps = {
   getReviewStats: (productId: string) => Promise<ReviewStatsSummary>;
 };
 
+/** Active products only: a deactivated product stays hidden even by old link. */
+export function publicProductDetailQuery(idOrSlug: string) {
+  return {
+    where: {
+      isActive: true,
+      OR: [{ id: idOrSlug }, { slug: idOrSlug }],
+    },
+    omit: PUBLIC_PRODUCT_OMIT,
+    include: {
+      categories: {
+        include: {
+          category: true,
+        },
+      },
+      images: { orderBy: { displayOrder: 'asc' } },
+      variants: true,
+      attributeAssignments: {
+        include: {
+          attribute: true,
+          value: true,
+        },
+        orderBy: [{ attribute: { displayOrder: 'asc' } }, { createdAt: 'asc' }],
+      },
+      reviews: {
+        include: { user: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
+    },
+  } satisfies Prisma.ProductFindFirstArgs;
+}
+
 const publicProductDetailDeps: PublicProductDetailDeps = {
   findProductDetail: (idOrSlug) =>
-    prisma.product.findFirst({
-      where: {
-        OR: [{ id: idOrSlug }, { slug: idOrSlug }],
-      },
-      include: {
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-        images: { orderBy: { displayOrder: 'asc' } },
-        variants: true,
-        attributeAssignments: {
-          include: {
-            attribute: true,
-            value: true,
-          },
-          orderBy: [{ attribute: { displayOrder: 'asc' } }, { createdAt: 'asc' }],
-        },
-        reviews: {
-          include: { user: { select: { id: true, name: true } } },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-        },
-      },
-    }),
+    prisma.product.findFirst(publicProductDetailQuery(idOrSlug)),
   getReviewStats: async (productId) => {
     const stats = await prisma.review.aggregate({
       where: { productId },
