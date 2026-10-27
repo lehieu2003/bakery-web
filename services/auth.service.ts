@@ -79,13 +79,27 @@ export const authService = {
   },
 
   /**
-   * Permanently delete (anonymize) the current account. The server revokes
-   * every session and clears the session cookie.
+   * Email the code that confirms account deletion to the current account.
    */
-  deleteAccount: async (password: string) => {
+  requestDeleteAccountOtp: async () => {
+    await http.post<{ message: string; expiresIn: number }>(
+      ENDPOINTS.AUTH.DELETE_ACCOUNT_OTP,
+      {},
+      {
+        showErrorToast: false, // the form shows the reason inline
+        skipAuthRedirect: true,
+      },
+    );
+  },
+
+  /**
+   * Permanently delete (anonymize) the current account, confirmed with the
+   * emailed code. The server revokes every session and clears the cookie.
+   */
+  deleteAccount: async (otp: string) => {
     await http.post<{ deleted: boolean }>(
       ENDPOINTS.AUTH.DELETE_ACCOUNT,
-      { password },
+      { otp },
       {
         showErrorToast: false, // the form shows the reason inline
         skipAuthRedirect: true,
