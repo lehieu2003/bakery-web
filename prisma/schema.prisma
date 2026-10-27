@@ -21,6 +21,7 @@ enum OtpPurpose {
   REGISTER
   LOGIN
   RESET_PASSWORD
+  DELETE_ACCOUNT
 }
 
 enum OrderStatus {
