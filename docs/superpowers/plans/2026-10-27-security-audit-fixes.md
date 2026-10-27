@@ -52,10 +52,10 @@
 - Modify: `app/api/upload/delete/route.ts:17-18`
 - Test: `tests/auth/upload-routes.test.ts` (mở rộng)
 
-- [ ] **Step 1: Test thất bại** — `handleUploadDeleteRequest` với `requireUploader` mặc định phải dùng policy `ADMIN_ONLY`: export `UPLOAD_DELETE_POLICY` và assert bằng `RBAC_POLICY_KEYS.ADMIN_ONLY`; thêm test qua `tests/auth/rbac-matrix.test.ts` nếu ma trận liệt kê route này.
-- [ ] **Step 2: Chạy FAIL**
-- [ ] **Step 3: Implement** — đổi `RBAC_POLICY_KEYS.AUTHENTICATED_USER` → `RBAC_POLICY_KEYS.ADMIN_ONLY`. Consumer duy nhất là `hooks/use-image-upload.ts:179` (trang admin); mobile không gọi route này.
-- [ ] **Step 4: PASS**, **Commit** — `fix(upload): restrict cloudinary delete to admins`
+- [x] **Step 1: Test thất bại** — `handleUploadDeleteRequest` với `requireUploader` mặc định phải dùng policy `ADMIN_ONLY`: export `UPLOAD_DELETE_POLICY` và assert bằng `RBAC_POLICY_KEYS.ADMIN_ONLY`; thêm test qua `tests/auth/rbac-matrix.test.ts` nếu ma trận liệt kê route này.
+- [x] **Step 2: Chạy FAIL**
+- [x] **Step 3: Implement** — đổi `RBAC_POLICY_KEYS.AUTHENTICATED_USER` → `RBAC_POLICY_KEYS.ADMIN_ONLY`. Consumer duy nhất là `hooks/use-image-upload.ts:179` (trang admin); mobile không gọi route này.
+- [x] **Step 4: PASS**, **Commit** — `fix(upload): restrict cloudinary delete to admins`
 
 ### Task 3: Ẩn giá vốn/mã vạch và sản phẩm đã ẩn khỏi API công khai
 
