@@ -39,7 +39,6 @@ Common response shape observed in route handlers:
 - Notifications: `/api/notifications`, `/api/notifications/read-all`, `/api/notifications/[id]/read`
 - Payments: `/api/payment/momo/callback`, `/api/payment/zalopay/callback`
 - Uploads: `/api/upload`, `/api/upload/delete`
-- Chat: `/api/chat`
 
 ## Security and Access Patterns
 

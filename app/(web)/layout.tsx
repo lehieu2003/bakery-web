@@ -1,7 +1,6 @@
 import WebNavbar from '@/components/web/navbar';
 import WebFooter from '@/components/web/footer';
 import WebMain from '@/components/web/WebMain';
-import ChatbotBubble from '@/components/ui-custom/ChatbotBubble';
 import { prisma } from '@/lib/prisma';
 import {
   HydrationBoundary,
@@ -63,7 +62,6 @@ export default async function WebLayout({
       </Suspense>
       <WebMain>{children}</WebMain>
       <WebFooter />
-      <ChatbotBubble />
     </HydrationBoundary>
   );
 }
