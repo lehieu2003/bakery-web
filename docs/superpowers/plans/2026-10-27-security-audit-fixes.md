@@ -78,6 +78,7 @@ Bối cảnh: `app/api/orders/route.ts:436` trừ kho ngay khi tạo đơn. Đơ
 
 **Files:**
 - Create: `lib/orders/expire-unpaid.ts`
+- Modify: `lib/orders/stock.ts` — `cancelOrderAndRestoreStock(tx, id, { onlyIfStatus })` để job không hủy đơn admin vừa xác nhận
 - Create: `app/api/cron/expire-unpaid-orders/route.ts`
 - Modify: `vercel.json` (thêm `crons`), `.env.example` (`CRON_SECRET=""`, `UNPAID_BANK_TRANSFER_TTL_HOURS="24"`)
 - Test: `tests/orders/expire-unpaid.test.ts` (mới), `tests/orders/expire-unpaid-route.test.ts` (mới)
@@ -86,13 +87,13 @@ Bối cảnh: `app/api/orders/route.ts:436` trừ kho ngay khi tạo đơn. Đơ
 - Produces: `expireUnpaidBankTransferOrders(args: { olderThanHours: number; batchSize: number; now?: () => Date }, deps?) => Promise<{ scanned: number; cancelled: number; threshold: Date }>`. Chọn đơn `status: 'PENDING'`, `paymentMethod: 'BANK_TRANSFER'`, `createdAt < now - olderThanHours`, sắp theo `createdAt asc`, `take: batchSize`. Mỗi đơn một transaction: `cancelOrderAndRestoreStock(tx, id)`; nếu trả `true` → `applyCouponLifecycleForOrderStatus({ orderId: id, status: 'CANCELLED', reason: 'BANK_TRANSFER_EXPIRED', tx })` + ghi audit log (pattern `writeOrderAuditLog…` nếu có, actor hệ thống).
 - Produces: `handleExpireUnpaidOrdersRequest(request, deps)` — `requireRequestToken(request, CRON_SECRET, { headerName: 'x-cron-token', allowBearer: true })` (Vercel Cron gửi `Authorization: Bearer $CRON_SECRET`); thiếu `CRON_SECRET` → 503; trả `{ success: true, data: { scanned, cancelled, threshold } }`.
 
-- [ ] **Step 1: Test thất bại (lib)** — với tx/prisma giả: (a) chỉ đơn PENDING + BANK_TRANSFER quá 24h được hủy; COD, MOMO, VNPAY, đơn CONFIRMED, đơn BANK_TRANSFER mới 23h không bị đụng; (b) `cancelOrderAndRestoreStock` trả `false` (admin vừa hủy) → không release coupon, không tính vào `cancelled`; (c) lỗi ở một đơn không chặn các đơn còn lại (log + tiếp tục); (d) tôn trọng `batchSize`.
-- [ ] **Step 2: Test thất bại (route)** — không token → 401; sai token → 403; thiếu `CRON_SECRET` → 503; token đúng (header hoặc Bearer) → 200 và gọi lib với `olderThanHours` từ env (mặc định 24).
-- [ ] **Step 3: Chạy FAIL** — `pnpm exec tsx --test tests/orders/expire-unpaid*.test.ts`.
-- [ ] **Step 4: Implement** lib + route (export `GET` vì Vercel Cron gọi GET).
-- [ ] **Step 5: Lên lịch** — `vercel.json`: `"crons": [{ "path": "/api/cron/expire-unpaid-orders", "schedule": "0 * * * *" }]`. Gói Hobby của Vercel chỉ cho cron chạy mỗi ngày một lần → nếu deploy báo lỗi, đổi thành `"0 0 * * *"` (đơn bị hủy chậm nhất ~48h) và ghi vào PR. Ghi trong PR: chủ dự án đặt `CRON_SECRET` trên Vercel. Nếu sau này tự host (xem `docs/known-issues.md`) thì chuyển sang crontab trên VPS gọi cùng route.
-- [ ] **Step 6: Ghi chú job reconcile coupon chưa được lên lịch** vào PR và `docs/known-issues.md` (không sửa trong task này để giữ phạm vi).
-- [ ] **Step 7: PASS + typecheck**, **Commit** — `feat(orders): auto-cancel unpaid bank transfer orders after 24h and restore stock`
+- [x] **Step 1: Test thất bại (lib)** — với tx/prisma giả: (a) chỉ đơn PENDING + BANK_TRANSFER quá 24h được hủy; COD, MOMO, VNPAY, đơn CONFIRMED, đơn BANK_TRANSFER mới 23h không bị đụng; (b) `cancelOrderAndRestoreStock` trả `false` (admin vừa hủy) → không release coupon, không tính vào `cancelled`; (c) lỗi ở một đơn không chặn các đơn còn lại (log + tiếp tục); (d) tôn trọng `batchSize`.
+- [x] **Step 2: Test thất bại (route)** — không token → 401; sai token → 403; thiếu `CRON_SECRET` → 503; token đúng (header hoặc Bearer) → 200 và gọi lib với `olderThanHours` từ env (mặc định 24).
+- [x] **Step 3: Chạy FAIL** — `pnpm exec tsx --test tests/orders/expire-unpaid*.test.ts`.
+- [x] **Step 4: Implement** lib + route (export `GET` vì Vercel Cron gọi GET).
+- [x] **Step 5: Lên lịch** — `vercel.json`: `"crons": [{ "path": "/api/cron/expire-unpaid-orders", "schedule": "0 17 * * *" }]` (00:00 giờ VN). Chọn hằng ngày vì gói Hobby của Vercel không cho cron chạy mỗi giờ → đơn bị hủy sau 24–48h. Ghi trong PR: chủ dự án đặt `CRON_SECRET` trên Vercel. Nếu sau này tự host (xem `docs/known-issues.md`) thì chuyển sang crontab trên VPS gọi cùng route.
+- [x] **Step 6: Ghi chú job reconcile coupon chưa được lên lịch** vào PR và `docs/known-issues.md` (không sửa trong task này để giữ phạm vi).
+- [x] **Step 7: PASS + typecheck**, **Commit** — `feat(orders): auto-cancel unpaid bank transfer orders after 24h and restore stock`
 
 ### Task 5: Coupon — perUserLimit cho khách vãng lai, cộng trùng khi hủy, lộ mã qua preview
 
