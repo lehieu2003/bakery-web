@@ -208,6 +208,47 @@ Lý do phù hợp ngắn gọn
     `.trim();
 }
 
+// The endpoint is anonymous and every token is paid for, so the input sent
+// to OpenAI is bounded. Clients send the whole conversation as history;
+// older turns are dropped rather than rejected.
+export const MAX_CHAT_MESSAGE_LENGTH = 1000;
+export const MAX_CHAT_HISTORY_ITEMS = 10;
+const MAX_CHAT_HISTORY_CONTENT_LENGTH = 2000;
+
+export function normalizeChatInput(
+  body: unknown,
+):
+  | { ok: true; message: string; history: ChatHistoryMessage[] }
+  | { ok: false; error: string } {
+  const row = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const message = typeof row.message === 'string' ? row.message : '';
+
+  if (!message.trim()) {
+    return { ok: false, error: 'Tin nhắn không được để trống' };
+  }
+  if (message.length > MAX_CHAT_MESSAGE_LENGTH) {
+    return {
+      ok: false,
+      error: `Tin nhắn tối đa ${MAX_CHAT_MESSAGE_LENGTH} ký tự`,
+    };
+  }
+
+  const history = (Array.isArray(row.history) ? row.history : [])
+    .filter(
+      (item): item is ChatHistoryMessage =>
+        Boolean(item) &&
+        typeof item === 'object' &&
+        typeof (item as ChatHistoryMessage).content === 'string',
+    )
+    .slice(-MAX_CHAT_HISTORY_ITEMS)
+    .map((item) => ({
+      role: item.role === 'assistant' ? 'assistant' : 'user',
+      content: item.content.slice(0, MAX_CHAT_HISTORY_CONTENT_LENGTH),
+    }));
+
+  return { ok: true, message, history };
+}
+
 export async function handlePostChatRequest(
   body: ChatRequestBody,
   deps: ChatRouteDeps,
@@ -219,14 +260,14 @@ export async function handlePostChatRequest(
     };
   }
 
-  const { message, history = [] } = body;
-
-  if (!message?.trim()) {
+  const input = normalizeChatInput(body);
+  if (!input.ok) {
     return {
       status: 400,
-      body: { success: false, error: 'Tin nhắn không được để trống' },
+      body: { success: false, error: input.error },
     };
   }
+  const { message, history } = input;
 
   const model = deps.getModel();
   const cacheKey = buildChatbotCacheKey(message, model);
@@ -249,10 +290,7 @@ export async function handlePostChatRequest(
       role: 'system',
       content: systemPrompt,
     },
-    ...(history.map((h) => ({
-      role: h.role === 'assistant' ? 'assistant' : 'user',
-      content: h.content,
-    })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]),
+    ...(history as OpenAI.Chat.Completions.ChatCompletionMessageParam[]),
     {
       role: 'user',
       content: message,
