@@ -41,8 +41,8 @@ Thời gian thực tế của từng request xem ở cột Duration trong Vercel
 ### Phương án
 
 Vercel không có vùng ở Việt Nam (gần nhất là `sin1` và `hkg1`), nhưng Next.js không bắt buộc chạy trên
-Vercel. Khuyến nghị chọn **A**: khách chủ yếu ở Việt Nam, và cách này còn cho phép đóng Postgres/Redis
-khỏi Internet.
+Vercel. Khuyến nghị chọn **A**: khách chủ yếu ở Việt Nam, và cách này còn cho phép đóng Postgres khỏi
+Internet.
 
 | | A. Web chạy luôn trên VPS | B. Giữ Vercel, chuyển DB sang Singapore |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ khỏi Internet.
 | Độ trễ khách VN ↔ web | Thấp (server ở VN) | ~40–60 ms |
 | Vận hành | Tự lo HTTPS, deploy, giám sát | Giữ nguyên: push là tự deploy, có preview và CDN |
 | Chi phí | VPS hiện tại, có thể phải nâng lên 2 GB RAM | Thêm tiền DB hoặc VPS ở Singapore |
-| Bảo mật DB/Redis | Đóng hẳn port ra Internet | Vẫn phải mở cho Vercel kết nối |
+| Bảo mật DB | Đóng hẳn port ra Internet | Vẫn phải mở cho Vercel kết nối |
 
 Repo đã gần sẵn sàng để tự host: `next.config.ts` đặt `output: 'standalone'` và đã có `Dockerfile`.
 Thứ duy nhất phụ thuộc Vercel là `@vercel/analytics` (`app/layout.tsx`); ra khỏi Vercel nó chỉ không
@@ -65,15 +65,16 @@ còn số liệu, không gây lỗi.
 - [ ] Trong nginx, đặt `proxy_set_header X-Forwarded-For $remote_addr;` (ghi đè, không nối thêm) và không
       publish port 3000. `getClientIp` trong `lib/rate-limit.ts` tin header này; ra khỏi Vercel không còn
       ai ghi đè nó, nên nếu bỏ qua thì ai cũng qua mặt được rate-limit.
-- [ ] Cho web, Postgres và Redis dùng chung mạng Docker; bỏ `ports:` của Postgres và Redis.
+- [ ] Cho web và Postgres dùng chung mạng Docker; bỏ `ports:` của Postgres.
 - [ ] Chuyển biến môi trường từ Vercel sang VPS, trỏ tên miền, rồi tắt project trên Vercel.
 
 ### Việc bảo mật VPS còn treo
 
 Đã làm ngày 2026-10-27: SSH chỉ cho đăng nhập bằng key, chặn root, bật fail2ban và UFW, Postgres bật
-SSL và chỉ nhận `hostssl`, đổi mật khẩu Redis. Còn lại (mục đầu tự hết nếu chọn A):
+SSL và chỉ nhận `hostssl`, đổi mật khẩu Redis. Còn lại:
 
-- [ ] Redis vẫn mở port 6379 ra Internet và chưa có TLS, nên mật khẩu Redis đi plaintext từ Vercel.
-- [ ] Thay mật khẩu Redis bằng chuỗi ngẫu nhiên (`openssl rand -base64 32`); kiểm tra mật khẩu DB đã đổi.
+- [x] Redis mở port 6379 ra Internet, không TLS: **đã bỏ Redis** (2026-10-27) — nó chỉ làm cache cho chatbot,
+      và chatbot cũng đã bỏ. Còn phải dừng container `bakery_redis` trên VPS và xóa `REDIS_URL` trên Vercel.
+- [ ] Kiểm tra mật khẩu DB đã đổi.
 - [ ] Tạo role Postgres riêng cho app, chỉ có quyền trên `bakery_db`, thay cho superuser `postgres`.
 - [ ] `chmod 600` file `.env` cạnh docker-compose trên VPS (hiện đang là `664`).

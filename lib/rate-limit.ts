@@ -17,7 +17,6 @@ export const RATE_LIMITS = {
   OTP_SEND_PER_IP: { maxRequests: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour per IP
   OTP_SEND_PER_EMAIL: { maxRequests: 5, windowMs: 60 * 60 * 1000 }, // 5 per hour per email
   OTP_SEND_COOLDOWN: { maxRequests: 1, windowMs: 60 * 1000 }, // 1 per minute (cooldown)
-  CHAT_PER_IP: { maxRequests: 10, windowMs: 5 * 60 * 1000 }, // 10 per 5 minutes per IP
   ORDERS_PER_IP: { maxRequests: 5, windowMs: 10 * 60 * 1000 }, // 5 per 10 minutes per IP
 };
 
@@ -140,11 +139,11 @@ export function getClientIp(request: Request): string {
 }
 
 // ============================================================================
-// In-memory IP rate limiting (chat / order creation)
+// In-memory IP rate limiting (auth / order creation / coupon preview)
 // ============================================================================
 // Sliding window, synchronous, no external store. Per-instance by design:
-// horizontal deployments need a shared store (Redis) — see the deferred
-// limiter work. Deliberately never awaits, so it cannot wedge a request the
+// serverless and horizontal deployments need a shared store — see the
+// rate-limit item in docs/known-issues.md. Deliberately never awaits, so it cannot wedge a request the
 // way a failed external store can.
 
 interface IpRateLimitConfig {
