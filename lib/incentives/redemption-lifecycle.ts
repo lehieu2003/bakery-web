@@ -15,6 +15,8 @@ type ReserveCouponArgs = {
   perUserLimit: number | null;
   orderId: string;
   userId: string | null;
+  /** Normalized phone of the order; identifies a guest for perUserLimit. */
+  customerPhone?: string | null;
   reservedDiscount: number;
 };
 
@@ -27,19 +29,28 @@ export async function reserveCouponRedemption(args: ReserveCouponArgs) {
     perUserLimit,
     orderId,
     userId,
+    customerPhone,
     reservedDiscount,
   } = args;
 
-  if (userId && perUserLimit !== null && perUserLimit > 0) {
-    const userUsageCount = await tx.couponRedemption.count({
+  // Signed-in customers are counted by account; guests by the phone on
+  // their orders, or a guest could reuse a once-per-customer code forever.
+  const customerScope = userId
+    ? { userId }
+    : customerPhone
+      ? { order: { customerPhone } }
+      : null;
+
+  if (customerScope && perUserLimit !== null && perUserLimit > 0) {
+    const customerUsageCount = await tx.couponRedemption.count({
       where: {
         couponId,
-        userId,
+        ...customerScope,
         state: { in: ['RESERVED', 'COMMITTED'] },
       },
     });
 
-    if (userUsageCount >= perUserLimit) {
+    if (customerUsageCount >= perUserLimit) {
       throw new Error(INCENTIVE_PER_USER_LIMIT_REACHED);
     }
   }
@@ -197,16 +208,21 @@ export async function releaseCouponRedemptionByOrderId(
       return 'NOOP_RELEASED' as const;
     }
 
-    await client.couponRedemption.updateMany({
-      where: { id: { in: releasable.map((redemption) => redemption.id) } },
-      data: {
-        state: 'RELEASED',
-        releasedAt: new Date(),
-        releaseReason: reason,
-      },
-    });
-
+    let releasedAny = false;
     for (const redemption of releasable) {
+      // Conditional per row: a concurrent releaser that read the same
+      // RESERVED snapshot flips nothing here and must not give the usage
+      // slot back a second time.
+      const released = await client.couponRedemption.updateMany({
+        where: { id: redemption.id, state: 'RESERVED' },
+        data: {
+          state: 'RELEASED',
+          releasedAt: new Date(),
+          releaseReason: reason,
+        },
+      });
+      if (released.count === 0) continue;
+      releasedAny = true;
       if (redemption.coupon.usageLimit === null) continue;
       await client.coupon.update({
         where: { id: redemption.coupon.id },
@@ -216,7 +232,7 @@ export async function releaseCouponRedemptionByOrderId(
       });
     }
 
-    return 'RELEASED' as const;
+    return releasedAny ? ('RELEASED' as const) : ('NOOP_RELEASED' as const);
   };
 
   if (tx) return executor(tx);

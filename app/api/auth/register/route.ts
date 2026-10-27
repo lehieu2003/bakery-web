@@ -11,7 +11,7 @@ import {
   RATE_LIMITS,
 } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
-import { getRegistrationState } from '@/lib/auth/registration-utils';
+import { getRegistrationState, registerOtpSentData } from '@/lib/auth/registration-utils';
 
 export async function POST(request: Request) {
   const ipRateLimit = checkAuthRateLimit(request, 'auth-register');
@@ -54,21 +54,10 @@ export async function POST(request: Request) {
       where: { email: normalizedEmail },
     });
 
+    // A verified email takes the same path below — same throttles, an OTP
+    // row written — and only skips sending, so neither the response nor a
+    // 429 on retry reveals that the account exists.
     const registrationState = getRegistrationState(existingUser);
-    if (registrationState === 'VERIFIED') {
-      console.warn('[auth.register] ignore register for verified account', {
-        requestId,
-        email: normalizedEmail,
-      });
-      // Do not reveal account existence details.
-      return NextResponse.json({
-        success: true,
-        data: {
-          message: 'Nếu email hợp lệ, OTP đã được gửi',
-          email: normalizedEmail,
-        },
-      });
-    }
 
     // Rate limiting - per email
     const emailRateLimitResult = await checkRateLimit(
@@ -120,35 +109,38 @@ export async function POST(request: Request) {
     // Store OTP in database
     await createOtpVerification(normalizedEmail, 'REGISTER', otp);
 
-    // Send OTP via email
-    try {
-      await emailService.sendOtp(normalizedEmail, otp);
-    } catch (error) {
-      console.error('[auth.register] failed to send otp', {
+    if (registrationState === 'VERIFIED') {
+      // Register/verify rejects verified accounts, so this OTP is unusable.
+      console.warn('[auth.register] ignore register for verified account', {
         requestId,
         email: normalizedEmail,
-        error,
       });
-      return NextResponse.json(
-        { success: false, error: 'Không thể gửi email. Vui lòng thử lại sau' },
-        { status: 500 },
-      );
-    }
+    } else {
+      // Send OTP via email
+      try {
+        await emailService.sendOtp(normalizedEmail, otp);
+      } catch (error) {
+        console.error('[auth.register] failed to send otp', {
+          requestId,
+          email: normalizedEmail,
+          error,
+        });
+        return NextResponse.json(
+          { success: false, error: 'Không thể gửi email. Vui lòng thử lại sau' },
+          { status: 500 },
+        );
+      }
 
-    console.info('[auth.register] otp issued', {
-      requestId,
-      email: normalizedEmail,
-      registrationState,
-    });
+      console.info('[auth.register] otp issued', {
+        requestId,
+        email: normalizedEmail,
+        registrationState,
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      data: {
-        message: 'OTP đã được gửi đến email của bạn',
-        email: normalizedEmail,
-        expiresIn: 300,
-        pending: true,
-      },
+      data: registerOtpSentData(normalizedEmail),
     });
   } catch (error) {
     console.error('[auth.register] unhandled error', {

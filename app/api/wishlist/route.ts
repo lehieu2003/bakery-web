@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { WISHLIST_PRODUCT_INCLUDE } from '@/lib/products/public-product-query';
 import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
 
 function getProductIdFromBody(body: unknown): string | null {
@@ -18,21 +19,7 @@ export async function GET(request: NextRequest) {
 
     const wishlist = await prisma.wishlist.findMany({
       where: { userId: user.id },
-      include: {
-        product: {
-          include: {
-            images: {
-              orderBy: [{ isPrimary: 'desc' }, { displayOrder: 'asc' }],
-            },
-            categories: {
-              include: {
-                category: true,
-              },
-            },
-            variants: true,
-          },
-        },
-      },
+      include: WISHLIST_PRODUCT_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
 
@@ -93,21 +80,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         productId,
       },
-      include: {
-        product: {
-          include: {
-            images: {
-              orderBy: [{ isPrimary: 'desc' }, { displayOrder: 'asc' }],
-            },
-            categories: {
-              include: {
-                category: true,
-              },
-            },
-            variants: true,
-          },
-        },
-      },
+      include: WISHLIST_PRODUCT_INCLUDE,
     });
 
     return NextResponse.json({

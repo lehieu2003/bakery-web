@@ -1,9 +1,84 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  deactivateSurplusDeviceTokens,
   handleRegisterDeviceTokenRequest,
   handleRevokeDeviceTokenRequest,
+  MAX_ACTIVE_DEVICE_TOKENS,
 } from '@/app/api/notifications/device-token/route';
+
+const noopDeps = {
+  getCurrentUser: async () => ({ id: 'u1' }),
+  upsertToken: async () => ({
+    id: 'dt-1',
+    isActive: true,
+    updatedAt: new Date('2026-05-04T00:00:00.000Z'),
+  }),
+  revokeToken: async () => ({ count: 0 }),
+};
+
+test('POST /api/notifications/device-token rejects oversized fields', async () => {
+  for (const body of [
+    { token: 'x'.repeat(4097), platform: 'android' },
+    { token: 'tok', platform: 'android', deviceId: 'd'.repeat(129) },
+    { token: 'tok', platform: 'android', appVersion: 'v'.repeat(129) },
+  ]) {
+    const result = await handleRegisterDeviceTokenRequest(
+      makeRequest('http://localhost/api/notifications/device-token', body),
+      noopDeps,
+    );
+    assert.equal(result.status, 400);
+  }
+});
+
+test('registering past the cap deactivates the least recently registered tokens', async () => {
+  const found: unknown[] = [];
+  const deactivated: unknown[] = [];
+  const tx = {
+    deviceToken: {
+      findMany: async (args: unknown) => {
+        found.push(args);
+        return [{ id: 'old-1' }, { id: 'old-2' }];
+      },
+      updateMany: async (args: unknown) => {
+        deactivated.push(args);
+        return { count: 2 };
+      },
+    },
+  };
+
+  await deactivateSurplusDeviceTokens(tx as never, 'u1');
+
+  assert.equal(MAX_ACTIVE_DEVICE_TOKENS, 10);
+  assert.deepEqual(found, [
+    {
+      where: { userId: 'u1', isActive: true },
+      orderBy: { lastRegistered: 'desc' },
+      skip: MAX_ACTIVE_DEVICE_TOKENS,
+      select: { id: true },
+    },
+  ]);
+  const update = deactivated[0] as { where: unknown; data: { isActive: boolean } };
+  assert.deepEqual(update.where, { id: { in: ['old-1', 'old-2'] } });
+  assert.equal(update.data.isActive, false);
+});
+
+test('within the cap no token is deactivated', async () => {
+  let updated = false;
+  const tx = {
+    deviceToken: {
+      findMany: async () => [],
+      updateMany: async () => {
+        updated = true;
+        return { count: 0 };
+      },
+    },
+  };
+
+  await deactivateSurplusDeviceTokens(tx as never, 'u1');
+
+  assert.equal(updated, false);
+});
 
 function makeRequest(url: string, body: unknown, shouldThrow = false) {
   return {

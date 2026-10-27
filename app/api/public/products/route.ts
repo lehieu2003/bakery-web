@@ -6,6 +6,7 @@ import {
   buildProductAttributeWhere,
   parseAttributeFilters,
 } from '@/lib/product-attributes';
+import { PUBLIC_PRODUCT_OMIT } from '@/lib/products/public-product-query';
 
 const productInclude: Prisma.ProductInclude = {
   categories: {
@@ -23,18 +24,31 @@ const productInclude: Prisma.ProductInclude = {
   },
 };
 
+type FindProductsArgs = {
+  where: Record<string, unknown>;
+  skip: number;
+  take: number;
+  orderBy: Record<string, unknown>[];
+};
+
+export function publicProductsFindManyArgs({ where, skip, take, orderBy }: FindProductsArgs) {
+  return {
+    where,
+    omit: PUBLIC_PRODUCT_OMIT,
+    include: productInclude,
+    skip,
+    take,
+    orderBy,
+  };
+}
+
 type ActiveCategoryRow = { id: string; parentId: string | null };
 
 type PublicProductsRouteDeps = {
   parseAttributeFilters: typeof parseAttributeFilters;
   buildProductAttributeWhere: typeof buildProductAttributeWhere;
   listActiveCategories: () => Promise<ActiveCategoryRow[]>;
-  findProducts: (args: {
-    where: Record<string, unknown>;
-    skip: number;
-    take: number;
-    orderBy: Record<string, unknown>[];
-  }) => Promise<unknown[]>;
+  findProducts: (args: FindProductsArgs) => Promise<unknown[]>;
   countProducts: (args: { where: Record<string, unknown> }) => Promise<number>;
 };
 
@@ -64,14 +78,7 @@ const defaultDeps: PublicProductsRouteDeps = {
         return rows;
       });
   },
-  findProducts: ({ where, skip, take, orderBy }) =>
-    prisma.product.findMany({
-      where,
-      include: productInclude,
-      skip,
-      take,
-      orderBy,
-    }),
+  findProducts: (args) => prisma.product.findMany(publicProductsFindManyArgs(args)),
   countProducts: ({ where }) => prisma.product.count({ where }),
 };
 

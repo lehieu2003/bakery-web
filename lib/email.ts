@@ -10,6 +10,35 @@ interface EmailProvider {
 }
 
 /**
+ * Stand-in for a mail transport during development: prints the email.
+ * In production it fails closed instead — the body can carry a live OTP,
+ * which must never land in server logs, and the caller must learn that
+ * nothing was delivered.
+ */
+export function logEmailWithoutTransport(
+  label: string,
+  to: string,
+  subject: string,
+  html: string,
+  isProduction = process.env.NODE_ENV === 'production',
+): boolean {
+  if (isProduction) {
+    console.error(
+      `[EmailService] No mail transport configured in production (MAIL_USER / MAIL_PASS); email "${subject}" to ${to} was not sent.`,
+    );
+    return false;
+  }
+
+  console.log('=====================================');
+  console.log(label);
+  console.log('To:', to);
+  console.log('Subject:', subject);
+  console.log('Body:', html);
+  console.log('=====================================');
+  return true;
+}
+
+/**
  * Nodemailer Email Provider
  */
 class NodemailerProvider implements EmailProvider {
@@ -52,13 +81,7 @@ class NodemailerProvider implements EmailProvider {
       console.warn(
         '[EmailService] SMTP credentials missing (MAIL_USER / MAIL_PASS). Fallback to console output.',
       );
-      console.log('=====================================');
-      console.log('EMAIL SENT (DEV FALLBACK)');
-      console.log('To:', to);
-      console.log('Subject:', subject);
-      console.log('Body:', html);
-      console.log('=====================================');
-      return true;
+      return logEmailWithoutTransport('EMAIL SENT (DEV FALLBACK)', to, subject, html);
     }
 
     try {
@@ -83,23 +106,22 @@ class NodemailerProvider implements EmailProvider {
  */
 class ConsoleEmailProvider implements EmailProvider {
   async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-    console.log('=====================================');
-    console.log('EMAIL SENT (DEV MODE)');
-    console.log('To:', to);
-    console.log('Subject:', subject);
-    console.log('Body:', html);
-    console.log('=====================================');
-    return true;
+    return logEmailWithoutTransport('EMAIL SENT (DEV MODE)', to, subject, html);
   }
 }
 
 /**
  * Email Service - unified interface
  */
-class EmailService {
+export class EmailService {
   private provider: EmailProvider;
 
-  constructor() {
+  constructor(provider?: EmailProvider) {
+    if (provider) {
+      this.provider = provider;
+      return;
+    }
+
     const hasSmtpConfig = Boolean(
       (process.env.MAIL_USER && process.env.MAIL_PASS) ||
       (process.env.SMTP_USER && process.env.SMTP_PASS),
@@ -144,7 +166,13 @@ class EmailService {
       </div>
     `;
 
-    return await this.provider.sendEmail(email, subject, html);
+    // Callers treat a throw as "could not send"; reporting success for an
+    // OTP nobody received would leave the customer stuck.
+    const sent = await this.provider.sendEmail(email, subject, html);
+    if (!sent) {
+      throw new Error('OTP email was not sent');
+    }
+    return true;
   }
 
   /**

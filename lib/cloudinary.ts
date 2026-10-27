@@ -10,6 +10,16 @@ cloudinary.config({
 export { cloudinary };
 
 /**
+ * Uploads are always images. The route only checks the data URL's declared
+ * MIME type, so Cloudinary must not be left to sniff the bytes and store
+ * them as some other resource type ('auto').
+ */
+export const CLOUDINARY_IMAGE_UPLOAD_OPTIONS = {
+  resource_type: 'image',
+  transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+} as const;
+
+/**
  * Upload an image to Cloudinary
  * @param file - Base64 string or file path
  * @param folder - Folder name in Cloudinary (optional)
@@ -27,8 +37,7 @@ export async function uploadToCloudinary(
   try {
     const result = await cloudinary.uploader.upload(file, {
       folder,
-      resource_type: 'auto',
-      transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+      ...CLOUDINARY_IMAGE_UPLOAD_OPTIONS,
     });
 
     return {

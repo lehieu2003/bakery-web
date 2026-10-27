@@ -2,6 +2,20 @@
 
 Các vấn đề đã biết, chưa xử lý. Mỗi mục ghi nguyên nhân, phương án và việc cần làm để quay lại sau.
 
+## Job đối soát coupon chưa được lên lịch (ghi nhận 2026-10-27)
+
+`/api/incentives/reconcile` giải phóng các reservation coupon bị treo (đơn MoMo/VNPay không bao giờ
+thanh toán), nhưng không có lịch nào gọi nó: không có trong `vercel.json`, workflow hay tài liệu. Hệ quả:
+lượt dùng coupon của đơn online bỏ dở không bao giờ được trả lại.
+
+- [ ] Thêm vào `crons` của `vercel.json`. Vercel Cron chỉ gửi `Authorization: Bearer $CRON_SECRET`, nên
+      đặt `INCENTIVES_RECONCILE_TOKEN` bằng cùng giá trị `CRON_SECRET` (route đã nhận Bearer token).
+- [ ] Gói Hobby chỉ cho mỗi cron chạy một lần mỗi ngày; cân nhắc khi chọn ngưỡng
+      `INCENTIVES_RECONCILE_OLDER_THAN_MINUTES`.
+
+Đơn chuyển khoản chưa thanh toán đã có job riêng `/api/cron/expire-unpaid-orders` (chạy hằng ngày
+00:00 giờ VN, hủy đơn sau `UNPAID_BANK_TRANSFER_TTL_HOURS`, trả kho và coupon).
+
 ## Web chậm do DB đặt trên VPS (ghi nhận 2026-10-27)
 
 **Triệu chứng.** Cập nhật sản phẩm trong trang admin mất khoảng 2–3 giây dù vẫn thành công. Các route
@@ -41,7 +55,7 @@ còn số liệu, không gây lỗi.
 
 ### Việc cần làm nếu chọn A
 
-- [ ] Sửa `Dockerfile` sang pnpm. Hiện nó chạy `npm ci` với `package-lock.json` đã cũ nên build thất bại.
+- [x] Sửa `Dockerfile` sang pnpm (đã làm 2026-10-27, xóa `package-lock.json`).
 - [ ] Build image trên GitHub Actions và đẩy lên GHCR; VPS chỉ pull về chạy. VPS hiện tại (1 CPU / 1 GB
       RAM) không đủ để build Next.js, nhưng đủ để chạy (~200–300 MB).
 - [ ] Có tên miền trỏ về VPS, cấu hình nginx + Let's Encrypt cho HTTPS.

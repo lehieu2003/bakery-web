@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { OrderStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { PUBLIC_PRODUCT_CARD_ARGS } from '@/lib/products/public-product-query';
 import { getCurrentUserFromRequest } from '@/lib/session';
 import { handleGetBestSellersRequest } from '@/app/api/public/products/best-sellers/route';
 
@@ -150,17 +151,10 @@ const defaultDeps: PersonalizedProductsDeps = {
     if (productIds.length === 0) return [];
 
     return prisma.product.findMany({
+      ...PUBLIC_PRODUCT_CARD_ARGS,
       where: {
         id: { in: productIds },
         isActive: true,
-      },
-      include: {
-        categories: {
-          include: {
-            category: { select: { id: true, name: true, slug: true } },
-          },
-        },
-        images: { orderBy: { displayOrder: 'asc' } },
       },
     }) as unknown as RecommendationProduct[];
   },

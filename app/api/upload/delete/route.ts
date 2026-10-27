@@ -12,9 +12,13 @@ type UploadDeleteDeps = {
   deleteImage: typeof deleteFromCloudinary;
 };
 
+// Public IDs of storefront images are visible in their URLs, so deleting by
+// public ID must stay with the admins who manage that imagery.
+export const UPLOAD_DELETE_POLICY = RBAC_POLICY_KEYS.ADMIN_ONLY;
+
 const defaultDeps: UploadDeleteDeps = {
   requireUploader: (request) =>
-    requirePolicyFromRequest(request, RBAC_POLICY_KEYS.AUTHENTICATED_USER),
+    requirePolicyFromRequest(request, UPLOAD_DELETE_POLICY),
   deleteImage: deleteFromCloudinary,
 };
 

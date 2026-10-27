@@ -112,9 +112,11 @@ export interface Product {
   shortDescription: string | null;
   price: number;
   comparePrice: number | null;
-  costPrice: number | null;
+  /** Admin API only — public and customer endpoints omit it. */
+  costPrice?: number | null;
   sku: string | null;
-  barcode: string | null;
+  /** Admin API only — public and customer endpoints omit it. */
+  barcode?: string | null;
   stock: number;
   trackStock: boolean;
   weight: number | null;
