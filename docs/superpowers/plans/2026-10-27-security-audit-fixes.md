@@ -123,10 +123,10 @@ Bối cảnh: `app/api/orders/route.ts:436` trừ kho ngay khi tạo đơn. Đơ
 - Modify: `app/api/notifications/device-token/route.ts:60-110`
 - Test: `tests/notifications/*` (mở rộng)
 
-- [ ] **Step 1: Test thất bại** — token > 4096 ký tự → 400; `deviceId`/`appVersion` > 128 → 400; đăng ký token thứ 11 của user → token active cũ nhất bị `isActive: false`.
-- [ ] **Step 2: Chạy FAIL**
-- [ ] **Step 3: Implement** — giới hạn độ dài trong hàm parse; trong transaction sau khi upsert: lấy token active của user theo `updatedAt desc`, vô hiệu hóa từ token thứ 11 trở đi (`MAX_ACTIVE_DEVICE_TOKENS = 10`).
-- [ ] **Step 4: PASS**, **Commit** — `fix(notifications): cap device token size and count per user`
+- [x] **Step 1: Test thất bại** — token > 4096 ký tự → 400; `deviceId`/`appVersion` > 128 → 400; đăng ký token thứ 11 của user → token active cũ nhất bị `isActive: false`.
+- [x] **Step 2: Chạy FAIL**
+- [x] **Step 3: Implement** — giới hạn độ dài trong hàm parse; trong transaction sau khi upsert: lấy token active của user theo `lastRegistered desc`, vô hiệu hóa từ token thứ 11 trở đi (`MAX_ACTIVE_DEVICE_TOKENS = 10`).
+- [x] **Step 4: PASS**, **Commit** — `fix(notifications): cap device token size and count per user`
 
 ### Task 8: Dockerfile dùng pnpm, xóa package-lock.json
 
