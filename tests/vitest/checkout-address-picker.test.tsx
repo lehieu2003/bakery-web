@@ -78,6 +78,8 @@ function buildCartValue() {
     updateQty: vi.fn(),
     clearCart: vi.fn(),
     setCheckoutInfo: vi.fn(),
+    orderSummaryOpen: false,
+    setOrderSummaryOpen: vi.fn(),
   } as ReturnType<typeof useCart>;
 }
 
