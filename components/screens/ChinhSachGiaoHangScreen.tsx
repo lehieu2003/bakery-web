@@ -6,6 +6,7 @@ import {
   Phone,
   AlertCircle,
 } from 'lucide-react';
+import { SHOP_PHONE } from '@/lib/shop-contact';
 
 const shippingZones = [
   {
@@ -176,10 +177,10 @@ export default function ChinhSachGiaoHangScreen() {
           <p className='text-sm text-muted-foreground mt-1'>
             Gọi hotline{' '}
             <a
-              href='tel:19007799'
+              href={`tel:${SHOP_PHONE.tel}`}
               className='text-primary font-semibold hover:underline'
             >
-              1900 779907
+              {SHOP_PHONE.display}
             </a>{' '}
             hoặc nhắn tin qua{' '}
             <a href='#' className='text-primary font-semibold hover:underline'>
