@@ -60,15 +60,15 @@
 ### Task 3: Ẩn giá vốn/mã vạch và sản phẩm đã ẩn khỏi API công khai
 
 **Files:**
-- Create: `lib/products/public-product-omit.ts` — `export const PUBLIC_PRODUCT_OMIT = { costPrice: true, barcode: true } as const satisfies Prisma.ProductOmit;`
+- Create: `lib/products/public-product-query.ts` — `PUBLIC_PRODUCT_OMIT`, `PUBLIC_PRODUCT_CARD_ARGS`, `WISHLIST_PRODUCT_INCLUDE` (route `related` đã dùng `select`, không cần sửa)
 - Modify: `app/api/public/products/route.ts`, `app/api/public/products/[id]/route.ts`, `app/api/public/products/[id]/related/route.ts`, `app/api/public/products/best-sellers/route.ts`, `app/api/public/products/personalized/route.ts`, `app/api/wishlist/route.ts` (2 chỗ `product: { include … }`)
 - Test: các file `tests/products/public-*-route.test.ts`, `best-sellers-route.test.ts`, `personalized-products-route.test.ts` (mở rộng), wishlist test (mới nếu chưa có)
 
-- [ ] **Step 1: Grep consumer** — `grep -rn "costPrice\|barcode" components app/\(shop\) hooks services types ../bakery-mobile/lib` (bỏ qua `app/admin`, `app/api/admin`). Kiểm ngày 2026-10-27: storefront và mobile không đọc; chỉ có type `types/api.types.ts:115-117` khai báo `costPrice`/`barcode` bắt buộc → tách type sản phẩm công khai (không có hai field này) khỏi type admin, cập nhật import nơi dùng.
-- [ ] **Step 2: Test thất bại** — với deps giả, assert tham số truyền vào prisma có `omit: PUBLIC_PRODUCT_OMIT` (hoặc response không chứa `costPrice`/`barcode`); route `[id]` truyền `isActive: true` trong `where`.
-- [ ] **Step 3: Chạy FAIL**
-- [ ] **Step 4: Implement** — thêm `omit: PUBLIC_PRODUCT_OMIT` cạnh `include` ở mọi truy vấn Product trên; route `[id]`: `where: { isActive: true, OR: [{ id: idOrSlug }, { slug: idOrSlug }] }`.
-- [ ] **Step 5: PASS + typecheck**, **Commit** — `fix(products): stop exposing cost price, barcode and inactive products publicly`
+- [x] **Step 1: Grep consumer** — `grep -rn "costPrice\|barcode" components app/\(shop\) hooks services types ../bakery-mobile/lib` (bỏ qua `app/admin`, `app/api/admin`). Kiểm ngày 2026-10-27: storefront và mobile không đọc; chỉ có type `types/api.types.ts:115-117` khai báo `costPrice`/`barcode` bắt buộc → tách type sản phẩm công khai (không có hai field này) khỏi type admin, cập nhật import nơi dùng.
+- [x] **Step 2: Test thất bại** — với deps giả, assert tham số truyền vào prisma có `omit: PUBLIC_PRODUCT_OMIT` (hoặc response không chứa `costPrice`/`barcode`); route `[id]` truyền `isActive: true` trong `where`.
+- [x] **Step 3: Chạy FAIL**
+- [x] **Step 4: Implement** — thêm `omit: PUBLIC_PRODUCT_OMIT` cạnh `include` ở mọi truy vấn Product trên; route `[id]`: `where: { isActive: true, OR: [{ id: idOrSlug }, { slug: idOrSlug }] }`.
+- [x] **Step 5: PASS + typecheck**, **Commit** — `fix(products): stop exposing cost price, barcode and inactive products publicly`
 
 ### Task 4: Tự hủy đơn chuyển khoản chưa thanh toán sau 24 giờ
 
