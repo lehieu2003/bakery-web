@@ -16,12 +16,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       DIRECT_URL: ${DIRECT_URL}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      CHATBOT_CACHE_TTL_SECONDS: ${CHATBOT_CACHE_TTL_SECONDS:-600}
     depends_on:
-      redis:
-        condition: service_started
       migrate:
         condition: service_completed_successfully
 
@@ -33,7 +28,3 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       DIRECT_URL: ${DIRECT_URL}
     restart: 'no'
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped

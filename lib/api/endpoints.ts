@@ -212,10 +212,6 @@ export const ENDPOINTS = {
     LIST: `${API_BASE}/addresses`,
     DETAIL: (id: string) => `${API_BASE}/addresses/${id}`,
   },
-
-  // ============================================================================
-  // Chatbot API
-  CHATBOT: `${API_BASE}/chat`,
 } as const;
 
 export default ENDPOINTS;
