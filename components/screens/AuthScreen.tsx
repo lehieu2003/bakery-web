@@ -408,9 +408,9 @@ export default function AuthScreen() {
                               {...forgotRegister('newPassword', {
                                 required: 'Vui lòng nhập mật khẩu mới',
                                 minLength: {
-                                  value: 6,
+                                  value: 8,
                                   message:
-                                    'Mật khẩu mới phải có ít nhất 6 ký tự',
+                                    'Mật khẩu mới phải có ít nhất 8 ký tự',
                                 },
                               })}
                               placeholder='Nhập mật khẩu mới'

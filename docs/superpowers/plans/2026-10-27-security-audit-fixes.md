@@ -112,10 +112,10 @@ Bối cảnh: `app/api/orders/route.ts:436` trừ kho ngay khi tạo đơn. Đơ
 - Modify: `app/api/orders/route.ts` (~698), `lib/password.ts:39-50`, `app/api/auth/register/verify/route.ts:49`, `app/api/auth/reset-password/verify/route.ts:73`, `app/api/auth/register/route.ts:63-152`, `app/api/auth/register/verify/route.ts:68-76`
 - Test: `tests/orders/*`, `tests/auth/reset-password-routes.test.ts`, `tests/auth/auth-endpoints.test.ts` (mở rộng)
 
-- [ ] **Step 1: Test thất bại** — (a) `customerEmail: "a@x.com,b@y.com"` → 400; (b) reset mật khẩu 7 ký tự → 400; (c) đăng ký với email đã xác thực và email mới → cùng shape `data` (cùng key, cùng message); (d) register/verify với OTP sai cho email đã xác thực → cùng lỗi như email chưa có.
-- [ ] **Step 2: Chạy FAIL**
-- [ ] **Step 3: Implement** — (a) orders: nếu có `customerEmail` thì `validateEmail` (từ `lib/rate-limit.ts`) + chặn `,` `;`, dùng giá trị `normalized`; (b) `validatePassword` nâng tối thiểu lên 8, dùng ở cả register/verify và reset-password/verify (bỏ kiểm tay); (c) register trả cùng `{ message: 'Nếu email hợp lệ, OTP đã được gửi', email, expiresIn: 300 }` cho mọi nhánh (kiểm ngày 2026-10-27: mobile và `components/`/`hooks/`/`services/` không đọc `expiresIn`/`pending`; grep lại `app/` trước khi bỏ `pending`); (d) register/verify kiểm OTP trước, rồi mới kiểm `emailVerifiedAt`.
-- [ ] **Step 4: PASS**, **Commit** — `fix(auth): unify registration responses and password policy; validate order email`
+- [x] **Step 1: Test thất bại** — (a) `customerEmail: "a@x.com,b@y.com"` → 400; (b) reset mật khẩu 7 ký tự → 400; (c) đăng ký với email đã xác thực và email mới → cùng shape `data` (cùng key, cùng message); (d) register/verify với OTP sai cho email đã xác thực → cùng lỗi như email chưa có.
+- [x] **Step 2: Chạy FAIL**
+- [x] **Step 3: Implement** — (a) orders: nếu có `customerEmail` thì `validateEmail` (từ `lib/rate-limit.ts`) + chặn `,` `;`, dùng giá trị `normalized`; (b) `validatePassword` nâng tối thiểu lên 8, dùng ở cả register/verify và reset-password/verify (bỏ kiểm tay); (c) register trả cùng `{ message: 'Nếu email hợp lệ, OTP đã được gửi', email, expiresIn: 300 }` cho mọi nhánh (kiểm ngày 2026-10-27: mobile và `components/`/`hooks/`/`services/` không đọc `expiresIn`/`pending`; grep lại `app/` trước khi bỏ `pending`); (d) register/verify trả cùng lỗi `OTP không hợp lệ hoặc đã hết hạn` cho email đã xác thực và email không tồn tại (`registerVerifyStateError`), không tiêu OTP. Nhánh VERIFIED của register đi qua cùng rate-limit/cooldown và ghi OTP, chỉ không gửi mail. (a) email đơn hàng đã làm trong commit Task 5. Form quên mật khẩu (`AuthScreen.tsx`) nâng tối thiểu lên 8; form đăng nhập giữ 6 để không khóa tài khoản cũ.
+- [x] **Step 4: PASS**, **Commit** — `fix(auth): unify registration responses and password policy; validate order email`
 
 ### Task 7: Giới hạn token thiết bị
 

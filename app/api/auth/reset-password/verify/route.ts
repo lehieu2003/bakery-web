@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyOtp } from '@/lib/otp';
 import { checkAuthRateLimit, validateEmail } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
-import { hashPassword } from '@/lib/password';
+import { hashPassword, validatePassword } from '@/lib/password';
 import {
   applyPasswordReset,
   buildResetPasswordVerifySuccessData,
@@ -70,10 +70,11 @@ export async function handleResetPasswordVerifyRequest(
 
   const normalizedEmail = validation.normalized!;
 
-  if (newPassword.length < 6) {
+  const passwordCheck = validatePassword(newPassword);
+  if (!passwordCheck.valid) {
     return {
       status: 400,
-      body: { success: false, error: 'Mật khẩu phải có ít nhất 6 ký tự' },
+      body: { success: false, error: passwordCheck.message },
     };
   }
 

@@ -33,8 +33,10 @@ export async function verifyPassword(
   });
 }
 
+export const MIN_PASSWORD_LENGTH = 8;
+
 /**
- * Validate password strength
+ * Validate password strength — the one policy for registration and reset.
  */
 export function validatePassword(password: string): {
   valid: boolean;
@@ -44,10 +46,10 @@ export function validatePassword(password: string): {
     return { valid: false, message: 'Mật khẩu không được để trống' };
   }
 
-  if (password.length < 6) {
+  if (password.length < MIN_PASSWORD_LENGTH) {
     return {
       valid: false,
-      message: 'Mật khẩu phải có ít nhất 6 ký tự',
+      message: `Mật khẩu phải có ít nhất ${MIN_PASSWORD_LENGTH} ký tự`,
     };
   }
 
