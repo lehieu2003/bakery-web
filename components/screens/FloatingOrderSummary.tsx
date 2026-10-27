@@ -1,18 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useCart } from '@/lib/cart-store';
 import { ShoppingBag, X, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
 import { formatVND } from '@/lib/admin-data';
+import { hasOrderSummary } from '@/lib/order-summary';
 
 export function FloatingOrderSummary() {
   const pathname = usePathname();
-  const { cart, removeFromCart, updateQty, clearCart } = useCart();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isBouncing, setIsBouncing] = useState(false);
+  const {
+    cart,
+    removeFromCart,
+    updateQty,
+    clearCart,
+    orderSummaryOpen: isOpen,
+    setOrderSummaryOpen: setIsOpen,
+  } = useCart();
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const cartTotal = cart.reduce(
@@ -21,71 +27,25 @@ export function FloatingOrderSummary() {
   );
   const hasItems = cartCount > 0;
 
-  // Trigger brief bounce animation whenever cart items count increases
+  // Escape closes the drawer, like any other dialog.
   useEffect(() => {
-    if (cartCount > 0) {
-      setIsBouncing(true);
-      const timer = setTimeout(() => setIsBouncing(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [cartCount]);
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, setIsOpen]);
 
-  // Don't display on cart or checkout pages where cart is the main view, or admin routes
-  if (
-    pathname === '/cart' ||
-    pathname?.startsWith('/checkout') ||
-    pathname?.startsWith('/admin')
-  ) {
-    return null;
-  }
+  // Leaving for a page without the drawer must not leave it open behind.
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname, setIsOpen]);
+
+  if (!hasOrderSummary(pathname)) return null;
 
   return (
     <>
-      {/* Floating Order Summary Trigger (Fixed right edge, vertically centered).
-          z-30: floats above page content but stays under the navbar drawer (z-40/50)
-          and this component's own overlay (z-50) so it never blocks them.
-          Hidden below sm: the header cart icon covers quick access and the tab
-          would overlap hero content on narrow screens. */}
-      <div
-        className={`fixed right-0 top-1/2 -translate-y-1/2 z-30 hidden sm:block ${
-          isBouncing ? 'animate-bounce' : ''
-        }`}
-      >
-        <button
-          type='button'
-          onClick={() => setIsOpen(true)}
-          aria-label={`Mở đơn hàng hiện tại (${cartCount} món)`}
-          className='flex flex-col items-center gap-2 py-3.5 pl-3 pr-2 bg-primary text-primary-foreground rounded-l-2xl shadow-xl hover:-translate-x-1 transition-all duration-200 cursor-pointer min-w-[52px] border border-r-0 border-white/20'
-        >
-          {/* Bag Icon & Count Badge */}
-          <div className='relative inline-block'>
-            <ShoppingBag className='size-5' />
-            {hasItems && (
-              <span className='absolute -top-2 -right-2.5 bg-destructive text-destructive-foreground text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center border-2 border-primary shadow-sm leading-tight'>
-                {cartCount > 99 ? '99+' : cartCount}
-              </span>
-            )}
-          </div>
-
-          {/* Vertical Text Indicator */}
-          <span
-            className='text-xs font-bold tracking-wider uppercase opacity-90 my-1'
-            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-          >
-            Đơn hàng
-          </span>
-
-          {/* Short Price Preview */}
-          {hasItems && (
-            <span className='text-xs font-bold text-amber-300 bg-black/25 px-1.5 py-0.5 rounded whitespace-nowrap'>
-              {cartTotal >= 1000000
-                ? `${(cartTotal / 1000000).toFixed(1)}Tr`
-                : `${Math.round(cartTotal / 1000)}k`}
-            </span>
-          )}
-        </button>
-      </div>
-
       {/* Backdrop overlay when open */}
       {isOpen && (
         <div
@@ -98,6 +58,8 @@ export function FloatingOrderSummary() {
       {/* Flyout Slide-in Drawer */}
       <aside
         aria-label='Tóm tắt đơn hàng'
+        // Off-screen when closed: keep its controls out of the tab order.
+        inert={!isOpen}
         className={`fixed top-0 right-0 bottom-0 w-full sm:max-w-md bg-card text-card-foreground border-l border-border shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
