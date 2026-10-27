@@ -101,10 +101,10 @@ Bối cảnh: `app/api/orders/route.ts:436` trừ kho ngay khi tạo đơn. Đơ
 - Modify: `app/api/orders/route.ts:950-955`, `lib/incentives/redemption-lifecycle.ts:30-36,195-216`, `app/api/incentives/preview/route.ts:405-415,474`
 - Test: `tests/orders/*` và test incentives liên quan (mở rộng)
 
-- [ ] **Step 1: Test thất bại** — (a) khách vãng lai, cùng SĐT, coupon `perUserLimit: 1` đã dùng 1 lần → bị từ chối; (b) hai lần release chạy chồng (giả lập `updateMany` trả `count: 0` cho lần sau) → `usageLimit` chỉ +1; (c) preview mã TARGETED không dành cho người gọi → cùng thông báo + status như mã không tồn tại; (d) preview vượt rate-limit → 429.
-- [ ] **Step 2: Chạy FAIL**
-- [ ] **Step 3: Implement** — (a) khi không có `user.id`, đếm redemption COMMITTED/RESERVED theo `customerPhone` đã chuẩn hóa (thêm deps `countGuestCommittedIncentiveUsage(incentiveId, phone)`); (b) `updateMany` thêm `state: 'RESERVED'` vào `where`, lấy `count`; chỉ `increment` cho coupon của các bản ghi thực sự chuyển trạng thái (làm từng bản ghi: `updateMany({ where: { id, state: 'RESERVED' } })`, `count === 1` mới cộng); (c) gom các lý do NOT_ASSIGNED / chưa bắt đầu / đã hết hạn của mã không công khai về cùng thông báo `Mã giảm giá không hợp lệ`; thêm `enforceIpRateLimit(request, 'incentives-preview', { maxRequests: 20, windowMs: 10 * 60 * 1000 })`.
-- [ ] **Step 4: PASS**, **Commit** — `fix(incentives): enforce guest per-user limits and close coupon oracles`
+- [x] **Step 1: Test thất bại** — (a) khách vãng lai, cùng SĐT, coupon `perUserLimit: 1` đã dùng 1 lần → bị từ chối; (b) hai lần release chạy chồng (giả lập `updateMany` trả `count: 0` cho lần sau) → `usageLimit` chỉ +1; (c) preview mã TARGETED không dành cho người gọi → cùng thông báo + status như mã không tồn tại; (d) preview vượt rate-limit → 429.
+- [x] **Step 2: Chạy FAIL**
+- [x] **Step 3: Implement** — (a) khi không có `user.id`, `reserveCouponRedemption` đếm redemption COMMITTED/RESERVED theo `order.customerPhone` trong transaction (route đã map lỗi `INCENTIVE_PER_USER_LIMIT_REACHED`); số điện thoại lưu ở dạng chuẩn `normalizeVnPhone`; (b) `updateMany` thêm `state: 'RESERVED'` vào `where`, lấy `count`; chỉ `increment` cho coupon của các bản ghi thực sự chuyển trạng thái (làm từng bản ghi: `updateMany({ where: { id, state: 'RESERVED' } })`, `count === 1` mới cộng); (c) gom các lý do NOT_ASSIGNED / chưa bắt đầu / đã hết hạn của mã không công khai về cùng thông báo `Mã giảm giá không hợp lệ`; thêm `enforceIpRateLimit(request, 'incentives-preview', { maxRequests: 30, windowMs: 10 * 60 * 1000 })` trong `POST` (helper `incentiveFailureMessage` dùng chung cho preview và tạo đơn).
+- [x] **Step 4: PASS**, **Commit** — `fix(incentives): enforce guest per-user limits and close coupon oracles`
 
 ### Task 6: Auth/đơn hàng — email khách, độ dài mật khẩu, dò tài khoản
 

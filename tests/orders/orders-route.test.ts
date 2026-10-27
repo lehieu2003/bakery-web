@@ -154,6 +154,55 @@ test('POST /api/orders rejects invalid Vietnamese phone number', async () => {
   assert.equal(result.body.error, 'Số điện thoại không hợp lệ');
 });
 
+test('POST /api/orders rejects a customer email that is not exactly one address', async () => {
+  for (const customerEmail of [
+    'a@example.com,b@example.com',
+    'a@example.com; b@example.com',
+    'Lan <lan@example.com>',
+    'not-an-email',
+  ]) {
+    const result = await handleCreateOrderRequest(
+      { ...buildPayload('COD'), customerEmail },
+      createDeps(),
+    );
+    assert.equal(result.status, 400, customerEmail);
+    assert.equal(result.body.error, 'Email không hợp lệ');
+  }
+});
+
+test('POST /api/orders stores the normalized phone and email', async () => {
+  const deps = createDeps();
+  let captured: { phone?: string; email?: string | null } = {};
+  deps.createOrderWithItems = async (args: CreateOrderWithItemsArgs) => {
+    captured = { phone: args.customerPhone, email: args.customerEmail };
+    return { id: 'o-contact', orderNumber: 'BK261027CONT', orderItems: [] };
+  };
+
+  const result = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), customerPhone: '+84 909.123.456', customerEmail: ' Lan@Example.com ' },
+    deps,
+  );
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(captured, { phone: '0909123456', email: 'lan@example.com' });
+});
+
+test('POST /api/orders answers an unassigned targeted code like an unknown code', async () => {
+  const deps = withDeps(createDeps(), {
+    findIncentiveByCode: async () =>
+      createIncentiveFixture({ code: 'VIP50', sourceType: 'TARGETED', assignments: [] }),
+    now: () => new Date('2026-04-10T00:00:00.000Z'),
+  });
+
+  const result = await handleCreateOrderRequest(
+    { ...buildPayload('COD'), incentiveCode: 'VIP50' },
+    deps,
+  );
+
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Incentive code "VIP50" is invalid or inactive.');
+});
+
 test('POST /api/orders rejects invalid payment method', async () => {
   const payload = buildPayload('COD') as Mutable<ReturnType<typeof buildPayload>>;
   payload.paymentMethod = 'INVALID' as never;

@@ -60,6 +60,32 @@ type EligibleResult = {
 
 export type IncentiveEligibilityResult = EligibleResult | IneligibleResult;
 
+// Reasons that would tell a caller an unlisted code exists (and when it runs).
+const EXISTENCE_REVEALING_REASONS: ReadonlySet<IneligibleResult['reasonCode']> = new Set([
+  'INVALID_OR_INACTIVE',
+  'NOT_ACTIVE_YET',
+  'EXPIRED',
+  'NOT_ASSIGNED',
+]);
+
+/**
+ * The message shown for an ineligible code. TARGETED/TRIGGERED codes are
+ * unlisted, so their lifecycle failures read exactly like an unknown code;
+ * otherwise the codes could be enumerated through these messages.
+ */
+export function incentiveFailureMessage(
+  incentive: Pick<IncentiveReadModel, 'code' | 'sourceType'>,
+  failure: IneligibleResult,
+): string {
+  if (
+    incentive.sourceType !== 'PUBLIC' &&
+    EXISTENCE_REVEALING_REASONS.has(failure.reasonCode)
+  ) {
+    return `Incentive code "${incentive.code}" is invalid or inactive.`;
+  }
+  return failure.message;
+}
+
 export function asNumber(value: unknown): number {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   if (typeof value === 'string') {

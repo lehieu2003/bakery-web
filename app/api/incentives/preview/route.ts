@@ -8,9 +8,11 @@ import {
 } from '@/lib/membership/rules';
 import {
   evaluateIncentiveEligibility,
+  incentiveFailureMessage,
   normalizeIncentiveCode,
   type IncentiveReadModel,
 } from '@/lib/incentives/policy';
+import { enforceIpRateLimit } from '@/lib/rate-limit';
 import {
   getDeliverySettings as fetchDeliverySettings,
   type DeliverySettings,
@@ -410,7 +412,7 @@ export async function handlePreviewIncentiveRequest(
         status: 400,
         body: {
           success: false,
-          error: evaluation.message,
+          error: incentiveFailureMessage(incentive, evaluation),
         },
       };
     }
@@ -471,7 +473,18 @@ export async function handlePreviewIncentiveRequest(
   };
 }
 
+// Anonymous and accepts five codes per call, so pace it per IP.
+const PREVIEW_RATE_LIMIT = { maxRequests: 30, windowMs: 10 * 60 * 1000 };
+
 export async function POST(request: NextRequest) {
+  const rateLimit = enforceIpRateLimit(request, 'incentives-preview', PREVIEW_RATE_LIMIT);
+  if (!rateLimit.ok) {
+    return NextResponse.json(
+      { success: false, error: 'Quá nhiều yêu cầu. Vui lòng thử lại sau.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+    );
+  }
+
   try {
     const body = await request.json();
     const result = await handlePreviewIncentiveRequest(body, defaultDeps, request);

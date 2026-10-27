@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUserFromRequest } from '@/lib/session';
 import { mapAuthErrorToStatus, requireUserFromRequest } from '@/lib/rbac';
-import { enforceIpRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { enforceIpRateLimit, RATE_LIMITS, validateEmail } from '@/lib/rate-limit';
+import { normalizeVnPhone } from '@/lib/orders/customer-contact';
 import { createMoMoPayment } from '@/lib/payment/momo';
 import { createVNPayPayment } from '@/lib/payment/vnpay';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
@@ -18,6 +19,7 @@ import {
 import {
   asNumber,
   evaluateIncentiveEligibility,
+  incentiveFailureMessage,
   normalizeIncentiveCode,
   type IncentiveReadModel,
 } from '@/lib/incentives/policy';
@@ -471,6 +473,7 @@ const createOrderDeps: CreateOrderRouteDeps = {
             perUserLimit: incentive.perUserLimit,
             orderId: created.id,
             userId: args.userId,
+            customerPhone: args.customerPhone,
             reservedDiscount: incentive.discount,
           });
         }
@@ -713,12 +716,29 @@ export async function handleCreateOrderRequest(
     };
   }
 
-  const cleanPhone = customerPhone.replace(/[\s.-]/g, '');
+  const cleanPhone = normalizeVnPhone(customerPhone);
   if (!VN_PHONE_REGEX.test(cleanPhone)) {
     return {
       status: 400,
       body: { success: false, error: 'Số điện thoại không hợp lệ' },
     };
+  }
+
+  // The address receives the order emails, so it must be exactly one valid
+  // recipient — no lists or display-name syntax.
+  let orderEmail: string | null = null;
+  if (customerEmail !== undefined && customerEmail !== null && customerEmail !== '') {
+    const emailCheck =
+      typeof customerEmail === 'string' && !/[,;<>"]/.test(customerEmail)
+        ? validateEmail(customerEmail.trim())
+        : { valid: false as const };
+    if (!emailCheck.valid || !emailCheck.normalized) {
+      return {
+        status: 400,
+        body: { success: false, error: 'Email không hợp lệ' },
+      };
+    }
+    orderEmail = emailCheck.normalized;
   }
 
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
@@ -973,7 +993,7 @@ export async function handleCreateOrderRequest(
         status: 400,
         body: {
           success: false,
-          error: evaluation.message,
+          error: incentiveFailureMessage(incentive, evaluation),
         },
       };
     }
@@ -1048,8 +1068,8 @@ export async function handleCreateOrderRequest(
       orderNumber,
       userId: user?.id || null,
       customerName,
-      customerPhone,
-      customerEmail: customerEmail || user?.email || null,
+      customerPhone: cleanPhone,
+      customerEmail: orderEmail || user?.email || null,
       customerAddress: deliveryAddress,
       pickupDate,
       subtotal,
@@ -1126,7 +1146,7 @@ export async function handleCreateOrderRequest(
         entityId: order.id,
         correlationKey: `order:${order.id}:status:${orderStatus}`,
         targetUserId: user?.id ?? null,
-        targetEmail: customerEmail || user?.email || null,
+        targetEmail: orderEmail || user?.email || null,
         payload: {
           orderId: order.id,
           orderNumber,
