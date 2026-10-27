@@ -47,6 +47,13 @@ export function createMoMoSignature(rawData: string): string {
 }
 
 export function verifyMoMoCallback(params: Record<string, string>): boolean {
+  // Fail closed: with no secret configured, the "expected" signature is an
+  // empty-key HMAC anyone can compute, so any forged callback would verify.
+  if (!MOMO_CONFIG.secretKey) {
+    console.error('[MoMo] MOMO_SECRET_KEY is not configured; rejecting callback');
+    return false;
+  }
+
   const { signature, ...rest } = params;
 
   // MoMo callback signature fields (sorted alphabetically)
