@@ -134,9 +134,9 @@ Bối cảnh: `app/api/orders/route.ts:436` trừ kho ngay khi tạo đơn. Đơ
 - Delete: `package-lock.json`
 - Modify: `Dockerfile` (stage `deps`, `migrate`, `builder`)
 
-- [ ] **Step 1: Implement** — bật `corepack enable` trong stage `base`; `deps`: copy `package.json pnpm-lock.yaml pnpm-workspace.yaml`, `RUN pnpm install --frozen-lockfile --ignore-scripts`; `migrate`: `pnpm exec prisma migrate deploy`; `builder`: `pnpm build`. Xóa `package-lock.json`.
-- [ ] **Step 2: Kiểm chứng** — `docker build --target runner -t bakery-web:test .` thành công (nếu máy không có Docker → ghi rõ vào PR là chưa kiểm).
-- [ ] **Step 3: Commit** — `build(docker): install with pnpm and drop stale package-lock`
+- [x] **Step 1: Implement** — bật `corepack enable` trong stage `base`; `deps`: copy `package.json pnpm-lock.yaml pnpm-workspace.yaml`, `RUN pnpm install --frozen-lockfile --ignore-scripts`; `migrate`: `pnpm exec prisma migrate deploy`; `builder`: `pnpm build`. Xóa `package-lock.json`.
+- [x] **Step 2: Kiểm chứng** — `docker build --target deps` thành công (pnpm 12.6.0 qua `corepack install`). Stage `builder` chưa build: `next build` cần biến môi trường thật (và DB cho sitemap).
+- [x] **Step 3: Commit** — `build(docker): install with pnpm and drop stale package-lock`
 
 ### Task 9: Hardening rẻ cho các mục needs_validation
 
