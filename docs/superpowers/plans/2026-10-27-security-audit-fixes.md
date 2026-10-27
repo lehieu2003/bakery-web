@@ -144,10 +144,10 @@ Bối cảnh: `app/api/orders/route.ts:436` trừ kho ngay khi tạo đơn. Đơ
 - Modify: `app/api/chat/route.ts:222-266`, `lib/email.ts:61,92`, `app/api/public/merch-impressions/route.ts`, `app/api/auth/login/route.ts:30`, `app/api/orders/route.ts:1014`, `lib/cloudinary.ts:30`
 - Test: `tests/chat-route-cache.test.ts`, `tests/products/merch-impressions-route.test.ts`, `tests/auth/auth-endpoints.test.ts`, `tests/orders/*`, `tests/products/upload-route.test.ts` (mở rộng)
 
-- [ ] **Step 1: Test thất bại** — (a) chat `message` 1001 ký tự hoặc `history` 11 mục hoặc `history` sai kiểu → 400; (b) `NODE_ENV=production` không có SMTP → `sendEmail` trả `false`; (c) merch-impressions chỉ log field whitelist, body > 4 KB → 413; (d) login có `Origin` khác `NEXT_PUBLIC_APP_URL` → 403, không có `Origin` (mobile) → cho qua, `Content-Type` không phải JSON → 415; (e) đơn có `customerAddress` mà `deliveryMethod` ≠ `'delivery'` → tính phí giao hàng (hoặc bỏ địa chỉ khi pickup — chọn theo UI checkout hiện tại); (f) upload gọi Cloudinary với `resource_type: 'image'`.
-- [ ] **Step 2: Chạy FAIL**
-- [ ] **Step 3: Implement** từng mục theo test; mỗi mục một commit nhỏ.
-- [ ] **Step 4: PASS**, **Commit** — `fix(security): harden chat input, email fallback, impressions log, login origin, delivery fee, upload type`
+- [x] **Step 1: Test thất bại** — (a) chat `message` > 1000 ký tự → 400; `history` giữ 10 mục gần nhất, bỏ mục sai kiểu, cắt nội dung > 2000 (client web/mobile gửi toàn bộ hội thoại nên không trả 400); (b) `NODE_ENV=production` không có SMTP → `sendEmail` trả `false`; (c) merch-impressions chỉ log field whitelist, body > 4 KB → 413; (d) login có `Origin` khác `NEXT_PUBLIC_APP_URL` → 403, không có `Origin` (mobile) → cho qua, `Content-Type` không phải JSON → 415; (e) phí giao hàng: **không đổi** — thiết kế có chủ đích, đã có test chốt (`orders-route.test.ts`: "absent deliveryMethod is never charged the fee, even with an address", "pickup with a saved address is never charged"); preview cũng không tính phí khi thiếu `deliveryMethod`, thu phí ở bước tạo đơn sẽ vượt tổng tiền đã hiển thị; (f) upload gọi Cloudinary với `resource_type: 'image'`.
+- [x] **Step 2: Chạy FAIL**
+- [x] **Step 3: Implement** từng mục theo test; mỗi mục một commit nhỏ.
+- [x] **Step 4: PASS**, **Commit** — `fix(security): harden chat input, email fallback, impressions log, login origin, delivery fee, upload type`
 
 ### Task 10: Verify tổng + cập nhật báo cáo
 

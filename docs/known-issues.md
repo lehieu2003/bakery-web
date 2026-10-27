@@ -55,7 +55,7 @@ còn số liệu, không gây lỗi.
 
 ### Việc cần làm nếu chọn A
 
-- [ ] Sửa `Dockerfile` sang pnpm. Hiện nó chạy `npm ci` với `package-lock.json` đã cũ nên build thất bại.
+- [x] Sửa `Dockerfile` sang pnpm (đã làm 2026-10-27, xóa `package-lock.json`).
 - [ ] Build image trên GitHub Actions và đẩy lên GHCR; VPS chỉ pull về chạy. VPS hiện tại (1 CPU / 1 GB
       RAM) không đủ để build Next.js, nhưng đủ để chạy (~200–300 MB).
 - [ ] Có tên miền trỏ về VPS, cấu hình nginx + Let's Encrypt cho HTTPS.
