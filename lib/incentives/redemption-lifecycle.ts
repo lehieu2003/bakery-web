@@ -125,6 +125,33 @@ export async function commitCouponRedemptionByOrderId(
   return prisma.$transaction(executor);
 }
 
+/**
+ * Reservations that are safe to give back after a timeout: online payments
+ * the customer never completed, and orders already cancelled. COD and bank
+ * transfer orders legitimately stay PENDING until an admin confirms them —
+ * releasing theirs would let the later commit find nothing to count.
+ */
+export function staleCouponReservationsQuery(threshold: Date, batchSize: number) {
+  return {
+    where: {
+      state: 'RESERVED' as const,
+      reservedAt: { lt: threshold },
+      OR: [
+        {
+          order: {
+            status: 'PENDING' as const,
+            paymentMethod: { in: ['MOMO' as const, 'VNPAY' as const] },
+          },
+        },
+        { order: { status: 'CANCELLED' as const } },
+      ],
+    },
+    select: { orderId: true },
+    orderBy: { reservedAt: 'asc' as const },
+    take: batchSize,
+  };
+}
+
 export async function releaseStaleCouponReservations(args?: {
   olderThanMinutes: number;
   now?: Date;
@@ -137,21 +164,9 @@ export async function releaseStaleCouponReservations(args?: {
   const batchSize = Math.max(args?.batchSize ?? 100, 1);
 
   const threshold = new Date(now.getTime() - olderThanMinutes * 60_000);
-  const staleReservations = await prisma.couponRedemption.findMany({
-    where: {
-      state: 'RESERVED',
-      reservedAt: {
-        lt: threshold,
-      },
-    },
-    select: {
-      orderId: true,
-    },
-    orderBy: {
-      reservedAt: 'asc',
-    },
-    take: batchSize,
-  });
+  const staleReservations = await prisma.couponRedemption.findMany(
+    staleCouponReservationsQuery(threshold, batchSize),
+  );
 
   const uniqueOrderIds = Array.from(
     new Set(staleReservations.map((reservation) => reservation.orderId)),
