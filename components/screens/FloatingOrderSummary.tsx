@@ -120,7 +120,12 @@ export function FloatingOrderSummary() {
                   className='pt-3 first:pt-0 flex gap-3.5 items-start'
                 >
                   {/* Item Image */}
-                  <div className='relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-muted border border-border'>
+                  <Link
+                    href={`/products/${item.productId}`}
+                    tabIndex={-1}
+                    aria-hidden='true'
+                    className='block relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-muted border border-border'
+                  >
                     <Image
                       fill
                       sizes='64px'
@@ -128,16 +133,21 @@ export function FloatingOrderSummary() {
                         item.image ||
                         'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=200&q=80'
                       }
-                      alt={item.name}
+                      alt=''
                       className='object-cover'
                     />
-                  </div>
+                  </Link>
 
                   {/* Item Details */}
                   <div className='flex-1 min-w-0'>
                     <div className='flex items-start justify-between gap-2'>
                       <h4 className='text-sm font-semibold text-foreground leading-snug line-clamp-2'>
-                        {item.name}
+                        <Link
+                          href={`/products/${item.productId}`}
+                          className='hover:text-primary transition-colors'
+                        >
+                          {item.name}
+                        </Link>
                       </h4>
                       <button
                         type='button'
