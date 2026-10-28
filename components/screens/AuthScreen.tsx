@@ -12,13 +12,16 @@ import {
 } from '@/hooks/use-auth';
 import type {
   LoginRequest,
+  LoginVerification,
   RegisterVerifyRequest,
   ResetPasswordVerifyRequest,
+  User,
 } from '@/types/api.types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/providers/auth-provider';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
+import LoginVerificationForm from '@/components/auth/LoginVerificationForm';
 
 type Tab = 'login' | 'register';
 
@@ -26,6 +29,15 @@ export default function AuthScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const oauthError = searchParams.get('error');
+  // An admin on a new device: password or Google sign-in emailed a code.
+  const [verification, setVerification] = useState<LoginVerification | null>(
+    () => {
+      const challengeId = searchParams.get('verify');
+      return challengeId
+        ? { challengeId, email: searchParams.get('email') ?? 'email quản trị' }
+        : null;
+    },
+  );
   const { setUser } = useAuth();
   const [tab, setTab] = useState<Tab>('login');
   const loginMutation = useLogin();
@@ -70,18 +82,26 @@ export default function AuthScreen() {
   const regPassword =
     useWatch({ control: registerControl, name: 'password' }) || '';
 
+  const signedIn = (user: User) => {
+    // Update auth provider with user data
+    setUser(user);
+
+    // Navigate based on user role
+    if (user.role === 'ADMIN') {
+      router.push('/admin/dashboard');
+    } else {
+      router.push('/');
+    }
+  };
+
   const onLoginSubmit = (data: LoginRequest) => {
     loginMutation.mutate(data, {
-      onSuccess: (user) => {
-        // Update auth provider with user data
-        setUser(user);
-
-        // Navigate based on user role
-        if (user.role === 'ADMIN') {
-          router.push('/admin/dashboard');
-        } else {
-          router.push('/');
+      onSuccess: (result) => {
+        if (result.kind === 'verify') {
+          setVerification(result);
+          return;
         }
+        signedIn(result.user);
       },
     });
   };
@@ -208,7 +228,16 @@ export default function AuthScreen() {
                   </div>
                 )}
 
-                {!forgotMode ? (
+                {verification ? (
+                  <LoginVerificationForm
+                    verification={verification}
+                    onVerified={signedIn}
+                    onCancel={() => {
+                      setVerification(null);
+                      router.replace('/auth');
+                    }}
+                  />
+                ) : !forgotMode ? (
                   <form
                     onSubmit={handleLoginSubmit(onLoginSubmit)}
                     noValidate

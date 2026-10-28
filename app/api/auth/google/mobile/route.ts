@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllowedGoogleAudiences, upsertGoogleUser } from '@/lib/auth/google-oauth';
 import { createSession, setSessionCookie } from '@/lib/session';
 import { checkAuthRateLimit, getClientIp } from '@/lib/rate-limit';
+import {
+  decideSignIn,
+  pendingSignInResponse,
+  resolveAppDevice,
+  type SessionBinding,
+  type SignInContext,
+  type SignInDecision,
+} from '@/lib/auth/admin-device';
 
 interface MobileGoogleAuthBody {
   idToken?: unknown;
@@ -17,11 +25,14 @@ type GoogleMobileAuthDeps = {
     name?: string;
     picture?: string;
     email_verified: boolean;
-  }) => Promise<{ id: string }>;
+  }) => Promise<{ id: string; email: string; role: string }>;
+  /** Admins: trusted device or an emailed code first (admin-device.ts). */
+  decideSignIn: (ctx: SignInContext) => Promise<SignInDecision>;
   createSession: (
     userId: string,
     userAgent?: string,
     ipAddress?: string,
+    binding?: SessionBinding | null,
   ) => Promise<{
     token: string;
     user: {
@@ -34,7 +45,7 @@ type GoogleMobileAuthDeps = {
       points: number;
     };
   }>;
-  setSessionCookie: (token: string) => Promise<void>;
+  setSessionCookie: (token: string, expiresInDays?: number) => Promise<void>;
 };
 
 const defaultDeps: GoogleMobileAuthDeps = {
@@ -46,6 +57,7 @@ const defaultDeps: GoogleMobileAuthDeps = {
     return response.ok ? ((await response.json()) as Record<string, string>) : null;
   },
   upsertGoogleUser,
+  decideSignIn: (ctx) => decideSignIn(ctx),
   createSession,
   setSessionCookie,
 };
@@ -127,10 +139,21 @@ export async function handleGoogleMobileAuthRequest(
   });
 
   const userAgent = request.headers.get('user-agent') || undefined;
-  const session = await deps.createSession(user.id, userAgent, getClientIp(request));
+  const clientIp = getClientIp(request);
+  const decision = await deps.decideSignIn({
+    user,
+    device: resolveAppDevice(request.headers),
+    userAgent,
+    ipAddress: clientIp,
+  });
+  const pending = pendingSignInResponse(decision);
+  if (pending) return pending;
+  const binding = decision.kind === 'session' ? decision.binding : null;
+
+  const session = await deps.createSession(user.id, userAgent, clientIp, binding);
 
   // Set cookie if possible
-  await deps.setSessionCookie(session.token);
+  await deps.setSessionCookie(session.token, binding?.expiresInDays);
 
   return {
     status: 200,

@@ -8,6 +8,11 @@ import {
 } from '@/lib/auth/google-oauth';
 import { createSession } from '@/lib/session';
 import { getClientIp } from '@/lib/rate-limit';
+import {
+  decideSignIn,
+  resolveClientDevice,
+  setDeviceCookie,
+} from '@/lib/auth/admin-device';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -46,23 +51,48 @@ export async function GET(request: NextRequest) {
     // 3. Find or create user in database
     const user = await upsertGoogleUser(googleUser);
 
-    // 4. Create session
+    // 4. Admins: trusted browser, or the emailed code first
     const userAgent = request.headers.get('user-agent') || undefined;
     const clientIp = getClientIp(request);
-    const { token } = await createSession(user.id, userAgent, clientIp);
+    const device = resolveClientDevice(request);
+    const decision = await decideSignIn({
+      user,
+      device,
+      userAgent,
+      ipAddress: clientIp,
+    });
+    if (decision.kind !== 'session') {
+      const target =
+        decision.kind === 'challenge'
+          ? `${appUrl}/auth?verify=${encodeURIComponent(decision.challengeId)}&email=${encodeURIComponent(decision.maskedEmail)}`
+          : `${appUrl}/auth?error=${encodeURIComponent('Đã gửi quá nhiều mã xác minh. Vui lòng thử lại sau 15 phút.')}`;
+      const pending = NextResponse.redirect(target);
+      pending.cookies.delete(GOOGLE_OAUTH_STATE_COOKIE);
+      setDeviceCookie(pending, device);
+      return pending;
+    }
 
-    // 5. Build response redirecting to home page and set session cookie
+    // 5. Create session
+    const { token } = await createSession(
+      user.id,
+      userAgent,
+      clientIp,
+      decision.binding,
+    );
+
+    // 6. Build response redirecting to home page and set session cookie
     const response = NextResponse.redirect(`${appUrl}/`);
 
     // Delete oauth state cookie
     response.cookies.delete(GOOGLE_OAUTH_STATE_COOKIE);
+    setDeviceCookie(response, device);
 
     // Set bakery_session cookie
     response.cookies.set('bakery_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60, // 30 days
+      maxAge: (decision.binding?.expiresInDays ?? 30) * 24 * 60 * 60,
       path: '/',
     });
 

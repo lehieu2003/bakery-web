@@ -3,11 +3,14 @@
  * Login, register, logout, password reset
  */
 
+import { toast } from 'sonner';
 import http from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import type {
   User,
   LoginRequest,
+  LoginResult,
+  LoginVerifyRequest,
   RegisterRequest,
   RegisterVerifyRequest,
   ResetPasswordRequest,
@@ -19,20 +22,41 @@ export const authService = {
   /**
    * Login with email and password
    */
-  login: async (data: LoginRequest) => {
-    const response = await http.post<{ user: User; token: string }>(
-      ENDPOINTS.AUTH.LOGIN,
-      data,
-      {
-        showSuccessToast: true,
-        successMessage: 'Đăng nhập thành công!',
-        skipAuthRedirect: true, // Don't redirect on 401 - let form handle it
-      },
-    );
+  login: async (data: LoginRequest): Promise<LoginResult> => {
+    const response = await http.post<
+      | { user: User; token: string }
+      | { requiresVerification: true; challengeId: string; email: string }
+    >(ENDPOINTS.AUTH.LOGIN, data, {
+      skipAuthRedirect: true, // Don't redirect on 401 - let form handle it
+    });
+
+    const body = response.data!;
+    // An admin on a device that is not trusted yet: a code was emailed.
+    if ('requiresVerification' in body) {
+      return { kind: 'verify', challengeId: body.challengeId, email: body.email };
+    }
 
     // Session persists via the HttpOnly `bakery_session` cookie set by the
     // server (Set-Cookie). The token in the response body is for non-browser
     // (mobile Bearer) clients only — the browser never stores it.
+    toast.success('Đăng nhập thành công!');
+    return { kind: 'signedIn', user: body.user };
+  },
+
+  /**
+   * Completes an admin sign-in on a new device with the emailed code; this
+   * browser becomes the trusted one.
+   */
+  verifyLogin: async (data: LoginVerifyRequest) => {
+    const response = await http.post<{ user: User; token: string }>(
+      ENDPOINTS.AUTH.LOGIN_VERIFY,
+      data,
+      {
+        showSuccessToast: true,
+        successMessage: 'Đã xác minh thiết bị. Đăng nhập thành công!',
+        skipAuthRedirect: true,
+      },
+    );
     return response.data!.user;
   },
 

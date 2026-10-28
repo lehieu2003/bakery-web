@@ -7,6 +7,7 @@
 export {
   useUser,
   useLogin,
+  useVerifyLogin,
   useLogout,
   useRegister,
   useRegisterVerify,

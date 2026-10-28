@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 
@@ -190,10 +190,17 @@ export async function handleUpdateProfileRequest(
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const result = await handleGetCurrentUserRequest();
-    return NextResponse.json(result.body, { status: result.status });
+    const response = NextResponse.json(result.body, { status: result.status });
+    // A session cookie that no longer signs in (expired, revoked by a sign-in
+    // on another device) goes, so the cookie-only proxy stops treating the
+    // browser as signed in.
+    if (result.status === 401 && request.cookies.get('bakery_session')) {
+      response.cookies.delete('bakery_session');
+    }
+    return response;
   } catch (error) {
     console.error('Get current user error:', error);
     return NextResponse.json(
