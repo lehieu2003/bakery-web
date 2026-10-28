@@ -28,6 +28,7 @@ type GoogleMobileAuthDeps = {
       id: string;
       email: string;
       name: string | null;
+      phone: string | null;
       role: string;
       memberLevel: string;
       points: number;
@@ -142,6 +143,7 @@ export async function handleGoogleMobileAuthRequest(
           id: session.user.id,
           email: session.user.email,
           name: session.user.name,
+          phone: session.user.phone,
           role: session.user.role,
           memberLevel: session.user.memberLevel,
           points: session.user.points,

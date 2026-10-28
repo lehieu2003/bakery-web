@@ -15,10 +15,16 @@ export { hashSessionToken };
 
 const SESSION_COOKIE_NAME = 'bakery_session';
 const SESSION_EXPIRY_DAYS = 30;
-const USER_SELECT = {
+/**
+ * The user a session carries: what `/api/auth/me` and the login responses
+ * return. Keep profile fields here, or the app shows them empty and a later
+ * profile save sends the blank back.
+ */
+export const USER_SELECT = {
   id: true,
   email: true,
   name: true,
+  phone: true,
   role: true,
   memberLevel: true,
   points: true,
@@ -56,18 +62,7 @@ export async function createSession(
       ipAddress,
     },
     include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          memberLevel: true,
-          points: true,
-          emailVerifiedAt: true,
-          isActive: true,
-        },
-      },
+      user: { select: USER_SELECT },
     },
   });
 
