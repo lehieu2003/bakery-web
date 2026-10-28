@@ -39,7 +39,12 @@ export default function AdminRoleGuard({
         });
 
         if (!response.ok) {
-          if (!cancelled) router.replace('/');
+          // Signed out (expired, or signed out by another device): back to
+          // the admin sign-in. /api/auth/me dropped the dead cookie, so the
+          // proxy no longer bounces /admin/login to the dashboard.
+          if (!cancelled) {
+            router.replace(response.status === 401 ? '/admin/login' : '/');
+          }
           return;
         }
 

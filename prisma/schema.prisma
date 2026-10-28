@@ -124,26 +124,28 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  sessions             Session[]
-  orders               Order[]
-  addresses            Address[]
-  reviews              Review[]
-  wishlist             Wishlist[]
-  blogPosts            BlogPost[]
-  blogComments         BlogComment[]
-  notificationsCreated Notification[]
-  notificationsTargeted Notification[] @relation("NotificationTarget")
-  notificationReads    NotificationRead[]
-  notificationDispatches NotificationDispatch[]
-  deviceTokens         DeviceToken[]
-  pushNotificationLogs PushNotificationLog[]
-  couponAssignments    CouponAssignment[] @relation("CouponAssignee")
-  issuedCouponAssignments CouponAssignment[] @relation("CouponIssuer")
-  couponRedemptions    CouponRedemption[]
-  couponAuditLogs      CouponAuditLog[]   @relation("CouponAuditActor")
-  productAuditLogs     ProductAuditLog[]  @relation("ProductAuditActor")
-  orderAuditLogs       OrderAuditLog[]    @relation("OrderAuditActor")
-  settingAuditLogs     SettingAuditLog[]  @relation("SettingAuditActor")
+  sessions                Session[]
+  trustedDevices          TrustedDevice[]
+  loginChallenges         LoginChallenge[]
+  orders                  Order[]
+  addresses               Address[]
+  reviews                 Review[]
+  wishlist                Wishlist[]
+  blogPosts               BlogPost[]
+  blogComments            BlogComment[]
+  notificationsCreated    Notification[]
+  notificationsTargeted   Notification[]         @relation("NotificationTarget")
+  notificationReads       NotificationRead[]
+  notificationDispatches  NotificationDispatch[]
+  deviceTokens            DeviceToken[]
+  pushNotificationLogs    PushNotificationLog[]
+  couponAssignments       CouponAssignment[]     @relation("CouponAssignee")
+  issuedCouponAssignments CouponAssignment[]     @relation("CouponIssuer")
+  couponRedemptions       CouponRedemption[]
+  couponAuditLogs         CouponAuditLog[]       @relation("CouponAuditActor")
+  productAuditLogs        ProductAuditLog[]      @relation("ProductAuditActor")
+  orderAuditLogs          OrderAuditLog[]        @relation("OrderAuditActor")
+  settingAuditLogs        SettingAuditLog[]      @relation("SettingAuditActor")
 
   cart Cart?
 
@@ -162,9 +164,64 @@ model Session {
   userAgent String?
   ipAddress String?
 
+  /// "web" | "mobile"; set for admin sessions, which must be bound to a
+  /// trusted device (lib/auth/admin-device.ts).
+  platform     String?
+  /// SHA-256 of the client's device id, never the raw id.
+  deviceIdHash String?
+
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, platform, revokedAt])
+}
+
+/// The one device per platform an admin may sign in from. Signing in from
+/// another device needs an emailed code, and that device then replaces this
+/// one (its sessions are revoked).
+model TrustedDevice {
+  id String @id @default(cuid())
+
+  userId       String
+  platform     String
+  /// SHA-256 of the client's device id.
+  deviceIdHash String
+
+  /// Browser / phone description from the user agent, for the admin.
+  label  String?
+  lastIp String?
+
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+}
+
+/// A pending admin sign-in from an untrusted device, completed by the
+/// emailed code (POST /api/auth/login/verify).
+model LoginChallenge {
+  id String @id @default(cuid())
+
+  userId       String
+  platform     String
+  deviceIdHash String
+
+  otpHash  String
+  attempts Int    @default(0)
+
+  userAgent String?
+  ipAddress String?
+
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model OtpVerification {
@@ -443,7 +500,7 @@ model ProductAuditLog {
   createdAt DateTime @default(now())
 
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  actor   User?   @relation("ProductAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actor   User?    @relation("ProductAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([productRefId, createdAt(sort: Desc)])
   @@index([actorUserId, createdAt(sort: Desc)])
@@ -517,11 +574,11 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  user       User?       @relation(fields: [userId], references: [id])
-  orderItems OrderItem[]
-  payment    Payment?
+  user              User?              @relation(fields: [userId], references: [id])
+  orderItems        OrderItem[]
+  payment           Payment?
   couponRedemptions CouponRedemption[]
-  auditLogs  OrderAuditLog[]
+  auditLogs         OrderAuditLog[]
 }
 
 model OrderItem {
@@ -629,7 +686,7 @@ model Coupon {
   minOrder    Decimal?
   maxDiscount Decimal?
 
-  usageLimit Int?
+  usageLimit   Int?
   perUserLimit Int?
 
   scopeProductIds  String[] @default([])
@@ -651,14 +708,14 @@ model Coupon {
 model CouponAssignment {
   id String @id @default(cuid())
 
-  couponId String
-  userId   String?
+  couponId   String
+  userId     String?
   issuedById String?
 
   targetSegment MemberLevel?
   isActive      Boolean      @default(true)
 
-  issuedAt  DateTime @default(now())
+  issuedAt  DateTime  @default(now())
   expiresAt DateTime?
 
   createdAt DateTime @default(now())
@@ -682,8 +739,8 @@ model CouponRedemption {
 
   state CouponRedemptionState @default(RESERVED)
 
-  reservedDiscount Decimal  @db.Decimal(10, 2)
-  reservedAt       DateTime @default(now())
+  reservedDiscount Decimal   @db.Decimal(10, 2)
+  reservedAt       DateTime  @default(now())
   committedAt      DateTime?
   releasedAt       DateTime?
   releaseReason    String?
@@ -817,10 +874,10 @@ model Banner {
 model Notification {
   id String @id @default(cuid())
 
-  title   String
-  content String
+  title    String
+  content  String
   imageUrl String?
-  linkUrl String?
+  linkUrl  String?
 
   audience     NotificationAudience @default(GLOBAL)
   targetUserId String?
@@ -913,11 +970,11 @@ model PushNotificationLog {
   userId String?
   token  String?
 
-  eventType   String
+  eventType      String
   correlationKey String?
-  status      String
-  error       String?
-  metadata    Json?
+  status         String
+  error          String?
+  metadata       Json?
 
   createdAt DateTime @default(now())
 
@@ -1063,9 +1120,8 @@ model SettingAuditLog {
   // `admin_action:<entity>:<id>` keys that never exist in the Setting table,
   // and audit history must survive setting deletion. The physical FK was
   // dropped in migration 20260930_drop_settingauditlog_fk.
-  actor   User?   @relation("SettingAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actor User? @relation("SettingAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([settingKey, createdAt(sort: Desc)])
   @@index([actorUserId, createdAt(sort: Desc)])
 }
-

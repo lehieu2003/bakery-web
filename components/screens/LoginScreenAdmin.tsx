@@ -7,13 +7,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLogin } from '@/hooks/use-auth';
 import { useAuth } from '@/providers/auth-provider';
-import type { LoginRequest } from '@/types/api.types';
+import LoginVerificationForm from '@/components/auth/LoginVerificationForm';
+import type { LoginRequest, LoginVerification, User } from '@/types/api.types';
 
 export default function LoginScreenAdmin() {
   const router = useRouter();
   const { setUser } = useAuth();
   const loginMutation = useLogin();
   const [showPassword, setShowPassword] = useState(false);
+  const [verification, setVerification] = useState<LoginVerification | null>(
+    null,
+  );
 
   const {
     register,
@@ -21,11 +25,19 @@ export default function LoginScreenAdmin() {
     formState: { errors },
   } = useForm<LoginRequest>();
 
+  const signedIn = (user: User) => {
+    setUser(user);
+    router.push(user.role === 'ADMIN' ? '/admin/dashboard' : '/');
+  };
+
   const onSubmit = (data: LoginRequest) => {
     loginMutation.mutate(data, {
-      onSuccess: (user) => {
-        setUser(user);
-        router.push(user.role === 'ADMIN' ? '/admin/dashboard' : '/');
+      onSuccess: (result) => {
+        if (result.kind === 'verify') {
+          setVerification(result);
+          return;
+        }
+        signedIn(result.user);
       },
     });
   };
@@ -51,6 +63,13 @@ export default function LoginScreenAdmin() {
             </p>
           </div>
 
+          {verification ? (
+            <LoginVerificationForm
+              verification={verification}
+              onVerified={signedIn}
+              onCancel={() => setVerification(null)}
+            />
+          ) : (
           <form
             onSubmit={handleSubmit(onSubmit)}
             noValidate
@@ -145,6 +164,7 @@ export default function LoginScreenAdmin() {
               {loginMutation.isPending ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>

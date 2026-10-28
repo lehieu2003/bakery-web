@@ -1,3 +1,4 @@
+import type { SignInDecision } from '@/lib/auth/admin-device';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleGoogleMobileAuthRequest } from '@/app/api/auth/google/mobile/route';
@@ -30,8 +31,12 @@ function makeDeps(
     fetchTokenInfo: async () => validTokenInfo as Record<string, string>,
     upsertGoogleUser: async (info: { sub: string; email: string }) => {
       upserted.push(info);
-      return { id: 'u1' };
+      return { id: 'u1', email: info.email, role: 'CUSTOMER' };
     },
+    decideSignIn: async (): Promise<SignInDecision> => ({
+      kind: 'session',
+      binding: null,
+    }),
     createSession: async () => ({
       token: 'raw-session-token',
       user: {
@@ -156,3 +161,46 @@ test('google mobile auth is rate limited per IP', async () => {
   assert.equal(blocked.status, 429);
   assert.ok(Number(blocked.headers?.['Retry-After']) > 0);
 });
+
+test('google mobile auth asks an admin on a new phone for the emailed code', async () => {
+  __resetIpRateLimitForTests();
+  let sessionCreated = false;
+  const { deps } = makeDeps({
+    decideSignIn: async () => ({
+      kind: 'challenge',
+      challengeId: 'ch-1',
+      maskedEmail: 'a***n@bakery.vn',
+      expiresAt: new Date('2026-10-28T10:10:00.000Z'),
+    }),
+    createSession: async () => {
+      sessionCreated = true;
+      throw new Error('no session before the code');
+    },
+  });
+
+  const result = await handleGoogleMobileAuthRequest(
+    mobileRequest({ idToken: 'id' }),
+    deps,
+  );
+
+  assert.equal(result.status, 202);
+  assert.equal(sessionCreated, false);
+  const body = result.body as { data: { requiresVerification: boolean; challengeId: string } };
+  assert.equal(body.data.requiresVerification, true);
+  assert.equal(body.data.challengeId, 'ch-1');
+});
+
+test('google mobile auth tells an admin on an old app build to update', async () => {
+  __resetIpRateLimitForTests();
+  const { deps } = makeDeps({
+    decideSignIn: async () => ({ kind: 'update_app' }),
+  });
+
+  const result = await handleGoogleMobileAuthRequest(
+    mobileRequest({ idToken: 'id' }),
+    deps,
+  );
+
+  assert.equal(result.status, 403);
+});
+
