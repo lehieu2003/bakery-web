@@ -9,6 +9,7 @@ import React, {
   useCallback,
 } from 'react';
 import { useAuth } from '@/providers/auth-provider';
+import { notifyAddedToCart } from '@/lib/cart-toast';
 import {
   GUEST_CART_STORAGE_KEY,
   clampCartQuantityWithDelta,
@@ -115,6 +116,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCart((prev) => {
       return mergeCartItems(prev, [normalizedItem]);
     });
+    notifyAddedToCart(normalizedItem, () => setOrderSummaryOpen(true));
   }, []);
 
   const replaceCart = useCallback((items: CartItem[]) => {
