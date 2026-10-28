@@ -71,6 +71,7 @@ function buildCartValue() {
   return {
     user: null,
     cart: [],
+    cartReady: true,
     checkoutInfo: null,
     addToCart: vi.fn(),
     replaceCart: vi.fn(),

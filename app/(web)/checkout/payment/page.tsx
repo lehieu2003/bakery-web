@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import CheckoutPaymentScreen from '@/components/screens/CheckoutPaymentScreen';
+import { CheckoutCartGuard } from '@/components/screens/CheckoutCartGuard';
 
 export const metadata: Metadata = {
   title: 'Thanh toán',
@@ -11,5 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default function CheckoutPaymentPage() {
-  return <CheckoutPaymentScreen />;
+  return (
+    <CheckoutCartGuard>
+      <CheckoutPaymentScreen />
+    </CheckoutCartGuard>
+  );
 }

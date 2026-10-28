@@ -81,20 +81,28 @@ export default function CartScreen() {
                     key={item.id}
                     className='bg-card rounded-2xl border border-border/50 p-5 flex gap-5'
                   >
-                    <div className='relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-secondary'>
+                    <Link
+                      href={`/products/${item.productId}`}
+                      tabIndex={-1}
+                      aria-hidden='true'
+                      className='block relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-secondary'
+                    >
                       <Image
                         src={item.image}
-                        alt={item.name}
+                        alt=''
                         fill
-                        className='object-cover'
+                        className='object-cover transition-transform duration-300 hover:scale-105'
                       />
-                    </div>
+                    </Link>
                     <div className='flex-1 min-w-0'>
                       <div className='flex items-start justify-between gap-4'>
                         <div>
-                          <p className='font-sans text-base font-semibold text-foreground'>
+                          <Link
+                            href={`/products/${item.productId}`}
+                            className='font-sans text-base font-semibold text-foreground hover:text-primary transition-colors'
+                          >
                             {item.name}
-                          </p>
+                          </Link>
                           {item.variantName && (
                             <p className='text-sm text-muted-foreground mt-0.5'>
                               {item.variantName}

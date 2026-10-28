@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import CheckoutInfoScreen from '@/components/screens/CheckoutInfoScreen';
+import { CheckoutCartGuard } from '@/components/screens/CheckoutCartGuard';
 
 export const metadata: Metadata = {
   title: 'Thông tin giao hàng',
@@ -11,5 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default function CheckoutInfoPage() {
-  return <CheckoutInfoScreen />;
+  return (
+    <CheckoutCartGuard>
+      <CheckoutInfoScreen />
+    </CheckoutCartGuard>
+  );
 }
