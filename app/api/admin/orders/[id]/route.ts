@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import type { OrderStatus, UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { mapAuthErrorToStatus } from '@/lib/rbac';
@@ -6,6 +6,7 @@ import { requireAdmin } from '@/lib/session';
 import { applyCouponLifecycleForOrderStatus } from '@/lib/incentives/redemption-lifecycle';
 import { writeOrderAuditLogWithClient } from '@/lib/order-audit';
 import { cancelOrderAndRestoreStock } from '@/lib/orders/stock';
+import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -57,6 +58,8 @@ type OrderByIdDeps = {
     payload: OrderPatchPayload;
     metadata: OrderPatchMetadata;
   }) => Promise<OrderDetailRow>;
+  /** Tells the customer (in-app + push) their order moved to a new status. */
+  notifyStatusChange?: (order: OrderDetailRow) => void;
 };
 
 const ORDER_STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
@@ -176,6 +179,32 @@ const defaultDeps: OrderByIdDeps = {
 
       return updatedOrder as OrderDetailRow;
     }),
+  notifyStatusChange: (order) => {
+    const userId = typeof order.userId === 'string' ? order.userId : null;
+    const orderNumber =
+      typeof order.orderNumber === 'string' ? order.orderNumber : null;
+    // Guest orders have no account to notify in-app or by push.
+    if (!userId) return;
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    // after(): send once the admin has their response, without the
+    // serverless function being frozen mid-send.
+    after(() =>
+      dispatchNotificationEvent({
+        eventType: 'ORDER_STATUS_CHANGED',
+        entityId: order.id,
+        correlationKey: `order:${order.id}:status:${order.status}`,
+        targetUserId: userId,
+        payload: {
+          orderId: order.id,
+          orderNumber,
+          orderStatus: order.status,
+          linkUrl: orderNumber ? `${appUrl}/orders/${orderNumber}` : null,
+        },
+      }).catch((error) => {
+        console.error('Order status notification dispatch error:', error);
+      }),
+    );
+  },
 };
 
 
@@ -319,6 +348,10 @@ export async function handleAdminOrderPatchRequest(
     payload: parsed.payload,
     metadata: parsed.metadata,
   });
+
+  if (parsed.payload.status !== undefined) {
+    deps.notifyStatusChange?.(order);
+  }
 
   return { status: 200, body: { success: true, data: { order } } };
 }

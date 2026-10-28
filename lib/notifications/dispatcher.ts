@@ -1,7 +1,11 @@
 import { Prisma, type NotificationDispatchStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { emailService } from '@/lib/email';
-import { sendTransactionalPushNotification } from '@/lib/notifications/firebase';
+import {
+  ANNOUNCEMENTS_TOPIC,
+  sendTopicPushNotification,
+  sendTransactionalPushNotification,
+} from '@/lib/notifications/firebase';
 
 export type NotificationEventType =
   | 'ORDER_STATUS_CHANGED'
@@ -58,6 +62,13 @@ type NotificationDispatchDeps = {
   }) => Promise<boolean>;
   isPushEnabled: () => boolean;
   findActiveDeviceTokens: (userId: string) => Promise<string[]>;
+  sendTopicPush: (args: {
+    topic: string;
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+    imageUrl?: string | null;
+  }) => Promise<unknown>;
   sendPush: (args: {
     tokens: string[];
     title: string;
@@ -134,18 +145,14 @@ function buildNotificationMessage(event: NotificationDispatchEvent): {
       typeof payload.orderNumber === 'string' ? payload.orderNumber : null;
     const orderStatus =
       typeof payload.orderStatus === 'string' ? payload.orderStatus : 'UPDATED';
-    const normalizedStatus = orderStatus.toUpperCase();
-    const title =
-      normalizedStatus === 'CONFIRMED'
-        ? 'Order Confirmed'
-        : normalizedStatus === 'CANCELLED'
-          ? 'Order Update: Cancelled'
-          : 'Order Update';
-    const orderLabel = orderNumber ? ` #${orderNumber}` : '';
+    const { title, content } = orderStatusMessage(
+      orderStatus.toUpperCase(),
+      orderNumber ? `#${orderNumber}` : 'của bạn',
+    );
 
     return {
       title,
-      content: `Your order${orderLabel} is now ${normalizedStatus}.`,
+      content,
       subject: title,
       linkUrl: typeof payload.linkUrl === 'string' ? payload.linkUrl : null,
       imageUrl: typeof payload.imageUrl === 'string' ? payload.imageUrl : null,
@@ -156,12 +163,12 @@ function buildNotificationMessage(event: NotificationDispatchEvent): {
     const displayName =
       typeof payload.userName === 'string' && payload.userName.trim()
         ? payload.userName.trim()
-        : 'there';
+        : 'bạn';
 
     return {
-      title: 'Account Verified',
-      content: `Hi ${displayName}, your account has been verified successfully.`,
-      subject: 'Account verification completed',
+      title: 'Tài khoản đã được xác minh',
+      content: `Chào ${displayName}, tài khoản của bạn đã được xác minh thành công.`,
+      subject: 'Xác minh tài khoản thành công',
       linkUrl: typeof payload.linkUrl === 'string' ? payload.linkUrl : null,
       imageUrl: typeof payload.imageUrl === 'string' ? payload.imageUrl : null,
     };
@@ -170,11 +177,11 @@ function buildNotificationMessage(event: NotificationDispatchEvent): {
   const campaignTitle =
     typeof payload.campaignTitle === 'string' && payload.campaignTitle.trim()
       ? payload.campaignTitle.trim()
-      : 'Campaign Update';
+      : 'Thông báo từ tiệm';
   const campaignContent =
     typeof payload.campaignContent === 'string' && payload.campaignContent.trim()
       ? payload.campaignContent.trim()
-      : 'A new campaign update is now available.';
+      : 'Tiệm có thông báo mới dành cho bạn.';
 
   return {
     title: campaignTitle,
@@ -183,6 +190,53 @@ function buildNotificationMessage(event: NotificationDispatchEvent): {
     linkUrl: typeof payload.linkUrl === 'string' ? payload.linkUrl : null,
     imageUrl: typeof payload.imageUrl === 'string' ? payload.imageUrl : null,
   };
+}
+
+/**
+ * What the customer reads (push, in-app, email subject) when their order
+ * moves to [status]. [orderLabel] is `#BK…` or a generic fallback.
+ */
+export function orderStatusMessage(
+  status: string,
+  orderLabel: string,
+): { title: string; content: string } {
+  switch (status) {
+    case 'PENDING':
+      return {
+        title: 'Đã nhận đơn hàng',
+        content: `Đơn ${orderLabel} đã được ghi nhận, tiệm sẽ xác nhận sớm.`,
+      };
+    case 'CONFIRMED':
+      return {
+        title: 'Đơn hàng đã được xác nhận',
+        content: `Đơn ${orderLabel} đã được xác nhận và sắp được chuẩn bị.`,
+      };
+    case 'PROCESSING':
+      return {
+        title: 'Đang chuẩn bị đơn hàng',
+        content: `Tiệm đang chuẩn bị đơn ${orderLabel}.`,
+      };
+    case 'READY':
+      return {
+        title: 'Đơn hàng đã sẵn sàng',
+        content: `Đơn ${orderLabel} đã sẵn sàng để nhận hoặc giao.`,
+      };
+    case 'COMPLETED':
+      return {
+        title: 'Đơn hàng đã hoàn tất',
+        content: `Cảm ơn bạn! Đơn ${orderLabel} đã hoàn tất.`,
+      };
+    case 'CANCELLED':
+      return {
+        title: 'Đơn hàng đã bị huỷ',
+        content: `Đơn ${orderLabel} đã bị huỷ. Liên hệ tiệm nếu bạn cần hỗ trợ.`,
+      };
+    default:
+      return {
+        title: 'Cập nhật đơn hàng',
+        content: `Đơn ${orderLabel} vừa được cập nhật.`,
+      };
+  }
 }
 
 function buildEmailHtml(args: {
@@ -319,6 +373,7 @@ const defaultDeps: NotificationDispatchDeps = {
     return records.map((record) => record.token);
   },
   sendPush: sendTransactionalPushNotification,
+  sendTopicPush: sendTopicPushNotification,
   deactivateDeviceTokens: async (tokens, now) => {
     if (tokens.length === 0) return;
     await prisma.deviceToken.updateMany({
@@ -431,6 +486,23 @@ const defaultDeps: NotificationDispatchDeps = {
     }
   },
 };
+
+/**
+ * Data sent with a push, read by the app to open the right screen on tap:
+ * the order for ORDER_STATUS_CHANGED, the notifications list otherwise.
+ */
+function pushData(event: NotificationDispatchEvent): Record<string, string> {
+  const data: Record<string, string> = {
+    eventType: event.eventType,
+    entityId: event.entityId,
+    correlationKey: event.correlationKey,
+  };
+  const orderNumber = event.payload?.orderNumber;
+  if (typeof orderNumber === 'string' && orderNumber) {
+    data.orderNumber = orderNumber;
+  }
+  return data;
+}
 
 export async function processNotificationDispatch(
   event: NotificationDispatchEvent,
@@ -551,11 +623,7 @@ export async function processNotificationDispatch(
             title: message.title,
             body: message.content,
             linkUrl: message.linkUrl,
-            data: {
-              eventType: event.eventType,
-              entityId: event.entityId,
-              correlationKey: event.correlationKey,
-            },
+            data: pushData(event),
           });
           pushSuccessfulTokens = result.successfulTokens;
           pushPermanentFailureTokens = result.permanentFailureTokens;
@@ -588,6 +656,25 @@ export async function processNotificationDispatch(
       pushDelivered = true;
     }
 
+    // Shop-wide announcements go to every install through one topic message,
+    // not a fan-out over every user's tokens.
+    let topicPushSent = false;
+    if (deps.isPushEnabled() && event.eventType === 'CAMPAIGN_TRIGGERED') {
+      try {
+        await deps.sendTopicPush({
+          topic: ANNOUNCEMENTS_TOPIC,
+          title: message.title,
+          body: message.content,
+          imageUrl: message.imageUrl,
+          data: pushData(event),
+        });
+        topicPushSent = true;
+      } catch (error) {
+        pushDelivered = false;
+        pushError = getErrorMessage(error);
+      }
+    }
+
     const deliveredInApp = inAppRequested ? inAppDelivered : true;
     const deliveredEmail = emailRequested ? emailDelivered : true;
     const delivered = deliveredInApp && deliveredEmail && pushDelivered;
@@ -595,7 +682,9 @@ export async function processNotificationDispatch(
       [
         createdNotificationId || inAppDelivered ? 'IN_APP' : null,
         emailDelivered ? 'EMAIL' : null,
-        pushAttemptedTokens.length > 0 && pushDelivered ? 'PUSH' : null,
+        (pushAttemptedTokens.length > 0 && pushDelivered) || topicPushSent
+          ? 'PUSH'
+          : null,
       ]
         .filter(Boolean)
         .join('+') || null;

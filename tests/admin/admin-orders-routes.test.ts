@@ -261,3 +261,58 @@ test('admin order audit handler enforces auth and normalizes pagination', async 
   assert.equal(result.status, 200);
   assert.equal(result.body.success, true);
 });
+
+function patchDeps(notified: Array<{ id: string; status: string }>) {
+  const existing = {
+    id: 'order-1',
+    orderNumber: 'BK1',
+    userId: 'user-1',
+    status: 'CONFIRMED' as const,
+    customerName: 'Alice',
+    customerPhone: '0900000001',
+    customerEmail: 'alice@example.com',
+    customerAddress: '1 Main St',
+  };
+  return {
+    requireAdmin: async () => ({ id: 'admin-1', role: 'ADMIN' as const }),
+    findOrderById: async () => existing,
+    updateOrderWithLifecycleAndAudit: async ({
+      payload,
+    }: {
+      payload: { status?: string; customerName?: string };
+    }) => ({ ...existing, ...payload }) as never,
+    notifyStatusChange: (order: { id: string; status: unknown }) => {
+      notified.push({ id: order.id, status: String(order.status) });
+    },
+  };
+}
+
+test('admin order status change notifies the customer with the new status', async () => {
+  const notified: Array<{ id: string; status: string }> = [];
+
+  const result = await handleAdminOrderPatchRequest(
+    makePatchRequest({ status: 'PROCESSING' }),
+    Promise.resolve({ id: 'order-1' }),
+    patchDeps(notified),
+  );
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(notified, [{ id: 'order-1', status: 'PROCESSING' }]);
+});
+
+test('admin order edits without a status change do not notify', async () => {
+  const notified: Array<{ id: string; status: string }> = [];
+
+  await handleAdminOrderPatchRequest(
+    makePatchRequest({ customerName: 'Alice Nguyen' }),
+    Promise.resolve({ id: 'order-1' }),
+    patchDeps(notified),
+  );
+  await handleAdminOrderPatchRequest(
+    makePatchRequest({ status: 'CONFIRMED' }),
+    Promise.resolve({ id: 'order-1' }),
+    patchDeps(notified),
+  );
+
+  assert.deepEqual(notified, []);
+});
