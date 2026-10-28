@@ -38,6 +38,7 @@ function makeDeps(
         id: 'u1',
         email: 'customer@example.com',
         name: 'Customer',
+        phone: '0901234567',
         role: 'CUSTOMER',
         memberLevel: 'SILVER',
         points: 0,
@@ -125,9 +126,15 @@ test('google mobile auth signs in with a valid id token for this app', async () 
       email_verified: true,
     },
   ]);
-  const body = result.body as { success: boolean; data: { token: string } };
+  const body = result.body as {
+    success: boolean;
+    data: { token: string; user: { phone: string | null } };
+  };
   assert.equal(body.success, true);
   assert.equal(body.data.token, 'raw-session-token');
+  // The app fills the profile form from this user; a missing phone showed
+  // as empty and the next save erased it.
+  assert.equal(body.data.user.phone, '0901234567');
 });
 
 test('google mobile auth is rate limited per IP', async () => {
