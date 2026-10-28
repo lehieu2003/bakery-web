@@ -38,6 +38,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { categoryHrefFromTrail } from '@/lib/category-path';
+import { hasOrderSummary } from '@/lib/order-summary';
 
 interface NavLink {
   label: string;
@@ -50,7 +51,7 @@ interface NavLink {
 }
 
 export default function WebNavbar() {
-  const { user, cart } = useCart();
+  const { user, cart, orderSummaryOpen, setOrderSummaryOpen } = useCart();
   const { isLoading } = useAuth();
   const { data: categoriesData } = useCategories();
   const pathname = usePathname();
@@ -74,6 +75,11 @@ export default function WebNavbar() {
   const readingNotificationIdsRef = useRef<Set<string>>(new Set());
   const [isNavFixed, setIsNavFixed] = useState(false);
   const [navHeight, setNavHeight] = useState(0);
+  const categoryNavRef = useRef<HTMLElement>(null);
+  const [categoryNavEdges, setCategoryNavEdges] = useState({
+    start: false,
+    end: false,
+  });
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
@@ -110,6 +116,36 @@ export default function WebNavbar() {
     enabled: mounted && !!user,
   });
   const wishlistCount = wishlist.length;
+
+  // Which ends of the category strip still have hidden items to scroll to.
+  useEffect(() => {
+    const nav = categoryNavRef.current;
+    if (!nav) return;
+    const update = () => {
+      const start = nav.scrollLeft > 1;
+      const end = nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1;
+      setCategoryNavEdges((prev) =>
+        prev.start === start && prev.end === end ? prev : { start, end },
+      );
+    };
+    update();
+    nav.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    return () => {
+      nav.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
+  }, [categoriesData]);
+
+  const categoryNavMask = useMemo(() => {
+    if (!categoryNavEdges.start && !categoryNavEdges.end) return undefined;
+    const fade = '40px';
+    const gradient = `linear-gradient(to right, ${
+      categoryNavEdges.start ? `transparent, #000 ${fade}` : '#000'
+    }, ${categoryNavEdges.end ? `#000 calc(100% - ${fade}), transparent` : '#000'})`;
+    return { maskImage: gradient, WebkitMaskImage: gradient };
+  }, [categoryNavEdges]);
 
   // Debounce search input
   useEffect(() => {
@@ -668,23 +704,44 @@ export default function WebNavbar() {
               </Popover>
             )}
 
-            <Link
-              href='/cart'
-              className='relative hidden items-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:flex'
-              aria-label={`Giỏ hàng, ${cartCount} sản phẩm`}
-            >
-              <div className='relative'>
-                <ShoppingCart size={26} />
-                {cartCount > 0 && (
-                  <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1'>
+            {/* The cart is reachable from the header at every width; where
+                the order summary drawer exists it opens that, else /cart. */}
+            {(() => {
+              const cartIcon = (
+                <>
+                  <div className='relative'>
+                    <ShoppingCart size={26} />
+                    {cartCount > 0 && (
+                      <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1'>
+                        {cartCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className='hidden md:block text-sm font-medium'>
                     {cartCount}
                   </span>
-                )}
-              </div>
-              <span className='hidden md:block text-sm font-medium'>
-                {cartCount}
-              </span>
-            </Link>
+                </>
+              );
+              const cartClassName =
+                'relative flex min-h-11 min-w-11 items-center justify-center gap-1.5 text-gray-600 hover:text-primary transition-colors md:min-h-0 md:min-w-0';
+              const cartLabel = `Giỏ hàng, ${cartCount} sản phẩm`;
+              return hasOrderSummary(pathname) ? (
+                <button
+                  type='button'
+                  onClick={() => setOrderSummaryOpen(true)}
+                  className={cartClassName}
+                  aria-label={cartLabel}
+                  aria-haspopup='dialog'
+                  aria-expanded={orderSummaryOpen}
+                >
+                  {cartIcon}
+                </button>
+              ) : (
+                <Link href='/cart' className={cartClassName} aria-label={cartLabel}>
+                  {cartIcon}
+                </Link>
+              );
+            })()}
 
             {/* Profile */}
             {mounted && user ? (
@@ -743,10 +800,10 @@ export default function WebNavbar() {
           <div className='mx-auto flex items-center px-4 lg:px-8'>
             <Link
               href='/'
-              className={`mr-4 flex h-12 w-32 flex-shrink-0 items-center transition-all duration-200 ${
+              className={`flex h-12 flex-shrink-0 items-center overflow-hidden transition-all duration-200 ${
                 isNavFixed
-                  ? 'translate-x-0 opacity-100'
-                  : 'pointer-events-none -translate-x-2 opacity-0'
+                  ? 'mr-4 w-32 translate-x-0 opacity-100'
+                  : 'pointer-events-none mr-0 w-0 -translate-x-2 opacity-0'
               }`}
               aria-label='Về trang chủ'
               tabIndex={isNavFixed ? 0 : -1}
@@ -759,8 +816,13 @@ export default function WebNavbar() {
                 className='h-9 w-auto'
               />
             </Link>
+            {/* safe-center: centred while it fits, start-aligned once it
+                overflows, so the first category stays reachable. The edge
+                fades mark the side that still scrolls (scrollbar is hidden). */}
             <nav
-              className='flex flex-1 items-center justify-center overflow-x-auto scrollbar-hide'
+              ref={categoryNavRef}
+              className='flex flex-1 items-center justify-center-safe overflow-x-auto scrollbar-hide'
+              style={categoryNavMask}
               aria-label='Điều hướng danh mục'
             >
               {navLinks.map((link) => (
@@ -772,7 +834,7 @@ export default function WebNavbar() {
                   {/* Top-level nav item */}
                   <Link
                     href={link.href}
-                    className={`flex items-center gap-1 px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                    className={`flex items-center gap-1 px-3 2xl:px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
                       isActive(link.href)
                         ? 'text-primary border-primary'
                         : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
@@ -794,7 +856,7 @@ export default function WebNavbar() {
               ))}
               <Link
                 href='/blog'
-                className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                className={`flex items-center px-3 2xl:px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
                   isActive('/blog')
                     ? 'text-primary border-primary'
                     : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
@@ -804,7 +866,7 @@ export default function WebNavbar() {
               </Link>
               <Link
                 href='/thanh-vien'
-                className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                className={`flex items-center px-3 2xl:px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
                   isActive('/thanh-vien')
                     ? 'text-primary border-primary'
                     : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'
@@ -814,7 +876,7 @@ export default function WebNavbar() {
               </Link>
               <Link
                 href='/store'
-                className={`flex items-center px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+                className={`flex items-center px-3 2xl:px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
                   isActive('/store')
                     ? 'text-primary border-primary'
                     : 'text-gray-700 border-transparent hover:text-primary hover:border-primary'

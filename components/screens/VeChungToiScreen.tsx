@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { MapPin, Clock, Phone, Users, Award, Heart } from 'lucide-react';
+import { SHOP_PHONE } from '@/lib/shop-contact';
 
 const values = [
   {
@@ -27,7 +28,7 @@ const branches = [
     name: 'Phương Loan Bakery',
     address: 'ĐT624, TT. Chợ Chùa, Nghĩa Hành, Quảng Ngãi',
     hours: '8:00 – 21:00',
-    phone: '+84 978 780 176',
+    phone: SHOP_PHONE.display,
   },
 ];
 

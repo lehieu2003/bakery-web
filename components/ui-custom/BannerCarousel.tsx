@@ -5,10 +5,23 @@
 
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Sparkles, ArrowRight } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  ArrowRight,
+  Pause,
+  Play,
+} from 'lucide-react';
 import type { Banner } from '@/types/api.types';
 
 interface BannerCarouselProps {
@@ -29,6 +42,22 @@ const HERO_THEME = {
 
 const ANIMATION_DURATION = 500; // ms
 
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+function subscribeReducedMotion(onChange: () => void) {
+  const query = window.matchMedia(REDUCED_MOTION_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
+    () => false,
+  );
+}
+
 export default function BannerCarousel({
   banners,
   clickable = true,
@@ -36,7 +65,16 @@ export default function BannerCarousel({
 }: BannerCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  // Autoplay rotates only while nobody is looking at a slide: it waits
+  // while the pointer is over the hero or focus is inside it, and stops for
+  // good once the visitor pauses it or moves a slide themselves (WAI-ARIA
+  // carousel pattern). Reduced-motion visitors start paused.
+  const [isHovered, setIsHovered] = useState(false);
+  const [hasFocusWithin, setHasFocusWithin] = useState(false);
+  const [userPaused, setUserPaused] = useState<boolean | null>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const isStopped = userPaused ?? prefersReducedMotion;
+  const isRotating = !isStopped && !isHovered && !hasFocusWithin;
   const touchStartXRef = useRef<number | null>(null);
 
   const total = banners.length;
@@ -54,35 +92,45 @@ export default function BannerCarousel({
     [isAnimating, total],
   );
 
+  // A slide the visitor chose themselves is never rotated away from them.
+  const showSlide = useCallback(
+    (nextIndex: number) => {
+      setUserPaused(true);
+      goToSlide(nextIndex);
+    },
+    [goToSlide],
+  );
+
   const handlePrev = useCallback(() => {
-    goToSlide(currentIndex - 1);
-  }, [currentIndex, goToSlide]);
+    showSlide(currentIndex - 1);
+  }, [currentIndex, showSlide]);
 
   const handleNext = useCallback(() => {
-    goToSlide(currentIndex + 1);
-  }, [currentIndex, goToSlide]);
+    showSlide(currentIndex + 1);
+  }, [currentIndex, showSlide]);
 
-  // Autoplay with pause on hover
   useEffect(() => {
-    if (total <= 1 || isPaused) return;
+    if (total <= 1 || !isRotating) return;
 
     const timer = setInterval(() => {
       goToSlide(currentIndex + 1);
     }, autoPlayInterval);
 
     return () => clearInterval(timer);
-  }, [autoPlayInterval, currentIndex, goToSlide, isPaused, total]);
+  }, [autoPlayInterval, currentIndex, goToSlide, isRotating, total]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft') handlePrev();
-      if (event.key === 'ArrowRight') handleNext();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNext, handlePrev]);
+  // Arrow keys only while focus is inside the hero, never page-wide: a
+  // visitor typing in the search box must keep their caret keys.
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      handlePrev();
+    }
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      handleNext();
+    }
+  };
 
   // Touch swipe handling
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -109,12 +157,19 @@ export default function BannerCarousel({
   return (
     <section
       className='relative w-full overflow-hidden select-none'
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setHasFocusWithin(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setHasFocusWithin(false);
+        }
+      }}
+      onKeyDown={handleKeyDown}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       aria-roledescription='carousel'
-      aria-label='Hero Banners'
+      aria-label='Banner nổi bật'
     >
       {/* 1. BACKGROUND LAYER: roast gradient + ambient radial aura */}
       <div className='absolute inset-0 z-0 overflow-hidden'>
@@ -145,13 +200,18 @@ export default function BannerCarousel({
               <Sparkles
                 size={14}
                 style={{ color: HERO_THEME.accentColor }}
-                className='animate-pulse'
+                className='motion-safe:animate-pulse'
               />
               <span>{HERO_THEME.badgeText}</span>
             </div>
 
-            {/* Content Layer: Heading & Description */}
-            <div className='space-y-4 max-w-2xl'>
+            {/* Content Layer: Heading & Description. Announced only while
+                not rotating, so a screen reader is not interrupted. */}
+            <div
+              className='space-y-4 max-w-2xl'
+              aria-live={isRotating ? 'off' : 'polite'}
+              aria-atomic='true'
+            >
               <p
                 className='text-xs md:text-sm font-semibold tracking-widest uppercase text-white/70 transition-opacity duration-300'
                 style={{ color: HERO_THEME.accentColor }}
@@ -247,6 +307,14 @@ export default function BannerCarousel({
           {/* Arrow Buttons (Bottom Right / Desktop Overlay) */}
           <div className='absolute bottom-6 right-6 md:right-10 z-20 flex items-center gap-2.5'>
             <button
+              type='button'
+              onClick={() => setUserPaused(!isStopped)}
+              aria-label={isStopped ? 'Tự chuyển ảnh' : 'Dừng tự chuyển ảnh'}
+              className='p-3 rounded-full bg-black/30 hover:bg-black/50 text-white/90 hover:text-white border border-white/15 backdrop-blur-md transition-all active:scale-95 hover:border-white/30 cursor-pointer'
+            >
+              {isStopped ? <Play size={18} /> : <Pause size={18} />}
+            </button>
+            <button
               onClick={handlePrev}
               disabled={isAnimating}
               aria-label='Ảnh trước'
@@ -265,21 +333,29 @@ export default function BannerCarousel({
           </div>
 
           {/* Dots / Pill Indicators (Bottom Center/Left) */}
-          <div className='absolute bottom-6 left-6 md:left-10 z-20 flex items-center gap-2'>
+          <div className='absolute bottom-6 left-6 md:left-10 z-20 flex items-center'>
             {banners.map((_, index) => {
               const isActive = index === currentIndex;
               return (
+                // The visible pill stays small; the button around it gives a
+                // 24px target (WCAG 2.5.8).
                 <button
                   key={index}
-                  onClick={() => goToSlide(index)}
+                  type='button'
+                  onClick={() => showSlide(index)}
                   disabled={isAnimating}
                   aria-label={`Ảnh banner ${index + 1}`}
-                  className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                    isActive
-                      ? 'w-7 bg-white shadow-sm'
-                      : 'w-2 bg-white/40 hover:bg-white/70'
-                  }`}
-                />
+                  aria-current={isActive ? 'true' : undefined}
+                  className='group flex h-6 min-w-6 items-center justify-center cursor-pointer'
+                >
+                  <span
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      isActive
+                        ? 'w-7 bg-white shadow-sm'
+                        : 'w-2 bg-white/40 group-hover:bg-white/70'
+                    }`}
+                  />
+                </button>
               );
             })}
           </div>

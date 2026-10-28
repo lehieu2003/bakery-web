@@ -12,6 +12,7 @@ import {
 import { useCategories } from '@/hooks/use-products';
 import { categoryHrefFromTrail } from '@/lib/category-path';
 import type { Category } from '@/types/api.types';
+import { SHOP_PHONE } from '@/lib/shop-contact';
 
 const infoLinks = [
   { label: 'Về chúng tôi', href: '/ve-chung-toi' },
@@ -63,11 +64,11 @@ export default function WebFooter() {
           </div>
           <div className='flex items-center gap-3'>
             <a
-              href='tel:1900779907'
+              href={`tel:${SHOP_PHONE.tel}`}
               className='inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors'
             >
               <Phone size={15} />
-              Gọi 1900 779907
+              Gọi {SHOP_PHONE.display}
             </a>
             <Link
               href='/store'
@@ -168,14 +169,14 @@ export default function WebFooter() {
           <ul className='space-y-4'>
             <li>
               <a
-                href='tel:19007799'
+                href={`tel:${SHOP_PHONE.tel}`}
                 className='flex items-start gap-3 text-sm text-on-roast/75 hover:text-white transition-colors group'
               >
                 <Phone
                   size={15}
                   className='text-primary mt-0.5 shrink-0 group-hover:scale-110 transition-transform'
                 />
-                <span>1900 779907</span>
+                <span>{SHOP_PHONE.display}</span>
               </a>
             </li>
             <li>

@@ -78,6 +78,9 @@ interface CartState {
   updateQty: (id: string, delta: number) => void;
   clearCart: () => void;
   setCheckoutInfo: (info: CheckoutInfo) => void;
+  /** The order summary drawer, opened from the header cart icon. */
+  orderSummaryOpen: boolean;
+  setOrderSummaryOpen: (open: boolean) => void;
 }
 
 const CartContext = createContext<CartState | null>(null);
@@ -87,6 +90,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [checkoutInfo, setCheckoutInfoState] = useState<CheckoutInfo | null>(
     null,
   );
+  const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
   const hasHydratedRef = useRef(false);
   const previousUserIdRef = useRef<string | null>(null);
   const auth = useAuth();
@@ -254,6 +258,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         updateQty,
         clearCart,
         setCheckoutInfo,
+        orderSummaryOpen,
+        setOrderSummaryOpen,
       }}
     >
       {children}
