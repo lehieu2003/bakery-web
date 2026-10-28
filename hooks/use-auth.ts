@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth.service';
 import type {
   LoginRequest,
+  LoginVerifyRequest,
   RegisterRequest,
   RegisterVerifyRequest,
   ResetPasswordRequest,
@@ -57,9 +58,25 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (data: LoginRequest) => authService.login(data),
+    onSuccess: (result) => {
+      if (result.kind === 'signedIn') {
+        queryClient.setQueryData(authKeys.user(), result.user);
+      }
+      // Don't auto-redirect here - let the component handle navigation
+    },
+  });
+}
+
+/**
+ * Hook for the emailed-code step of an admin sign-in on a new device
+ */
+export function useVerifyLogin() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: LoginVerifyRequest) => authService.verifyLogin(data),
     onSuccess: (user) => {
       queryClient.setQueryData(authKeys.user(), user);
-      // Don't auto-redirect here - let the component handle navigation
     },
   });
 }

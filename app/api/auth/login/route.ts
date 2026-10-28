@@ -6,7 +6,17 @@ import {
   validateEmail,
 } from '@/lib/rate-limit';
 import { verifyPassword } from '@/lib/password';
-import { createSession, setSessionCookie } from '@/lib/session';
+import {
+  createSession,
+  setSessionCookie,
+  signInSuccessBody,
+} from '@/lib/session';
+import {
+  decideSignIn,
+  pendingSignInResponse,
+  resolveClientDevice,
+  setDeviceCookie,
+} from '@/lib/auth/admin-device';
 import { prisma } from '@/lib/prisma';
 import { canAuthenticateWithPassword } from '@/lib/auth/login-policy';
 import { checkCredentialRequest } from '@/lib/auth/request-origin';
@@ -101,30 +111,35 @@ export async function POST(request: NextRequest) {
     const clientIp = getClientIp(request);
     resetIpRateLimit(clientIp, 'auth-login');
 
-    // Create session
     const userAgent = request.headers.get('user-agent') || undefined;
 
-    const session = await createSession(user.id, userAgent, clientIp);
+    // Admins: a session only from their trusted device for this platform;
+    // another device gets an emailed code first (lib/auth/admin-device.ts).
+    const device = resolveClientDevice(request);
+    const decision = await decideSignIn({
+      user,
+      device,
+      userAgent,
+      ipAddress: clientIp,
+    });
+    const pending = pendingSignInResponse(decision);
+    if (pending) {
+      const response = NextResponse.json(pending.body, { status: pending.status });
+      setDeviceCookie(response, device);
+      return response;
+    }
+    const binding = decision.kind === 'session' ? decision.binding : null;
+
+    const session = await createSession(user.id, userAgent, clientIp, binding);
 
     // Set session cookie (for server-side validation)
-    await setSessionCookie(session.token);
+    await setSessionCookie(session.token, binding?.expiresInDays);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        message: 'Đăng nhập thành công',
-        token: session.token, // Access token for frontend
-        user: {
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.name,
-          phone: session.user.phone,
-          role: session.user.role,
-          memberLevel: session.user.memberLevel,
-          points: session.user.points,
-        },
-      },
-    });
+    const response = NextResponse.json(
+      signInSuccessBody(session, 'Đăng nhập thành công'),
+    );
+    setDeviceCookie(response, device);
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

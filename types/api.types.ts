@@ -609,6 +609,25 @@ export interface LoginRequest {
   password: string;
 }
 
+/**
+ * An admin signing in from a device that is not their trusted one for this
+ * platform: no session yet, a code was emailed (POST /auth/login/verify).
+ */
+export interface LoginVerification {
+  challengeId: string;
+  /** Masked address the code went to, e.g. "o***r@gmail.com". */
+  email: string;
+}
+
+export type LoginResult =
+  | { kind: 'signedIn'; user: User }
+  | ({ kind: 'verify' } & LoginVerification);
+
+export interface LoginVerifyRequest {
+  challengeId: string;
+  otp: string;
+}
+
 export interface RegisterRequest {
   email: string;
 }

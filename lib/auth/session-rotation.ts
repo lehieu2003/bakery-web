@@ -1,6 +1,12 @@
 import crypto from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { hashSessionToken } from '@/lib/auth/session-hash';
+import {
+  ADMIN_SESSION_DAYS,
+  isAdminSessionBound,
+  type ClientPlatform,
+  type SessionBinding,
+} from '@/lib/auth/admin-device';
 
 const SESSION_EXPIRY_DAYS = 30;
 
@@ -10,13 +16,16 @@ export type RotateSessionDeps = {
     userId: string;
     revokedAt: Date | null;
     expiresAt: Date;
-    user: { isActive: boolean; emailVerifiedAt: Date | null };
+    platform?: string | null;
+    deviceIdHash?: string | null;
+    user: { isActive: boolean; emailVerifiedAt: Date | null; role?: string };
   } | null>;
   revokeSession: (id: string, revokedAt: Date) => Promise<number>;
   createSession: (
     userId: string,
     userAgent?: string,
     ipAddress?: string,
+    binding?: SessionBinding | null,
   ) => Promise<{ token: string; expiresAt: Date }>;
   revokeAllUserSessions: (userId: string) => Promise<void>;
   now: () => Date;
@@ -61,6 +70,26 @@ export async function rotateSession(
     return { status: 'unauthorized' };
   }
 
+  // An admin session stays on its trusted device, with the admin lifetime.
+  const bindingSource = {
+    platform: session.platform ?? null,
+    deviceIdHash: session.deviceIdHash ?? null,
+    user: { role: session.user.role ?? 'CUSTOMER' },
+  };
+  if (!isAdminSessionBound(bindingSource)) {
+    return { status: 'unauthorized' };
+  }
+  const binding: SessionBinding | null =
+    bindingSource.platform && bindingSource.deviceIdHash
+      ? {
+          platform: bindingSource.platform as ClientPlatform,
+          deviceIdHash: bindingSource.deviceIdHash,
+          expiresInDays:
+            ADMIN_SESSION_DAYS[bindingSource.platform as ClientPlatform] ??
+            SESSION_EXPIRY_DAYS,
+        }
+      : null;
+
   const revokedAt = deps.now();
   const revokedCount = await deps.revokeSession(session.id, revokedAt);
   if (revokedCount === 0) {
@@ -73,6 +102,7 @@ export async function rotateSession(
     session.userId,
     input.userAgent,
     input.ipAddress,
+    binding,
   );
 
   return { status: 'rotated', token: created.token, expiresAt: created.expiresAt };
@@ -92,7 +122,9 @@ export function createPrismaRotationDeps() {
           userId: true,
           revokedAt: true,
           expiresAt: true,
-          user: { select: { isActive: true, emailVerifiedAt: true } },
+          platform: true,
+          deviceIdHash: true,
+          user: { select: { isActive: true, emailVerifiedAt: true, role: true } },
         },
       }),
     revokeSession: (id: string, revokedAt: Date) =>
@@ -106,10 +138,12 @@ export function createPrismaRotationDeps() {
       userId: string,
       userAgent?: string,
       ipAddress?: string,
+      binding?: SessionBinding | null,
     ) => {
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(
-        Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+        Date.now() +
+          (binding?.expiresInDays ?? SESSION_EXPIRY_DAYS) * 24 * 60 * 60 * 1000,
       );
       return prisma.session
         .create({
@@ -121,6 +155,8 @@ export function createPrismaRotationDeps() {
             expiresAt,
             userAgent,
             ipAddress,
+            platform: binding?.platform,
+            deviceIdHash: binding?.deviceIdHash,
           },
         })
         .then((created) => ({ token, expiresAt: created.expiresAt }));

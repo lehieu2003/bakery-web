@@ -10,6 +10,7 @@ import {
 } from './auth/session-utils';
 import { hashSessionToken } from './auth/session-hash';
 import { hasPolicyAccess } from './authorization-policy';
+import { isAdminSessionBound, type SessionBinding } from './auth/admin-device';
 
 export { hashSessionToken };
 
@@ -46,11 +47,12 @@ export async function createSession(
   userId: string,
   userAgent?: string,
   ipAddress?: string,
+  /** Admin sessions: the trusted device they belong to, and a shorter life. */
+  binding?: SessionBinding | null,
 ) {
   const token = generateSessionToken();
-  const expiresAt = new Date(
-    Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-  );
+  const expiryDays = binding?.expiresInDays ?? SESSION_EXPIRY_DAYS;
+  const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
   const session = await prisma.session.create({
     data: {
@@ -60,6 +62,8 @@ export async function createSession(
       expiresAt,
       userAgent,
       ipAddress,
+      platform: binding?.platform,
+      deviceIdHash: binding?.deviceIdHash,
     },
     include: {
       user: { select: USER_SELECT },
@@ -71,17 +75,43 @@ export async function createSession(
   return { ...session, token };
 }
 
+/** The JSON body of a successful sign-in (web cookie + app Bearer token). */
+export function signInSuccessBody(
+  session: Awaited<ReturnType<typeof createSession>>,
+  message: string,
+) {
+  return {
+    success: true,
+    data: {
+      message,
+      token: session.token,
+      user: {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        phone: session.user.phone,
+        role: session.user.role,
+        memberLevel: session.user.memberLevel,
+        points: session.user.points,
+      },
+    },
+  };
+}
+
 /**
  * Set session cookie
  */
-export async function setSessionCookie(token: string) {
+export async function setSessionCookie(
+  token: string,
+  expiresInDays: number = SESSION_EXPIRY_DAYS,
+) {
   const cookieStore = await cookies();
 
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: SESSION_EXPIRY_DAYS * 24 * 60 * 60,
+    maxAge: expiresInDays * 24 * 60 * 60,
     path: '/',
   });
 }
@@ -146,8 +176,10 @@ async function getSessionByToken(token: string) {
   }
 
   // Single authentication decision: revoked (consumed by refresh rotation),
-  // expired, or inactive/unverified users can never authenticate.
-  if (!isSessionUsable(session)) {
+  // expired, or inactive/unverified users can never authenticate — nor an
+  // admin session not bound to a trusted device (issued before device
+  // trust, or forged around it).
+  if (!isSessionUsable(session) || !isAdminSessionBound(session)) {
     // Expired sessions are garbage-collected; revoked sessions are kept so
     // a later replay can still be detected (revoke-all defense).
     if (!session.revokedAt && isSessionExpired(session.expiresAt)) {
