@@ -6,7 +6,11 @@ import { CartProvider, useCart, type CartItem } from '@/lib/cart-store';
 import { ADDED_TO_CART_TOAST_ID } from '@/lib/cart-toast';
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn() },
+  toast: { custom: vi.fn(), dismiss: vi.fn() },
+}));
+
+vi.mock('next/image', () => ({
+  default: ({ src }: { src: string }) => <span data-testid='thumb' data-src={src} />,
 }));
 
 vi.mock('@/providers/auth-provider', () => ({
@@ -33,61 +37,56 @@ function AddButton({ item }: { item: CartItem }) {
   );
 }
 
-function renderCart(item: CartItem) {
+/** Adds [item] once, then renders the toast it raised next to the cart. */
+function addAndShowToast(item: CartItem) {
   render(
     <CartProvider>
       <AddButton item={item} />
     </CartProvider>,
   );
-}
-
-type ToastOptions = {
-  id: string;
-  description: string;
-  action: { label: string; onClick: () => void };
-};
-
-function lastToast() {
-  const call = vi.mocked(toast.success).mock.lastCall!;
-  return { title: call[0], options: call[1] as unknown as ToastOptions };
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+  const [renderToast] = vi.mocked(toast.custom).mock.lastCall!;
+  render(<>{(renderToast as (id: string) => React.ReactElement)('t')}</>);
 }
 
 beforeEach(() => {
-  vi.mocked(toast.success).mockClear();
+  vi.mocked(toast.custom).mockClear();
+  vi.mocked(toast.dismiss).mockClear();
   window.localStorage.clear();
 });
 
 describe('adding to cart confirms with a toast', () => {
-  test('names the product and reuses one toast for repeated adds', () => {
-    renderCart(cake);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+  test('shows the photo and name, reusing one toast for repeated adds', () => {
+    addAndShowToast(cake);
     fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
 
-    expect(toast.success).toHaveBeenCalledTimes(2);
-    const { title, options } = lastToast();
-    expect(title).toBe('Đã thêm vào giỏ hàng');
-    expect(options.description).toBe('Bánh kem dâu');
-    expect(options.id).toBe(ADDED_TO_CART_TOAST_ID);
+    expect(toast.custom).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(toast.custom).mock.lastCall![1]).toEqual({
+      id: ADDED_TO_CART_TOAST_ID,
+    });
+    expect(screen.getByText('Đã thêm vào giỏ hàng')).toBeTruthy();
+    expect(screen.getByText('Bánh kem dâu')).toBeTruthy();
+    expect(screen.getByTestId('thumb').dataset.src).toBe('/cake.jpg');
   });
 
   test('shows the quantity when several are added at once', () => {
-    renderCart({ ...cake, quantity: 3 });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
-
-    expect(lastToast().options.description).toBe('3 × Bánh kem dâu');
+    addAndShowToast({ ...cake, quantity: 3 });
+    expect(screen.getByText('3 × Bánh kem dâu')).toBeTruthy();
   });
 
-  test('"Xem giỏ hàng" opens the order summary drawer', () => {
-    renderCart(cake);
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+  test('"Xem giỏ" opens the order summary drawer and closes the toast', () => {
+    addAndShowToast(cake);
     expect(screen.getByText('drawer đóng')).toBeTruthy();
 
-    const { action } = lastToast().options;
-    expect(action.label).toBe('Xem giỏ hàng');
-    act(() => action.onClick());
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Xem giỏ' })));
 
     expect(screen.getByText('drawer mở')).toBeTruthy();
+    expect(toast.dismiss).toHaveBeenCalledWith(ADDED_TO_CART_TOAST_ID);
+  });
+
+  test('the close button dismisses the toast', () => {
+    addAndShowToast(cake);
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng thông báo' }));
+    expect(toast.dismiss).toHaveBeenCalledWith(ADDED_TO_CART_TOAST_ID);
   });
 });
