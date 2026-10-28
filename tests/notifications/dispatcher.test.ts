@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { processNotificationDispatch } from '@/lib/notifications/dispatcher';
+import {
+  orderStatusMessage,
+  processNotificationDispatch,
+} from '@/lib/notifications/dispatcher';
 
 type FakeDispatchRecord = {
   correlationKey: string;
@@ -19,12 +22,24 @@ function createFakeDeps(args?: {
   pushEnabled?: boolean;
   pushTokens?: string[];
   pushFailureMode?: 'all-fail' | 'partial';
+  topicPushFails?: boolean;
 }) {
   const logs: Array<{ event: string; payload: Record<string, unknown> }> = [];
   const dispatches = new Map<string, FakeDispatchRecord>();
   const notifications: Array<{ id: string; title: string; content: string }> = [];
   const emailCalls: Array<{ to: string; subject: string; html: string }> = [];
-  const pushCalls: Array<{ tokens: string[]; title: string; body: string }> = [];
+  const pushCalls: Array<{
+    tokens: string[];
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+  }> = [];
+  const topicPushCalls: Array<{
+    topic: string;
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+  }> = [];
   const deactivatedTokens: Array<{ tokens: string[]; at: Date }> = [];
   const pushLogs: Array<{
     userId: string | null;
@@ -151,6 +166,16 @@ function createFakeDeps(args?: {
           retryableFailureTokens: [],
         };
       },
+      sendTopicPush: async (input: {
+        topic: string;
+        title: string;
+        body: string;
+        data?: Record<string, string>;
+      }) => {
+        topicPushCalls.push(input);
+        if (args?.topicPushFails) throw new Error('fcm_unavailable');
+        return { messageId: 'm-1' };
+      },
       deactivateDeviceTokens: async (tokens: string[], at: Date) => {
         deactivatedTokens.push({ tokens, at });
       },
@@ -173,6 +198,7 @@ function createFakeDeps(args?: {
     },
     getDispatch: (key: string) => dispatches.get(key),
     pushCalls,
+    topicPushCalls,
     deactivatedTokens,
     pushLogs,
   };
@@ -487,4 +513,98 @@ test('dispatcher escapes email html content and strips unsafe CTA links', async 
   assert.equal(html.includes('<script>alert(1)</script>'), false);
   assert.equal(html.includes('<img src=x onerror=alert(1)>'), false);
   assert.equal(html.includes('javascript:alert(1)'), false);
+});
+
+test('order push speaks Vietnamese and carries the order number for the app', async () => {
+  const ctx = createFakeDeps({ pushEnabled: true, pushTokens: ['t1'] });
+
+  await processNotificationDispatch(
+    {
+      eventType: 'ORDER_STATUS_CHANGED',
+      entityId: 'order-1',
+      correlationKey: 'order:order-1:status:READY',
+      targetUserId: 'user-1',
+      payload: { orderNumber: 'BK2610281234', orderStatus: 'READY' },
+    },
+    {},
+    ctx.deps,
+  );
+
+  assert.equal(ctx.pushCalls[0].title, 'Đơn hàng đã sẵn sàng');
+  assert.equal(
+    ctx.pushCalls[0].body,
+    'Đơn #BK2610281234 đã sẵn sàng để nhận hoặc giao.',
+  );
+  assert.deepEqual(ctx.pushCalls[0].data, {
+    eventType: 'ORDER_STATUS_CHANGED',
+    entityId: 'order-1',
+    correlationKey: 'order:order-1:status:READY',
+    orderNumber: 'BK2610281234',
+  });
+  assert.equal(ctx.notifications[0].title, 'Đơn hàng đã sẵn sàng');
+});
+
+test('every order status has its own Vietnamese message', () => {
+  const statuses = ['PENDING', 'CONFIRMED', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED'];
+  const titles = statuses.map((status) => orderStatusMessage(status, '#X').title);
+  assert.equal(new Set(titles).size, statuses.length);
+  assert.equal(orderStatusMessage('SOMETHING_NEW', '#X').title, 'Cập nhật đơn hàng');
+});
+
+test('a published campaign is pushed once to the announcements topic', async () => {
+  const ctx = createFakeDeps({ pushEnabled: true });
+
+  await processNotificationDispatch(
+    {
+      eventType: 'CAMPAIGN_TRIGGERED',
+      entityId: 'notification-9',
+      correlationKey: 'campaign:notification-9:publish:x',
+      payload: { campaignTitle: 'Bánh mới', campaignContent: 'Thử ngay hôm nay' },
+    },
+    {},
+    ctx.deps,
+  );
+
+  assert.equal(ctx.pushCalls.length, 0, 'no per-user token fan-out');
+  assert.equal(ctx.topicPushCalls.length, 1);
+  assert.equal(ctx.topicPushCalls[0].topic, 'announcements');
+  assert.equal(ctx.topicPushCalls[0].title, 'Bánh mới');
+  assert.equal(ctx.topicPushCalls[0].data?.entityId, 'notification-9');
+  assert.equal(ctx.getDispatch('campaign:notification-9:publish:x')?.channel, 'IN_APP+PUSH');
+});
+
+test('campaign topic push is skipped while push is disabled', async () => {
+  const ctx = createFakeDeps({ pushEnabled: false });
+
+  await processNotificationDispatch(
+    {
+      eventType: 'CAMPAIGN_TRIGGERED',
+      entityId: 'notification-10',
+      correlationKey: 'campaign:notification-10:publish:x',
+    },
+    {},
+    ctx.deps,
+  );
+
+  assert.equal(ctx.topicPushCalls.length, 0);
+  assert.equal(ctx.getDispatch('campaign:notification-10:publish:x')?.status, 'SUCCESS');
+});
+
+test('a failed campaign topic push marks the dispatch failed, keeping in-app', async () => {
+  const ctx = createFakeDeps({ pushEnabled: true, topicPushFails: true });
+
+  await processNotificationDispatch(
+    {
+      eventType: 'CAMPAIGN_TRIGGERED',
+      entityId: 'notification-11',
+      correlationKey: 'campaign:notification-11:publish:x',
+    },
+    {},
+    ctx.deps,
+  );
+
+  const dispatch = ctx.getDispatch('campaign:notification-11:publish:x');
+  assert.equal(dispatch?.status, 'FAILED');
+  assert.equal(dispatch?.channel, 'IN_APP');
+  assert.match(String(dispatch?.error), /fcm_unavailable/);
 });

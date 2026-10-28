@@ -5,7 +5,21 @@ import {
   getApps,
   initializeApp,
 } from 'firebase-admin/app';
-import { getMessaging } from 'firebase-admin/messaging';
+import { getMessaging, type AndroidConfig } from 'firebase-admin/messaging';
+
+/**
+ * Android notification channel the app creates on start; must match
+ * `pushChannelId` in bakery-mobile. High priority so the notification shows
+ * right away instead of waiting for the device to wake up.
+ */
+export const ANDROID_PUSH_CHANNEL_ID = 'bakery_default';
+const ANDROID_CONFIG: AndroidConfig = {
+  priority: 'high',
+  notification: { channelId: ANDROID_PUSH_CHANNEL_ID },
+};
+
+/** FCM topic every app install subscribes to, for shop-wide announcements. */
+export const ANNOUNCEMENTS_TOPIC = 'announcements';
 
 type FirebasePushResult = {
   attempted: number;
@@ -49,6 +63,16 @@ function getFirebaseApp(): App | null {
     credential: cert(creds),
     projectId: creds.projectId,
   });
+}
+
+function requireFirebaseApp(): App {
+  const app = getFirebaseApp();
+  if (!app) {
+    throw new Error(
+      'Firebase push is enabled but credentials are missing (FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY)',
+    );
+  }
+  return app;
 }
 
 function isPermanentFailureCode(code?: string) {
@@ -107,19 +131,13 @@ export async function sendTransactionalPushNotification(args: {
     };
   }
 
-  const app = getFirebaseApp();
-  if (!app) {
-    throw new Error(
-      'Firebase push is enabled but credentials are missing (FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY)',
-    );
-  }
-
-  const response = await getMessaging(app).sendEachForMulticast({
+  const response = await getMessaging(requireFirebaseApp()).sendEachForMulticast({
     tokens,
     notification: {
       title: args.title,
       body: args.body,
     },
+    android: ANDROID_CONFIG,
     webpush: args.linkUrl
       ? {
           fcmOptions: {
@@ -144,4 +162,25 @@ export async function sendTransactionalPushNotification(args: {
     permanentFailureTokens,
     retryableFailureTokens,
   };
+}
+
+/** Sends one notification to every device subscribed to [topic]. */
+export async function sendTopicPushNotification(args: {
+  topic: string;
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+  imageUrl?: string | null;
+}): Promise<{ messageId: string }> {
+  const messageId = await getMessaging(requireFirebaseApp()).send({
+    topic: args.topic,
+    notification: {
+      title: args.title,
+      body: args.body,
+      imageUrl: args.imageUrl || undefined,
+    },
+    android: ANDROID_CONFIG,
+    data: args.data,
+  });
+  return { messageId };
 }
