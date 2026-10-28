@@ -72,6 +72,8 @@ export interface CheckoutInfo {
 interface CartState {
   user: User | null;
   cart: CartItem[];
+  /** False until the saved cart has been read back from this browser. */
+  cartReady: boolean;
   checkoutInfo: CheckoutInfo | null;
   addToCart: (item: CartItem) => void;
   replaceCart: (items: CartItem[]) => void;
@@ -92,6 +94,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     null,
   );
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
+  const [cartReady, setCartReady] = useState(false);
   const hasHydratedRef = useRef(false);
   const previousUserIdRef = useRef<string | null>(null);
   const auth = useAuth();
@@ -174,6 +177,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       queueMicrotask(() => {
         hasHydratedRef.current = true;
         previousUserIdRef.current = currentUserId;
+        setCartReady(true);
         setCart(mergedCart);
         setCheckoutInfoState(mergedCheckoutInfo);
       });
@@ -187,6 +191,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       queueMicrotask(() => {
         hasHydratedRef.current = true;
         previousUserIdRef.current = currentUserId;
+        setCartReady(true);
         setCart(guestState.cart);
         setCheckoutInfoState(normalizeCheckoutInfo(guestState.checkoutInfo));
       });
@@ -253,6 +258,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         cart,
+        cartReady,
         checkoutInfo,
         addToCart,
         replaceCart,
