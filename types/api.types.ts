@@ -18,7 +18,6 @@ export type OrderStatus =
 export type MemberLevel = 'SILVER' | 'GOLD' | 'PLATINUM';
 export type DiscountType = 'PERCENTAGE' | 'FIXED';
 export type PaymentMethod = 'COD' | 'BANK_TRANSFER' | 'MOMO' | 'VNPAY';
-export type MenuType = 'CATEGORY' | 'PAGE' | 'LINK';
 export type NotificationStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 export type NotificationAudience = 'GLOBAL' | 'USER';
 export type ProductAttributeType =
@@ -380,31 +379,6 @@ export interface Coupon {
   endAt: string;
   isActive: boolean;
   createdAt: string;
-}
-
-export interface MenuItem {
-  id: string;
-  title: string;
-  url: string | null;
-  parentId: string | null;
-  categoryId: string | null;
-  pageId: string | null;
-  type: MenuType;
-  displayOrder: number;
-  isActive: boolean;
-  children?: MenuItem[];
-  category?: Category;
-  page?: Page;
-}
-
-export interface Page {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  isPublished: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Notification {
@@ -796,28 +770,6 @@ export interface CreateCouponRequest {
 }
 
 export type UpdateCouponRequest = Partial<CreateCouponRequest>;
-
-export interface CreateMenuItemRequest {
-  title: string;
-  url?: string;
-  parentId?: string;
-  categoryId?: string;
-  pageId?: string;
-  type?: MenuType;
-  displayOrder?: number;
-  isActive?: boolean;
-}
-
-export type UpdateMenuItemRequest = Partial<CreateMenuItemRequest>;
-
-export interface CreatePageRequest {
-  title: string;
-  slug: string;
-  content: string;
-  isPublished?: boolean;
-}
-
-export type UpdatePageRequest = Partial<CreatePageRequest>;
 
 export interface CreateNotificationRequest {
   title: string;
