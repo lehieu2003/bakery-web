@@ -90,19 +90,9 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: 'Pages',
-    href: '/admin/pages',
-    icon: <FileText size={16} />,
-  },
-  {
     label: 'Notifications',
     href: '/admin/notifications',
     icon: <Bell size={16} />,
-  },
-  {
-    label: 'Menu',
-    href: '/admin/menu',
-    icon: <Menu size={16} />,
   },
   {
     label: 'Membership',

@@ -102,24 +102,6 @@ export const ENDPOINTS = {
       UPDATE: (id: string) => `${ADMIN_BASE}/coupons/${id}`,
     },
 
-    // Pages
-    PAGES: {
-      LIST: `${ADMIN_BASE}/pages`,
-      DETAIL: (id: string) => `${ADMIN_BASE}/pages/${id}`,
-      CREATE: `${ADMIN_BASE}/pages`,
-      UPDATE: (id: string) => `${ADMIN_BASE}/pages/${id}`,
-      DELETE: (id: string) => `${ADMIN_BASE}/pages/${id}`,
-    },
-
-    // Menu Items
-    MENU: {
-      LIST: `${ADMIN_BASE}/menu`,
-      DETAIL: (id: string) => `${ADMIN_BASE}/menu/${id}`,
-      CREATE: `${ADMIN_BASE}/menu`,
-      UPDATE: (id: string) => `${ADMIN_BASE}/menu/${id}`,
-      DELETE: (id: string) => `${ADMIN_BASE}/menu/${id}`,
-    },
-
     // Blog Posts
     BLOG_POSTS: {
       LIST: `${ADMIN_BASE}/blog/posts`,
@@ -172,9 +154,6 @@ export const ENDPOINTS = {
     BEST_SELLERS: `${API_BASE}/public/products/best-sellers`,
     CATEGORIES: `${API_BASE}/public/categories`,
     BANNERS: `${API_BASE}/public/banners`,
-    PAGES: `${API_BASE}/public/pages`,
-    PAGE_DETAIL: (slug: string) => `${API_BASE}/public/pages/${slug}`,
-    MENU: `${API_BASE}/public/menu`,
 
     // Blog
     BLOG_POSTS: `${API_BASE}/blog/posts`,
