@@ -133,3 +133,20 @@ export function getConfirmationTitle(args: {
 
   return 'Đã nhận đơn';
 }
+
+/** The steps an order moves through, in order, for the customer's progress bar. */
+export const ORDER_PROGRESS_STEPS = [
+  { status: 'PENDING', label: 'Đã đặt' },
+  { status: 'CONFIRMED', label: 'Xác nhận' },
+  { status: 'PROCESSING', label: 'Chuẩn bị' },
+  { status: 'READY', label: 'Sẵn sàng' },
+  { status: 'COMPLETED', label: 'Hoàn thành' },
+] as const;
+
+/**
+ * Index of [status] in [ORDER_PROGRESS_STEPS]: every step up to it is done.
+ * -1 for a cancelled or unknown status, which has no place on the bar.
+ */
+export function getOrderProgressIndex(status: string): number {
+  return ORDER_PROGRESS_STEPS.findIndex((step) => step.status === status);
+}
