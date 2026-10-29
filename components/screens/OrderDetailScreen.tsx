@@ -10,6 +10,7 @@ import {
   toVietnamesePaymentMethodLabel,
   toVietnameseStatusLabel,
 } from '@/lib/orders/presentation';
+import OrderStatusStepper from '@/components/orders/OrderStatusStepper';
 
 function formatVnd(amount: number) {
   return `${Number(amount).toLocaleString('vi-VN')}đ`;
@@ -81,6 +82,10 @@ export default function OrderDetailScreen({
           >
             {toVietnameseStatusLabel(status.label)}
           </span>
+        </div>
+
+        <div className='bg-card rounded-2xl border border-border/50 px-4 py-5 sm:px-6 mb-6'>
+          <OrderStatusStepper status={order.status} />
         </div>
 
         <div className='bg-card rounded-2xl border border-border/50 p-6 mb-6'>
